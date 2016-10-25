@@ -41,7 +41,9 @@ define(["ressources/d3/d3.js"],function(d3){return function HierarchyFinder(cont
 		hierarchy[hierarchy_hash[abs_name]].arr_abs.forEach(function(e,i){
 			if(i>1){
 				var pth="";
-				pth+=hierarchy[hierarchy_hash[abs_name]].splice(1,i-2).join("/");
+				pth+=hierarchy[hierarchy_hash[abs_name]].arr_abs.splice(1,i).join("/");
+				console.log("pth : ");
+				console.log(hierarchy[hierarchy_hash[abs_name]].arr_abs);
 				pth="/"+pth;
 				datas.push(pth);
 			}
