@@ -1,7 +1,58 @@
 define(["ressources/d3/d3.js"],function(d3){return function HierarchyFinder(container_id){
 	var container = d3.select("#"+container_id).append("div").attr("id","hierarchy");
-	getFullPath("/");
-	getChilds("/");
+	var hierarchy=[];
+	var hierarchy_hash={};
+	getHierarchy("/");
+	function getHierarchy(abs_name){
+		if(hierarchy.length==0){
+			d3.json("https://api.executableknowledge.org/iregraph/hierarchy/?include_graphs=false&rules=false",function(response){
+				reqHier(response,"");
+				update(abs_name);
+			});
+		}else update(abs_name);
+	};
+	function reqHier(root,path){
+		path+=(root.name!="/" && path!="/"?"/":"");
+		path+=root.name;
+		var ar_path;
+		if(path=="/") ar_path=["/"];
+		else {
+			ar_path=path.split("/");
+			ar_path[0]="/";
+		}
+		var ch_list=[];
+		root.children.forEach(function(e){ch_list.push(e.name)});
+		hierarchy.push({"name":root.name,"abs":path,"arr_abs":ar_path,"children":ch_list});
+		hierarchy_hash[path]=hierarchy.length-1;
+		if(root.children.length!=0)
+			root.children.forEach(function(e){
+				reqHier(e,path);
+			});
+	};
+	function update(abs_name){
+		var small_hier=hierarchy.filter(function(e){return subPath})
+		updatePathList(abs_name);
+		updateChildList(abs_name);
+	};
+	function updatePathList(abs_name){
+		if(!container.select("#h_select").empty())
+			container.select("#h_select").remove();
+		var datas=
+		container.append("select")
+			.attr("id","h_select")
+			.selectAll("option")
+			.data().enter()
+				.append("option")
+				.text(function(d){return d})
+				.on("click",function(d){return update(d,false)})
+				.attr("selected",function(d,i){return i=path.length-1});
+		
+	};
+	function updateChildList(name){
+		
+	};
+	
+	
 	var update = function(d,absolute){
 		console.log("I will update");
 		var path = container.select("#h_select").selectAll("option").data();
