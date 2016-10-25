@@ -12,16 +12,17 @@ define(["ressources/d3/d3.js"],function(d3){return function HierarchyFinder(cont
 		}else update(abs_name);
 	};
 	function reqHier(root,path){
-		path+=(root.name!="/" && path!="/"?"/":"");
+		path+=(root.name!="/" && path!="/"?"/":"");//fuck this fucking / root !
 		path+=root.name;
 		var ar_path;
-		if(path=="/") ar_path=["/"];
+		if(path=="/") ar_path=["/"];//fuck this fucking / root !
 		else {
 			ar_path=path.split("/");
 			ar_path[0]="/";
 		}
 		var ch_list=[];
-		root.children.forEach(function(e){ch_list.push(e.name)});
+		var sep=path=="/"?"":"/";//fuck this fucking / root !
+		root.children.forEach(function(e){ch_list.push(path+sep+e.name)});
 		hierarchy.push({"name":root.name,"abs":path,"arr_abs":ar_path,"children":ch_list});
 		hierarchy_hash[path]=hierarchy.length-1;
 		if(root.children.length!=0)
@@ -30,77 +31,51 @@ define(["ressources/d3/d3.js"],function(d3){return function HierarchyFinder(cont
 			});
 	};
 	function update(abs_name){
-		var small_hier=hierarchy.filter(function(e){return subPath})
 		updatePathList(abs_name);
 		updateChildList(abs_name);
 	};
 	function updatePathList(abs_name){
 		if(!container.select("#h_select").empty())
 			container.select("#h_select").remove();
-		var datas=
-		container.append("select")
-			.attr("id","h_select")
-			.selectAll("option")
-			.data().enter()
-				.append("option")
-				.text(function(d){return d})
-				.on("click",function(d){return update(d,false)})
-				.attr("selected",function(d,i){return i=path.length-1});
-		
-	};
-	function updateChildList(name){
-		
-	};
-	
-	
-	var update = function(d,absolute){
-		console.log("I will update");
-		var path = container.select("#h_select").selectAll("option").data();
-		//path.splice(path.length-1,1);
-		console.log(path);
-		path.push(d);
-		console.log(path);
-		path=path.join('/');
-		console.log("updating for "+path);
-		container.select("#h_sons").remove();
-		container.select("#h_select").remove();
-		
-		getFullPath(path);
-		getChilds(path);
-	};
-	
-	function getFullPath(path){
-		console.log("getting full path of "+path);
-		var tmp;
-		if(path!="/"){
-			tmp=path.split("/");
-			tmp[0]="/";
-		}else tmp=["/"];
-		var data=tmp.map(function(e,i){var fp=e=="/"?"/":tmp.slice(1,i-2).join("/"); return {'name':e,'abs':fp}});
-		console.log(data);
-		container.append("select")
-			.attr("id","h_select")
-			.selectAll("option")
-			.data(tmp).enter()
-				.append("option")
-				.text(function(d){return d})
-				.on("click",function(d){return update(d,false)})
-				.attr("selected",function(d,i){return i=path.length-1});
-	}
-	function getChilds(path){
-		d3.json("https://api.executableknowledge.org/iregraph/hierarchy"+path+"?include_graphs=false&rules=false",function(rep){
-			console.log("looking for "+path);
-			console.log(rep);
-			var datas=[];
-			rep.children.forEach(function(e){datas.push(e.name)});
-			if (datas.length==0) rep.push("Empty");
-			container.append("ul")
-				.attr("id","h_sons")
-				.selectAll("li")
-				.data(datas).enter().append("li").text(function(d){return d}).on("click",function(d){return update(d,true)});
+		var datas=[];
+		hierarchy[hierarchy_hash[abs_name]].arr_abs.forEach(function(e,i){
+			if(i>1){
+				var pth="";
+				pth+=hierarchy[hierarchy_hash[abs_name]].splice(1,i-2).join("/");
+				pth="/"+pth;
+				datas.push(pth);
+			}
+			if(i==0)
+				datas.push("/");
+			if(i==1)
+				datas.push("/"+e);
 		});
+		console.log("datas");
+		console.log(datas);
+		container.append("select")
+			.attr("id","h_select")
+			.selectAll("option")
+			.data(datas).enter()
+				.append("option")
+				.text(function(d){return hierarchy[hierarchy_hash[d]].name})
+				.on("click",function(d){return update(hierarchy[hierarchy_hash[d]].abs)})
+				.attr("selected",function(d){return hierarchy[hierarchy_hash[d]].abs==abs_name});
 	};
-	
-	
+	function updateChildList(abs_name){
+		if(!container.select("#h_child").empty())
+			container.select("#h_child").remove();
+		var datas=hierarchy[hierarchy_hash[abs_name]].children;
+		console.log("datas");
+		console.log(datas);
+		container.append("ul")
+			.attr("id","h_child")
+			.selectAll("li")
+			.data(datas).enter()
+				.append("li")
+				.text(function(d){return hierarchy[hierarchy_hash[d]].name})
+				.on("click",function(d){return update(hierarchy[hierarchy_hash[d]].abs)})
+				.attr("selected",function(d){return hierarchy[hierarchy_hash[d]].abs==abs_name});
+	}
+
 	
 }; });
