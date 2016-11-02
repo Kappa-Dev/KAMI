@@ -11,7 +11,6 @@ d3.contextMenu = function (menu, openCallback) {
 
 	// this gets executed when a contextmenu event occurs
 	return function(data, index) {
-		//console.log(menu);
 		if(!menu || menu.length==0) {
 			d3.event.preventDefault();
 			d3.event.stopPropagation();

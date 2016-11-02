@@ -1,4 +1,4 @@
-define(["ressources/d3/d3.js","ressources/pathConvert.js"],function(d3,cvt){return function InterractiveGraph(container_id,server_url){
+define(["ressources/d3/d3.js","ressources/Convert.js"],function(d3,cvt){return function InterractiveGraph(container_id,server_url){
 	var svg = d3.select("#"+container_id).append("div").attr("id","interractive_graph").append("svg:svg");
 	this.init = function init(node){
 		svg.selectAll("*").remove();
