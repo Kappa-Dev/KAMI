@@ -1,8 +1,13 @@
-define(["ressources/d3/d3.js","HierarchyFinder.js"],function(d3,HierarchyFinder){
+define(["ressources/d3/d3.js","HierarchyFinder.js","HierarchyUpdater.js","InterractiveGraph.js"],function(d3,HierarchyFinder,HierarchyUpdater,InterractiveGraph){
 	(function pageLoad(){
-		var main_container=d3.select("body").append("div").attr("id","main_container");
-		var hf = new HierarchyFinder("main_container");
-	
+		var server_url = "https://api.executableknowledge.org/iregraph/hierarchy";
+		var main_ct_id = "main_container";
+		var main_container=d3.select("body").append("div").attr("id",main_ct_id);
+		var hf = new HierarchyFinder(main_ct_id,server_url); hf.init("/");
+		var hu = new HierarchyUpdater(main_ct_id,server_url,hf);
+		var svg = new InterractiveGraph(main_ct_id,server_url,hf); svg.init("/");
+		
+		
 	
 	
 	

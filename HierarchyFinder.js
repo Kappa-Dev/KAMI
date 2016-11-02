@@ -1,83 +1,51 @@
-define(["ressources/d3/d3.js"],function(d3){return function HierarchyFinder(container_id){
+define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){return function HierarchyFinder(container_id,server_url){
 	var container = d3.select("#"+container_id).append("div").attr("id","hierarchy");
-	var hierarchy=[];
-	var hierarchy_hash={};
-	getHierarchy("/");
-	function getHierarchy(abs_name){
-		if(hierarchy.length==0){
-			d3.json("https://api.executableknowledge.org/iregraph/hierarchy/?include_graphs=false&rules=false",function(response){
-				reqHier(response,"");
-				update(abs_name);
-			});
-		}else update(abs_name);
+	var hierarchy = new Tree();
+	var h_select = container.append("select").attr("id","h_select");
+	var h_list = container.append("ul").attr("id","h_list");
+	var current_node = null;
+	var self=this;
+	if(!server_url) throw new Error("server url undefined");
+	var srv_url = server_url;
+	this.init = function init(root){
+		h_select.selectAll("*").remove();
+		h_list.selectAll("*").remove();
+		hierarchy = new Tree();
+		loadHierarchy(root);
 	};
-	function reqHier(root,path){
-		path+=(root.name!="/" && path!="/"?"/":"");//fuck this fucking / root !
-		path+=root.name;
-		var ar_path;
-		if(path=="/") ar_path=["/"];//fuck this fucking / root !
-		else {
-			ar_path=path.split("/");
-			ar_path[0]="/";
-		}
-		var ch_list=[];
-		var sep=path=="/"?"":"/";//fuck this fucking / root !
-		root.children.forEach(function(e){ch_list.push(path+sep+e.name)});
-		hierarchy.push({"name":root.name,"abs":path,"arr_abs":ar_path,"children":ch_list});
-		hierarchy_hash[path]=hierarchy.length-1;
-		if(root.children.length!=0)
-			root.children.forEach(function(e){
-				reqHier(e,path);
+	function loadHierarchy (root){
+		var request = d3.json(srv_url+root+"?include_graphs=false&rules=false",function(response){
+				hierarchy.importTree(response,{"id":"name","sons":"children"},null);
+				if(current_node){
+					root=current_node;
+					current_node = null;
+				}
+				update(root);
 			});
 	};
-	function update(abs_name){
-		updatePathList(abs_name);
-		updateChildList(abs_name);
+	this.log = function log(){
+		hierarchy.log();
+		console.log("current node : "+current_node);
 	};
-	function updatePathList(abs_name){
-		if(!container.select("#h_select").empty())
-			container.select("#h_select").remove();
-		var datas=[];
-		hierarchy[hierarchy_hash[abs_name]].arr_abs.forEach(function(e,i){
-			if(i>1){
-				var pth="";
-				pth+=hierarchy[hierarchy_hash[abs_name]].arr_abs.splice(1,i).join("/");
-				console.log("pth : ");
-				console.log(hierarchy[hierarchy_hash[abs_name]].arr_abs);
-				pth="/"+pth;
-				datas.push(pth);
-			}
-			if(i==0)
-				datas.push("/");
-			if(i==1)
-				datas.push("/"+e);
-		});
-		console.log("datas");
-		console.log(datas);
-		container.append("select")
-			.attr("id","h_select")
-			.selectAll("option")
-			.data(datas).enter()
-				.append("option")
-				.text(function(d){return hierarchy[hierarchy_hash[d]].name})
-				.on("click",function(d){return update(hierarchy[hierarchy_hash[d]].abs)})
-				.attr("selected",function(d){return hierarchy[hierarchy_hash[d]].abs==abs_name});
+	function update(new_node){
+		console.log("update : "+new_node);
+		if(new_node == current_node) return;
+		current_node = new_node;
+		h_select.selectAll("*").remove();
+		h_list.selectAll("*").remove();
+		h_select.selectAll("option")
+			.data(hierarchy.getAbsPath(current_node))
+			.enter().append("option")
+				.text(function(d){return d})
+				.on("click",function(d){return update(d)})
+				.attr("selected",function(d){return d==current_node});
+		h_list.selectAll("li")
+			.data(hierarchy.getSons(current_node))
+			.enter().append("li")
+				.text(function(d){return d})
+				.on("click",function(d){return update(d)})
 	};
-	function updateChildList(abs_name){
-		if(!container.select("#h_child").empty())
-			container.select("#h_child").remove();
-		var datas=hierarchy[hierarchy_hash[abs_name]].children;
-		console.log("datas");
-		console.log(datas);
-		container.append("ul")
-			.attr("id","h_child")
-			.selectAll("li")
-			.data(datas).enter()
-				.append("li")
-				.text(function(d){return hierarchy[hierarchy_hash[d]].name})
-				.on("click",function(d){return update(hierarchy[hierarchy_hash[d]].abs)})
-				.attr("selected",function(d){return hierarchy[hierarchy_hash[d]].abs==abs_name});
-	}
-
-	
+	this.getCNode = function getCNode(){
+		return hierarchy.getAbsPath(current_node);
+	};
 }; });
