@@ -14,7 +14,7 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){retu
 		loadHierarchy(root);
 	};
 	function loadHierarchy (root){
-		var request = d3.json(srv_url+root+"?include_graphs=false&rules=false",function(response){
+		var request = d3.json(srv_url+"hierarchy"+root+"?include_graphs=false&rules=false",function(response){
 				hierarchy.importTree(response,{"id":"name","sons":"children"},null);
 				if(current_node){
 					root=current_node;
