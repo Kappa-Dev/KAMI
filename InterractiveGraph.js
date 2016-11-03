@@ -53,8 +53,6 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			simulation.on("tick",function(){
 				console.log("in tick");
 				svg.selectAll("g.node").attr("transform", function(d) {
-					//console.log(d);
-					//console.log(simulation.nodes());
 					d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
 					d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
 					return "translate(" + d.x + "," + d.y + ")"; 

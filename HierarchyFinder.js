@@ -39,7 +39,7 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){retu
 			.data(hierarchy.getAbsPath(current_node))
 			.enter().append("option")
 				.text(function(d){return d})
-				.on("click",function(d){disp.call("statechange",this,hierarchy.getAbsPath(d));return update(d)})
+				.on("click",function(d){console.log("hierarchy clicked : "+d);disp.call("statechange",this,hierarchy.getAbsPath(d));return update(d)})
 				.attr("selected",function(d){return d==current_node});
 		h_list.selectAll("li")
 			.data(hierarchy.getSons(current_node))
