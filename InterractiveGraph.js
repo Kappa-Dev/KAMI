@@ -29,10 +29,10 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 				.on("contextmenu",d3ContextMenu(function(){return edgeCtMenu();}));
 			link.exit().remove();
 			var node = svg.selectAll("g.node")
-				.data(response.nodes, function(d) { return d.id;});
+				.data(response.nodes, function(d) {return d.id;});
 			var node_g = node.enter().insert("g")
 				.classed("node",true)
-				.classed(function(d){return d.ttype;},true)
+				.classed(function(d){return d.ttype?d.ttype:"node";},true)
 				.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu();}));
 		node_g.insert("circle")
 			.attr("r", 20);
@@ -44,9 +44,10 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			.text(function(d) {return d.id})
 			.attr("font-size", "7px");
 		node.exit().remove();
-		simulation.nodes(response.nodes)
-			 .force("charge", d3.forceManyBody())
-			.force("center", d3.forceCenter())
+		simulation.nodes(response.nodes);
+		simulation.force("collision",d3.forceCollide([20])) 
+			.force("center", d3.forceCenter([svg.attr("width")/2,svg.attr("height")/2]))
+			.force("links",d3.forceLink(function(){return response.edges.map(function(e,i){return {source:e.from,target:e.to,index:i}})}))
 			.on("tick",function(){
 				console.log("in tick");
 				svg.selectAll("g.node").attr("transform", function(d) {
