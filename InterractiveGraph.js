@@ -32,7 +32,7 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			var node_g = node.enter().insert("g")
 				.classed("node",true)
 				.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu();}));
-			//.classed(function(d){return d.ttype?d.ttype:"node";},true)
+			svg.selectAll("g.node").each(if(d.type) d3.select(this).classed(d.type,true)});
 		node_g.insert("circle")
 			.attr("r", 20);
 		node_g.insert("text")
