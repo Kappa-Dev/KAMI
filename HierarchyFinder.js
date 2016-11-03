@@ -1,4 +1,5 @@
-define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){return function HierarchyFinder(container_id,server_url){
+define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){return function HierarchyFinder(container_id,server_url,dispatch){
+	var disp = dispatch;
 	var container = d3.select("#"+container_id).append("div").attr("id","hierarchy");
 	var hierarchy = new Tree();
 	var h_select = container.append("select").attr("id","h_select");
@@ -21,6 +22,7 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){retu
 					current_node = null;
 				}
 				update(root);
+				dispatch.call("load",this,[root]);
 			});
 	};
 	this.log = function log(){
@@ -37,15 +39,15 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){retu
 			.data(hierarchy.getAbsPath(current_node))
 			.enter().append("option")
 				.text(function(d){return d})
-				.on("click",function(d){return update(d)})
+				.on("click",function(d){disp.call("statechange",this,hierarchy.getAbsPath(d));return update(d)})
 				.attr("selected",function(d){return d==current_node});
 		h_list.selectAll("li")
 			.data(hierarchy.getSons(current_node))
 			.enter().append("li")
 				.text(function(d){return d})
-				.on("click",function(d){return update(d)})
+				.on("click",function(d){disp.call("statechange",this,hierarchy.getAbsPath(d));return update(d)});		
 	};
 	this.getCNode = function getCNode(){
 		return hierarchy.getAbsPath(current_node);
 	};
-}; });
+}});
