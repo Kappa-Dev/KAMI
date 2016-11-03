@@ -2,6 +2,7 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 	var disp = dispatch;
 	var svg = d3.select("#"+container_id).append("div").classed("interractive_graph",true).append("svg:svg");
 	var size = d3.select("#"+container_id).select(".interractive_graph").node().getBoundingClientRect();
+	var sumulation;
 	svg.attr("preserveAspectRatio", "xMinYMin meet")
 		.attr("height",size.height)
 		.attr("width",size.width)
@@ -9,6 +10,8 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 		.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));
 	this.init = function init(graph){
 		svg.selectAll("*").remove();
+		simulation = d3.forceSimulation();
+		simulation.stop();
 		loadGraph(graph);	
 	};
 	function loadGraph(graph){
@@ -41,6 +44,20 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			.text(function(d) {return d.id})
 			.attr("font-size", "7px");
 		node.exit().remove();
+		simulation.nodes(response.nodes)
+			 .force("charge", d3.forceManyBody())
+			.force("center", d3.forceCenter())
+			.on("tick",function(){
+				console.log("in tick");
+				svg.selectAll("g.node").attr("transform", function(d) {
+					console.log(d);
+					d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
+					d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
+					return "translate(" + d.x + "," + d.y + ")"; 
+				});
+				
+			});
+			simulation.restart();
 		});
 	};
 	function svgMenu(){
