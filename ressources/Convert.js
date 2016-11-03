@@ -3,5 +3,5 @@ define([],function(){return {
 		path[0]="";
 		path.push("");
 		return path.join("/");	
-	};
+	}
 }});
