@@ -3,6 +3,7 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 	var svg = d3.select("#"+container_id).append("div").classed("interractive_graph",true).append("svg:svg");
 	var size = d3.select("#"+container_id).select(".interractive_graph").node().getBoundingClientRect();
 	var sumulation;
+	var node_data;
 	svg.attr("preserveAspectRatio", "xMinYMin meet")
 		.attr("height",size.height)
 		.attr("width",size.width)
@@ -32,8 +33,8 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 				.data(response.nodes, function(d) {return d.id;});
 			var node_g = node.enter().insert("g")
 				.classed("node",true)
-				.classed(function(d){return d.ttype?d.ttype:"node";},true)
 				.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu();}));
+			//.classed(function(d){return d.ttype?d.ttype:"node";},true)
 		node_g.insert("circle")
 			.attr("r", 20);
 		node_g.insert("text")
@@ -44,14 +45,16 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			.text(function(d) {return d.id})
 			.attr("font-size", "7px");
 		node.exit().remove();
+		console.log("Data");
 		simulation.nodes(response.nodes);
-		simulation.force("collision",d3.forceCollide([20])) 
-			.force("center", d3.forceCenter([svg.attr("width")/2,svg.attr("height")/2]))
-			.force("links",d3.forceLink(function(){return response.edges.map(function(e,i){return {source:e.from,target:e.to,index:i}})}))
-			.on("tick",function(){
+//simulation.force("center", d3.forceCenter([300,400]))
+			simulation.force("collision",d3.forceCollide([22]));
+			simulation.force("links",d3.forceLink(function(){return response.edges.map(function(e,i){return {source:e.from,target:e.to,index:i}})}));
+			simulation.on("tick",function(){
 				console.log("in tick");
 				svg.selectAll("g.node").attr("transform", function(d) {
-					console.log(d);
+					//console.log(d);
+					//console.log(simulation.nodes());
 					d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
 					d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
 					return "translate(" + d.x + "," + d.y + ")"; 
