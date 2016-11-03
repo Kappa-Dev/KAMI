@@ -21,8 +21,6 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 				console.error("No graph");
 				return;
 			};
-			console.log("loading graph");
-			console.log(response);
 			var link = svg.selectAll(".link")
 				.data(response.edges, function(d) { return d.from + "-" + d.to; });
 			link.enter().insert("line","g")
@@ -45,13 +43,11 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			.text(function(d) {return d.id})
 			.attr("font-size", "7px");
 		node.exit().remove();
-		console.log("Data");
 		simulation.nodes(response.nodes);
 //simulation.force("center", d3.forceCenter([300,400]))
 			simulation.force("collision",d3.forceCollide([22]));
 			simulation.force("links",d3.forceLink(function(){return response.edges.map(function(e,i){return {source:e.from,target:e.to,index:i}})}));
 			simulation.on("tick",function(){
-				console.log("in tick");
 				svg.selectAll("g.node").attr("transform", function(d) {
 					d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
 					d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));

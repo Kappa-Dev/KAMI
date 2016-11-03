@@ -35,12 +35,18 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){retu
 		current_node = new_node;
 		h_select.selectAll("*").remove();
 		h_list.selectAll("*").remove();
+		//.on("click",function(d){console.log("hierarchy clicked : "+d);disp.call("statechange",this,hierarchy.getAbsPath(d));return update(d)})
 		h_select.selectAll("option")
 			.data(hierarchy.getAbsPath(current_node))
 			.enter().append("option")
 				.text(function(d){return d})
-				.on("click",function(d){console.log("hierarchy clicked : "+d);disp.call("statechange",this,hierarchy.getAbsPath(d));return update(d)})
 				.attr("selected",function(d){return d==current_node});
+		h_select.on("change",function(){ 
+			var si   = h_select.property('selectedIndex'),
+			s    = h_select.selectAll("option").filter(function (d, i) { return i === si }),
+			data = s.datum();
+			disp.call("statechange",this,hierarchy.getAbsPath(data));return update(data)
+		});
 		h_list.selectAll("li")
 			.data(hierarchy.getSons(current_node))
 			.enter().append("li")
