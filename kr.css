@@ -344,8 +344,13 @@ svg{
     top: 10px;
     left: 0;
 }
-
-
+.node{
+	fill:white;
+	stroke:black;
+}
+.link{
+	stroke:black;
+	stroke-width:2;
 
 
 

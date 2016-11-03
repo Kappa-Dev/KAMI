@@ -44,16 +44,20 @@ define(["ressources/d3/d3.js","ressources/Convert.js","ressources/d3/d3-context-
 			.attr("font-size", "7px");
 		node.exit().remove();
 		simulation.nodes(response.nodes);
-//simulation.force("center", d3.forceCenter([300,400]))
-			simulation.force("collision",d3.forceCollide([22]));
+			simulation.force("collision",d3.forceCollide(22));
 			simulation.force("links",d3.forceLink(function(){return response.edges.map(function(e,i){return {source:e.from,target:e.to,index:i}})}));
+			simulation.force("center", d3.forceCenter(svg.attr("width")/5,svg.attr("height")/10));
 			simulation.on("tick",function(){
-				svg.selectAll("g.node").attr("transform", function(d) {
+				var nodes = svg.selectAll("g.node");
+				nodes.attr("transform", function(d) {
 					d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
 					d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
 					return "translate(" + d.x + "," + d.y + ")"; 
 				});
-				
+				svg.selectAll(".link").attr("x1", function(d){ return nodes.filter(function(dd){return dd.id==d.from}).datum().x;})
+				.attr("y1", function(d){ return nodes.filter(function(dd){return dd.id==d.from}).datum().y;})
+				.attr("x2", function(d){ if (d.from == d.to) return nodes.filter(function(dd){return dd.id==d.to}).datum().x-60;return nodes.filter(function(dd){return dd.id==d.to}).datum().x;})
+				.attr("y2", function(d){ if (d.from == d.to) return nodes.filter(function(dd){return dd.id==d.to}).datum().y-60;return nodes.filter(function(dd){return dd.id==d.to}).datum().y;});
 			});
 			simulation.restart();
 		});
