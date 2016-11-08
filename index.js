@@ -10,18 +10,11 @@ define(["ressources/d3/d3.js","HierarchyFinder.js","HierarchyUpdater.js","Interr
 		var hf = new HierarchyUpdater(main_ct_id,server_url,dispatch,hierarchy);
 		var ig = new InterractiGraph(main_ct_id,server_url,dispatch);
 		hf.load(root);
-		dispatch.on("load",function(){
-			graphs[root] = ig.rootGraph();
-			ig.loadGraph(graphs[root],{n:"r",e:"r",s:"r"});
-			
-		})
-		dispatch.on("hieUpdate",function(){
-			console.log("reload hierarchy");
-			hf.init();
-		});
-		dispatch.on("statechange.hrF",function(path){
-			console.log("updating svg graph");
-				svg.init(path);
+		dispatch.on("load.hierarcy",function(){//when the hierrachy is loaded
+			graphs[root] = GraphFactory.rootGraph();
+			graphs[hierarchy.getSons(root)[0]] = new Graph();
+			ig.loadGraph(graphs[hierarchy.getSons(root)[0]],hierarchy.getSons(root)[0]);
+			ig.editable(false);
 		});
 		
 		
