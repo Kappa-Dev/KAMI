@@ -84,6 +84,6 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 	};
 	this.copy = function copy(i){//create a new node witch is a copy of this node with a different id : O(k) : k=max size(l,v,s)
 		if(!i) throw new Error("id isn't defined");
-		return new Node(i,type,this.getLabels(),);
+		return new Node(i,type,this.getLabels());
 	};
 }});
