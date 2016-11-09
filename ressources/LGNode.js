@@ -4,8 +4,8 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 	var labels=l || {};
 	if(!t) throw new Error("undefined type : "+t);
 	var type=t;
-	var input_nodes={};
-	var output_nodes={};
+	var input_nodes=in_ct || {};
+	var output_nodes=on_ct || {};
 	this.getId = function getId(){// return the node id O(1)
 		return id;
 	};
@@ -80,10 +80,10 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 		console.log('______________');
 	};
 	this.saveState = function saveState(){//create a new node witch is a copy of this node : O(k) : k=max size(l,v,s)
-		return this.copy(id);
+		var ret = this.copy(id);
 	};
 	this.copy = function copy(i){//create a new node witch is a copy of this node with a different id : O(k) : k=max size(l,v,s)
 		if(!i) throw new Error("id isn't defined");
-		return new Node(i,type,this.getLabels());
+		return new Node(i,type,this.getLabels(),);
 	};
 }});

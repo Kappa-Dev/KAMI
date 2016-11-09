@@ -14,6 +14,7 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 	var edgesBySource={};//hashtable of edges, key:node input id, values: edges id list
 	var edgesByTarget={};//hashtable of edges, key:node output id, values:edges id list
 	var edgesByType={}//hashable of edges, key:edge type, values: edges id list
+	var EDGE_ID =0;
 	var self=this;
 	this.isEmpty = function isEmpty(){
 		return Object.keys(nodes)==0;
@@ -54,10 +55,11 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		delta.enter.nodes[id]=getNode(id).saveState();//return the delta object
 		return delta;
 	};
-	this.addEdge = function addEdge(id,t,i,o){//add a new edge to the graph
+	this.addEdge = function addEdge(t,i,o){//add a new edge to the graph
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
 		if(!nodes[i]) throw new Error("this node doesn't exist : "+i);
 		if(!nodes[o]) throw new Error("this node doesn't exist : "+o);
+		var id = "e_"+EDGE_ID++;
 		edges[id] = new Edge(id,t,i,o);
 		if(!edgesByType[t]) edgesByType[t]={};//add it to the type hashtable
 		edgesByType[t][id]=true;
@@ -156,7 +158,6 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
 		if(n_id1==n_id2) return delta;
 		delta.enter.nodes=this.addNode(new_id,getNode(n_id1).getType(),Tools.union(getNode(n_id1).getLabels(),getNode(n_id2).getLabels())).enter.nodes;
-		var new_id=Object.keys(delta.enter.nodes)[0]; //get the id of the new node
 		Tools.union(this.getEdgeBySource(n_id1),this.getEdgeBySource(n_id2)).reduce(function(accu,e){//change the target of all output edges
 			accu.exit.edges[e]=getEdge(e).saveState();
 			setSource(e,new_id);
@@ -171,11 +172,10 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		mergeDelta(delta,this.rmNode(n_id2));
 		return delta;
 	}
-	this.cloneNode = function cloneNode(n_id){//clone a specific node.
+	this.cloneNode = function cloneNode(n_id,new_id){//clone a specific node.
 		if(!nodes[n_id]) throw new Error("this node doesn't exist : "+n_id);
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
-		delta=this.addNode(getNode(n_id).getType(),getNode(n_id).getLabels());//add a copy of the node
-		var new_id=Object.keys(delta.enter.nodes)[0]; //get the id of the new node
+		delta=this.addNode(new_id,getNode(n_id).getType(),getNode(n_id).getLabels());//add a copy of the node
 		this.getEdgeBySource(n_id).reduce(function(accu,e){//add all entering edges to the clone
 			mergeDelta(accu,self.addEdge(getEdge(e).getType(),new_id,getEdge(e).getTarget()));
 		},delta);
@@ -215,21 +215,21 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		delta.enter.nodes[n_id]=getNode(n_id).saveState();
 		return delta;
 	};
-	this.setType = function setType(n_id,t){
+	this.setType = function setType(n_id,t,obj){
 		if(!nodes[n_id]) throw new Error("this node doesn't exist : "+n_id);
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
 		if(!t) throw new Error("calling setType on "+n_id+" with undefined type");
-		if(idT(n_id)=="n"){
+		if(obj=="n"){
 			delta.exit.nodes[n_id]=getNode(n_id).saveState();
 			getNode(n_id).setType(t);
 			delta.enter.nodes[n_id]=getNode(n_id).saveState();
-		}else if(idT(n_id)=="e"){
+		}else if(obj=="e"){
 			delta.exit.edges[n_id]=getEdge(n_id).saveState();
 			getEdge(n_id).setType(t);
 			delta.enter.edges[n_id]=getEdge(n_id).saveState();
-		}else throw new Error("Unexpected id : "+n_id);
+		}else throw new Error("Unexpected object type : "+obj);
 	};
-	this.getNodeByLabels = function getNodeByLabels(labels){//return a nodes id list corresponding to the specific labels
+	this.getNodeByLabels = function getNodeByLabels(labels){//return a nodes id list corresponding to the specific labels list
 		var nodes_lists = [];
 		if(!labels)return nodes_lists;
 		labels.reduce(function(accu,e){
@@ -282,10 +282,10 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
         if(!getNode(id)) throw new Error("unexisting node : "+id);
 		return getNode(id).getLabels();
     };
-    this.getType = function getType(id){//return the type of a node or an edge
+    this.getType = function getType(id,obj){//return the type of a node or an edge
         if(!id)
 			return {nodes:Object.keys(nodesByType),edges:Object.keys(edgesByType)};
-		if(idT(id)=='e'){
+		if(obj=='e'){
 			if(!getEdge(id)) throw new Error("unexisting node : "+id);
             return getEdge(id).getType();
         }else{
@@ -293,13 +293,24 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
             return getNode(id).getType();
 		}
     };
-    this.getOutputNodes = function getOutputNodes(id,e_t){//return al the nodes from an input edge (or a specific type of edges)
+    this.addInputNodesCt = function addInputNodesCt(id,v,i_n,sign){
+		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
+		delta.exit.nodes[id]=getNode(id).saveState();//return the delta object
+		if(!getNode(id)) throw new Error("unexisting node : "+id);
+		getNode(id).addInputNodesCt(v,i_n,sign);
+		delta.enter.nodes[id]=getNode(id).saveState();//return the delta object
+	};
+	this.addOutputNodesCt = function addOutputNodesCt(id,v, i_n,sign){
+		if(!getNode(id)) throw new Error("unexisting node : "+id);
+		return getNode(id).addOutputNodesCt(v, i_n,sign);
+	};
+	this.getOutputNodesCt = function getOutputNodesCt(id,n_id){//return al the nodes from an input edge (or a specific type of edges)
         if(!getNode(id)) throw new Error("unexisting node : "+id);
-		return getNode(id).getOutputNodes(e_t);
+		return getNode(id).getOutputNodesCt(n_id);
     };
-    this.getInputNodes = function getInputNodes(id,e_t){//return al the nodes from an output edge (or a specific type of edges)
+    this.getInputNodesCt = function getInputNodesCt(id,n_id){//return al the nodes from an output edge (or a specific type of edges)
         if(!getNode(id)) throw new Error("unexisting node : "+id);
-		return getNode(id).getInputNodes(e_t);
+		return getNode(id).getInputNodesCt(n_id);
     };
     this.getSource = function getSource(id){//return the source of an edge
         if(!getEdge(id)) throw new Error("unexisting node : "+id);
@@ -309,9 +320,6 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
         if(!getEdge(id)) throw new Error("unexisting node : "+id);
 		return getEdge(id).getTarget();
     };
-    this.getLastNodeId = function getLastNodeId(){//return the id of the last node created
-        return 'n_'+(NODE_ID-1);
-    };
     this.getLastEdgeId = function getLastEdgeId(){//return the id of the last edge created
         return 'e_'+(EDGE_ID-1);
     };
@@ -319,40 +327,15 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		if(!getNode(id)) throw new Error("unexisting node : "+id);
 		return getNode(id).hasLabel(l);
 	};
-	this.hasInputNode = function hasInputNode(id,n,e_t){
-		if(!getNode(id)) throw new Error("unexisting node : "+id);
-		return getNode(id).hasInputNode(n,e_t);
-	};
-	this.hasOutputNode = function hasOutputNode(id,n,e_t){
-		if(!getNode(id)) throw new Error("unexisting node : "+id);
-		return getNode(id).hasOutputNode(n,e_t);
-	};
 	this.saveState = function saveState(){
 		var ret=new LayerGraph();
 		Object.keys(nodes).forEach(function(e){
-			ret.addNode(getNode(e).getType(),getNode(e).getLabel());
+			ret.addNode(getNode(e).getId(),getNode(e).getType(),getNode(e).getLabel());
 		});
 		Object.keys(edges).forEach(function(e){
 			ret.addEdge(getEdge(e).getType(),getEdge(e).getSource(),getEdge(e).getTarget());
 		});
 		return ret;
 	};
-	this.searchPattern = function searchPattern(pattern){//search a specific patern in the graph
-		if(pattern.isEmpty()){
-			console.error("Empty pattern !");
-			return [];
-		}
-		var potential=[];
-		var p_nodes=pattern.getNodes();
-		this.getNodesByType(p_nodes[0]).forEach(function(e){potential.push({nodes:{e:true},edges:{}})});
-		var t_node=p_nodes.splice(0,1);
-		while(p_nodes.length>0){
-			var srcs=pattern.getEdgeBySource(t_node);
-			var trgs=pattern.getEdgeByTarget(t_node);
-			for(var i=potential.lenght-1;i>=0;i--){
-				var correctEdges=0;
-			}
-		}
-		return potential;
-	};
+
 }
