@@ -1,6 +1,7 @@
 define(["ressources/d3/d3.js"],function(d3){ return {convert:function(json_file){
 	d3.json(json_file,function(response){
-		var ret={"name":"agrogroo",
+		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"values","flag":"values","mod":"mod","bnd":"bind","brk":"unbind"};
+		var ret={"name":"ActionGraph",
 			"top_graph":{
 				"edges":[],
 				"nodes":[]				
@@ -11,7 +12,7 @@ define(["ressources/d3/d3.js"],function(d3){ return {convert:function(json_file)
 			response[node].forEach(function(e,i){
 				var cvt_node = {
 					"id":e.labels.join("_")+"_"+i,
-					"type":e.classes.join("_")+"_"+i
+					"type":cvt_dico[e.classes[0]]
 				};
 				ret.top_graph.nodes.push(cvt_node);
 			});
@@ -20,8 +21,7 @@ define(["ressources/d3/d3.js"],function(d3){ return {convert:function(json_file)
 		expt("regions");
 		expt("key_rs");
 		expt("attributes");
-		expt("flags");
-		
+		expt("flags");	
 		response.actions.forEach(function(e,i){		
 			var n_child={"name":e.labels.join()+"_"+i,
 			"top_graph":{
@@ -32,9 +32,18 @@ define(["ressources/d3/d3.js"],function(d3){ return {convert:function(json_file)
 			};
 			var act_node = {
 				"id":e.labels.join("_")+"_"+i,
-				"type":e.classes.join("_")
+				"type":cvt_dico[e.classes[1]]
+			};
+			var goTest={"bind":"binded","unbind":"freed"};
+			if(e.classes[1]!="mod"){
+			var test_node = {
+				"id":e.labels.join("_")+"_"+i+"_tst",
+				"type":goTest[cvt_dico[e.classes[1]]]
+			};
+			ret.top_graph.nodes.push(test_node);
 			}
-			ret.top_graph.nodes.push(act_node)
+			ret.top_graph.nodes.push(act_node);
+			
 			n_child.top_graph.nodes.push({
 				"id":e.labels.join("_")+"_"+i,
 				"type":e.labels.join("_")+"_"+i
@@ -46,6 +55,8 @@ define(["ressources/d3/d3.js"],function(d3){ return {convert:function(json_file)
 					"id":tmp_node.labels.join("_")+"_"+ee.ref[1]+"_"+cvt,
 					"type":tmp_node.labels.join("_")+"_"+ee.ref[1]
 				};
+				if(cvt =="context" && ee.ref[0]=="actions" )
+					cvt_node.type+="_tst";
 				n_child.top_graph.nodes.push(cvt_node);
 				if(cvt == "left" || cvt =="right"){
 					n_child.top_graph.edges.push({"from":act_node.id,"to":cvt_node.id});
