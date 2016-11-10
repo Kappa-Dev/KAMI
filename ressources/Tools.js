@@ -95,5 +95,11 @@ max:function(a,b){//same as min, but for max
 	if(a==-1 || b==-1) return -1;
 	if(a==null || b==null) return a+b;
 	return a > b ? a : b;
+},
+absPath : function(p){
+		var path = p.concat();
+		path[0]="";
+		path.push("");
+		return path.join("/");	
 }
 }});

@@ -2,7 +2,7 @@ define([],function(){return function Edge(ii,t,i,o){//generic definition of an e
 	if(!ii) throw new Error("undefined id : "+ii);
 	var id=ii;
 	if(!t) throw new Error("unknown type : "+t);
-	var type=t;//type can be 'link','parent','posinfl','neginfl','rw_rule'
+	var type=t;
 	if(!i)throw new Error("undefined source : "+i);
 	var source=i;//for parenting : source is the son
 	if(!o)throw new Error("undefined target : "+o);

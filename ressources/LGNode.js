@@ -1,4 +1,4 @@
-define([],function(){return function Node(i,t,l){//generic definition of a node in a hierarchycal graph
+define([],function(){return function Node(i,t,l,in_ct,on_ct){//generic definition of a node in a hierarchycal graph
 	if(typeof i=='undefined' || i==null) throw new Error("undefined id : "+i);
 	var id=i;//unique identifier of a node
 	var labels=l || {};
@@ -35,15 +35,12 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 			return {min:input_nodes[i_n].min,max:input_nodes[i_n].max};
 		}
 		else
-			Object.keys(input_nodes).reduce(function(accu,e){
-				accu.min=null?input_nodes[e].min:accu.min+input_nodes[e].min;
-				accu.max=null?input_nodes[e].max:accu.max+input_nodes[e].max;
-				return accu;
-			},{min:null,max:null});
+			return Object.keys(input_nodes).reduce(function(accu,e){accu[e]={min:input_nodes[e].min,max:input_nodes[e].max};return accu},{});
 	};
-	this.addInputNodesCt = function addInputNodesCt(v, i_n,sign){//add an input node constrainte, if v is undefined/null, remove constrainte
+	this.addInputNodesCt = function addInputNodesCt(i_n,v,sign){//add an input node constrainte, if v is undefined/null, remove constrainte
 		if(!i_n) throw new Error("undefined node : "+i_n);
-		if(!input_nodes[e_t])input_nodes[e_t]={min:null,max:null};
+		if(!input_nodes[i_n])input_nodes[i_n]={min:null,max:null};
+		if(!sign) return;
 		if(!v) v = null;
 		input_nodes[i_n][sign]=v;
 	};
@@ -53,15 +50,11 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 			return {min:output_nodes[i_n].min,max:output_nodes[i_n].max};
 		}
 		else
-			Object.keys(output_nodes).reduce(function(accu,e){
-				accu.min=null?output_nodes[e].min:accu.min+output_nodes[e].min;
-				accu.max=null?output_nodes[e].max:accu.max+output_nodes[e].max;
-				return accu;
-			},{min:null,max:null});
+			return Object.keys(output_nodes).reduce(function(accu,e){accu[e]={min:output_nodes[e].min,max:output_nodes[e].max};return accu},{});
 	};
-	this.addOutputNodesCt = function addOutputNodesCt(v, i_n,sign){//add an input node constrainte, if v is undefined/null, remove constrainte
+	this.addOutputNodesCt = function addOutputNodesCt(i_n,v,sign){//add an input node constrainte, if v is undefined/null, remove constrainte
 		if(!i_n) throw new Error("undefined node : "+i_n);
-		if(!output_nodes[e_t])output_nodes[e_t]={min:null,max:null};
+		if(!output_nodes[i_n])output_nodes[i_n]={min:null,max:null};
 		if(!v) v = null;
 		output_nodes[i_n][sign]=v;
 	};
@@ -71,7 +64,6 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 	this.log = function log(){//log the whole node information O(k) : k=max size(l,v,s)
 		console.log('==== ' + id + ' ====');
 		console.log('type : '+type);
-		console.log('graph : '+graph);
 		console.log('labels : '+Object.keys(labels).join(", "));
 		console.log('input nodes : ');
 		Object.keys(input_nodes).forEach(function(e){console.log(e+" : <="+input_nodes[e].min+" >="+input_nodes[e].max)});
@@ -84,6 +76,6 @@ define([],function(){return function Node(i,t,l){//generic definition of a node 
 	};
 	this.copy = function copy(i){//create a new node witch is a copy of this node with a different id : O(k) : k=max size(l,v,s)
 		if(!i) throw new Error("id isn't defined");
-		return new Node(i,type,this.getLabels());
+		return new Node(i,type,this.getLabels(),this.getInputNodesCt(),this.getOutputNodesCt());
 	};
 }});

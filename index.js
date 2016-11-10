@@ -1,36 +1,45 @@
-define(["ressources/d3/d3.js","HierarchyFinder.js","HierarchyUpdater.js","InterractiveGraph.js","ressources/simpleTree.js"],function(d3,HierarchyFinder,HierarchyUpdater,InterractiveGraph,Tree){
+define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/LayerGraph.js","ressources/GraphFactory.js","ressources/converter.js"],function(d3,Tree,Graph,GraphFactory,converter){
 	(function pageLoad(){
 		var server_url = "https://api.executableknowledge.org/iregraph/";
 		var main_ct_id = "main_container";
 		var root = "/";
-		var main_container = d3.select("body").append("div").attr("id",main_ct_id);
-		var dispatch = d3.dispatch("load","statechange","hieupdate","gupdate");
-		var hierarchy = new Tree();
+		var hie_tree = new Tree();
 		var graphs = {};
-		var hf = new HierarchyUpdater(main_ct_id,server_url,dispatch,hierarchy);
-		var ig = new InterractiGraph(main_ct_id,server_url,dispatch);
-		hf.load(root);
-		dispatch.on("load.hierarcy",function(){//when the hierrachy is loaded
-			graphs[root] = GraphFactory.rootGraph();
-			graphs[hierarchy.getSons(root)[0]] = new Graph();
-			ig.loadGraph(graphs[hierarchy.getSons(root)[0]],hierarchy.getSons(root)[0]);
-			ig.editable(false);
-		});
+		graphs[root] = GraphFactory.rootGraph();
+		var main_container = d3.select("body").append("div").attr("id",main_ct_id);
+		var dispatch = d3.dispatch("dataload","hiestatechange");
+		//var hie_gui = new Hierarchy(hie_tree,dispatch);
+		
+		d3.select("#main_container").append("div").attr("id","menu");
+	d3.select("#menu").append("form").attr("id","menu_f");
+	var tmp_form=d3.select("#menu_f");
+	tmp_form.append("input").attr("type","file")
+							.attr("id","import_f")
+							.attr("value","data.json")
+							.classed("removable_tab",true)
+							.attr("multiple",true);
+	tmp_form.append("input").attr("type","button")
+							.attr("id","import")
+							.attr("value","Import Data")
+							.classed("removable_tab",true)
+							.on("click",function(){
+								var data=null; 
+								var file=document.getElementById("import_f").files;
+								if(typeof(file)!="undefined" && file !=null && file.length>0){
+									for(var i=0;i<file.length;i++)
+										loadFile(file[i]);
+								} 
+								else alert("No input file. Default datas loaded !");
+});
+var loadFile = function(data){
+				var ka = new FileReader();
+				ka.readAsDataURL(data);
+				ka.onloadend = function(e){
+					converter.convert(e.target.result);
+				}
+};
 		
 		
-		
-		
-		
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	}());
 });
 	

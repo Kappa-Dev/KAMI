@@ -6,7 +6,7 @@ An autonomous multi layer graph with optimized modification actions (all in O(1)
  interaction between node of different cluster are defined as simple link.
 due to this proposition, "parent" become a reserved link name, other link can be typed as wanted
 */
-define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return function LayerGraph(){
+define(["ressources/LGEdge.js","ressources/LGNode.js","ressources/Tools.js"],function(Edge,Node,Tools){return function LayerGraph(){
 	var nodes = {};//hashtable of nodes objects, key:id, value:node
 	var edges = {};//hashtable of edges objects, key:id, value:edge
 	var nodesByLabel = {};//hashtable of nodes, key:label, value :nodes id list
@@ -41,10 +41,12 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 	this.getEdges = function getEdges(){//return the whole edges as a list of id
 		return Object.keys(edges);
 	};
-	this.addNode = function addNode(id,t,l){//add a new node in the graph
+	this.addNode = function addNode(id,t,l,in_ct,out_ct){//add a new node in the graph
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
-		var tmp_l={};l.forEach(function(e){tmp_l[e]=true;});
-		nodes[id]=new Node(id,t,tmp_l);
+		var tmp_l={};
+		if(l)
+			l.forEach(function(e){tmp_l[e]=true;});
+		nodes[id]=new Node(id,t,tmp_l,in_ct,out_ct);
 		if(l)//if this node have some labels, add it to the nodesbylabel hashtable
 			l.forEach(function(e){
 				if(!nodesByLabel[e]) nodesByLabel[e]={};
@@ -67,8 +69,8 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		edgesBySource[i][id]=true;
 		if(!edgesByTarget[o])edgesByTarget[o]={};//add it to the target hashtable
 		edgesByTarget[o][id]=true;
-		nodes[i].addOutputNodes(o,t);//update nodes input/ouput table
-		nodes[o].addInputNodes(i,t);
+		getNode(i).addOutputNodesCt(o);//update nodes input/ouput table
+		getNode(o).addInputNodesCt(i);
 		delta.enter.edges[id]=getEdge(id).saveState();
 		return delta;
 	};
@@ -111,8 +113,8 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 	var setTarget =function(e_id,trg){
 		getNode(getEdge(e_id).getTarget()).rmInputNodes(getEdge(e_id).getSource());
 		getNode(getEdge(e_id).getSource()).rmOutputNodes(getEdge(e_id).getTarget());
-		getNode(getEdge(e_id).getSource()).addOutputNodes(trg);
-		getNode(trg).addInputNodes(getEdge(e_id).getSource());
+		getNode(getEdge(e_id).getSource()).addOutputNodesCt(trg);
+		getNode(trg).addInputNodesCt(getEdge(e_id).getSource());
 		delete edgesByTarget[getEdge(e_id).getTarget()][e_id];
 		if(Object.keys(edgesByTarget[getEdge(e_id).getTarget()]).length==0)
 			delete edgesByTarget[getEdge(e_id).getTarget()];
@@ -123,8 +125,8 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 	var setSource =function(e_id,src){
 		getNode(getEdge(e_id).getSource()).rmOutputNodes(getEdge(e_id).getTarget());
 		getNode(getEdge(e_id).getTarget()).rmInputNodes(getEdge(e_id).getSource());
-		getNode(getEdge(e_id).getTarget()).addInputNodes(src);
-		getNode(src).addOutputNodes(getEdge(e_id).getTarget());
+		getNode(getEdge(e_id).getTarget()).addInputNodesCt(src);
+		getNode(src).addOutputNodesCt(getEdge(e_id).getTarget());
 		delete edgesBySource[getEdge(e_id).getSource()][e_id];
 		if(Object.keys(edgesBySource[getEdge(e_id).getSource()]).length==0)
 			delete edgesBySource[getEdge(e_id).getSource()];
@@ -132,7 +134,7 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 			edgesBySource[src][e_id]=true;
 		getEdge(e_id).setSource(src);
 	};
-	var mergeDelta = function(d1,d2){//accumulateur à gauche pour delta
+	/*var mergeDelta = function(d1,d2){//accumulateur à gauche pour delta
 		Object.keys(d2.enter.nodes).forEach(function(e){//merge entering nodes
 			if(!d1.enter.nodes[e])d1.enter.nodes[e]=d2.enter.nodes[e];
 			else throw new Error("this element has already been defined : "+e);
@@ -149,8 +151,8 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 			if(!d1.exit.edges[e])d1.exit.edges[e]=d2.exit.edges[e];
 			else throw new Error("this element has already been defined : "+e);
 		});
-	}
-	this.mergeNode = function mergeNode(n_id1,n_id2,new_id){//merge two nodes of the same type
+	}*/
+	/*this.mergeNode = function mergeNode(n_id1,n_id2,new_id){//merge two nodes of the same type
 		if(!nodes[n_id1]) throw new Error("this node isn't defined : "+n_id1);//check if both node exist
 		if(!nodes[n_id2]) throw new Error("this node isn't defined : "+n_id2);
 		if(getNode(n_id1).getType()!=getNode(n_id2).getType()) //nodes need to be of the same type
@@ -171,8 +173,8 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		mergeDelta(delta,this.rmNode(n_id1));//remove both nodes
 		mergeDelta(delta,this.rmNode(n_id2));
 		return delta;
-	}
-	this.cloneNode = function cloneNode(n_id,new_id){//clone a specific node.
+	}*/
+	/*this.cloneNode = function cloneNode(n_id,new_id){//clone a specific node.
 		if(!nodes[n_id]) throw new Error("this node doesn't exist : "+n_id);
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
 		delta=this.addNode(new_id,getNode(n_id).getType(),getNode(n_id).getLabels());//add a copy of the node
@@ -183,7 +185,7 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 			mergeDelta(accu,self.addEdge(getEdge(e).getType(),getEdge(e).getSource(),new_id));
 		},delta);
 		return delta;
-	};
+	};*/
 	this.addNodeLabels = function addNodeLabels(n_id,l){//add some labels to a node, return an enter/exit object
 		if(!nodes[n_id]) throw new Error("this node doesn't exist : "+n_id);
 		var delta={enter:{nodes:{},edges:{}},exit:{nodes:{},edges:{}}};
@@ -330,7 +332,7 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 	this.saveState = function saveState(){
 		var ret=new LayerGraph();
 		Object.keys(nodes).forEach(function(e){
-			ret.addNode(getNode(e).getId(),getNode(e).getType(),getNode(e).getLabel());
+			ret.addNode(getNode(e).getId(),getNode(e).getType(),getNode(e).getLabel(),getNode(e).getInputNodesCt(),getNode(e).getOutputNodesCt());
 		});
 		Object.keys(edges).forEach(function(e){
 			ret.addEdge(getEdge(e).getType(),getEdge(e).getSource(),getEdge(e).getTarget());
@@ -338,4 +340,4 @@ define(["LGEdge.js","LGNode.js","Tools.js"],function(Edge,Node,Tools){return fun
 		return ret;
 	};
 
-}
+}});
