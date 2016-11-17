@@ -35,7 +35,7 @@ var loadFile = function(data){
 				var ka = new FileReader();
 				ka.readAsDataURL(data);
 				ka.onloadend = function(e){
-					converter.convert(e.target.result);
+					converter.kamiToRegraph(e.target.result);
 				}
 };
 		
