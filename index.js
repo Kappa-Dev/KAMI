@@ -8,18 +8,19 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/LayerGraph.
 		//graphs[root] = GraphFactory.rootGraph();
 		d3.select("body").append("div").attr("id",main_ct_id);
 		var main_container = d3.select("#"+main_ct_id);
-		var dispatch = d3.dispatch("graphFileLoaded","coordFileLoaded","requestDone","hieUpdate");
+		var dispatch = d3.dispatch("graphFileLoaded","coordFileLoaded","hieUpdate","tabUpdate","graphUpdate");
 		main_container.append("div").attr("id","topchart");
 		main_container.append("div").attr("id","botom_topchart");
 		main_container.append("div").attr("id","sliding_container");
 		main_container.select("#sliding_container").append("div").attr("id","menu_container");
 		main_container.select("#sliding_container").append("div").attr("id","graph_container");
-		kamiModule.addInputFile("#topchart",dispatch);
-		kamiModule.addExportFile("#topchart",dispatch);
-		kamiModule.addConfig("#topchart",main_ct_id,dispatch);
-		kamiModule.addTabMenu("#menu_container",dispatch);
-		var main_graph = GraphFactory.rootGraph("#graph_container");
-		var hierarchy = HierarchyFactory.rootHierarchy()
+		var hierarchy = HierarchyFactory.rootHierarchy("#topchart",dispatch,server_url,root);
+		kamiModule.addInputFile("#topchart",dispatch,server_url);
+		kamiModule.addExportFile("#topchart",dispatch,server_url);
+		kamiModule.addConfig("#topchart",main_ct_id,dispatch,server_url);
+		kamiModule.addTabMenu("#menu_container",dispatch,server_url);
+		var main_graph = GraphFactory.rootGraph("#graph_container",dispatch,server_url);
+		var editor = GraphFactory.graphEditor("#sliding_container",dispatch,server_url);
 		
 		
 		d3.select("#main_container").append("div").attr("id","menu");
