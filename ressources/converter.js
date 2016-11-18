@@ -5,8 +5,9 @@ define(["ressources/d3/d3.js"],function(d3){ return {
  * @input json_file : a Kami 2.0 Json File
  * @output : a Regraph Json File
 */ 
-kamiToRegraph:function(json_file){
+kamiToRegraph:function(json_file,dispatch){
 	d3.json(json_file,function(response){
+		if(!response.version) dispatch.call("graphFileLoaded",this,response);
 		//rename graph objects in the new format
 		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"values","flag":"values","mod":"mod","bnd":"bind","brk":"unbind"};
 		cls_to_js_id = {"agent":"agents","region":"regions","flag":"flags","attribute":"attributes","key_res":"key_rs","action":"actions"}
@@ -23,6 +24,16 @@ kamiToRegraph:function(json_file){
 					"id":e.labels.join("_")+"_"+i,
 					"type":cvt_dico[e.classes[0]]
 				});
+				e.values.forEach(function(ee,ii){
+					ret.top_graph.nodes.push({
+						"id":e.labels.join("_")+"_"+i+"_"+ee,
+						"type":"value"
+					});
+					ret.top_graph.edges.push({
+						"from":e.labels.join("_")+"_"+i+"_"+ee,
+						"to":e.labels.join("_")+"_"+i
+					});
+				});
 			});
 		});
 		//add edges corresponding to path
@@ -37,12 +48,22 @@ kamiToRegraph:function(json_file){
 		function getFthId(e){
 			if(e.path.length == 0) throw new Error ("This node has no father");
 			var ret;
-			response[cls_to_js_id[e.father_classes[0]]].forEach(function(ee,i){
-				if(ee.labels.indexOf(e.path[e.path.length-1])!=-1 && (((e.father_classes[0] == "action" || e.father_classes[0] == "agent") && e.father_classes.join()==ee.classes.join())||e.path.slice(0,e.path.length-1).join("_")==ee.path.join("_")))
-				ret=ee.labels.join("_")+"_"+i	
+			response[cls_to_js_id[e.father_classes[0]]].some(function(ee,i){
+				if(
+					ee.labels.indexOf(e.path[e.path.length-1])!=-1 
+					&& (
+						(
+							(e.father_classes[0] == "action" || e.father_classes[0] == "agent")
+							&&
+							e.father_classes.join()==ee.classes.join()
+						)||
+						e.path.slice(0,e.path.length-1).join("_")==ee.path.join("_")
+					)
+				){
+					ret=ee.labels.join("_")+"_"+i;
+					return true;
+				} return false;
 			});
-			
-			console.log(ret);
 			if(!ret) throw new Error ("This node' father doesn't exist"+e.labels.join("_"));
 			return ret;
 		};
@@ -51,39 +72,79 @@ kamiToRegraph:function(json_file){
 			addToACT(e,i);
 			addToNug(e,i);
 		});
+		
+		function getCVal(e,ee){
+			let tmp_ref = response[ee.ref[0]][ee.ref[1]];
+			return tmp_ref.values[tmp_ref.values.indexOf(ee.values[0])+(e.classes[2]=="pos"?1:-1)];
+		};
 		function addToACT(e,i){
 			//the action node
-			var act_node = {
+			ret.top_graph.nodes.push({
 				"id":e.labels.join("_")+"_"+i,
 				"type":cvt_dico[e.classes[1]]
-			};
-			ret.top_graph.nodes.push(act_node);
+			});
+			ret.top_graph.nodes.push({
+				"id":e.labels.join("_")+"_"+i+"_left",
+				"type":(e.classes[1]=="brk"?"output":"input")
+			});
+			ret.top_graph.nodes.push({
+				"id":e.labels.join("_")+"_"+i+"_right",
+				"type":(e.classes[1]=="bnd"?"input":"output")
+			});
 			if (e.classes[1]=="brk"){
 				["left","right"].forEach(function(obj){
-					e[obj].forEach(function(ee,ii){ret.top_graph.edges.push({
-						"from":e.labels.join("_")+"_"+i,
-						"to":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1]
-					})});
+					e[obj].forEach(function(ee,ii){
+						ret.top_graph.edges.push({
+							"from":e.labels.join("_")+"_"+i+"_"+obj,
+							"to":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1]
+						})
+					});
 				});
 			} else if(e.classes[1]=="mod"){
-				e.right.forEach(function(ee,ii){ret.top_graph.edges.push({
-					"from":e.labels.join("_")+"_"+i,
-					"to":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1]
-				})});
+				e.right.forEach(function(ee,ii){
+					ret.top_graph.edges.push({
+						"from":e.labels.join("_")+"_"+i+"_right",
+						"to":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1]
+					});
+					ret.top_graph.nodes.push({
+						"id":e.labels.join("_")+"_"+i+"_"+ee.values[0],
+						"type":"Lvalue"
+					});
+					ret.top_graph.nodes.push({
+						"id":e.labels.join("_")+"_"+i+"_"+getCVal(e,ee),
+						"type":"Rvalue"
+					});
+					ret.top_graph.edges.push({
+						"from":e.labels.join("_")+"_"+i+"_"+ee.values[0],
+						"to":e.labels.join("_")+"_"+i
+					});
+					ret.top_graph.edges.push({
+						"from":e.labels.join("_")+"_"+i+"_"+getCVal(e,ee),
+						"to":e.labels.join("_")+"_"+i
+					});
+				});
 			}else if(e.classes[1]=="bnd"){
 				ret.top_graph.nodes.push({
 					"id":e.labels.join("_")+"_"+i+"_btst",
 					"type":"binded"
 				});
+				ret.top_graph.nodes.push({
+					"id":e.labels.join("_")+"_"+i+"_btst_left",
+					"type":(e.classes[1]=="brk"?"output":"input")
+				});
+				ret.top_graph.nodes.push({
+					"id":e.labels.join("_")+"_"+i+"_btst_right",
+					"type":(e.classes[1]=="bnd"?"input":"output")
+				});
 				["left","right"].forEach(function(obj){
 					e[obj].forEach(function(ee,ii){
 						ret.top_graph.edges.push({
 							"from":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1],
-							"to":e.labels.join("_")+"_"+i
+							"to":e.labels.join("_")+"_"+i+"_"+obj
 						});
 						ret.top_graph.edges.push({
 							"from":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1],
-							"to":e.labels.join("_")+"_"+i+"_btst"
+							"to":e.labels.join("_")+"_"+i+"_btst_"+obj
 						});
 					});
 				});				
@@ -101,8 +162,16 @@ kamiToRegraph:function(json_file){
 				"id":act.labels.join("_")+"_"+i,
 				"type":act.labels.join("_")+"_"+i
 			});	
+			n_child.top_graph.nodes.push({
+				"id":act.labels.join("_")+"_"+i+"_left",
+				"type":act.labels.join("_")+"_"+i+"_left"
+			});
+			n_child.top_graph.nodes.push({
+				"id":act.labels.join("_")+"_"+i+"_right",
+				"type":act.labels.join("_")+"_"+i+"_left"
+			});
 			["left","right","context"].forEach(function(ctx){
-				act[ctx].forEach(function(e,i){
+				act[ctx].forEach(function(e){
 					var tmp_node = response[e.ref[0]][e.ref[1]];
 					if(tmp_node.classes[0]=="action" && tmp_node.classes[1] == "bnd"){
 						n_child.top_graph.nodes.push({
@@ -114,27 +183,62 @@ kamiToRegraph:function(json_file){
 							"id":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt,
 							"type":tmp_node.labels.join("_")+"_"+e.ref[1]
 						});
+						if(e.values) e.values.forEach(function(v,vi){
+							n_child.top_graph.nodes.push({
+								"id":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt+"_"+v,
+								"type":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+v
+							});
+							n_child.top_graph.edges.push({
+								"from":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt+"_"+v,
+								"to":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt
+							});
+						});
 					}
 					if(ctx != "context"){
 						if (act.classes[1]=="brk"){
 							n_child.top_graph.edges.push({
-								"from":act.labels.join("_")+"_"+i,
+								"from":act.labels.join("_")+"_"+i+"_"+ctx,
 								"to":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt
 							});
 						}else if(act.classes[1]=="mod" || act.classes[1]=="bnd"){
 							n_child.top_graph.edges.push({
 								"from":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt,
-								"to":act.labels.join("_")+"_"+i
+								"to":act.labels.join("_")+"_"+i+"_"+ctx
 							});
+							if(ctx == "right" && act.classes[1]=="mod"){
+								n_child.top_graph.nodes.push({
+									"id":act.labels.join("_")+"_"+i+"_"+e.values[0],
+									"type":act.labels.join("_")+"_"+i+"_"+e.values[0]
+								});
+								n_child.top_graph.nodes.push({
+									"id":act.labels.join("_")+"_"+i+"_"+getCVal(act,e),
+									"type":act.labels.join("_")+"_"+i+"_"+getCVal(act,e)
+								});
+								n_child.top_graph.edges.push({
+									"from":act.labels.join("_")+"_"+i+"_"+e.values[0],
+									"to":act.labels.join("_")+"_"+i
+								});
+								n_child.top_graph.edges.push({
+									"from":act.labels.join("_")+"_"+i+"_"+getCVal(act,e),
+									"to":act.labels.join("_")+"_"+i
+								});
+							}
 						}
 					}
 					inst_cpt++;
 				});
 			});
 			ret.children.push(n_child);
+			
 		};
-		var url = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret,null,"\t"));
+		dispatch.call("graphFileLoaded",this,ret);
+	});
+},
+exportGraph:function(ret){
+	var url = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret,null,"\t"));
 		window.open(url, '_blank');
 		window.focus();
-	});
-}}});
+}
+
+
+}});
