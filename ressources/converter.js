@@ -7,7 +7,7 @@ define(["ressources/d3/d3.js"],function(d3){ return {
 */ 
 kamiToRegraph:function(json_file,dispatch){
 	d3.json(json_file,function(response){
-		if(!response.version) dispatch.call("graphFileLoaded",this,response);
+		if(!response.version) dispatch.call("graphFileLoaded",this,{"hierarchy":response,"coord":{}});
 		//rename graph objects in the new format
 		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"values","flag":"values","mod":"mod","bnd":"bind","brk":"unbind"};
 		cls_to_js_id = {"agent":"agents","region":"regions","flag":"flags","attribute":"attributes","key_res":"key_rs","action":"actions"}
@@ -17,6 +17,7 @@ kamiToRegraph:function(json_file,dispatch){
 			"top_graph":{"edges":[],"nodes":[]},
 			"children":[]
 		};
+		var coord={"ActionGraph":{}};
 		/* convert @input kami node type into a regraph node list and add it to the output graph */
 		["agents","regions","key_rs","attributes","flags"].forEach(function(node_type){
 			response[node_type].forEach(function(e,i){
@@ -34,6 +35,7 @@ kamiToRegraph:function(json_file,dispatch){
 						"to":e.labels.join("_")+"_"+i
 					});
 				});
+				coord.ActionGraph[e.labels.join("_")+"_"+i]=[e.x,e.y];
 			});
 		});
 		//add edges corresponding to path
@@ -91,6 +93,7 @@ kamiToRegraph:function(json_file,dispatch){
 				"id":e.labels.join("_")+"_"+i+"_right",
 				"type":(e.classes[1]=="bnd"?"input":"output")
 			});
+			coord.ActionGraph[e.labels.join("_")+"_"+i]=[e.x,e.y];
 			if (e.classes[1]=="brk"){
 				["left","right"].forEach(function(obj){
 					e[obj].forEach(function(ee,ii){
@@ -231,13 +234,22 @@ kamiToRegraph:function(json_file,dispatch){
 			ret.children.push(n_child);
 			
 		};
-		dispatch.call("graphFileLoaded",this,ret);
+		dispatch.call("graphFileLoaded",this,{"hierarchy":ret,"coord":coord});
 	});
 },
 exportGraph:function(ret){
-	var url = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret,null,"\t"));
+	var url = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret.hierarchy,null,"\t"));
 		window.open(url, '_blank');
+	var url2 = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret.coord,null,"\t"));
+		window.open(url2, '_blank');
 		window.focus();
+},
+loadCoord:function(coord,graphic_g){
+	graphic_g.stopMotion();
+	for(node in coord[graphic_g.getName()]){
+		graphic_g.setCoord(node,coord[graphic_g.getName()][node]);
+	}graphic_g.startMotion();
+	
 }
 
 
