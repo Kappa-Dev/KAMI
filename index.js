@@ -1,4 +1,4 @@
-define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/LayerGraph.js","ressources/GraphFactory.js","ressources/converter.js"],function(d3,Tree,Graph,GraphFactory,converter){
+define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/LayerGraph.js","ressources/Hierarchy.js","ressources/converter.js"],function(d3,Tree,Graph,Hierarchy,converter){
 	(function pageLoad(){
 		var server_url = "https://api.executableknowledge.org/iregraph/";
 		var main_ct_id = "main_container";
@@ -14,7 +14,8 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/LayerGraph.
 		main_container.append("div").attr("id","sliding_container");
 		main_container.select("#sliding_container").append("div").attr("id","menu_container");
 		main_container.select("#sliding_container").append("div").attr("id","graph_container");
-		var hierarchy = new Hierarchy("#topchart",dispatch,server_url,root);
+		var hierarchy = new Hierarchy("topchart",dispatch,server_url);
+		hierarchy.update(root,null);
 		//kamiModule.addInputFile("#topchart",dispatch,server_url);
 		//kamiModule.addExportFile("#topchart",dispatch,server_url);
 		//kamiModule.addConfig("#topchart",main_ct_id,dispatch,server_url);

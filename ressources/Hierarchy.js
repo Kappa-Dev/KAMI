@@ -13,6 +13,7 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){
 		this.update = function update(root,node){
 			d3.json(srv_url+"hierarchy"+root+"?include_graphs=false&rules=false",function(response){
 				hierarchy = new Tree();
+				console.log(response);
 				hierarchy.importTree(response);
 				if(node) {
 					if(node!=current_node) disp.call("graphUpdate",this,node);
@@ -38,8 +39,8 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){
 					s = h_select.selectAll("option").filter(function (d, i) { return i === si }),
 					data = s.datum();
 					var new_path=hierarchy.getAbsPath(hierarchy.getFather(current_node)).splice(0,si+1);
-					
-			};
+			});
+		}
 		function h_listUpdate(){
 			
 		};
