@@ -7,7 +7,7 @@ define(["ressources/d3/d3.js"],function(d3){ return {
 */ 
 kamiToRegraph:function(json_file,dispatch){
 	d3.json(json_file,function(response){
-		if(!response.version) dispatch.call("graphFileLoaded",this,{"hierarchy":response,"coord":{}});
+		if(!response.version) dispatch.call("graphFileLoaded",this,{"hierarchy":response,"coord":null});
 		//rename graph objects in the new format
 		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"values","flag":"values","mod":"mod","bnd":"bind","brk":"unbind"};
 		cls_to_js_id = {"agent":"agents","region":"regions","flag":"flags","attribute":"attributes","key_res":"key_rs","action":"actions"}

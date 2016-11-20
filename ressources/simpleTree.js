@@ -1,4 +1,8 @@
 define([],function(){return function Tree(){
+	
+	function s: fullpath(node) -> return the full path of a node in the hierarchy
+	
+	
 	var nodes ={}
 	var p = {};
 	var root = null;
