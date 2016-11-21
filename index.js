@@ -1,6 +1,6 @@
 define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/LayerGraph.js","ressources/Hierarchy.js","ressources/converter.js"],function(d3,Tree,Graph,Hierarchy,converter){
 	(function pageLoad(){
-		var server_url = "https://api.executableknowledge.org/iregraph/";
+		var server_url = "https://api.executableknowledge.org/iregraph";
 		var main_ct_id = "main_container";
 		var root = "/";
 		//var hie_tree = new Tree();

@@ -1,4 +1,4 @@
-define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){
+define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/requestFactory.js"],function(d3,Tree,RFactory){
 	return function Hierarchy(container_id,dispatch,server_url){
 		if(!server_url) throw new Error("server url undefined");
 		var srv_url = server_url;//the current url of the server
@@ -11,38 +11,21 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js"],function(d3,Tree){
 		var self=this;
 		
 		this.update = function update(root,node){
-			d3.json(srv_url+"hierarchy"+root+"?include_graphs=false&rules=false",function(response){
-				hierarchy = new Tree();
-				console.log(response);
-				hierarchy.importTree(response);
-				if(node) {
-					if(node!=current_node) disp.call("graphUpdate",this,node);
-					current_node = node;
-				}
-				else if(!hierarchy.exist(current_node)){
-					current_node = hierarchy.getRoot();
-					disp.call("graphUpdate",this,current_node);
-				}
-				selectUpdate();
-				h_listUpdate();	
-			});
-		};
-		function selectUpdate(){
-			h_select.selectAll("*").remove();
-			h_select.selectAll("option")
-			.data(hierarchy.getAbsPath(hierarchy.getFather(current_node)))
-			.enter().append("option")
-				.text(function(d){return d})
-				.attr("selected",function(d){return d==hierarchy.getFather(current_node)});
-			h_select.on("change",function(){ 
-				var si = h_select.property('selectedIndex'),
-					s = h_select.selectAll("option").filter(function (d, i) { return i === si }),
-					data = s.datum();
-					var new_path=hierarchy.getAbsPath(hierarchy.getFather(current_node)).splice(0,si+1);
-			});
-		}
-		function h_listUpdate(){
+			/*d3.request(srv_url+"hierarchy"+root+"?include_graphs=false&rules=false")
+				.mimeType("application/json")
+				.response(function(xhr) { return JSON.parse(xhr.responseText); })
+				.on("error", function(error) { callback1(error); })
+				.on("load", function(xhr) { callback2(null, xhr); })
+				.send("GET");
 			
+			*/
+			var fac=new RFactory(srv_url);
+			//fac.getHierarchy(root,callback2);
+			var data = {"name":"Seb-test","rules":[],"top_graph":{"nodes":[],"edges":[]},"children":[]};
+			fac.graphFromRule("/MetaKami_2016_11_10/MetaModel/ActionGraph/new_g","EGFR internal unbinding_13","myrule",JSON.stringify(data,null,"\t"),callback2);
+			function callback2 (err,response){
+				console.log(response);	
+			}
 		};
 		
 	
