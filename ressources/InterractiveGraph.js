@@ -165,9 +165,11 @@ define([
 		simulation.restart();
 	};
 	function setColor(nb,tot,neg){
-		if(nb+1==tot/2)tot++;
-		if(neg) return ((0xFFFFFF-((0xFFFFFF/tot)*(nb+1)))).toString(16);
-		return ((0xFFFFFF/tot)*(nb+1)).toString(16);
+		if(neg){
+			if(nb+1==tot/2)tot++;
+			return ((0xFFFFFF-((0xFFFFFF/tot)*(nb+1)))).toString(16).split(".")[0];
+		}
+		return ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
 	}
 	function svgMenu(){
 		var menu = [{
