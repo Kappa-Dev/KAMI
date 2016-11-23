@@ -128,7 +128,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node_id",val:n_id},{id:"force",val:force}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -136,9 +136,9 @@ define(["ressources/d3/d3.js"],function(d3){
 			request("PUT",
 				"/graph/merge_node",
 				g_path,
-				[{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id},{id:"force",val:force}],
+				[{id:"force",val:force},{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -148,7 +148,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node_id",val:n_id},{id:"new_node_id",val:new_id}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -158,7 +158,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"source_node",val:src},{id:"target_node",val:trg}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -168,7 +168,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"source_node",val:src},{id:"target_node",val:trg},{id:"force",val:force}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
