@@ -28,7 +28,10 @@ define(["ressources/d3/d3.js","ressources/simpleTree.js","ressources/requestFact
 				.attr("id",function(d){return d})
 				.on("click",function(d){return tabChange(d)})
 				.on("dblclick",function(d){return lvlChange(d)})
-				.text(function(d){return hierarchy.getName(d)});
+				.text(function(d){
+					let nm = hierarchy.getName(d);
+					return nm.length>14?nm.substring(0,12).concat("..."):nm;
+				});
 		};
 		function initHselect(data){
 			h_select.selectAll("*").remove();
