@@ -4,7 +4,7 @@ define(["ressources/d3/d3.js","ressources/converter.js","ressources/requestFacto
 		var srv_url = server_url;//the current url of the server
 		var disp = dispatch;//global dispatcher for events
 		var container = d3.select("#"+container_id).append("div").attr("id","mod_menu").classed("mod_menu",true);
-		var selector; 
+		var selector;
 		(function init(){
 			container.append("div")
 				.attr("id","export")
@@ -17,8 +17,7 @@ define(["ressources/d3/d3.js","ressources/converter.js","ressources/requestFacto
 				.classed("mod_el",true)
 				.attr("type","file")
 				.attr("id","import_f")
-				.property("multiple",true)
-				.classed("NGG",true);
+				.property("multiple",true);
 			selector=container.append("select")
 				.attr("id","file_type")
 				.classed("mod_el",true);
@@ -33,8 +32,7 @@ define(["ressources/d3/d3.js","ressources/converter.js","ressources/requestFacto
 				.classed("mod_div",true)
 				.on("click",importFile)
 				.html("Import")
-				.classed("unselectable",true)
-				.classed("NGG",true);	
+				.classed("unselectable",true);	
 		}());
 		function importFile(){
 			var file=document.getElementById("import_f").files;
