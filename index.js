@@ -29,6 +29,35 @@ define([
 		hierarchy.update(root);
 		var input_hie = new InputFileReader("top_chart",dispatch,server_url);
 		var graph_pan = new InterractiveGraph("graph_frame",dispatch,server_url);
+		d3.select("#mod_menu").append("div")
+				.attr("id","add")
+				.classed("mod_el",true)
+				.classed("mod_div",true)
+				.on("click",addThing)
+				.html("New graph")
+				.classed("unselectable",true);
+		function addThing(){
+			var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
+			var isSlash =current_graph=="/"?"":"/";
+			/*factory.addGraph(current_graph+isSlash+name,function(err,ret){
+				if(!err){
+					dispatch.call("hieUpdate",this,null);
+					console.log(ret);
+				}
+				else console.error(err);
+			});*/
+			factory.addHierarchy(current_graph+isSlash+name,
+					JSON.stringify({name:name,top_graph:{edges:[],nodes:[]},children:[]},null,"\t"),
+					function(err,ret){
+						if(!err){
+							dispatch.call("hieUpdate",this,null);
+							console.log(ret);
+						}
+						else console.error(err);
+					});
+		}
+		
+		
 		dispatch.on("graphUpdate",function(abs_path){
 			current_graph=abs_path;
 			factory.getGraph(current_graph,function(err,ret){graph_pan.update(ret,current_graph)});
@@ -41,6 +70,7 @@ define([
 				}
 				else console.error(err);
 			};
+			if(graph.hierarchy.name=="ActionGraph")graph.hierarchy.name=prompt("Give it a name !", "model_"+(Math.random()).toString());
 			if(graph.type=="Hierarchy"){
 				factory.addHierarchy(root+graph.hierarchy.name,
 					JSON.stringify(graph.hierarchy,null,"\t"),

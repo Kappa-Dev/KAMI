@@ -323,7 +323,7 @@ svg{
     display: inline-block;
 }
 .node{
-	fill:white;
+	/*fill:white;*/
 	stroke:black;
 }
 .node.selected{

@@ -87,26 +87,27 @@ define([
 	this.update = function update(graph,path){
 		g_id = path;
 		svg_content.selectAll("*").remove();
-		loadGraph(graph);
-		loadType(path);
+		loadType(path,graph,loadGraph);
 	};
-	function loadType(path){
+	function loadType(path,graph,callback){
 		if(path != "/"){
 			path=path.split("/");
 			if(path.length<=2){
 				type_list =[];
-				return;
+				return callback(graph);
 			}
 			path.pop();
 			path=path.join("/");
 			request.getGraph(path,function(e,r){
 				if(e) console.error(e);
-				else type_list=r.nodes.map(function(e){
-					return e.id;
-				});
-				console.log(type_list);
+				else {
+					type_list=r.nodes.map(function(e){
+						return e.id;
+					});
+					callback(graph);
+				}
 			});
-		}
+		}else callback(graph);
 	}
 	function findNode(n,graph){
 		var ret=graph.filter(function(e){
@@ -136,7 +137,11 @@ define([
 			.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
 		node_g.insert("circle")
-			.attr("r", radius);
+			.attr("r", radius)
+			.style("fill",function(d){
+				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length);
+				else return "white";
+			});
 		node_g.insert("text")
 			.classed("nodeLabel",true)
 			.attr("x", 0)
@@ -151,6 +156,9 @@ define([
 		simulation.alpha(1);
 		simulation.restart();
 	};
+	function setColor(nb,tot){
+		return ((0xFFFFFF/tot)*(nb+1)).toString(16);
+	}
 	function svgMenu(){
 		var menu = [{
 			title: "Unlock all",
