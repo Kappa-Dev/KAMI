@@ -11,7 +11,7 @@ define(["ressources/d3/d3.js","ressources/converter.js","ressources/requestFacto
 				.classed("mod_el",true)
 				.classed("mod_div",true)
 				.on("click",exportFile)
-				.html("Export Graph")
+				.html("Export")
 				.classed("unselectable",true);
 			container.append("input")
 				.classed("mod_el",true)
