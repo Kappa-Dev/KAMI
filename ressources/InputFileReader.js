@@ -34,7 +34,7 @@ define(["ressources/d3/d3.js","ressources/converter.js","ressources/requestFacto
 				.on("click",importFile)
 				.html("Import")
 				.classed("unselectable",true)
-				.classed("NGG",true);			
+				.classed("NGG",true);	
 		}());
 		function importFile(){
 			var file=document.getElementById("import_f").files;
