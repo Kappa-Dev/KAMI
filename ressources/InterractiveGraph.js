@@ -149,6 +149,14 @@ define([
 			.attr("text-anchor", "middle")
 			.text(function(d) {return d.id.length>7?d.id.substring(0,5).concat("..."):d.id;})
 			.attr("font-size", function(){return(radius/2)+"px"})
+			.style("fill",function(d){
+				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
+				else return "black";
+			})
+			.style("stroke",function(d){
+				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
+				else return "black";
+			})
 			.on("dblclick",clickText);
 		node.exit().remove();
 		simulation.nodes(response.nodes);
@@ -156,7 +164,9 @@ define([
 		simulation.alpha(1);
 		simulation.restart();
 	};
-	function setColor(nb,tot){
+	function setColor(nb,tot,neg){
+		if(nb+1==tot/2)tot++;
+		if(neg) return ((0xFFFFFF-((0xFFFFFF/tot)*(nb+1)))).toString(16);
 		return ((0xFFFFFF/tot)*(nb+1)).toString(16);
 	}
 	function svgMenu(){

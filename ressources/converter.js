@@ -5,6 +5,23 @@ define(["ressources/d3/d3.js"],function(d3){ return {
  * @input json_file : a Kami 2.0 Json File
  * @output : a Regraph Json File
 */ 
+snipToRegraph:function(json_file,dispatch,type){
+	d3.json(json_file,function(response){
+		var ret={
+			"name":"ThreadGraph",
+			"top_graph":{"edges":[],"nodes":[]},
+			"children":[]
+		};
+		response.forEach(function(){
+			
+		});
+		
+		return dispatch.call("graphFileLoaded",
+							this,
+							{"hierarchy":ret,"coord":coord,"type":type}
+							);
+	});
+},
 kamiToRegraph:function(json_file,dispatch,type){
 	d3.json(json_file,function(response){
 		if(!response.version){

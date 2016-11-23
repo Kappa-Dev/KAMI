@@ -13,7 +13,7 @@ define([
 		var server_url = "https://api.executableknowledge.org/iregraph";
 		var main_ct_id = "main_container";
 		var root = "/";
-		var current_graph=null;
+		var current_graph="/";
 		d3.select("body").append("div").attr("id",main_ct_id);
 		var main_container = d3.select("#"+main_ct_id);
 		var dispatch = d3.dispatch("graphExprt","graphFileLoaded","hieUpdate","tabUpdate","graphUpdate","graphSave","tabMenu");
@@ -91,7 +91,7 @@ define([
 		});
 		dispatch.on("hieUpdate",function(){
 			hierarchy.update(root);
-			current_graph=null;
+			current_graph="/";
 			//clean graph svg.
 		});
 	}())
