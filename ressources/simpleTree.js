@@ -1,83 +1,48 @@
 define([],function(){return function Tree(){
-	
-	
-	
-	var nodes ={}
-	var p = {};
-	var root = null;
-	var self=this;
-	this.addNode = function addNode(path,ctx){
-		if(!path) throw new Error("undefined path");
-		if(ctx) path = p2l(ctx).concat([path]);
-		else path = p2l(path);
-		path.reduce(function(accu,val,idx){
-			if(idx == path.length-1) accu[val]={};
-			if(idx<path.length-1 && !accu[val]) throw new Error("unable to complet path : "+path+" from "+val);
-			return accu[val];
-		},nodes);
-    if(!root) root = Object.keys(nodes)[0];
-    else if(Object.keys(nodes)[0]!=root) throw new Error("Multiple root names are not allowed !");
+	var nodesHash = {};
+	var NODE_ID = 0;
+	this.load = function load(json_hie){
+		importTree(json_hie);
+	}
+	function importTree(json_hie,ctx,fth){
+		if(!ctx) ctx ="";
+		if(!fth) fth = "n_-1";
+		var id = "n_"+(NODE_ID++);
+		nodesHash[id] = {name:json_hie.name,path:ctx,father:fth,children:[]};
+		if(fth!="n_-1"){nodesHash[fth].children.push(id);}
+		json_hie.children.forEach(function(e){
+			var is_slash = ctx==""||ctx=="/"?"":"/";
+			importTree(e,ctx+is_slash+json_hie.name,id);
+		});
 	};
-	this.rmNode = function rmNode(path,ctx){
-		if(!path) throw new Error("undefined path");
-		if(ctx) path = p2l(ctx).concat([path]);
-		else path = p2l(path);
-		path.reduce(function(accu,val,idx){
-			if(!accu[val]) throw new Error("unable to complet path : "+path+" from "+val);
-			if(idx == path.length-1){
-				delete accu[val];
-				return;
-			}
-			return accu[val];
-		},nodes);
-		if(Object.keys(nodes).length == 0) root = null;
+	this.getFather = function getFather(n_id){
+		return nodesHash[n_id].father;
 	};
-	this.getRoot = function getRoot(){
-		return root;
+	this.getSons = function getSons(n_id){
+		return nodesHash[n_id].children.concat();
 	};
-	this.getFather = function getFather(path){
-		var fth = p2l(path);
-		fth.pop();
-		return {str:l2p(fth),l:fth};
+	this.getName = function getName(n_id){
+		return nodesHash[n_id].name;
 	};
-	function p2l(path){
-		if(!path) throw new Error("empty path");
-		if(typeof path != "string") return path;
-		if(path =="/") return ["/"];
-		var ret = path.split("/");
-		ret[0] = "/";
-		return ret;
+	this.getPath = function getPath(n_id){
+		return nodesHash[n_id].path;
 	};
-	function l2p(l){
-		if(!l) throw new Error("empty path");
-		if(typeof l == "string") return l;
-		if(l.length==1) return "/";
-		var ret = l.concat();
-		ret[0]="";
-		return ret.join("/");
-	};
-	this.getSons = function getSons(path){
-		var npath = p2l(path);
-		var ret =[];
-		npath.reduce(function(accu,val,idx){
-			if(!accu[val]) throw new Error("unable to complet path : "+npath+" from "+val);
-			if(idx == npath.length-1){
-				ret = Object.keys(accu[val]);
-				return;
-			}
-			return accu[val];
-		},nodes);
-		return ret;
+	this.getAbsPath = function getAbsPath(n_id){
+		let is_slash = nodesHash[n_id].path==""||nodesHash[n_id].path=="/"?"":"/";
+		return nodesHash[n_id].path+is_slash+nodesHash[n_id].name;
 	};
 	this.log = function log(){
-		console.log("root : "+root);
-		console.log(nodes);
+		console.log(nodesHash);
 	};
-	 this.importTree = function importTree(tree,ctx){
-		self.addNode(tree.name,ctx);
-		tree.children.forEach(function(e){
-    	if(!ctx) ctx ="";
-			importTree(e,ctx+tree.name);
-		});
+	this.getRoot = function getRoot(){
+		return "n_0";
+	};
+	this.getTreePath = function getTreePath(n_id){
+		var ret=[];
+		while(n_id!="n_-1"){
+			ret.unshift(n_id);
+			n_id=nodesHash[n_id].father;
+		};
+		return ret;
 	};
 }});

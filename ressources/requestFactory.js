@@ -4,24 +4,19 @@ define(["ressources/d3/d3.js"],function(d3){
 		var srv = url;
 		function request(type,loc,path,urlparam,content_type,callback,data,rsp_pars){
 			var url_param_string = "" ;
-			if(url_param_string && url_param_string.length>0){
-				urlparam.reduce(function(accu,e,i){
-					accu+=e.id+"="+e.val+(i<urlparam.length-1?"&":"?");
-				},url_param_string);
+			if(urlparam && urlparam.length>0){
+				url_param_string=urlparam.reduce(function(accu,e,i){
+					return accu+=e.id+"="+e.val+(i<urlparam.length-1?"&":"");
+				},"?");
 			}
 			var rq = d3.request(srv+loc+path+url_param_string)
 				.mimeType(content_type)
-				.header("Content-Type", content_type)
 				.response(function(xhr){return rsp_pars?rsp_pars(xhr.responseText):xhr.responseText;})
 				.on("error", function(error) { errorCb(error); })
-			//if(type == "GET")	
 				if(type == "POST") 
 					rq.header("X-Requested-With", "XMLHttpRequest")
 				rq.on("load", function(xhr) { callback(null, xhr); });
 				rq.send(type,data);
-			/*else
-				rq.on("load", function(xhr) { selfCallback(null, xhr,loc); })
-				.send(type,data);	*/	
 		};
 		function errorCb(error){
 			console.error("unable to complete request :");
@@ -90,7 +85,7 @@ define(["ressources/d3/d3.js"],function(d3){
 			d3.request(srv+"/hierarchy"+hie_path)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
-				.post(data, function(err,resp){console.log(resp);return self.getHierarchy("/",callback)});
+				.post(data, callback);
 		};
 		this.mergeHierarchy = function mergeHierarchy(hie_path,data,callback){
 			console.log("this is useless");
@@ -107,6 +102,197 @@ define(["ressources/d3/d3.js"],function(d3){
 				.header("Content-Type", "application/json")
 				.post(data, function(err,resp){console.log(err);console.log(resp);return self.getHierarchy("/",callback)});
 		};
+		this.delGraph = function delGraph(gr_path,callback){
+			request("DELETE",
+				"/graph",
+				gr_path,
+				null,
+				"text/html",
+				function(err,resp){console.log(resp);return self.getHierarchy("/",callback)},
+				null,
+				null);
+		};
+		this.addNode = function addNode(g_path,n_id,n_type,callback){
+			request("PUT",
+				"/graph/add_node",
+				g_path,
+				[{id:"node_id",val:n_id},{id:"node_type",val:n_type}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rmNode = function rmNode(g_path,n_id,force,callback){
+			request("PUT",
+				"/graph/rm_node",
+				g_path,
+				[{id:"node_id",val:n_id},{id:"force",val:force}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.mergeNode = function mergeNode(g_path,n_id1,n_id2,new_id,force,callback){
+			request("PUT",
+				"/graph/merge_node",
+				g_path,
+				[{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id},{id:"force",val:force}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.cloneNode = function cloneNode(g_path,n_id,new_id,callback){
+			request("PUT",
+				"/graph/clone_node",
+				g_path,
+				[{id:"node_id",val:n_id},{id:"new_node_id",val:new_id}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.addEdge = function addEdge(g_path,src,trg,callback){
+			request("PUT",
+				"/graph/add_edge",
+				g_path,
+				[{id:"source_node",val:src},{id:"target_node",val:trg}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rmEdge = function rmEdge(g_path,src,trg,force,callback){
+			request("PUT",
+				"/graph/rm_edge",
+				g_path,
+				[{id:"source_node",val:src},{id:"target_node",val:trg},{id:"force",val:force}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rnGraph = function rnGraph(g_path,name,callback){
+			request("PUT",
+				"/graph/rename_graph",
+				g_path,
+				[{id:"new_name",val:name}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.addGraph = function addGraph(gr_path,callback){
+			d3.request(srv+"/graph"+gr_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.post(null, function(err,resp){console.log(resp);return self.getGraph(gr_path,callback)});
+		};
+		this.ruleaddNode = function ruleaddNode(g_path,n_id,n_type,callback){
+			request("PUT",
+				"/rule/add_node",
+				g_path,
+				[{id:"node_id",val:n_id},{id:"node_type",val:n_type}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rulermNode = function rulermNode(g_path,n_id,force,callback){
+			request("PUT",
+				"/rule/rm_node",
+				g_path,
+				[{id:"node_id",val:n_id},{id:"force",val:force}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rulemergeNode = function rulemergeNode(g_path,n_id1,n_id2,new_id,force,callback){
+			request("PUT",
+				"/rule/merge_node",
+				g_path,
+				[{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id},{id:"force",val:force}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rulecloneNode = function rulecloneNode(g_path,n_id,new_id,callback){
+			request("PUT",
+				"/rule/clone_node",
+				g_path,
+				[{id:"node_id",val:n_id},{id:"new_node_id",val:new_id}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.ruleaddEdge = function ruleaddEdge(g_path,src,trg,callback){
+			request("PUT",
+				"/rule/add_edge",
+				g_path,
+				[{id:"source_node",val:src},{id:"target_node",val:trg}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rulermEdge = function rulermEdge(g_path,src,trg,force,callback){
+			request("PUT",
+				"/rule/rm_edge",
+				g_path,
+				[{id:"source_node",val:src},{id:"target_node",val:trg},{id:"force",val:force}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rnRule = function rnRule(g_path,name,callback){
+			request("PUT",
+				"/rule/rename_graph",
+				g_path,
+				[{id:"new_name",val:name}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.addConstraint = function addConstraint(g_path,n_id,e_type,cstr,bnd,order,callback){
+			request("PUT",
+				"/graph/add_constraint",
+				g_path,
+				[{id:"node_id",val:n_id},
+				{id:"input_or_output",val:e_type},
+				{id:"constraint_node",val:cstr},{id:"bound",val:bnd},{id:"le_or_ge",val:order}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.rmConstraint = function rmConstraint(g_path,n_id,e_type,cstr,bnd,order,callback){
+			request("PUT",
+				"/graph/delete_constraint",
+				g_path,
+				[{id:"node_id",val:n_id},
+				{id:"input_or_output",val:e_type},
+				{id:"constraint_node",val:cstr},{id:"bound",val:bnd},{id:"le_or_ge",val:order}],
+				"text/html",
+				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				null,
+				null);
+		};
+		this.validate = function validate(g_path,callback){
+			request("PUT",
+				"/graph/validate_constraint",
+				g_path,
+				null,
+				"text/html",
+				callback,
+				null,
+				null);
+		};
+		
+		
 		
 	}
 });

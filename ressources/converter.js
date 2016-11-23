@@ -5,9 +5,12 @@ define(["ressources/d3/d3.js"],function(d3){ return {
  * @input json_file : a Kami 2.0 Json File
  * @output : a Regraph Json File
 */ 
-kamiToRegraph:function(json_file,dispatch){
+kamiToRegraph:function(json_file,dispatch,type){
 	d3.json(json_file,function(response){
-		if(!response.version) dispatch.call("graphFileLoaded",this,{"hierarchy":response,"coord":null});
+		if(!response.version){
+			dispatch.call("graphFileLoaded",this,{"hierarchy":response,"coord":null,"type":type});
+			return;
+		}
 		//rename graph objects in the new format
 		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"values","flag":"values","mod":"mod","bnd":"bind","brk":"unbind"};
 		cls_to_js_id = {"agent":"agents","region":"regions","flag":"flags","attribute":"attributes","key_res":"key_rs","action":"actions"}
@@ -234,23 +237,25 @@ kamiToRegraph:function(json_file,dispatch){
 			ret.children.push(n_child);
 			
 		};
-		dispatch.call("graphFileLoaded",this,{"hierarchy":ret,"coord":coord});
+		dispatch.call("graphFileLoaded",this,{"hierarchy":ret,"coord":coord,"type":type});
 	});
 },
 exportGraph:function(ret){
 	var url = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret.hierarchy,null,"\t"));
 		window.open(url, '_blank');
-	var url2 = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret.coord,null,"\t"));
-		window.open(url2, '_blank');
 		window.focus();
+	if(ret.coord){
+		var url2 = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret.coord,null,"\t"));
+			window.open(url2, '_blank');
+	}
+	
 },
 loadCoord:function(coord,graphic_g){
-	graphic_g.stopMotion();
+	console.log("not implemented");
+	/*graphic_g.stopMotion();
 	for(node in coord[graphic_g.getName()]){
 		graphic_g.setCoord(node,coord[graphic_g.getName()][node]);
 	}graphic_g.startMotion();
-	
+	*/
 }
-
-
 }});
