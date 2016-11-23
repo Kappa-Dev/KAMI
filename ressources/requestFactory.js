@@ -77,7 +77,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				hie_path,
 				null,
 				"text/html",
-				function(err,resp){console.log(resp);return self.getHierarchy("/",callback)},
+				callback,
 				null,
 				null);
 		};
@@ -94,13 +94,13 @@ define(["ressources/d3/d3.js"],function(d3){
 			d3.request(srv+"/rule"+rule_path+"?pattern_name="+pattern)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
-				.post(null, function(err,resp){console.log(err);console.log(resp);return self.getHierarchy("/",callback)});
+				.post(null, callback);
 		};
 		this.graphFromRule = function graphFromRule(graph_path,src_gr,rule_n,data,callback){
 			d3.request(srv+"/graph/apply"+graph_path+"?target_graph="+src_gr+"&rule_name="+rule_n)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
-				.post(data, function(err,resp){console.log(err);console.log(resp);return self.getHierarchy("/",callback)});
+				.post(data, callback);
 		};
 		this.delGraph = function delGraph(gr_path,callback){
 			request("DELETE",
@@ -108,7 +108,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				gr_path,
 				null,
 				"text/html",
-				function(err,resp){console.log(resp);return self.getHierarchy("/",callback)},
+				callback,
 				null,
 				null);
 		};
@@ -118,7 +118,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node_id",val:n_id},{id:"node_type",val:n_type}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -178,14 +178,14 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"new_name",val:name}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
 		this.addGraph = function addGraph(gr_path,callback){
 			d3.request(srv+"/graph"+gr_path)
 				.header("X-Requested-With", "XMLHttpRequest")
-				.post(null, function(err,resp){console.log(resp);return self.getGraph(gr_path,callback)});
+				.post(null, callback);
 		};
 		this.ruleaddNode = function ruleaddNode(g_path,n_id,n_type,callback){
 			request("PUT",
@@ -193,7 +193,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node_id",val:n_id},{id:"node_type",val:n_type}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -203,7 +203,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node_id",val:n_id},{id:"force",val:force}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -213,7 +213,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id},{id:"force",val:force}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -223,7 +223,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"node_id",val:n_id},{id:"new_node_id",val:new_id}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -233,7 +233,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"source_node",val:src},{id:"target_node",val:trg}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -243,7 +243,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"source_node",val:src},{id:"target_node",val:trg},{id:"force",val:force}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -253,7 +253,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				g_path,
 				[{id:"new_name",val:name}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -265,7 +265,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				{id:"input_or_output",val:e_type},
 				{id:"constraint_node",val:cstr},{id:"bound",val:bnd},{id:"le_or_ge",val:order}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};
@@ -277,7 +277,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				{id:"input_or_output",val:e_type},
 				{id:"constraint_node",val:cstr},{id:"bound",val:bnd},{id:"le_or_ge",val:order}],
 				"text/html",
-				function(err,resp){console.log(resp);return self.getGraph(g_path,callback)},
+				callback,
 				null,
 				null);
 		};

@@ -21,8 +21,8 @@ define([
 								textv=[];
 								if(input_l)
 									form.selectAll(".inputMenus").each(function(){textv.push(d3.select(this).node().value);});
-								if(radio_l)
-									radiov=[radio_l[form.select('input[name="inputMenuRadio"]:checked').node().value]];
+								if(radio_l && radio_l.length>0)
+									radiov=[radio_l[form.select("#inputMenuRadio").property('selectedIndex')]];
 								if(check_l){
 									checkv=[];
 									form.selectAll('input[name="inputMenuCheck"]:checked').each(function(){checkv.push(check_l[d3.select(this).property("value")]);});
@@ -36,17 +36,16 @@ define([
 				}
 			}
 		}
-		if(radio_l!=null){
-			for(var i=0;i<radio_l.length;i++){
-				form.append("input")
-				.attr("type","radio")
+		if(radio_l && radio_l.length>0){
+			form.append("select")
 				.classed("inputMenur",true)
-				.attr("name","inputMenuRadio")
-				.attr("value",i)
-				.property("checked", i==0);
-				form.append("label").text(" "+radio_l[i]);
-				form.append("html","<br />");
-			}
+				.attr("id","inputMenuRadio")
+				.selectAll("option")
+					.data(radio_l)
+					.enter()
+					.append("option")
+						.text(function(d){return d})
+						.attr("selected",function(d,i){return i==0});
 		}if(check_l!=null){
 			for(var i=0;i<check_l.length;i++){
 				form.append("input")
@@ -71,8 +70,8 @@ define([
 				textv=[];
 				if(input_l)
 					form.selectAll(".inputMenus").each(function(){textv.push(d3.select(this).node().value);});
-				if(radio_l)
-					radiov=[radio_l[form.select('input[name="inputMenuRadio"]:checked').node().value]];
+				if(radio_l && radio_l.length>0)
+					radiov=[radio_l[form.select("#inputMenuRadio").property('selectedIndex')]];
 				if(check_l){
 					checkv=[];
 					form.selectAll('input[name="inputMenuCheck"]:checked').each(function(){checkv.push(check_l[d3.select(this).property("value")]);});
