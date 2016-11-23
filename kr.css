@@ -307,31 +307,6 @@ svg{
 	font-family: Capriola, Helvetica, sans-serif;
 	font-size:200%;
 }
-
-
-.posInfl{
-	stroke-width: 2.5px;
-	stroke-dasharray:10 3;
-	stroke:#00cc00;
-	fill:#00cc00;
-}
-.negInfl{
-	stroke-width: 2.5px;
-	stroke-dasharray:10 3;
-	stroke:#ff0000;
-	fill:#ff0000;
-}
-.link{
-	stroke-width: 2.5px;
-	stroke:#000000;
-	fill:#000000;
-}
-.rw{
-	stroke-width: 2.5px;
-	stroke-dasharray:10 3;
-	stroke:#000000;
-	fill:#000000;
-}
 #tab_frame{
 	margin-left: 0.78%;
 	height:100%;
@@ -351,74 +326,30 @@ svg{
 	fill:white;
 	stroke:black;
 }
-.link{
-	stroke:black;
-	stroke-width:2;
-
-
-
-
-.input{
-	
+.node.selected{
+	stroke:red;
 }
-.output{
-	
+.nodeLabel{
+  fill: #000;
+  font-family: sans-serif;
 }
-.action{
-	
-}
-.bnd{
-	
-}
-.brk{
-	
-}
-.mod{
-	
-}
-.syn{
-	
-}
-.deg{
-	
-}
-.agent{
-	
-}
-.region{
-	
-}
-.key_res{
-	
-}
-.flag{
-	
-}
-.attribute{
-	
-}
-.node_label{
-	
+.link {
+  stroke: #000;
+  stroke-width: 3px;
 }
 
-#tab_menu{}
-.tab_button{
-	
-}
-
-.mod_button{
-	
-}
-.tooltip{
-	
-}
-
-#zoom_menu{
-	
-}
-#tab_frame{
-	
-}
-.g_tab{
-	
+#n_tooltip{
+	background-color:#fffeec;
+	position:absolute;
+	bottom:20px;
+	left:10px;
+	border:4px solid #0f71ba;
+	border-radius:10px;
+	box-shadow: 3px 3px 3px #888888;
+	z-index: 100;
+	display: block;
+	text-align: left;
+	vertical-align: top;
+	width: 150px;
+	overflow : hidden;
 }

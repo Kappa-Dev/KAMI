@@ -11,12 +11,12 @@ define(["ressources/d3/d3.js"],function(d3){return function (menu, openCallback)
 
 	// this gets executed when a contextmenu event occurs
 	return function(data, index) {
-		if(!menu || menu.length==0) {
+		/*if(!menu || menu.length==0) {
 			d3.event.preventDefault();
 			d3.event.stopPropagation();
 			console.log("no context menu ^^'");
 			return;
-		}
+		}*/
 		var elm = this;
 		d3.selectAll('.d3-context-menu').html('');
 		var list = d3.selectAll('.d3-context-menu').append('ul');

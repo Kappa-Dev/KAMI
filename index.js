@@ -31,7 +31,7 @@ define([
 		var graph_pan = new InterractiveGraph("graph_frame",dispatch,server_url);
 		dispatch.on("graphUpdate",function(abs_path){
 			current_graph=abs_path;
-			factory.getGraph(current_graph,function(err,ret){graph_pan.update(ret)});
+			factory.getGraph(current_graph,function(err,ret){graph_pan.update(ret,current_graph)});
 		});
 		dispatch.on("graphFileLoaded",function(graph){
 			function callback(err,ret){
