@@ -18,14 +18,18 @@ snipToRegraph:function(json_file,dispatch,type){
 			"top_graph":{"edges":[],"nodes":[]},
 			"children":[]
 		};
+		ret.top_graph.nodes.push({id:"Concact",type:""});
 		ret.top_graph.nodes.push({id:"Contact",type:""});
 		ret.top_graph.nodes.push({id:"LastName",type:""});
 		ret.top_graph.nodes.push({id:"FirstName",type:""});
 		ret.top_graph.edges.push({from:"LastName",to:"Contact"});
 		ret.top_graph.edges.push({from:"FirstName",to:"Contact"});
+		ret.top_graph.edges.push({from:"LastName",to:"Concact"});
+		ret.top_graph.edges.push({from:"FirstName",to:"Concact"});
 		response.forEach(function(el,el_idx){
 			ret.top_graph.nodes.push({id:el.name+"_Thread",type:""});
 			ret.top_graph.edges.push({from:"Contact",to:el.name+"_Thread"});
+			ret.top_graph.edges.push({from:"Concact",to:el.name+"_Thread"});
 			var n_child={
 				"name":el.name,
 				"top_graph":{"edges":[],"nodes":[]},
