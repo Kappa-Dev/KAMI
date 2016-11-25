@@ -1,4 +1,14 @@
+/* This module contain patternMatching functions
+ * @ Author Adrien Basso blandin
+ * This module is part of regraphGui project
+ * this project is under AGPL Licence
+*/
 define([],function(){ return {
+	/* match tw graphs according to specific rules
+	 * @input : g1 : the first graph
+	 * @input : g2 : the second graph, g1 and g2 must be typed by the same graph
+	 * @return a merged graph.
+	 */
 	match:function(g1,g2){
 			var nodeByFst={"g1":{},"g2":{}};
 			var nodeEmpty={"g1":[],"g2":[]};
