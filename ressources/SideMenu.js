@@ -7,8 +7,9 @@
 */
 define([
 	"ressources/d3/d3.js",
-	"ressources/requestFactory.js"
-],function(d3,RqFactory){
+	"ressources/requestFactory.js",
+	"ressources/PatternMatching.js"
+],function(d3,RqFactory,ParternMatch){
 	/* Create a new side menu structure
 	 * @input : container_id : the container to bind this hierarchy
 	 * @input : dispatch : the dispatch event object
@@ -89,14 +90,32 @@ define([
 				})
 			})
 		}
+		/* this part is here as demo purpose and will be transfered in a module soonly */
 		/* merge two graph according to matching properties between nodes of the same type
+		 * we define two node to be identical if they have se same name and firstName
+		 * we guess two nodes as similar if they both have the same matching.
+		 * we define a mathching as the 2-closure of a node. witch means : this node, its name/first-name and all the other nodes it is linked throw a conversation.
+		 * This function must have been processed direcly on the json file to be optimized.
+		 * The idea here is to use it for whatever matching we are looking for
+		 * for example : protein matching according to name / regions / size ... etc
 		 */
 		function myMerge(g1,g2){
-			g1.nodes.forEach(function(node){
-				
-			})
-			console.log(g1);
-			console.log(g2);
+			var ng = ParternMatch.match(g1,g2);
+			console.log(ng);
+			var isSlash =fth=="/"?"":"/";
+			var g_name=prompt("give it a name !","merged"+g1.name+g2.name);
+			//trick to avoid server error (until it is solved)
+			request.addHierarchy(fth+isSlash+g_name,
+				JSON.stringify({name:g_name,top_graph:ng,children:[]},null,"\t"),
+				function(err,ret){
+					if(!err){
+						dispatch.call("hieUpdate",this,null);
+						console.log(ret);
+					}
+					else console.error(err);
+				}
+			);
+			
 		};
 	}
 })

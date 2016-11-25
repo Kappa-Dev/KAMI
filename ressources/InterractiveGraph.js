@@ -38,6 +38,7 @@ define([
 	var g_id;//the graph id in the hierarchy
 	var type_list;
 	var locked = false;//lock event actions
+	var zoom;
 	/* initialize all the svg objects and forces
 	 * this function is self called at instanciation
 	 */
@@ -53,7 +54,7 @@ define([
 	 * 	-center force : foce node to stay close to the center
 	 */
 	function initForce(){
-		simulation = d3.forceSimulation();
+		simulation /*= d3.forceSimulation();
 		var center_f = d3.forceCenter(svg.attr("width")/2,svg.attr("height")/2);
 		simulation.force("center",center_f);
 		var collid_f = d3.forceCollide(radius+radius/4).strength(0.9);
@@ -62,14 +63,19 @@ define([
 			.id(function(d){return d})
 			.distance(function(d){return d.source.type==d.target.type?radius/2:radius*2})
 			.strength(function(d){
-				return 1 
+				return 1
 			});
 		simulation.force("links",links_f);
 		var many_f = d3.forceManyBody()
 			.strength(function(d){return d.fx?-10:-10})
 			.distanceMin(radius/2)
 			.distanceMax(radius*4);
-		simulation.force("charge",many_f);
+		simulation.force("charge",many_f);*/
+		simulation = d3.forceSimulation()
+    .force("link", d3.forceLink().id(function(d) {return d.id}))
+    .force("charge", d3.forceManyBody().distanceMax(radius*10))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+	.force("collision",d3.forceCollide(radius+radius/4));
 		simulation.on("tick",move);
 		simulation.stop();
 	}
@@ -80,6 +86,8 @@ define([
 	 * add zoom and drag behavior
 	 */
 	function initSvg(){
+		//add drag/zoom behavior
+		zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
 		svg.classed("svg-content-responsive", true);
 			svg.append("svg:defs").selectAll("marker")
 			.data(["arrow_end"])      // Different link/path types can be defined here
@@ -94,11 +102,11 @@ define([
 			.append("svg:path")
 			.attr("d", "M2,2 L2,13 L8,7 L2,2");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
+		svg.call(zoom);
 		d3.select("#tab_frame").append("div")//add the description tooltip
 			.attr("id","n_tooltip")
 			.classed("n_tooltip",true)
 			.style("visibility","hidden");
-		svg.call(d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed));//add drag/zoom behavior
 	};
 	/* this fonction  is triggered by tick events
 	 * move all the svg object (node and links)
@@ -132,7 +140,8 @@ define([
 	this.update = function update(graph,path){
 		g_id = path;
 		svg_content.selectAll("*").remove();
-		loadType(path,graph,loadGraph);
+		//if(graph.nodes.length<100)
+			loadType(path,graph,loadGraph);
 	};
 	/* load all type of a graph, this is needed for node coloration 
 	 * @input : graph : the new graph
@@ -227,9 +236,16 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
+		if(response.nodes.length>100){
+			zoom.scaleTo(svg_content,0.2);
+		}
+			//transform=d3.zoomIdentity.translate(width/2,height/2).scale(0.2);
+			//svg_content.attr("transform", transform);
 		//start the simulation
+		simulation.nodes([]);
 		simulation.nodes(response.nodes);
-		links_f.links(links);
+		simulation.force("link").links(links);
+		//links_f
 		simulation.alpha(1);
 		simulation.restart();
 	};
@@ -261,7 +277,13 @@ define([
 			title: "Unlock all",
 			action: function(elm,d,i){
 				svg_content.selectAll("g").each(function(d){d.fx=null;d.fy=null});
+				if(simulation.nodes().length>0)
 				simulation.alpha(1).restart();
+			}
+		},{
+			title: "Lock all",
+			action: function(elm,d,i){
+				svg_content.selectAll("g").each(function(d){d.fx=d.x;d.fy=d.y});
 			}
 		},{
 			title: "Select all",
@@ -458,6 +480,7 @@ define([
 		if(d3.event.ctrlKey){
 			d.fx=null;
 			d.fy=null;
+			if(simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 		}
 		if(d3.event.shiftKey){
@@ -501,7 +524,7 @@ define([
 	 */
 	function dragged(d) {
 		if(locked)return;
-		if(simulation.alpha()<0.09)
+		if(simulation.alpha()<0.09 && simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 		d3.select(this).attr("cx", d.fx = d3.event.x).attr("cy", d.fy = d3.event.y);
 	}
