@@ -1,3 +1,8 @@
+/* This module add a context-menu to an DOM Object
+ * this module is based on Patrick Gillespie works
+ * https://github.com/patorjk/d3-context-menu
+ * this module is under MIT Licence
+*/
 define(["ressources/d3/d3.js"],function(d3){return function (menu, openCallback) {
 	// create the div element that will hold the context menu
 	d3.selectAll('.d3-context-menu').data([1])
@@ -11,12 +16,6 @@ define(["ressources/d3/d3.js"],function(d3){return function (menu, openCallback)
 
 	// this gets executed when a contextmenu event occurs
 	return function(data, index) {
-		/*if(!menu || menu.length==0) {
-			d3.event.preventDefault();
-			d3.event.stopPropagation();
-			console.log("no context menu ^^'");
-			return;
-		}*/
 		var elm = this;
 		d3.selectAll('.d3-context-menu').html('');
 		var list = d3.selectAll('.d3-context-menu').append('ul');

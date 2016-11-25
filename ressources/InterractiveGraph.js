@@ -1,29 +1,60 @@
+/* This module add the graph container to the UI
+ * this module trigger graphUpdate events
+ * @ Author Adrien Basso blandin
+ * This module is part of regraphGui project
+ * this project is under AGPL Licence
+*/
 define([
 	"ressources/d3/d3.js",
 	"ressources/d3/d3-context-menu.js",
 	"ressources/requestFactory.js",
 	"ressources/inputMenu.js"
 ],function(d3,d3ContextMenu,RqFactory,inputMenu){
+	/* Create a new interractive graph structure
+	 * @input : container_id : the container to bind this hierarchy
+	 * @input : dispatch : the dispatch event object
+	 * @input : server_url : the regraph server url
+	 * @return : a new InterractiveGraph object
+	 */
 	return function InterractiveGraph(container_id,dispatch,server_url){
 	var disp = dispatch;
-	var svg = d3.select("#"+container_id).append("div").attr("id","tab_frame").append("svg:svg");
-	var svg_content = svg.append("g").classed("svg_zoom_content",true);
-	var size = d3.select("#tab_frame").node().getBoundingClientRect();
-	var sumulation;
-	var node_data;
+	var size = d3.select("#"+container_id).node().getBoundingClientRect();//the svg size
+	d3.select("#"+container_id)//the main svg object
+		.append("div")
+		.attr("id","tab_frame")
+		.append("svg:svg")
+		.attr("height",size.height)
+		.attr("width",size.width);
+	var svg = d3.select("svg"),
+		width = +svg.attr("width"),
+		height = +svg.attr("height"),
+		transform = d3.zoomIdentity;;
+	var svg_content = svg.append("g")//the internal zoom and drag object for svg
+		.classed("svg_zoom_content",true);
+	var simulation;//the force simulation
 	var radius = 30;
-	var links_f;
-	var transform = d3.zoomIdentity;
+	var links_f;//the link force
 	var request = new RqFactory(server_url);
-	var g_id;
+	var g_id;//the graph id in the hierarchy
 	var type_list;
-	var locked = false;
+	var locked = false;//lock event actions
+	var zoom;
+	/* initialize all the svg objects and forces
+	 * this function is self called at instanciation
+	 */
 	(function init(){
 		initSvg();
 		initForce();
 	}());
+	/* init all the forces
+	 * this graph has :
+	 * 	-collision detection
+	 * 	-link forces : force nodes linked to stay close
+	 * 	-many bodies forces : repulsing force between nodes
+	 * 	-center force : foce node to stay close to the center
+	 */
 	function initForce(){
-		simulation = d3.forceSimulation();
+		simulation /*= d3.forceSimulation();
 		var center_f = d3.forceCenter(svg.attr("width")/2,svg.attr("height")/2);
 		simulation.force("center",center_f);
 		var collid_f = d3.forceCollide(radius+radius/4).strength(0.9);
@@ -32,25 +63,35 @@ define([
 			.id(function(d){return d})
 			.distance(function(d){return d.source.type==d.target.type?radius/2:radius*2})
 			.strength(function(d){
-				return 1 
+				return 1
 			});
 		simulation.force("links",links_f);
 		var many_f = d3.forceManyBody()
 			.strength(function(d){return d.fx?-10:-10})
 			.distanceMin(radius/2)
 			.distanceMax(radius*4);
-		simulation.force("charge",many_f);
+		simulation.force("charge",many_f);*/
+		simulation = d3.forceSimulation()
+    .force("link", d3.forceLink().id(function(d) {return d.id}))
+    .force("charge", d3.forceManyBody().distanceMax(radius*10))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+	.force("collision",d3.forceCollide(radius+radius/4));
 		simulation.on("tick",move);
 		simulation.stop();
 	}
+	/* init the svg object
+	 * add arrows on edges
+	 * add svg context menu
+	 * add tooltip
+	 * add zoom and drag behavior
+	 */
 	function initSvg(){
-		svg.attr("preserveAspectRatio", "xMinYMin meet")
-			.attr("height",size.height)
-			.attr("width",size.width)
-			.classed("svg-content-responsive", true);
+		//add drag/zoom behavior
+		zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
+		svg.classed("svg-content-responsive", true);
 			svg.append("svg:defs").selectAll("marker")
 			.data(["arrow_end"])      // Different link/path types can be defined here
-			.enter().append("svg:marker")    // This section adds in the arrows
+			.enter().append("svg:marker")    // This section adds the arrows
 			.attr("id", function(d){return d;})
 			.attr("refX", radius)
 			.attr("refY", 7)
@@ -60,18 +101,22 @@ define([
 			.attr("markerUnits","strokeWidth")
 			.append("svg:path")
 			.attr("d", "M2,2 L2,13 L8,7 L2,2");
-		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));
-		d3.select("#tab_frame").append("div")
+		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
+		svg.call(zoom);
+		d3.select("#tab_frame").append("div")//add the description tooltip
 			.attr("id","n_tooltip")
 			.classed("n_tooltip",true)
 			.style("visibility","hidden");
-		svg.call(d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed));
 	};
+	/* this fonction  is triggered by tick events
+	 * move all the svg object (node and links)
+	 * movement can be due to force simulation or user dragging
+	 */
 	function move(){
 		var nodes = svg_content.selectAll("g.node");
 			nodes.attr("transform", function(d) {
-				d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
-				d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
+				//d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
+				//d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
 				return "translate(" + d.x + "," + d.y + ")"; 
 				});
 			svg_content.selectAll(".link")
@@ -80,15 +125,29 @@ define([
 				.attr("x2", function(d){ return d.target.x;})
 				.attr("y2", function(d){ if (d.source.id == d.target.id) return d.target.y-60;return d.target.y;});
 	}
+	/* this fonction  is triggered by zoom events
+	 * transform the svg container according to zoom
+	 */
 	function zoomed() {
 		if(!locked)
 			svg_content.attr("transform", d3.event.transform);
 	}
+	/* update the current view to a new graph
+	 * this function also load all nodes types
+	 * @input : graph : the new graph
+	 * @input : path : the graph path
+	 */
 	this.update = function update(graph,path){
 		g_id = path;
 		svg_content.selectAll("*").remove();
-		loadType(path,graph,loadGraph);
+		//if(graph.nodes.length<100)
+			loadType(path,graph,loadGraph);
 	};
+	/* load all type of a graph, this is needed for node coloration 
+	 * @input : graph : the new graph
+	 * @input : path : the graph path
+	 * @input : callback : the next function to call : loadGraph
+	 */
 	function loadType(path,graph,callback){
 		if(path != "/"){
 			path=path.split("/");
@@ -109,16 +168,31 @@ define([
 			});
 		}else callback(graph);
 	}
+	/* find a specific node in a graph
+	 * @input : n : the node id
+	 * @input : graph : the graph object 
+	 * @return : the node DOM object
+	 */
 	function findNode(n,graph){
 		var ret=graph.filter(function(e){
 			return e.id==n;		
 		});
 		return ret[0];
 	}
+	/* load a new graph in the svg
+	 * nodes and edges have context menu
+	 * nodes can be dragged
+	 * nodes can be selected with shift + click
+	 * nodes can be unlocked with ctrl+click
+	 * nodes can be renamed by double clicking it
+	 * @input : response : a json structure of the graph
+	 */
 	function loadGraph(response){
+		//transform links for search optimisation
 		var links = response.edges.map(function(d){
 			return {source:findNode(d.from,response.nodes),target:findNode(d.to,response.nodes)}
 		});
+		//add all links as line in the svg
 		var link = svg_content.selectAll(".link")
 			.data(links, function(d) { return d.source.id + "-" + d.target.id; });
 		link.enter().insert("line","g")
@@ -126,6 +200,7 @@ define([
 			.attr("marker-end", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
+		//add all node as circle in the svg
 		var node = svg_content.selectAll("g.node")
 			.data(response.nodes, function(d) {return d.id;});
 		var node_g = node.enter().insert("g")
@@ -135,6 +210,7 @@ define([
 			.on("mouseout",mouseOut)
 			.on("click",clickHandler)
 			.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
+		//class all nodes with there type
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
 		node_g.insert("circle")
 			.attr("r", radius)
@@ -142,6 +218,7 @@ define([
 				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length);
 				else return "white";
 			});
+		//add all node id as label
 		node_g.insert("text")
 			.classed("nodeLabel",true)
 			.attr("x", 0)
@@ -159,11 +236,26 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
+		if(response.nodes.length>100){
+			zoom.scaleTo(svg_content,0.2);
+		}
+			//transform=d3.zoomIdentity.translate(width/2,height/2).scale(0.2);
+			//svg_content.attr("transform", transform);
+		//start the simulation
+		simulation.nodes([]);
 		simulation.nodes(response.nodes);
-		links_f.links(links);
+		simulation.force("link").links(links);
+		//links_f
 		simulation.alpha(1);
 		simulation.restart();
 	};
+	/* define a color set according to the size of an array
+	 * and the element position in the array
+	 * @input : nb : the element index
+	 * @input : tot : the size of the array
+	 * @input : neg : return the color as negative
+	 * @return : a color in hex format
+	 */
 	function setColor(nb,tot,neg){
 		if(neg){
 			if(nb+1==tot/2)tot++;
@@ -171,12 +263,27 @@ define([
 		}
 		return ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
 	}
+	/* define the svg context menu
+	 * svg context menu allow to unlock all nodes,
+	 * select all nodes,
+	 * unselect all nodes,
+	 * add a new node of a correct type,
+	 * remove all selected nodes
+	 * @return : the svg context menu object
+	 * @call : graphUpdate
+	*/
 	function svgMenu(){
 		var menu = [{
 			title: "Unlock all",
 			action: function(elm,d,i){
 				svg_content.selectAll("g").each(function(d){d.fx=null;d.fy=null});
+				if(simulation.nodes().length>0)
 				simulation.alpha(1).restart();
+			}
+		},{
+			title: "Lock all",
+			action: function(elm,d,i){
+				svg_content.selectAll("g").each(function(d){d.fx=d.x;d.fy=d.y});
 			}
 		},{
 			title: "Select all",
@@ -226,6 +333,14 @@ define([
 		}
 		return menu;
 	};
+	/* define the node context menu
+	 * node context menu allow to remove it,
+	 * clone it,
+	 * link it to all selected nodes,
+	 * merge with a selected node : TODO -> change server properties,
+	 * @return : the node context menu object
+	 * @call : graphUpdate
+	*/
 	function nodeCtMenu(){
 		var menu=[{
 			title: "Remove",
@@ -290,34 +405,15 @@ define([
 				}
 			})
 		}
-			/*menu.push({
-				title: "Merge with selected nodes",
-				action: function(elm,d,i){
-					var cpt=0,err_cpt=0;
-					selected.each(function(el){
-						if(cpt+err_cpt==selected.size()-1){
-							inputMenu("New Name",[d.id+el.id],null,null,true,true,'center',function(cb){
-								if(cb.line){
-									request.mergeNode(g_id,d.id,el.id,cb.line,false,function(e,r){
-										if(!e){ console.log(r); cpt++;}
-										else{ console.error(e); err_cpt++;}
-										if(cpt == selected.size()-err_cpt) disp.call("graphUpdate",this,g_id);
-									});
-								}
-							},d,svg_content);
-						}else{
-							request.mergeNode(g_id,d.id,el.id,d.id,false,function(e,r){
-								if(!e){ console.log(r); cpt++;}
-								else{ console.error(e); err_cpt++;}
-								if(cpt == selected.size()-err_cpt) disp.call("graphUpdate",this,g_id);
-							});
-						}
-					});
-				}
-			});*/
+
 		}
 		return menu;		
 	};
+	/* define the edge context menu
+	 * edge context menu allow to remove it,
+	 * select source and target node,
+	 * @call : graphUpdate
+	*/
 	var edgeCtMenu =[{
 		title: "Select Source-target",
 		action: function(elm,d,i){
@@ -340,7 +436,11 @@ define([
 			}else locked=false;
 		}
 	}];
-	function mouseOver(d){//handling mouse over nodes/actions
+	/* handling mouse over nodes
+	 * show all the node information in the bottom left tooltip
+	 * @input : d : the node datas
+	 */
+	function mouseOver(d){
 		var div_ct="<p><h3><b><center>"+d.id+"</center></b>";
 			div_ct+="<h5><b><center>class: "+d.type+"</center></b></h5>";
 			div_ct+="</p>";
@@ -361,16 +461,26 @@ define([
 				.style("overflow "," hidden")
 				.html(div_ct);
 	};
-	function mouseOut(d){//handling mouse out of nodes/actions
+	/* handling mouse out of nodes
+	 * hide the bottom left tooltip
+	 * @input : d : the node datas (not needed yet)
+	 */
+	function mouseOut(d){
 		d3.select("#n_tooltip")
 			.style("visibility","hidden")
 			.text("");
 	};
-	function clickHandler(d) {//handling click on a node or an action 
+	/* handling click on a node
+	 * on shift : select/uselect the node
+	 * on ctrl : unlock the node and restart simulation
+	 * @input : d : the node datas
+	 */
+	function clickHandler(d) {
 		d3.event.stopPropagation();
 		if(d3.event.ctrlKey){
 			d.fx=null;
 			d.fy=null;
+			if(simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 		}
 		if(d3.event.shiftKey){
@@ -380,6 +490,12 @@ define([
 				d3.select(this).classed("selected",true);
 		}	
 	};
+	/* handling double-click on a node text
+	 * open an input menu
+	 * change the node id 
+	 * @input : d : the node datas
+	 * @call : graphUpdate
+	 */
 	function clickText(d){
         var el = d3.select(this);
 		var lab=[d.id];
@@ -403,9 +519,12 @@ define([
 		},d,svg_content);
 		
 	};
+	/* handling dragging event on nodes
+	 * @input : d : the node datas
+	 */
 	function dragged(d) {
 		if(locked)return;
-		if(simulation.alpha()<0.09)
+		if(simulation.alpha()<0.09 && simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 		d3.select(this).attr("cx", d.fx = d3.event.x).attr("cy", d.fy = d3.event.y);
 	}
