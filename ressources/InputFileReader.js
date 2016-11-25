@@ -57,7 +57,7 @@ define([
 				.classed("mod_div",true)
 				.on("click",importFile)
 				.html("Import")
-				.classed("unselectable",true);	
+				.classed("unselectable",true);
 			container.append("div")//add the new graph button
 				.attr("id","add")
 				.classed("mod_el",true)
