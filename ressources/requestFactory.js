@@ -45,7 +45,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		function errorCb(error){
 			if(error.currentTarget.status !=0){
 			alert(error.currentTarget.status+" : "+error.currentTarget.statusText+"\n"+error.currentTarget.response);
-			}else alert("Unexpected Server Error Serveur Error");
+			}else alert("Unexpected Server Error");
 			console.error("unable to complete request :");
 			console.error(error);
 		};

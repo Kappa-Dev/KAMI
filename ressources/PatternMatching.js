@@ -89,9 +89,9 @@ define([],function(){ return {
 			var str="";
 			resp.forEach(function(e,i){
 				if(e.id!="NAN")
-					str+=g1.nodes[id_match[i]].fst+" "+g1.nodes[id_match[i]].lst+"->"+g2.nodes[e.id].fst+" "+g2.nodes[e.id].lst+"\n";
+					str+="("+g1.nodes[id_match[i]].id+") "+g1.nodes[id_match[i]].fst+" "+g1.nodes[id_match[i]].lst+"->"+"("+g2.nodes[e.id].id+") "+g2.nodes[e.id].fst+" "+g2.nodes[e.id].lst+"\n";
 				else
-					str+=g1.nodes[id_match[i]].fst+" "+g1.nodes[id_match[i]].lst+"->\n";
+					str+="("+g1.nodes[id_match[i]].id+") "+g1.nodes[id_match[i]].fst+" "+g1.nodes[id_match[i]].lst+"->\n";
 			});
 			var url = 'data:text/json;charset=utf8,' + encodeURIComponent(str);
 			window.open(url, '_blank');			
@@ -176,10 +176,10 @@ define([],function(){ return {
 					});
 					sequences.forEach(function(seq,idx){
 						if(totScore(seq)<totScore(origin[idx]) && Math.floor((Math.random() * 100))>49){
-							if(viable(seq,map))
+							if(viable(seq))
 								origin[idx]=seq;
 						}else if(totScore(seq)>totScore(origin[idx]) && Math.floor((Math.random() * 100))>80){
-							if(viable(seq,map))
+							if(viable(seq))
 								origin[idx]=seq;
 						}
 					});
@@ -201,7 +201,7 @@ define([],function(){ return {
 			 * @input : seq : the sequence
 			 * @return : boolean : true if viable, false if not.
 			 */
-			function viable(seq,map){
+			function viable(seq){
 				for(var i=0;i<seq.length;i++){
 					for(var j=i+1;j<seq.length-1;j++){
 						if(seq[i].id == seq[j].id && seq[i].id!="NAN"){
@@ -274,7 +274,7 @@ define([],function(){ return {
 			function matchFst(n_id){
 				var node = g1.nodes[n_id];
 				var large_possible = nodeByFst["g2"][node.fst].filter(function(id){
-					return !g2.nodes[id].lst || g2.nodes[id].lst!=node.lst;
+					return !g2.nodes[id].lst || g2.nodes[id].lst==node.lst;
 				});
 				if(large_possible)
 					return patternMatch(n_id,large_possible);
