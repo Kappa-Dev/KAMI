@@ -28,7 +28,8 @@ define(["ressources/d3/d3.js"],function(d3){
 					return accu+=e.id+"="+e.val+(i<urlparam.length-1?"&":"");
 				},"?");
 			}
-			var rq = d3.request(srv+loc+path+"/"+url_param_string)
+			var isSlach = path && path!="/"?"/":"";
+			var rq = d3.request(srv+loc+path+isSlash+url_param_string)
 				.mimeType(content_type)
 				.response(function(xhr){return rsp_pars?rsp_pars(xhr.responseText):xhr.responseText;})
 				.on("error", function(error) { errorCb(error); })
