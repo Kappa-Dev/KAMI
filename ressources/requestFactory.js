@@ -28,7 +28,7 @@ define(["ressources/d3/d3.js"],function(d3){
 					return accu+=e.id+"="+e.val+(i<urlparam.length-1?"&":"");
 				},"?");
 			}
-			var rq = d3.request(srv+loc+path+url_param_string)
+			var rq = d3.request(srv+loc+path+"/"+url_param_string)
 				.mimeType(content_type)
 				.response(function(xhr){return rsp_pars?rsp_pars(xhr.responseText):xhr.responseText;})
 				.on("error", function(error) { errorCb(error); })
@@ -42,6 +42,9 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : console error message
 		 */
 		function errorCb(error){
+			if(error.currentTarget.status !=0){
+			alert(error.currentTarget.status+" : "+error.currentTarget.statusText+"\n"+error.currentTarget.response);
+			}else alert("Unexpected Server Error Serveur Error");
 			console.error("unable to complete request :");
 			console.error(error);
 		};
@@ -59,6 +62,21 @@ define(["ressources/d3/d3.js"],function(d3){
 				callback,
 				null,
 				JSON.parse);
+		};
+		/* return the regraph version on the server
+		 * @input : callback  : the return callback function
+		 * @return : on succeed : callback function
+		 */
+		this.getVersion = function getVersion(callback){
+			request("GET",
+			"/version",
+			"",
+			null,
+			"text/html",
+			callback,
+			null,
+			null
+			)
 		};
 		/* get a graph in json format
 		 * @input : gr_path : the graph path

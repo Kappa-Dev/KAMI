@@ -176,10 +176,10 @@ define([],function(){ return {
 					});
 					sequences.forEach(function(seq,idx){
 						if(totScore(seq)<totScore(origin[idx]) && Math.floor((Math.random() * 100))>49){
-							if(viable(seq))
+							if(viable(seq,map))
 								origin[idx]=seq;
 						}else if(totScore(seq)>totScore(origin[idx]) && Math.floor((Math.random() * 100))>80){
-							if(viable(seq))
+							if(viable(seq,map))
 								origin[idx]=seq;
 						}
 					});
@@ -201,7 +201,7 @@ define([],function(){ return {
 			 * @input : seq : the sequence
 			 * @return : boolean : true if viable, false if not.
 			 */
-			function viable(seq){
+			function viable(seq,map){
 				for(var i=0;i<seq.length;i++){
 					for(var j=i+1;j<seq.length-1;j++){
 						if(seq[i].id == seq[j].id && seq[i].id!="NAN"){
