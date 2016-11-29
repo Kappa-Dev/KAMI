@@ -21,11 +21,11 @@ define([
 			hieShape = {};
 			server_url="https://api.executableknowledge.org/iregraph";
 		}
-		this.update(graph_name){
+		this.update = function update(graph_name){
 			delete hieShape[graph_name];
 		}
 		function configShow(){
-			d3.select("body").append("div")
+			//d3.select("body").append("div")
 				.attr("id","config_menu");
 		}
 	};
