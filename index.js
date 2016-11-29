@@ -33,7 +33,8 @@ define([
 			"tabUpdate",//triggered when the content of the tab Menu need to be changed 
 			"graphUpdate",//triggered when a module change the current graph showed
 			"graphSave",//triggered when the edition box is closed and saved ----->TODO
-			"tabMenu"//triggered when the tab scroller is clicked
+			"tabMenu",//triggered when the tab scroller is clicked
+			"configUpdate"//triggered when the graph shown is changed
 		);
 		d3.select("body").append("div").attr("id",main_ct_id);
 		var main_container = d3.select("#"+main_ct_id);//Main div
@@ -107,6 +108,12 @@ define([
 				}
 			);
 		});
+		dispatch.on("configUpdate",function(type_graph){
+			config.loadGraphConf(type_graph);
+		});
+		
+		
+		
 		/* On graphUpdate : get the new graph to show from server and load it in the UI
 		 * @input : abs_path : the absolute path of the graph in the hierarchy
 		 * if the request succeed, the new graph is loaded on screen

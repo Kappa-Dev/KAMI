@@ -34,6 +34,9 @@ define([
 		this.update = function update(graph_name){
 			delete hieShape[graph_name];
 		}
+		this.loadGraphConf = function loadGraphConf(graph_name){
+			console.log(graph_name);
+		};
 		function configShow(){
 			if(config_container.property("disabled")){
 				config_container.property("disabled",false)
@@ -42,7 +45,6 @@ define([
 				config_container.property("disabled",true)
 					.style("display","none");
 			}
-			
 		}
 	};
 });

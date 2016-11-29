@@ -161,6 +161,7 @@ define([
 				if(e) console.error(e);
 				else {
 					type_list=r.nodes.map(function(e){
+						disp.call("configUpdate",this,type_list);
 						return e.id;
 					});
 					callback(graph);
