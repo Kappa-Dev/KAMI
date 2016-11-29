@@ -26,7 +26,7 @@ define([
 		}
 		function configShow(){
 			//d3.select("body").append("div")
-				.attr("id","config_menu");
+				//.attr("id","config_menu");
 		}
 	};
 });
