@@ -215,7 +215,7 @@ define([
 		node_g.insert("circle")
 			.attr("r", radius)
 			.style("fill",function(d){
-				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length);
+				if(d.type && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length);
 				else return "white";
 			});
 		//add all node id as label
@@ -227,11 +227,11 @@ define([
 			.text(function(d) {return d.id.length>7?d.id.substring(0,5).concat("..."):d.id;})
 			.attr("font-size", function(){return(radius/2)+"px"})
 			.style("fill",function(d){
-				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
+				if(d.type  && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
 				else return "black";
 			})
 			.style("stroke",function(d){
-				if(d.type) return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
+				if(d.type && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
 				else return "black";
 			})
 			.on("dblclick",clickText);

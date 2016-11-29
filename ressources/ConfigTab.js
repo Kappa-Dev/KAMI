@@ -10,23 +10,39 @@ define([
 	function(d3){
 	
 	return function(container,dispatch){
-		var config_container = d3.select("#"+container).append("div")//add a gear button
+		d3.select("#"+container).append("div")//add a gear button
 			.classed("config_icon",true)
 			.on("click",configShow)
 			.html("&#x2699;")
 			.classed("unselectable",true);
+		var config_container;
 		var hieShape ={};
 		var server_url="";
 		this.init = function init(){
 			hieShape = {};
 			server_url="https://api.executableknowledge.org/iregraph";
+			config_container=d3.select("body").append("div")
+				.attr("id","config_menu")
+				.property("disabled",true)
+				.style("display","none");
+			config_container.append("div")
+				.classed("close_side_menu",true)
+				.on("click",configShow)
+				.html("&#x274c;")
+				.classed("unselectable",true);//add a close button
 		}
 		this.update = function update(graph_name){
 			delete hieShape[graph_name];
 		}
 		function configShow(){
-			//d3.select("body").append("div")
-				//.attr("id","config_menu");
+			if(config_container.property("disabled")){
+				config_container.property("disabled",false)
+					.style("display","initial");
+			}else{
+				config_container.property("disabled",true)
+					.style("display","none");
+			}
+			
 		}
 	};
 });
