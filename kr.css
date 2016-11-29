@@ -88,6 +88,13 @@ body{
 	color:#0f71ba;
 	font-size:200%;
 }
+.config_icon{
+	float:right;
+	margin-right:0.5%;
+	text-align:center;
+	color:white;
+	font-size:200%;
+}
 .save{
 	position:absolute;
 	float:left;

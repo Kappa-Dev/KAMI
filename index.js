@@ -12,9 +12,10 @@ define([
 	"ressources/InputFileReader.js",
 	"ressources/requestFactory.js",
 	"ressources/InterractiveGraph.js",
-	"ressources/SideMenu.js"
+	"ressources/SideMenu.js",
+	"ressources/ConfigTab.js"
 	],
-	function(d3,Tree,Hierarchy,converter,InputFileReader,RFactory,InterractiveGraph,SideMenu){
+	function(d3,Tree,Hierarchy,converter,InputFileReader,RFactory,InterractiveGraph,SideMenu,ConfigTab){
 	//Regraph Gui Core
 	(function pageLoad(){
 		//this section must be changed to feet the server/user requirement.
@@ -58,6 +59,9 @@ define([
 		hierarchy.update(root);
 		//modification menu : add, export and new graph + file input + type selector
 		var input_hie = new InputFileReader("top_chart",dispatch,server_url);
+		//configuration menu : change serveur url, node color, size and shape.
+		var config = new ConfigTab("top_chart",dispatch);
+		config.init();
 		//the graph showed : TODO -> maybe a graph list to avoid reloading each graph.
 		var graph_pan = new InterractiveGraph("graph_frame",dispatch,server_url);
 		//the side menu
