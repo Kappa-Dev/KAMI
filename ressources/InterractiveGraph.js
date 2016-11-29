@@ -93,14 +93,19 @@ define([
 			.data(["arrow_end"])      // Different link/path types can be defined here
 			.enter().append("svg:marker")    // This section adds the arrows
 			.attr("id", function(d){return d;})
-			.attr("refX", radius)
-			.attr("refY", 7)
-			.attr("markerWidth", 13)
-			.attr("markerHeight", 13)
+			//.attr("refX", radius)
+			//.attr("refY", 7)
+			//.attr("markerWidth", 13)
+			//.attr("markerHeight", 13)
+			.attr("refX", 0)
+			.attr("refY", 3)
+			.attr("markerWidth", 10)
+			.attr("markerHeight", 10)
 			.attr("orient", "auto")
 			.attr("markerUnits","strokeWidth")
 			.append("svg:path")
-			.attr("d", "M2,2 L2,13 L8,7 L2,2");
+			.attr("d","M0,0 L0,6 L9,3 z");
+			//.attr("d", "M2,2 L2,13 L8,7 L2,2");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
 		svg.call(zoom);
 		d3.select("#tab_frame").append("div")//add the description tooltip
@@ -120,10 +125,35 @@ define([
 				return "translate(" + d.x + "," + d.y + ")"; 
 				});
 			svg_content.selectAll(".link")
-				.attr("x1", function(d){ return d.source.x;})
+				/*.attr("x1", function(d){ return d.source.x;})
 				.attr("y1", function(d){ return d.source.y;})
 				.attr("x2", function(d){ return d.target.x;})
 				.attr("y2", function(d){ if (d.source.id == d.target.id) return d.target.y-60;return d.target.y;});
+				*/
+			.attr("d", function(d) {
+				var x1 = d.source.x,
+					y1 = d.source.y,
+					x2 = d.target.x,
+					y2 = d.target.y,
+					dx = x2 - x1,
+					dy = y2 - y1,
+					dr = Math.sqrt(dx * dx + dy * dy),
+					drx = dr,
+					dry = dr,
+					xRotation = 0,
+					largeArc = 0,
+					sweep = 1;
+					// Self edge.
+				if ( x1 === x2 && y1 === y2 ) {
+					xRotation = -45;
+					largeArc = 1;
+					drx = 30;
+					dry = 20;
+					x2 = x2 + 1;
+					y2 = y2 + 1;
+				} 
+				return "M"+x1+","+y1+"A"+drx+","+dry+" "+xRotation+","+largeArc+","+sweep+" "+x2+","+y2;
+			});	
 	}
 	/* this fonction  is triggered by zoom events
 	 * transform the svg container according to zoom
@@ -161,9 +191,9 @@ define([
 				if(e) console.error(e);
 				else {
 					type_list=r.nodes.map(function(e){
-						disp.call("configUpdate",this,type_list);
 						return e.id;
 					});
+					disp.call("configUpdate",this,type_list);
 					callback(graph);
 				}
 			});
@@ -196,9 +226,11 @@ define([
 		//add all links as line in the svg
 		var link = svg_content.selectAll(".link")
 			.data(links, function(d) { return d.source.id + "-" + d.target.id; });
-		link.enter().insert("line","g")
+		link.enter()//.insert("line","g")
+			.append("path")
 			.classed("link",true)
-			.attr("marker-end", "url(#arrow_end)")
+			//.attr("marker-end", "url(#arrow_end)")
+			.attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
 		//add all node as circle in the svg
@@ -260,7 +292,7 @@ define([
 	function setColor(nb,tot,neg){
 		if(neg){
 			if(nb+1==tot/2)tot++;
-			return ((0xFFFFFF-((0xFFFFFF/tot)*(nb+1)))).toString(16).split(".")[0];
+			return (((0xFFFFFF-((0xFFFFFF/tot)*(nb+1))))).toString(16).split(".")[0];
 		}
 		return ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
 	}

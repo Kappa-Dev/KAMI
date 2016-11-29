@@ -362,6 +362,7 @@ svg{
 }
 .link {
   stroke: #000;
+  fill:none;
   stroke-width: 3px;
 }
 #n_tooltip{

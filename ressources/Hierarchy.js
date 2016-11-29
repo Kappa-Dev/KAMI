@@ -76,6 +76,7 @@ define([
 		 * @call : graphUpdate event
 		 */
 		function tabChange(id){
+			if(selected_node==id)return;
 			selected_node = id;
 			h_list.selectAll(".tab_menu_el")
 				.style("color","rgb(251, 249, 200)")//show the correct menu element
