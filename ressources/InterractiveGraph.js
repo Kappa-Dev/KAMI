@@ -93,19 +93,15 @@ define([
 			.data(["arrow_end"])      // Different link/path types can be defined here
 			.enter().append("svg:marker")    // This section adds the arrows
 			.attr("id", function(d){return d;})
-			//.attr("refX", radius)
-			//.attr("refY", 7)
-			//.attr("markerWidth", 13)
-			//.attr("markerHeight", 13)
 			.attr("refX", 0)
 			.attr("refY", 3)
 			.attr("markerWidth", 10)
 			.attr("markerHeight", 10)
 			.attr("orient", "auto")
 			.attr("markerUnits","strokeWidth")
+			//.attr("position","50%")
 			.append("svg:path")
 			.attr("d","M0,0 L0,6 L9,3 z");
-			//.attr("d", "M2,2 L2,13 L8,7 L2,2");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
 		svg.call(zoom);
 		d3.select("#tab_frame").append("div")//add the description tooltip
@@ -120,16 +116,9 @@ define([
 	function move(){
 		var nodes = svg_content.selectAll("g.node");
 			nodes.attr("transform", function(d) {
-				//d.x=Math.max(20, Math.min(svg.attr("width") - 20, d.x));
-				//d.y=Math.max(20, Math.min(svg.attr("height") - 20, d.y));
 				return "translate(" + d.x + "," + d.y + ")"; 
 				});
 			svg_content.selectAll(".link")
-				/*.attr("x1", function(d){ return d.source.x;})
-				.attr("y1", function(d){ return d.source.y;})
-				.attr("x2", function(d){ return d.target.x;})
-				.attr("y2", function(d){ if (d.source.id == d.target.id) return d.target.y-60;return d.target.y;});
-				*/
 			.attr("d", function(d) {
 				var x1 = d.source.x,
 					y1 = d.source.y,
@@ -229,7 +218,6 @@ define([
 		link.enter()//.insert("line","g")
 			.append("path")
 			.classed("link",true)
-			//.attr("marker-end", "url(#arrow_end)")
 			.attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();

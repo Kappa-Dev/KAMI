@@ -536,5 +536,82 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				null);
 		};	
+		/* get meta-data from graphs
+		 * @input : g_path : the graph path
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function of dictionary
+		 */
+		this.getAttr = function getAttr(g_path,callback){
+			request("GET",
+				"/graph/get_graph_attr",
+				g_path,
+				null,
+				"application/json",
+				callback,
+				null,
+				JSON.parse);
+		};
+		/* add attributes to a graph (coordinate, node shape/colors)
+		 * @input : g_path : the graph path
+		 * @input : dico : the new dictonnary (will be merged)
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function
+		 */
+		this.addAttr = function addAttr(g_path,dico,callback){
+			request("PUT",
+				"/graph/update_graph_attr",
+				g_path,
+				null,
+				"application/json",
+				callback,
+				dico,
+				null);
+		};
+		/* remove attributes from a graph (coordinate, node shape/colors)
+		 * @input : g_path : the graph path
+		 * @input : dico_pth : the path to the element we want to remove
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function
+		 */
+		this.rmAttr = function rmAttr(g_path,dico_pth,callback){
+			request("PUT",
+				"/graph/update_graph_attr",
+				g_path,
+				null,
+				"application/json",
+				callback,
+				dico,
+				null);
+		};
+		/* get regraph version
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function of dictionary
+		 */
+		this.getVersion = function getVersion(callback){
+			request("GET",
+				"/version",
+				null,
+				null,
+				"application/json",
+				callback,
+				null,
+				JSON.parse);
+		};
+		/* submit a list and nugget and recieve the corresponding kappa code
+		 * @input : g_path : the graph path
+		 * @input : nugget : the list of nugget names { "names": ["string"]}
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function of dictionary
+		 */
+		this.getKappa = function getKappa(g_path,callback){
+			request("GET",
+				"/graph/get_kappa",
+				g_path,
+				null,
+				"application/json",
+				callback,
+				nuggets,
+				null);
+		};
 	}
 });
