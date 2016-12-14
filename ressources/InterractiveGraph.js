@@ -238,9 +238,9 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
-		if(response.nodes.length>100){//if the graph has more than 100 nodes : rescale it at load
+		if(response.nodes.length>100)//if the graph has more than 100 nodes : rescale it at load
 			zoom.scaleTo(svg_content,0.2);
-		}else zoom.scaleTo(svg_content,d3.zoomIdentity);
+		else zoom.scaleTo(svg_content,d3.zoomIdentity);
 		//start the simulation
 		simulation.nodes([]);
 		simulation.nodes(response.nodes);
@@ -258,8 +258,13 @@ define([
 	 */
 	function setColor(nb,tot,neg){
 		if(neg){
-			if(nb+1==tot/2)tot++;
-			return (((0xFFFFFF-((0xFFFFFF/tot)*(nb+1))))).toString(16).split(".")[0];
+			//if(nb+1==tot/2)tot++;
+			//return (((0xFFFFFF-((0xFFFFFF/tot)*(nb+1))))).toString(16).split(".")[0];
+			var tmp = ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
+			ret =(parseInt(tmp[0]+tmp[1],16)*299+parseInt(tmp[2]+tmp[3],16)*587+parseInt(tmp[4]+tmp[5],16)*114)/1000;
+			console.log(ret);
+			if(ret <375) return (0xFFFFFF).toString(16);
+			else return (0x000000).toString(16);
 		}
 		return ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
 	}
