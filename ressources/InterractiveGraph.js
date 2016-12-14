@@ -54,23 +54,6 @@ define([
 	 * 	-center force : foce node to stay close to the center
 	 */
 	function initForce(){
-		simulation /*= d3.forceSimulation();
-		var center_f = d3.forceCenter(svg.attr("width")/2,svg.attr("height")/2);
-		simulation.force("center",center_f);
-		var collid_f = d3.forceCollide(radius+radius/4).strength(0.9);
-		simulation.force("collision",collid_f);
-		links_f = d3.forceLink()
-			.id(function(d){return d})
-			.distance(function(d){return d.source.type==d.target.type?radius/2:radius*2})
-			.strength(function(d){
-				return 1
-			});
-		simulation.force("links",links_f);
-		var many_f = d3.forceManyBody()
-			.strength(function(d){return d.fx?-10:-10})
-			.distanceMin(radius/2)
-			.distanceMax(radius*4);
-		simulation.force("charge",many_f);*/
 		simulation = d3.forceSimulation()
     .force("link", d3.forceLink().id(function(d) {return d.id}))
     .force("charge", d3.forceManyBody().distanceMax(radius*10))
@@ -99,7 +82,6 @@ define([
 			.attr("markerHeight", 10)
 			.attr("orient", "auto")
 			.attr("markerUnits","strokeWidth")
-			//.attr("position","50%")
 			.append("svg:path")
 			.attr("d","M0,0 L0,6 L9,3 z");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
@@ -159,8 +141,7 @@ define([
 	this.update = function update(graph,path){
 		g_id = path;
 		svg_content.selectAll("*").remove();
-		//if(graph.nodes.length<100)
-			loadType(path,graph,loadGraph);
+		loadType(path,graph,loadGraph);
 	};
 	/* load all type of a graph, this is needed for node coloration 
 	 * @input : graph : the new graph
@@ -257,11 +238,9 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
-		if(response.nodes.length>100){
+		if(response.nodes.length>100){//if the graph has more than 100 nodes : rescale it at load
 			zoom.scaleTo(svg_content,0.2);
-		}
-			//transform=d3.zoomIdentity.translate(width/2,height/2).scale(0.2);
-			//svg_content.attr("transform", transform);
+		}else zoom.scaleTo(svg_content,d3.zoomIdentity);
 		//start the simulation
 		simulation.nodes([]);
 		simulation.nodes(response.nodes);
