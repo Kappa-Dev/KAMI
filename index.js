@@ -108,8 +108,6 @@ define([
 				}
 			);
 		});
-		/* On configUpdate : change the configuration and redraw graph according to configurations 
-		*/
 		dispatch.on("configUpdate",function(type_graph){
 			config.loadGraphConf(type_graph);
 		});

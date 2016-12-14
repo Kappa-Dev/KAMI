@@ -1,7 +1,7 @@
 /* This module add the side menu to the UI
  * This module add a div containing hierachy modification inputs
  * this module trigger hieUpdate
- * @Author Adrien Basso blandin
+ * @ Author Adrien Basso blandin
  * This module is part of regraphGui project
  * this project is under AGPL Licence
 */
@@ -90,8 +90,9 @@ define([
 				})
 			})
 		}
+		/* this part is here as demo purpose and will be transfered in a module soonly */
 		/* merge two graph according to matching properties between nodes of the same type
-		 * we define two node to be identical if they have se same pattern and match all strong contraints.
+		 * we define two node to be identical if they have se same name and firstName
 		 * we guess two nodes as similar if they both have the same matching.
 		 * we define a mathching as the 2-closure of a node. witch means : this node, its name/first-name and all the other nodes it is linked throw a conversation.
 		 * This function must have been processed direcly on the json file to be optimized.

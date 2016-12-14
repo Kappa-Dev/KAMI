@@ -82,6 +82,7 @@ define([
 			.attr("markerHeight", 10)
 			.attr("orient", "auto")
 			.attr("markerUnits","strokeWidth")
+			//.attr("position","50%")
 			.append("svg:path")
 			.attr("d","M0,0 L0,6 L9,3 z");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
@@ -90,6 +91,12 @@ define([
 			.attr("id","n_tooltip")
 			.classed("n_tooltip",true)
 			.style("visibility","hidden");
+		svg_content.append("svg:image")
+			.attr("width",900)
+			.attr("height",400)
+			.attr("x",function(){return width/2-450})
+			.attr("y",function(){return height/2-200})
+			.attr("xlink:href","ressources/toucan.png");
 	};
 	/* this fonction  is triggered by tick events
 	 * move all the svg object (node and links)
@@ -140,8 +147,19 @@ define([
 	 */
 	this.update = function update(graph,path){
 		g_id = path;
-		svg_content.selectAll("*").remove();
-		loadType(path,graph,loadGraph);
+		if(path != "/"){
+			svg_content.selectAll("*").remove();
+		//if(graph.nodes.length<100)
+			loadType(path,graph,loadGraph);
+		}
+		else{
+			svg_content.append("svg:image")
+			.attr("width",900)
+			.attr("height",400)
+			.attr("x",function(){return width/2-450})
+			.attr("y",function(){return height/2-200})
+			.attr("xlink:href","ressources/toucan.png");
+		}
 	};
 	/* load all type of a graph, this is needed for node coloration 
 	 * @input : graph : the new graph
@@ -240,7 +258,7 @@ define([
 		node.exit().remove();
 		if(response.nodes.length>100)//if the graph has more than 100 nodes : rescale it at load
 			zoom.scaleTo(svg_content,0.2);
-		else zoom.scaleTo(svg_content,d3.zoomIdentity);
+		else zoom.scaleTo(svg_content,1);
 		//start the simulation
 		simulation.nodes([]);
 		simulation.nodes(response.nodes);
@@ -258,12 +276,11 @@ define([
 	 */
 	function setColor(nb,tot,neg){
 		if(neg){
-			//if(nb+1==tot/2)tot++;
-			//return (((0xFFFFFF-((0xFFFFFF/tot)*(nb+1))))).toString(16).split(".")[0];
+			//calculate color luminosity
 			var tmp = ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
-			ret =(parseInt(tmp[0]+tmp[1],16)*299+parseInt(tmp[2]+tmp[3],16)*587+parseInt(tmp[4]+tmp[5],16)*114)/1000;
-			console.log(ret);
-			if(ret <375) return (0xFFFFFF).toString(16);
+			var ret =(parseInt(tmp[0]+tmp[1],16)*299+parseInt(tmp[2]+tmp[3],16)*587+parseInt(tmp[4]+tmp[5],16)*114)/1000;
+			//if brigth : return black, else return white
+			if(ret <150) return (0xFFFFFF).toString(16);
 			else return (0x000000).toString(16);
 		}
 		return ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
