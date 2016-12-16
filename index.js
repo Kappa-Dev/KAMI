@@ -61,7 +61,7 @@ define([
 		//modification menu : add, export and new graph + file input + type selector
 		var input_hie = new InputFileReader("top_chart",dispatch,server_url);
 		//configuration menu : change serveur url, node color, size and shape.
-		var config = new ConfigTab("top_chart",dispatch);
+		var config = new ConfigTab("top_chart",dispatch,server_url);
 		config.init();
 		//the graph showed : TODO -> maybe a graph list to avoid reloading each graph.
 		var graph_pan = new InterractiveGraph("graph_frame",dispatch,server_url);
@@ -165,12 +165,23 @@ define([
 		 * if the request succeed, the json file is opened in a new Window
 		 */
 		dispatch.on("graphExprt",function(type){
-			factory.getGraph(
-				current_graph,
-				function(err,ret){
-					converter.exportGraph({hierarchy:ret});
-				}
-			);
+			switch(type){
+				case "Hierarchy" :
+				factory.getHierarchy(
+					"/",
+					function(err,ret){
+						converter.exportGraph({hierarchy:ret});
+					}
+				);
+				break;
+				default : 
+				factory.getGraph(
+					current_graph,
+					function(err,ret){
+						converter.exportGraph({hierarchy:ret});
+					}
+				);
+			}
 		});
 		/* On hieUpdate : Reload the hierarchy
 		 * if the request succeed, the hierarchy menu is reloaded so is the current graph.
