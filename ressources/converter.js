@@ -77,7 +77,7 @@ kamiToRegraph:function(json_file,dispatch,type){
 			return;
 		}
 		//rename graph objects in the new format
-		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"attribute","flag":"flag","mod":"mod","bnd":"bind","brk":"unbind"};
+		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"attribute","flag":"state","mod":"mod","bnd":"bnd","brk":"brk","binder":"locus","syn":"syn","deg":"deg"};
 		cls_to_js_id = {"agent":"agents","region":"regions","flag":"flags","attribute":"attributes","key_res":"key_rs","action":"actions"}
 		//OutPut object
 		var ret={

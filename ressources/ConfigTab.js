@@ -16,7 +16,7 @@ define([
 			.on("click",configShow)
 			.html("&#x2699;")
 			.classed("unselectable",true);
-		var config_container;
+		//var config_container;
 		var hieShape ={};
 		var server_url="";
 		this.init = function init(){
@@ -33,11 +33,12 @@ define([
 				.classed("unselectable",true);//add a close button
 		}
 		this.update = function update(graph_name){
-			delete hieShape[graph_name];
+			//delete hieShape[graph_name];
 			Rfactory.getConfig(graph_name,configDisplay(ret));
 		}
 		function configDisplay(req){
-			hieShape[req.name])=
+			//hieShape[req.name]=
+			
 		}
 		this.loadGraphConf = function loadGraphConf(graph_name){
 			console.log(graph_name);

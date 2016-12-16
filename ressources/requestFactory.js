@@ -255,6 +255,40 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				null);
 		};
+		/* add new attributes to an existing node
+		 * @input : g_path : the graph path
+		 * @input : n_id : the node id
+		 * @input : dico : a dictonnary of values
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function
+		 */
+		this.addNodeAtt = function addNodeAtt(g_path,n_id,dico,callback){
+			request("PUT",
+				"/graph/add_attr",
+				g_path,
+				[{id:"node_id",val:n_id}],
+				"application/json",
+				callback,
+				dico,
+				null);
+		};
+		/* remove specified attrobutes from an existing node
+		 * @input : g_path : the graph path
+		 * @input : n_id : the node id
+		 * @input : dico : a dictonnary of values
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function
+		 */
+		this.rmNodeAtt = function rmNodeAtt(g_path,n_id,dico,callback){
+			request("PUT",
+				"/graph/rm_attr",
+				g_path,
+				[{id:"node_id",val:n_id}],
+				"application/json",
+				callback,
+				dico,
+				null);
+		};
 		/* merge two nodes of the same type
 		 * @input : g_path : the graph path
 		 * @input : n_id1 : the first node id
