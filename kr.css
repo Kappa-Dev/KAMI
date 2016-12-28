@@ -211,6 +211,7 @@ body{
 .mod_menu{
 	float:left;
 	/*! position:relative; */
+	width:50%;
 	margin-left :10rem;
 	height:100%;
 }

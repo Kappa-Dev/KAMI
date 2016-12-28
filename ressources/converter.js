@@ -87,27 +87,27 @@ kamiToRegraph:function(json_file,dispatch,type){
 		};
 		var coord={"ActionGraph":{}};
 		/* convert @input kami node type into a regraph node list and add it to the output graph */
-		["agents","regions","key_rs","attributes","flags"].forEach(function(node_type){
+		["agents","regions","key_rs"].forEach(function(node_type){
 			response[node_type].forEach(function(e,i){
+				var attr_l={};
+				response.attributes.forEach(function(ee,ii){
+					if(getFthId(ee)==e.labels.join("_")+"_"+i){
+						attr_l[ee.labels.join("_")+"_"+ii]=ee.values;
+					}
+					
+				});
 				ret.top_graph.nodes.push({
 					"id":e.labels.join("_")+"_"+i,
-					"type":cvt_dico[e.classes[0]]
+					"type":cvt_dico[e.classes[0]],
+					"attrs":attr_l
+					
 				});
-				e.values.forEach(function(ee,ii){
-					ret.top_graph.nodes.push({
-						"id":e.labels.join("_")+"_"+i+"_"+ee,
-						"type":"value"
-					});
-					ret.top_graph.edges.push({
-						"from":e.labels.join("_")+"_"+i+"_"+ee,
-						"to":e.labels.join("_")+"_"+i
-					});
-				});
+				
 				coord.ActionGraph[e.labels.join("_")+"_"+i]=[e.x,e.y];
 			});
 		});
 		//add edges corresponding to path
-		["regions","key_rs","attributes","flags"].forEach(function(node_type){
+		["regions","key_rs"].forEach(function(node_type){
 			response[node_type].forEach(function(e,i){
 				ret.top_graph.edges.push({
 					"from":e.labels.join("_")+"_"+i,
@@ -116,7 +116,7 @@ kamiToRegraph:function(json_file,dispatch,type){
 			});
 		});
 		/* get an element father id
-		 * @input : the element father
+		 * @input : the element 
 		 * @return : if no father : error, else return the father id
 		 */
 		function getFthId(e){
