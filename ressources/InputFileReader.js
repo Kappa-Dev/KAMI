@@ -65,7 +65,20 @@ define([
 				.on("click",addThing)
 				.html("New graph")
 				.classed("unselectable",true);
+			container.append("div")//add the to Kappa button
+				.attr("id","kappa")
+				.classed("mod_el",true)
+				.classed("mod_div",true)
+				.on("click",toKappa)
+				.html("To Kappa")
+				.classed("unselectable",true);
 		}());
+		/* Convert the current graph into kappa : TODO
+		 * Open a new page with the Kappa code 
+		 */
+		function toKappa(){
+			console.log("Todo");
+		};
 		/* Add a new object to the current hierarchy
 		 * this object depends of the selector : Graph, Rule or hierarchy
 		 * @call : this function trigger addGraph event with the type of the selector

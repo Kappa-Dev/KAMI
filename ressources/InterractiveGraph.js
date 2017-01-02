@@ -465,6 +465,13 @@ define([
 	function mouseOver(d){
 		var div_ct="<p><h3><b><center>"+d.id+"</center></b>";
 			div_ct+="<h5><b><center>class: "+d.type+"</center></b></h5>";
+			if(d.attrs){
+				div_ct+="<ul>";
+				for(el in d.attrs){
+					div_ct+="<li><b><center>"+el+":"+d.attrs[el].join(",")+"</center></b></li>";
+				}
+				div_ct+="</ul>";
+			}
 			div_ct+="</p>";
 			d3.select("#n_tooltip")
 				.style("visibility","visible")

@@ -75,257 +75,177 @@ kamiToRegraph:function(json_file,dispatch,type){
 		if(!response.version){
 			dispatch.call("graphFileLoaded",this,{"hierarchy":response,"coord":null,"type":type});
 			return;
-		}
-		//rename graph objects in the new format
-		cvt_dico ={"agent":"agent","region":"region","key_res":"residue","attribute":"attribute","flag":"state","mod":"mod","bnd":"bnd","brk":"brk","binder":"locus","syn":"syn","deg":"deg"};
-		cls_to_js_id = {"agent":"agents","region":"regions","flag":"flags","attribute":"attributes","key_res":"key_rs","action":"actions"}
-		//OutPut object
-		var ret={
-			"name":"ActionGraph",
-			"top_graph":{"edges":[],"nodes":[]},
-			"children":[]
-		};
-		var coord={"ActionGraph":{}};
-		/* convert @input kami node type into a regraph node list and add it to the output graph */
-		["agents","regions","key_rs"].forEach(function(node_type){
-			response[node_type].forEach(function(e,i){
-				var attr_l={};
-				response.attributes.forEach(function(ee,ii){
-					if(getFthId(ee)==e.labels.join("_")+"_"+i){
-						attr_l[ee.labels.join("_")+"_"+ii]=ee.values;
-					}
-					
-				});
-				ret.top_graph.nodes.push({
-					"id":e.labels.join("_")+"_"+i,
-					"type":cvt_dico[e.classes[0]],
-					"attrs":attr_l
-					
-				});
-				
-				coord.ActionGraph[e.labels.join("_")+"_"+i]=[e.x,e.y];
-			});
-		});
-		//add edges corresponding to path
-		["regions","key_rs"].forEach(function(node_type){
-			response[node_type].forEach(function(e,i){
-				ret.top_graph.edges.push({
-					"from":e.labels.join("_")+"_"+i,
-					"to":getFthId(e)
-				});
-			});
-		});
-		/* get an element father id
-		 * @input : the element 
-		 * @return : if no father : error, else return the father id
-		 */
-		function getFthId(e){
-			if(e.path.length == 0) throw new Error ("This node has no father");
-			var ret;
-			response[cls_to_js_id[e.father_classes[0]]].some(function(ee,i){
-				if(
-					ee.labels.indexOf(e.path[e.path.length-1])!=-1 
-					&& (
-						(
-							(e.father_classes[0] == "action" || e.father_classes[0] == "agent")
-							&&
-							e.father_classes.join()==ee.classes.join()
-						)||
-						e.path.slice(0,e.path.length-1).join("_")==ee.path.join("_")
-					)
-				){
-					ret=ee.labels.join("_")+"_"+i;
-					return true;
-				} return false;
-			});
-			if(!ret) throw new Error ("This node' father doesn't exist"+e.labels.join("_"));
-			return ret;
-		};
-		//for each action, create a new graph corresponding to its nugget and add it to the action graph
-		response.actions.forEach(function(e,i){
-			addToACT(e,i);
-			addToNug(e,i);
-		});
-		/* get the value of a specific object for mod actions
-		 * @input : e : the element type
-		 * @input : ee : the element idx
-		 * @ return : the element value after mod action
-		 */
-		function getCVal(e,ee){
-			let tmp_ref = response[ee.ref[0]][ee.ref[1]];
-			return tmp_ref.values[tmp_ref.values.indexOf(ee.values[0])+(e.classes[2]=="pos"?1:-1)];
-		};
-		/* add elements to the action graph :
-		 * @input e : the element
-		 * @input i : a counter avoiding elements with same name
-		 * @return : modify the ret object.
-		 */
-		function addToACT(e,i){
-			//the action node
-			ret.top_graph.nodes.push({
-				"id":e.labels.join("_")+"_"+i,
-				"type":cvt_dico[e.classes[1]]
-			});
-			ret.top_graph.nodes.push({
-				"id":e.labels.join("_")+"_"+i+"_left",
-				"type":(e.classes[1]=="brk"?"output":"input")
-			});
-			ret.top_graph.nodes.push({
-				"id":e.labels.join("_")+"_"+i+"_right",
-				"type":(e.classes[1]=="bnd"?"input":"output")
-			});
-			coord.ActionGraph[e.labels.join("_")+"_"+i]=[e.x,e.y];
-			if (e.classes[1]=="brk"){
-				["left","right"].forEach(function(obj){
-					e[obj].forEach(function(ee,ii){
-						ret.top_graph.edges.push({
-							"from":e.labels.join("_")+"_"+i+"_"+obj,
-							"to":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1]
-						})
-					});
-				});
-			} else if(e.classes[1]=="mod"){
-				e.right.forEach(function(ee,ii){
-					ret.top_graph.edges.push({
-						"from":e.labels.join("_")+"_"+i+"_right",
-						"to":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1]
-					});
-					ret.top_graph.nodes.push({
-						"id":e.labels.join("_")+"_"+i+"_"+ee.values[0],
-						"type":"value"
-					});
-					ret.top_graph.nodes.push({
-						"id":e.labels.join("_")+"_"+i+"_"+getCVal(e,ee),
-						"type":"value"
-					});
-					ret.top_graph.edges.push({
-						"from":e.labels.join("_")+"_"+i+"_"+ee.values[0],
-						"to":e.labels.join("_")+"_"+i
-					});
-					ret.top_graph.edges.push({
-						"from":e.labels.join("_")+"_"+i+"_"+getCVal(e,ee),
-						"to":e.labels.join("_")+"_"+i
-					});
-				});
-			}else if(e.classes[1]=="bnd"){
-				ret.top_graph.nodes.push({
-					"id":e.labels.join("_")+"_"+i+"_btst",
-					"type":"binded"
-				});
-				ret.top_graph.nodes.push({
-					"id":e.labels.join("_")+"_"+i+"_btst_left",
-					"type":(e.classes[1]=="brk"?"output":"input")
-				});
-				ret.top_graph.nodes.push({
-					"id":e.labels.join("_")+"_"+i+"_btst_right",
-					"type":(e.classes[1]=="bnd"?"input":"output")
-				});
-				["left","right"].forEach(function(obj){
-					e[obj].forEach(function(ee,ii){
-						ret.top_graph.edges.push({
-							"from":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1],
-							"to":e.labels.join("_")+"_"+i+"_"+obj
-						});
-						ret.top_graph.edges.push({
-							"from":response[ee.ref[0]][ee.ref[1]].labels.join("_")+"_"+ee.ref[1],
-							"to":e.labels.join("_")+"_"+i+"_btst_"+obj
-						});
-					});
-				});				
-			}	
-		};
-		/* add elements to the nugget graphs :
-		 * @input act : the action
-		 * @input i : a counter avoiding elements with same name
-		 * @return : modify the ret object.
-		 */
-		function addToNug(act,i){
-			var inst_cpt = 0;
-			//the new nugget for this action
-			var n_child={
-				"name":act.labels.join()+"_"+i,
-				"top_graph":{"edges":[],"nodes":[]},
-				"children":[]
+		}else{
+			var ret = 
+			{	"name":"ActionGraph",
+				"top_graph":{
+					"edges":[],
+					"nodes":[]
+				},
+				"children":[],
+				"rules":[]
 			};
-			//add the action node
-			n_child.top_graph.nodes.push({
-				"id":act.labels.join("_")+"_"+i,
-				"type":act.labels.join("_")+"_"+i
-			});	
-			//add the action binders 
-			n_child.top_graph.nodes.push({
-				"id":act.labels.join("_")+"_"+i+"_left",
-				"type":act.labels.join("_")+"_"+i+"_left"
-			});
-			n_child.top_graph.nodes.push({
-				"id":act.labels.join("_")+"_"+i+"_right",
-				"type":act.labels.join("_")+"_"+i+"_left"
-			});
-			//add the nugget content (all nodes and edges)
-			["left","right","context"].forEach(function(ctx){
-				act[ctx].forEach(function(e){
-					var tmp_node = response[e.ref[0]][e.ref[1]];
-					//if the node is a bind
-					if(tmp_node.classes[0]=="action" && tmp_node.classes[1] == "bnd"){
-						n_child.top_graph.nodes.push({
-							"id":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt,
-							"type":tmp_node.labels.join("_")+"_"+e.ref[1]+"_btst"
-						});
-					}else{
-						n_child.top_graph.nodes.push({
-							"id":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt,
-							"type":tmp_node.labels.join("_")+"_"+e.ref[1]
-						});
-						//add all node values
-						if(e.values) e.values.forEach(function(v,vi){
-							n_child.top_graph.nodes.push({
-								"id":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt+"_"+v,
-								"type":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+v
-							});
-							n_child.top_graph.edges.push({
-								"from":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt+"_"+v,
-								"to":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt
-							});
+			var class_to_section =
+			{	"agent":"agents",
+				"region":"regions",
+				"key_res":"key_rs",
+				"attribute":"attributes",
+				"flag":"flags",
+				"action":"actions"
+			};
+			var converted_name = {
+				"agent":"agent",
+				"region":"region",
+				"key_res":"residue",
+				"attribute":null,
+				"flag":"state",
+				"bnd":"bnd",
+				"brk":"brk",
+				"syn":"syn",
+				"deg":"deg",
+				"mod":"mod"
+			};
+			var coord = {};
+			//add simple nodes
+			["agents","regions","key_rs","flags"].forEach(function(e){
+				response[e].forEach(function(el,i){
+					var ass_attr = response.attributes.filter(function(at,ii){
+						return getFth(at) == el.path.join("_")+"_"+el.labels.join("_")+"_"+i;
+					});
+					var attr = el.values.length>0?{"state":el.values}:{};
+					ass_attr.forEach(function(ass){attr[ass.labels.join("_")]=ass.values});
+					ret.top_graph.nodes.push(
+					{	
+						"id":el.path.join("_")+"_"+el.labels.join("_")+"_"+i,
+						"type":converted_name[el.classes[0]],
+						"input_constraints":[],
+						"output_constraints":[],
+						"attrs":attr
+					});
+					if(el.father_classes.length>0){
+						ret.top_graph.edges.push(
+						{
+							"from":el.path.join("_")+"_"+el.labels.join("_")+"_"+i,
+							"to":getFth(el)
 						});
 					}
-					if(ctx != "context"){
-						//for left and right elements : add edges
-						if (act.classes[1]=="brk"){
-							n_child.top_graph.edges.push({
-								"from":act.labels.join("_")+"_"+i+"_"+ctx,
-								"to":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt
-							});
-						}else if(act.classes[1]=="mod" || act.classes[1]=="bnd"){
-							n_child.top_graph.edges.push({
-								"from":tmp_node.labels.join("_")+"_"+e.ref[1]+"_"+inst_cpt,
-								"to":act.labels.join("_")+"_"+i+"_"+ctx
-							});
-							if(ctx == "right" && act.classes[1]=="mod"){
-								n_child.top_graph.nodes.push({
-									"id":act.labels.join("_")+"_"+i+"_"+e.values[0],
-									"type":act.labels.join("_")+"_"+i+"_"+e.values[0]
-								});
-								n_child.top_graph.nodes.push({
-									"id":act.labels.join("_")+"_"+i+"_"+getCVal(act,e),
-									"type":act.labels.join("_")+"_"+i+"_"+getCVal(act,e)
-								});
-								n_child.top_graph.edges.push({
-									"from":act.labels.join("_")+"_"+i+"_"+e.values[0],
-									"to":act.labels.join("_")+"_"+i
-								});
-								n_child.top_graph.edges.push({
-									"from":act.labels.join("_")+"_"+i+"_"+getCVal(act,e),
-									"to":act.labels.join("_")+"_"+i
-								});
-							}
-						}
+					if(el.x){
+						coord[el.path.join("_")+"_"+el.labels.join("_")+"_"+i]={"x":el.x,"y":el.y}
 					}
-					inst_cpt++;
 				});
 			});
-			ret.children.push(n_child);
-		};
-		dispatch.call("graphFileLoaded",this,{"hierarchy":ret,"coord":coord,"type":type});
+			//add actions
+			response.actions.forEach(function(el,i){
+				var ass_attr = response.attributes.filter(function(at,ii){
+						return getFth(at) == "_"+el.labels.join("_")+"_"+i;
+				});
+				var attr = {};
+				//add action in action graph
+				ass_attr.forEach(function(ass){attr[ass.labels.join("_")]=ass.values});
+				ret.top_graph.nodes.push(
+				{	
+					"id":"_"+el.labels.join("_")+"_"+i,
+					"type":converted_name[el.classes[1]],
+					"input_constraints":[],
+					"output_constraints":[],
+					"attrs":attr
+				});
+				if(el.x){
+					coord["_"+el.labels.join("_")+"_"+i]={"x":el.x,"y":el.y}
+				}
+				var nugget =
+				{	"name":"_"+el.labels.join("_")+"_"+i,
+					"top_graph":{
+						"edges":[],
+						"nodes":[]
+					},
+					"children":[],
+					"rules":[]
+				};
+				nugget.top_graph.nodes.push(
+				{	
+					"id":"_"+el.labels.join("_")+"_"+i,
+					"type":"_"+el.labels.join("_")+"_"+i,
+					"input_constraints":[],
+					"output_constraints":[],
+					"attrs":attr
+				});
+				//add left, rigth and ctx
+				var cpt =0;//count elements in nuggets
+				["left","right","context"].forEach(function(act_c){
+					if(act_c!="context" &&(converted_name[el.classes[1]]=="bnd" || converted_name[el.classes[1]]=="brk")){
+						ret.top_graph.nodes.push(
+						{	
+							"id":"_"+el.labels.join("_")+"_"+i+"_"+act_c,
+							"type":"locus",
+							"input_constraints":[],
+							"output_constraints":[],
+						});
+						ret.top_graph.edges.push(
+						{
+							"from":"_"+el.labels.join("_")+"_"+i+"_"+act_c,
+							"to":"_"+el.labels.join("_")+"_"+i
+						});
+						nugget.top_graph.nodes.push(
+						{	
+							"id":"_"+el.labels.join("_")+"_"+i+"_"+act_c,
+							"type":"_"+el.labels.join("_")+"_"+i+"_"+act_c,
+							"input_constraints":[],
+							"output_constraints":[],
+						});
+						nugget.top_graph.edges.push(
+						{
+							"from":"_"+el.labels.join("_")+"_"+i+"_"+act_c,
+							"to":"_"+el.labels.join("_")+"_"+i
+						});
+					}
+					el[act_c].forEach(function(act_el){
+						nugget.top_graph.nodes.push(
+						{	
+							"id":response[act_el.ref[0]][act_el.ref[1]].path.join("_")+"_"+response[act_el.ref[0]][act_el.ref[1]].labels.join("_")+"_"+act_el.ref[1]+"_"+cpt,
+							"type":response[act_el.ref[0]][act_el.ref[1]].path.join("_")+"_"+response[act_el.ref[0]][act_el.ref[1]].labels.join("_")+"_"+act_el.ref[1],
+							"input_constraints":[],
+							"output_constraints":[],
+							"attrs":act_el.values?{"state":act_el.values}:{}
+						})
+						if(act_c!="context"){
+							var the_end="";
+							if(converted_name[el.classes[1]]=="bnd" || converted_name[el.classes[1]]=="brk")the_end="_"+act_c;
+							nugget.top_graph.edges.push(
+							{
+								"from":"_"+el.labels.join("_")+"_"+i+the_end,
+								"to":response[act_el.ref[0]][act_el.ref[1]].path.join("_")+"_"+response[act_el.ref[0]][act_el.ref[1]].labels.join("_")+"_"+act_el.ref[1]+"_"+cpt
+							});
+							ret.top_graph.edges.push(
+							{
+								"from":"_"+el.labels.join("_")+"_"+i+the_end,
+								"to":response[act_el.ref[0]][act_el.ref[1]].path.join("_")+"_"+response[act_el.ref[0]][act_el.ref[1]].labels.join("_")+"_"+act_el.ref[1]
+							});
+						}
+					});
+					cpt++;
+				});
+				ret.children.push(nugget);
+			});
+			/* return the father of an element,
+			 * @input elmt : the element of the kami json file
+			 * @output : the id of its father in the new regraph format
+			 */
+			function getFth(elmt){
+				var idx=-1;
+				var resp = response[class_to_section[elmt.father_classes[0]]].filter(function(el,i){
+					if(el.path.join("_")+(el.path.length>0?"_":"")+el.labels[0] == elmt.path.join("_")){
+						idx=i;
+						return true;
+					}
+					return false;
+				});
+				if(resp.length!=1) throw new Error("Error while finding father of "+elmt.path.join("_")+"_"+elmt.labels[0])
+				return resp[0].path.join("_")+"_"+resp[0].labels.join("_")+"_"+idx;
+			};
+			
+			dispatch.call("graphFileLoaded",this,{"hierarchy":ret,"coord":coord,"type":type});
+		}
 	});
 },
 /* export a given graph into a json file
