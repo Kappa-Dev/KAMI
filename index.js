@@ -19,7 +19,7 @@ define([
 	//Regraph Gui Core
 	(function pageLoad(){
 		//this section must be changed to feet the server/user requirement.
-		var server_url = "https://api.executableknowledge.org/iregraph";
+		var server_url = "http://localhost:5000";
 		var main_ct_id = "main_container";
 		var root = "/";
 		var current_graph="/";
@@ -38,21 +38,21 @@ define([
 		);
 		d3.select("body").append("div").attr("id",main_ct_id);
 		var main_container = d3.select("#"+main_ct_id);//Main div
-		main_container.append("div")//top menu
-			.attr("id","top_chart");
-		main_container.append("div")//separator between menu and page core
-			.attr("id","bottom_top_chart");
+		//main_container.append("div")//separator between menu and page core
+		//	.attr("id","bottom_top_chart");
 		var container = main_container.append("div")//page core
 			.attr("id","container");
-		var side = container.append("div")//main div of side menu
-			.attr("id","side_menu");
+		main_container.append("div")//top menu
+			.attr("id","top_chart");
+		// var side = container.append("div")//main div of side menu
+		// 	.attr("id","side_menu");
 		var graph_frame = container.append("div")//main div of graph
 			.attr("id","graph_frame");
-		var side_ct=graph_frame.append("div")//add the vertical separator container
-			.attr("id","drag_bar_cont");
-		side_ct.append("div")//add a drag bar for the menu
-			.attr("id","drag_bar")
-			.on("click",function(){return dispatch.call("tabMenu",this)});
+		// var side_ct=graph_frame.append("div")//add the vertical separator container
+		// 	.attr("id","drag_bar_cont");
+		// side_ct.append("div")//add a drag bar for the menu
+		// 	.attr("id","drag_bar")
+		// 	.on("click",function(){return dispatch.call("tabMenu",this)});
 		//request factory for the given regraph server
 		var factory = new RFactory(server_url);
 		//regraph hierarchy
@@ -60,13 +60,15 @@ define([
 		hierarchy.update(root);
 		//modification menu : add, export and new graph + file input + type selector
 		var input_hie = new InputFileReader("top_chart",dispatch,server_url);
+
 		//configuration menu : change serveur url, node color, size and shape.
 		var config = new ConfigTab("top_chart",dispatch,server_url);
 		config.init();
+
 		//the graph showed : TODO -> maybe a graph list to avoid reloading each graph.
 		var graph_pan = new InterractiveGraph("graph_frame",dispatch,server_url);
 		//the side menu
-		var side_menu = new SideMenu("side_menu",dispatch,server_url);
+		//var side_menu = new SideMenu("side_menu",dispatch,server_url);
 		/* dispatch section
 		 * here each dispatch event is handled
 		 */
@@ -83,9 +85,9 @@ define([
 		  * @input : g_id : the current object in the hierarchy
 		  * @input : up_type : the type of content
 		  */
-		dispatch.on("tabUpdate",function(g_id,sons,fth,up_type){
-			side_menu.load(g_id,sons,fth,up_type);
-		});
+		// dispatch.on("tabUpdate",function(g_id,sons,fth,up_type){
+		// 	side_menu.load(g_id,sons,fth,up_type);
+		// });
 		/* On addGraph : add a new graph to the current graph in the Hierarchy 
 		 * @input : type : the type of element to add : Graph, Hierarchy, Rule
 		 * if the request succeed, add a new graph, else, throw error

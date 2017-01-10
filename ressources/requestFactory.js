@@ -633,19 +633,15 @@ define(["ressources/d3/d3.js"],function(d3){
 		};
 		/* submit a list and nugget and recieve the corresponding kappa code
 		 * @input : g_path : the graph path
-		 * @input : nugget : the list of nugget names { "names": ["string"]}
+		 * @input : nuggets : the list of nugget names { "names": ["string"]}
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function of dictionary
 		 */
-		this.getKappa = function getKappa(g_path,callback){
-			request("GET",
-				"/graph/get_kappa",
-				g_path,
-				null,
-				"application/json",
-				callback,
-				nuggets,
-				null);
+		this.getKappa = function getKappa(g_path, nuggets, callback){
+			d3.request(srv+"/graph/get_kappa"+g_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(nuggets, callback);
 		};
 	}
 });

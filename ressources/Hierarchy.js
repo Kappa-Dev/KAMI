@@ -8,9 +8,10 @@
 define([
 	"ressources/d3/d3.js",
 	"ressources/simpleTree.js",
-	"ressources/requestFactory.js"
+	"ressources/requestFactory.js",
+	"ressources/d3/d3-context-menu.js"
 	],
-	function(d3,Tree,RFactory){
+	function(d3,Tree,RFactory,d3ContextMenu){
 	/* Create a new hierarchy module
 	 * @input : container_id : the container to bind this hierarchy
 	 * @input : dispatch : the dispatch event object
@@ -27,7 +28,26 @@ define([
 		var h_list = container.append("div").attr("id","scrolling_list");//the list of son of the specified node
 		var current_node = null;//the current node
 		var selected_node = null;//the current selected son
+		var selected_graphs = {};//the currently selected graphs
 		var factory = new RFactory(srv_url);
+        var right_click_menu = [
+              {title : "delete",
+			   action : function(elm, d, i) {
+                             current_obj = hierarchy.getAbsPath(d)
+			                 if (confirm("Confirmation : remove "+current_obj+" and all its children ?"))
+							 	factory.delHierarchy(current_obj,function(e,r){
+							 		if(e) return console.error(e);
+							 		console.log(r);
+							 		dispatch.call("hieUpdate",this);
+							 	});
+			            }
+
+			  },
+              {title : "get kappa",
+			   action : toKappa
+			  }
+		];
+
 		/* load a new hierarchy from the server
 		 * @input : root_path : the hierarchy root pathname
 		 */
@@ -50,8 +70,10 @@ define([
 			slc.enter().append("div")
 				.classed("tab_menu_el",true)
 				.classed("unselectable",true)
+				.classed("selected",false)
 				.attr("id",function(d){return d})
-				.on("click",function(d){return tabChange(d)})
+				.on("click",function(d,i){return dispach_click(d,i,this)})
+				.on("contextmenu",d3ContextMenu(right_click_menu))
 				.on("dblclick",function(d){return lvlChange(d)})
 				.text(function(d){
 					let nm = hierarchy.getName(d);
@@ -71,18 +93,37 @@ define([
 			h_select.on("change",lvlChange);
 				
 		};
+
+		function dispach_click(d,i,elem){
+		    d3.event.stopPropagation();
+			if(d3.event.ctrlKey){
+				if(d3.select(elem).classed("selected"))
+					d3.select(elem).classed("selected",false);
+				else 
+					d3.select(elem).classed("selected",true);
+			}
+			else{
+				tabChange(d,elem);
+			}
+			
+		};
 		/* color in blue the currently selected node of the scrolling tab menu
 		 * @input : id : the new selected node
 		 * @call : graphUpdate event
 		 */
-		function tabChange(id){
+		function tabChange(id,elem){
 			if(selected_node==id)return;
 			selected_node = id;
+			// h_list.selectAll(".tab_menu_el")
+			// 	.style("color","rgb(251, 249, 200)")//show the correct menu element
+			// 	.style("background",function(d){
+			// 		return d==id?"linear-gradient(to bottom, #3fa4f0 0%, #0f71ba 100%)":"none";
+			// 	});
+
 			h_list.selectAll(".tab_menu_el")
-				.style("color","rgb(251, 249, 200)")//show the correct menu element
-				.style("background",function(d){
-					return d==id?"linear-gradient(to bottom, #3fa4f0 0%, #0f71ba 100%)":"none";
-				});
+			      .classed("current",false)
+			d3.select(elem)
+			      .classed("current",true)	  
 			disp.call("graphUpdate",this,hierarchy.getAbsPath(id));
 			disp.call(
 				"tabUpdate",
@@ -111,6 +152,32 @@ define([
 			current_node = data;
 			initHlist(hierarchy.getSons(data));
 			initHselect(hierarchy.getTreePath(data));
+		};
+
+		/* Convert the current graph into kappa : TODO
+		 * Open a new page with the Kappa code 
+		 */
+		function toKappa(){
+            callback = function(error, response){
+				if(error) {
+					alert(error.currentTarget.response);
+				    return false;
+				}
+                d3.select("#json_link")
+                  .attr("href",
+                             'data:text/json;charset=utf-8,'
+							  + encodeURIComponent(JSON.parse(response.response)["kappa_code"]));
+                document.getElementById('json_link').click();
+                       };
+			nugget_list = []		   
+			d3.selectAll(".tab_menu_el.selected")
+			                .each(function(){
+								nugget_list.push(hierarchy.getName(this.id))
+							})
+			path = hierarchy.getAbsPath(current_node)+"/"
+			path = (path == "//")?"/":path
+            factory.getKappa(path, JSON.stringify({"names": nugget_list}), callback)
+            return false;
 		};
 	};
 });

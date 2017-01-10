@@ -112,7 +112,7 @@ kamiToRegraph:function(json_file,dispatch,type){
 					var ass_attr = response.attributes.filter(function(at,ii){
 						return getFth(at) == el.path.join("_")+"_"+el.labels.join("_")+"_"+i;
 					});
-					var attr = el.values.length>0?{"val":el.values}:{};
+					var attr = el.values.length>0?{"state":el.values}:{};
 					ass_attr.forEach(function(ass){attr[ass.labels.join("_")]=ass.values});
 					ret.top_graph.nodes.push(
 					{	
@@ -206,7 +206,7 @@ kamiToRegraph:function(json_file,dispatch,type){
 							"type":response[act_el.ref[0]][act_el.ref[1]].path.join("_")+"_"+response[act_el.ref[0]][act_el.ref[1]].labels.join("_")+"_"+act_el.ref[1],
 							"input_constraints":[],
 							"output_constraints":[],
-							"attrs":act_el.values?{"val":act_el.values}:{}
+							"attrs":act_el.values?{"state":act_el.values}:{}
 						})
 						if(act_c!="context"){
 							var the_end="";
@@ -234,7 +234,7 @@ kamiToRegraph:function(json_file,dispatch,type){
 			function getFth(elmt){
 				var idx=-1;
 				var resp = response[class_to_section[elmt.father_classes[0]]].filter(function(el,i){
-					if(("path" in el ? el.path.join("_") : "")+(el.path.length>0?"_":"")+el.labels[0] == elmt.path.join("_")){
+					if(path in el && (el.path.join("_")+(el.path.length>0?"_":"")+el.labels[0] == elmt.path.join("_"))){
 						idx=i;
 						return true;
 					}

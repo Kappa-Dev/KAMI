@@ -11,26 +11,26 @@ define([
 	function(d3,Rfactory){
 	
 	return function(container,dispatch,srv){
-		d3.select("#"+container).append("div")//add a gear button
-			.classed("config_icon",true)
-			.on("click",configShow)
-			.html("&#x2699;")
-			.classed("unselectable",true);
+		// d3.select("#"+container).append("div")//add a gear button
+		// 	.classed("config_icon",true)
+		// 	.on("click",configShow)
+		// 	.html("&#x2699;")
+		// 	.classed("unselectable",true);
 		//var config_container;
 		var hieShape ={};
 		var server_url="";
 		this.init = function init(){
 			hieShape = {};
 			server_url=srv;
-			config_container=d3.select("body").append("div")
-				.attr("id","config_menu")
-				.property("disabled",true)
-				.style("display","none");
-			config_container.append("div")
-				.classed("close_side_menu",true)
-				.on("click",configShow)
-				.html("&#x274c;")
-				.classed("unselectable",true);//add a close button
+			// config_container=d3.select("body").append("div")
+			// 	.attr("id","config_menu")
+			// 	.property("disabled",true)
+			// 	.style("display","none");
+			// config_container.append("div")
+			// 	.classed("close_side_menu",true)
+			// 	.on("click",configShow)
+			// 	.html("&#x274c;")
+			// 	.classed("unselectable",true);//add a close button
 		}
 		this.update = function update(graph_name){
 			//delete hieShape[graph_name];

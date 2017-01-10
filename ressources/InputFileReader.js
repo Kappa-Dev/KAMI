@@ -21,6 +21,7 @@ define([
 	return function InputFileReader(container_id,dispatch,server_url){
 		if(!server_url) throw new Error("server url undefined");
 		var srv_url = server_url;//the current url of the server
+        var request = new rqFactory(server_url);
 		var disp = dispatch;//global dispatcher for events
 		var container = d3.select("#"+container_id)
 			.append("div")
@@ -65,20 +66,18 @@ define([
 				.on("click",addThing)
 				.html("New graph")
 				.classed("unselectable",true);
-			container.append("div")//add the to Kappa button
-				.attr("id","kappa")
-				.classed("mod_el",true)
-				.classed("mod_div",true)
-				.on("click",toKappa)
-				.html("To Kappa")
-				.classed("unselectable",true);
+            container.append("a")
+                .attr("id","json_link")
+                .attr("download","model.kappa")
+                .attr("href","#");
+			// container.append("div")//add the to Kappa button
+			// 	.attr("id","kappa")
+			// 	.classed("mod_el",true)
+			// 	.classed("mod_div",true)
+			// 	.html("To Kappa")
+			// 	.classed("unselectable",true)
+			// 	.on("click",toKappa);
 		}());
-		/* Convert the current graph into kappa : TODO
-		 * Open a new page with the Kappa code 
-		 */
-		function toKappa(){
-			console.log("Todo");
-		};
 		/* Add a new object to the current hierarchy
 		 * this object depends of the selector : Graph, Rule or hierarchy
 		 * @call : this function trigger addGraph event with the type of the selector
