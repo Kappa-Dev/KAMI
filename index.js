@@ -97,23 +97,26 @@ define([
 		 * if the request succeed, add a new graph, else, throw error
 		 * TODO : change server rule to to allow graph and rule adding
 		 */
-		dispatch.on("addGraph",function(type){
-			var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
-			var isSlash =current_graph=="/"?"":"/";
-			if(type=="Graph" || type=="Rule"){
-				console.log("server Error... Using addHierarchy instead");
-			}
-			factory.addHierarchy(current_graph+isSlash+name,
-				JSON.stringify({name:name,top_graph:{edges:[],nodes:[]},children:[]},null,"\t"),
-				function(err,ret){
-					if(!err){
-						dispatch.call("hieUpdate",this,null);
-						console.log(ret);
-					}
-					else console.error(err);
-				}
-			);
-		});
+		// dispatch.on("addGraph",function(type){
+		// 	var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
+		// 	var isSlash =current_graph=="/"?"":"/";
+		// 	if(type=="Graph" || type=="Rule"){
+		// 		console.log("server Error... Using addHierarchy instead");
+		// 	}
+		// 	factory.addHierarchy(current_graph+isSlash+name,
+		// 		JSON.stringify({name:name,top_graph:{edges:[],nodes:[]},children:[]},null,"\t"),
+		// 		function(err,ret){
+		// 			if(!err){
+		// 				dispatch.call("hieUpdate",this,null);
+		// 				console.log(ret);
+		// 			}
+		// 			else console.error(err);
+		// 		}
+		// 	);
+		// });
+
+    
+		dispatch.on("addGraph", hierarchy.addGraph)
 		dispatch.on("configUpdate",function(type_graph){
 			config.loadGraphConf(type_graph);
 		});
@@ -194,8 +197,9 @@ define([
 		 * TODO : also remove the graph
 		 */
 		dispatch.on("hieUpdate",function(){
-			hierarchy.update(root);
-			current_graph="/";
+			// hierarchy.update(root);
+			hierarchy.updateInPlace(root);
+			//current_graph="/";
 		});
 	}())
 });

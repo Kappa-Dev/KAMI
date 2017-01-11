@@ -394,7 +394,14 @@ define([
 					locked = false;
 				},d,svg_content)
 			}
-		}];
+		},
+
+	    {title: "Add value",
+	     action: addVal},
+
+	    {title: "remove value",
+	     action: rmVal}];
+
 		var selected = svg_content.selectAll("g.selected")
 		if(selected.size()){
 			menu.push({
@@ -556,6 +563,38 @@ define([
 		if(simulation.alpha()<0.09 && simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 		d3.select(this).attr("cx", d.fx = d3.event.x).attr("cy", d.fy = d3.event.y);
-	}
+	};
+
+	function addVal(elm, d, i){
+            var val = prompt("Enter a value", "");
+			if (!val){return 0};
+			var callback = function(err, resp){
+				if(err){
+					alert(err.currentTarget.response);
+				    return false;
+				}
+			if(!d.attrs){d.attrs={}};
+			if(!d.attrs["val"]){d.attrs["val"]=[]};
+            index = d.attrs["val"].indexOf(val);
+			if(index === -1){d.attrs["val"].push(val)};
+			}
+			request.addNodeAtt(g_id,d.id,JSON.stringify({"val":val}),callback);
+	};
+
+	function rmVal(elm, d, i){
+            var val = prompt("Enter a value", "");
+			if (!val){return 0};
+			var callback = function(err, resp){
+				if(err){
+					alert(err.currentTarget.response);
+				    return false;
+				}
+			if(!d.attrs){return 0};
+			if(!d.attrs["val"]){return 0};
+			index = d.attrs["val"].indexOf(val);
+			if (index != -1){d.attrs["val"].splice(index,1)};
+			}
+			request.rmNodeAtt(g_id,d.id,JSON.stringify({"val":val}),callback);
+	};
 
 };});

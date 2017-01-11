@@ -78,6 +78,14 @@ define([
 				initHselect(hierarchy.getTreePath(current_node));
 			});
 		};
+
+		this.updateInPlace = function (root_path){
+			factory.getHierarchy(root_path,function(err,req){
+				hierarchy.load(req);
+				initHlist(hierarchy.getSons(current_node));
+				initHselect(hierarchy.getTreePath(current_node));
+			});
+		};
 		/* update the scrolling tab menu with the current node sons
 		 * @input : data : the list of sons of the current node
 		 */
@@ -194,7 +202,7 @@ define([
 				s    = h_select.selectAll("option").filter(function (d, i) { return i === si });
 				data = s.datum();
 			}
-			if(hierarchy.getSons(data).length==0)return;
+			// if(hierarchy.getSons(data).length==0)return;
 			current_node = data;
 			initHlist(hierarchy.getSons(data));
 			initHselect(hierarchy.getTreePath(data));
@@ -227,15 +235,9 @@ define([
 		};
 
 		function setRate(elm, d, i){
-            console.log(elm+","+d+","+i);
             var path = hierarchy.getAbsPath(d)+"/";
-            var rate = prompt("enter the rate", "");
+            var rate = prompt("Enter the rate", "");
 			if (!rate){return 0};
-			// try{
-			// var path = hierarchy.getAbsPath(hierarchy.getFather(current_node))+"";}
-			// catch(exc){
-			// 	var path = "/"};
-			// path = (path == "//")?"/":path;
 			var callback = function(err, resp){
 				if(err){
 					alert(err.currentTarget.response);
@@ -247,6 +249,26 @@ define([
 			factory.addAttr(path, JSON.stringify({"rate":rate}), callback);
 
 		};
+
+		this.addGraph = function(){
+			//var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
+			var name = prompt("Give it a name !", "");
+			if (!name) {return 0}
+			var current_path = hierarchy.getAbsPath(current_node)+"/";
+			if (current_path == "//"){current_path="/"}
+
+			factory.addHierarchy(current_path+name+"/",
+				JSON.stringify({name:name,top_graph:{edges:[],nodes:[]},children:[]},null,"\t"),
+				function(err,ret){
+					if(!err){
+						dispatch.call("hieUpdate",this,null);
+						console.log(ret);
+					}
+					else console.error(err);
+				}
+			);
+		};
+
 
 	};
 });

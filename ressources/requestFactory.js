@@ -263,14 +263,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : on succeed : callback function
 		 */
 		this.addNodeAtt = function addNodeAtt(g_path,n_id,dico,callback){
-			request("PUT",
-				"/graph/add_attr",
-				g_path,
-				[{id:"node_id",val:n_id}],
-				"application/json",
-				callback,
-				dico,
-				null);
+			var rq = d3.request(srv+"/graph/add_attr"+g_path+"?node_id="+n_id)
+				     	.header("X-Requested-With", "XMLHttpRequest")
+				    	.header("Content-Type", "application/json")
+				    	.mimeType("application/json")
+				    	.on("error", function(error) { callback(error,null); })
+				    	.on("load", function(xhr) { callback(null, xhr); });
+			rq.send("PUT", dico);
 		};
 		/* remove specified attrobutes from an existing node
 		 * @input : g_path : the graph path
@@ -280,14 +279,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : on succeed : callback function
 		 */
 		this.rmNodeAtt = function rmNodeAtt(g_path,n_id,dico,callback){
-			request("PUT",
-				"/graph/rm_attr",
-				g_path,
-				[{id:"node_id",val:n_id}],
-				"application/json",
-				callback,
-				dico,
-				null);
+			var rq = d3.request(srv+"/graph/rm_attr"+g_path+"?node_id="+n_id)
+				     	.header("X-Requested-With", "XMLHttpRequest")
+				    	.header("Content-Type", "application/json")
+				    	.mimeType("application/json")
+				    	.on("error", function(error) { callback(error,null); })
+				    	.on("load", function(xhr) { callback(null, xhr); });
+			rq.send("PUT", dico);
 		};
 		/* merge two nodes of the same type
 		 * @input : g_path : the graph path
