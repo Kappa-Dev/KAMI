@@ -591,16 +591,24 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addAttr = function addAttr(g_path,dico,callback){
-			request("PUT",
-				"/graph/update_graph_attr",
-				g_path,
-				null,
-				"application/json",
-				callback,
-				dico,
-				null);
+		this.addAttr = function addAttr(hie_path,data,callback){
+			var rq = d3.request(srv+"/graph/update_graph_attr"+hie_path)
+				     	.header("X-Requested-With", "XMLHttpRequest")
+				    	.header("Content-Type", "application/json")
+				    	.mimeType("application/json")
+				    	.on("error", function(error) { callback(error,null); })
+				    	.on("load", function(xhr) { callback(null, xhr); });
+			rq.send("PUT", data);
 		};
+		// 	request("PUT",
+		// 		"/graph/update_graph_attr",
+		// 		g_path,
+		// 		null,
+		// 		"application/json",
+		// 		callback,
+		// 		dico,
+		// 		null);
+		// };
 		/* remove attributes from a graph (coordinate, node shape/colors)
 		 * @input : g_path : the graph path
 		 * @input : dico_pth : the path to the element we want to remove
@@ -614,7 +622,7 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				"application/json",
 				callback,
-				dico,
+				dico_pth,
 				null);
 		};
 		/* get regraph version

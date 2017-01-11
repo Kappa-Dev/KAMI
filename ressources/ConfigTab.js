@@ -41,7 +41,7 @@ define([
 			
 		}
 		this.loadGraphConf = function loadGraphConf(graph_name){
-			console.log(graph_name);
+			//console.log(graph_name);
 		};
 		function configShow(){
 			if(config_container.property("disabled")){

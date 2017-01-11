@@ -19,7 +19,7 @@ define([
 	//Regraph Gui Core
 	(function pageLoad(){
 		//this section must be changed to feet the server/user requirement.
-		var server_url = "http://localhost:5000";
+		var server_url = "http://0.0.0.0:5000";
 		var main_ct_id = "main_container";
 		var root = "/";
 		var current_graph="/";
@@ -37,6 +37,10 @@ define([
 			"configUpdate"//triggered when the graph shown is changed
 		);
 		d3.select("body").append("div").attr("id",main_ct_id);
+		var attr_manager = d3.select("body").append("div")
+                         .attr("id","attributes_manager")
+		                 .style("visibility","hidden");
+        
 		var main_container = d3.select("#"+main_ct_id);//Main div
 		//main_container.append("div")//separator between menu and page core
 		//	.attr("id","bottom_top_chart");

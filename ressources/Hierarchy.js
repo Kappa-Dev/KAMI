@@ -30,6 +30,8 @@ define([
 		var selected_node = null;//the current selected son
 		var selected_graphs = {};//the currently selected graphs
 		var factory = new RFactory(srv_url);
+
+		var selfHierarchy = this;
         var right_click_menu = [
               {title : "delete",
 			   action : function(elm, d, i) {
@@ -45,6 +47,10 @@ define([
 			  },
               {title : "get kappa",
 			   action : toKappa
+			  },
+
+              {title : "set rate",
+			   action : setRate
 			  }
 		];
 
@@ -55,6 +61,19 @@ define([
 			factory.getHierarchy(root_path,function(err,req){
 				hierarchy.load(req);
 				current_node = hierarchy.getRoot();
+				initHlist(hierarchy.getSons(current_node));
+				initHselect(hierarchy.getTreePath(current_node));
+			});
+		};
+
+		/* load a new hierarchy and go to a node
+		 * @input : root_path : the hierarchy root pathname
+		 * @input : node : the node to go to
+		 */
+		this.updateAndMove = function (root_path, node_id){
+			factory.getHierarchy(root_path,function(err,req){
+				hierarchy.load(req);
+				current_node = node_id;
 				initHlist(hierarchy.getSons(current_node));
 				initHselect(hierarchy.getTreePath(current_node));
 			});
@@ -75,10 +94,37 @@ define([
 				.on("click",function(d,i){return dispach_click(d,i,this)})
 				.on("contextmenu",d3ContextMenu(right_click_menu))
 				.on("dblclick",function(d){return lvlChange(d)})
+				.append("div")
+				.classed("tab_menu_el_name",true)
 				.text(function(d){
 					let nm = hierarchy.getName(d);
 					return nm.length>14?nm.substring(0,12).concat("..."):nm;
 				});
+            try {
+			if (hierarchy.getName(hierarchy.getFather(hierarchy.getFather(data[0])))==="kami"){
+                 d3.selectAll(".tab_menu_el")
+				   .each(function(id){
+						var elem = d3.select(this)
+                        factory.getGraph(hierarchy.getAbsPath(id),
+						                 function(err,resp){
+							 if(err){return 0}
+							 rate = resp.attributes["rate"];
+							 rate = rate?rate:"und";
+						     elem.append("div")
+							     .style("width","1vw");
+							 elem.append("div")
+							     .classed("tab_menu_el_rate",true)                                               
+								 .text(rate);
+
+						}
+
+
+						)
+
+				   })
+			}}
+			catch(err){}
+
 		};
 		/* update the selector with the current node parents
 		 * @input : data : the absolute path of the current node
@@ -158,7 +204,7 @@ define([
 		 * Open a new page with the Kappa code 
 		 */
 		function toKappa(){
-            callback = function(error, response){
+            var callback = function(error, response){
 				if(error) {
 					alert(error.currentTarget.response);
 				    return false;
@@ -174,10 +220,33 @@ define([
 			                .each(function(){
 								nugget_list.push(hierarchy.getName(this.id))
 							})
-			path = hierarchy.getAbsPath(current_node)+"/"
+			var path = hierarchy.getAbsPath(current_node)+"/"
 			path = (path == "//")?"/":path
             factory.getKappa(path, JSON.stringify({"names": nugget_list}), callback)
             return false;
 		};
+
+		function setRate(elm, d, i){
+            console.log(elm+","+d+","+i);
+            var path = hierarchy.getAbsPath(d)+"/";
+            var rate = prompt("enter the rate", "");
+			if (!rate){return 0};
+			// try{
+			// var path = hierarchy.getAbsPath(hierarchy.getFather(current_node))+"";}
+			// catch(exc){
+			// 	var path = "/"};
+			// path = (path == "//")?"/":path;
+			var callback = function(err, resp){
+				if(err){
+					alert(err.currentTarget.response);
+				    return false;
+				}
+				console.log(self);
+				selfHierarchy.updateAndMove("/",hierarchy.getFather(d));
+			}
+			factory.addAttr(path, JSON.stringify({"rate":rate}), callback);
+
+		};
+
 	};
 });
