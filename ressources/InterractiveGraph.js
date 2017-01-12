@@ -39,6 +39,7 @@ define([
 	var type_list;
 	var locked = false;//lock event actions
 	var zoom;
+	
 	/* initialize all the svg objects and forces
 	 * this function is self called at instanciation
 	 */
@@ -396,6 +397,9 @@ define([
 			}
 		},
 
+	    {title: "children",
+	     action: getChildren},
+
 	    {title: "Add value",
 	     action: addVal},
 
@@ -596,5 +600,18 @@ define([
 			}
 			request.rmNodeAtt(g_id,d.id,JSON.stringify({"val":val}),callback);
 	};
+
+	function getChildren(elm, d, i){
+		var callback = function(err, rep){
+			if (err) {
+				alert(err.currentTarget.response);
+				return false;
+			}
+			jsonRep = JSON.parse(rep.response);
+			children = jsonRep["children"];
+            disp.call("addNugetsToInput",this, children);
+		}
+		request.getChildren(g_id,d.id,callback)
+	}
 
 };});

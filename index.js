@@ -34,6 +34,7 @@ define([
 			"graphUpdate",//triggered when a module change the current graph showed
 			"graphSave",//triggered when the edition box is closed and saved ----->TODO
 			"tabMenu",//triggered when the tab scroller is clicked
+			"addNugetsToInput",//triggered when finding the children of a node
 			"configUpdate"//triggered when the graph shown is changed
 		);
 		d3.select("body").append("div").attr("id",main_ct_id);
@@ -201,6 +202,16 @@ define([
 			hierarchy.updateInPlace(root);
 			//current_graph="/";
 		});
+
+		dispatch.on("addNugetsToInput",function(nuggets){
+			var searchString = d3.select("#nugFilter").property("value");
+			if(searchString !== ""){searchString=searchString+"|"};
+            d3.select("#nugFilter").property("value",searchString+nuggets.join("|"));
+			hierarchy.filterNuggets();
+
+		});
+
+
 	}())
 });
 	

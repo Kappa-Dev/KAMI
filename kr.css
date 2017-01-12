@@ -241,7 +241,8 @@ body{
 	justify-content: space-around;
 }
 .tab_menu_el_name{
-	/*width: 80%;*/
+	max-width: 60%;
+	overflow: hidden;
 
 }
 .tab_menu_el_rate{

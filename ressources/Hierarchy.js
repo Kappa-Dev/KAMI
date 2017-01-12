@@ -109,8 +109,9 @@ define([
 				.append("div")
 				.classed("tab_menu_el_name",true)
 				.text(function(d){
-					let nm = hierarchy.getName(d);
-					return nm.length>14?nm.substring(0,12).concat("..."):nm;
+					// let nm = hierarchy.getName(d);
+					// return nm.length>14?nm.substring(0,12).concat("..."):nm;
+					return hierarchy.getName(d);
 				});
             try {
 			if (hierarchy.getName(hierarchy.getFather(hierarchy.getFather(data[0])))==="kami"){
@@ -217,6 +218,8 @@ define([
 		 */
 		function toKappa(){
             var callback = function(error, response){
+				d3.select("body")
+				.style("cursor","default");
 				if(error) {
 					alert(error.currentTarget.response);
 				    return false;
@@ -234,6 +237,8 @@ define([
 							})
 			var path = hierarchy.getAbsPath(current_node)+"/"
 			path = (path == "//")?"/":path
+			d3.select("body")
+			  .style("cursor","progress");
             factory.getKappa(path, JSON.stringify({"names": nugget_list}), callback)
             return false;
 		};
@@ -274,21 +279,28 @@ define([
 		};
 
 	    function filterNuggets(){
-			searchString = d3.select("#nugFilter").property("value");
-			console.log(searchString);
+			var searchString = d3.select("#nugFilter").property("value");
+			var searchStrings = searchString.split("|");
+            var test = function(nugName){
+				return searchStrings.some(function (s){
+					return (-1) !== nugName.search(s) })};
+            var notTest = function(nugName){
+				return !test(nugName)
+			};
 			d3.selectAll(".tab_menu_el:not(.selected)")
 			  .filter(function(){
-				  nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
-				  return ((-1) === nugName.search(searchString))})
+				  var nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
+				  return notTest(nugName);
+			  })
 			  .style("display","none");
 			d3.selectAll(".tab_menu_el:not(.selected)")
-			  .filter(function(){
-				  nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
-				  console.log(nugName.search(searchString))
-				  return ((-1) !== nugName.search(searchString))})
-			  .style("display","flex");
-	    }
-
+				.filter(function () {
+					var nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
+					return test(nugName);
+				})
+				.style("display", "flex");
+	    };
+        this.filterNuggets = filterNuggets; 
 
 	};
 });

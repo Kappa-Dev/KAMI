@@ -263,7 +263,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : on succeed : callback function
 		 */
 		this.addNodeAtt = function addNodeAtt(g_path,n_id,dico,callback){
-			var rq = d3.request(srv+"/graph/add_attr"+g_path+"?node_id="+n_id)
+			var rq = d3.request(srv+"/graph/add_attr"+g_path+"?node_id="+encodeURIComponent(n_id))
 				     	.header("X-Requested-With", "XMLHttpRequest")
 				    	.header("Content-Type", "application/json")
 				    	.mimeType("application/json")
@@ -279,7 +279,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : on succeed : callback function
 		 */
 		this.rmNodeAtt = function rmNodeAtt(g_path,n_id,dico,callback){
-			var rq = d3.request(srv+"/graph/rm_attr"+g_path+"?node_id="+n_id)
+			var rq = d3.request(srv+"/graph/rm_attr"+g_path+"?node_id="+encodeURIComponent(n_id))
 				     	.header("X-Requested-With", "XMLHttpRequest")
 				    	.header("Content-Type", "application/json")
 				    	.mimeType("application/json")
@@ -649,5 +649,13 @@ define(["ressources/d3/d3.js"],function(d3){
 				.header("Content-Type", "application/json")
 				.post(nuggets, callback);
 		};
+
+		this.getChildren = function(g_path,n_id,callback){
+			d3.request(srv+"/graph/get_children"+g_path+"?node_id="+encodeURIComponent(n_id))
+				// .header("X-Requested-With", "XMLHttpRequest")
+				// .header("Content-Type", "application/json")
+				.get(callback);
+
+		}
 	}
 });
