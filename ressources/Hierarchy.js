@@ -26,6 +26,10 @@ define([
 		var hierarchy = new Tree();//a tree containing the whole hierarchy
 		var h_select = container.append("select").attr("id","h_select").classed("mod_el",true);//the hierarchy selector
 		var h_list = container.append("div").attr("id","scrolling_list");//the list of son of the specified node
+		var textBox = container.append("input")
+		                       .attr("type","text")
+		                       .attr("id","nugFilter")
+							   .on("input",filterNuggets);
 		var current_node = null;//the current node
 		var selected_node = null;//the current selected son
 		var selected_graphs = {};//the currently selected graphs
@@ -268,6 +272,22 @@ define([
 				}
 			);
 		};
+
+	    function filterNuggets(){
+			searchString = d3.select("#nugFilter").property("value");
+			console.log(searchString);
+			d3.selectAll(".tab_menu_el:not(.selected)")
+			  .filter(function(){
+				  nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
+				  return ((-1) === nugName.search(searchString))})
+			  .style("display","none");
+			d3.selectAll(".tab_menu_el:not(.selected)")
+			  .filter(function(){
+				  nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
+				  console.log(nugName.search(searchString))
+				  return ((-1) !== nugName.search(searchString))})
+			  .style("display","flex");
+	    }
 
 
 	};
