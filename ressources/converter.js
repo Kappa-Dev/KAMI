@@ -256,6 +256,7 @@ kamiToRegraph:function(json_file,dispatch,type){
  */
 exportGraph:function(ret){
 	var url = 'data:text/json;charset=utf8,' + encodeURIComponent(JSON.stringify(ret.hierarchy,null,"\t"));
+
 		window.open(url, '_blank');
 		window.focus();
 	if(ret.coord){
@@ -263,6 +264,14 @@ exportGraph:function(ret){
 			window.open(url2, '_blank');
 	}
 	
+},
+
+downloadGraph:function(response){
+	d3.select("#json_hierarchy_link")
+		.attr("href",
+		'data:text/json;charset=utf-8,'
+		+ encodeURIComponent(JSON.stringify(response)));
+	document.getElementById('json_hierarchy_link').click();
 },
 /* add cordinates to a graph
  * @input : coord : a coordinate hashtable for each nodes

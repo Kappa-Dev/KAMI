@@ -64,6 +64,16 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				JSON.parse);
 		};
+		this.getHierarchyWithGraphs = function getHierarchyWithGraphs(hie_path,callback){
+			request("GET",
+				"/hierarchy",
+				hie_path,
+				[{id:"include_graphs",val:true},{id:"rules",val:false}],
+				"application/json",
+				callback,
+				null,
+				JSON.parse);
+		};
 		/* return the regraph version on the server
 		 * @input : callback  : the return callback function
 		 * @return : on succeed : callback function
@@ -176,7 +186,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * TODO : transforming this function in something usefull
 		 */
 		this.mergeHierarchy = function mergeHierarchy(hie_path,data,callback){
-			console.log("this is useless");
+			var rq = d3.request(srv+"/hierarchy"+hie_path)
+				     	.header("X-Requested-With", "XMLHttpRequest")
+				    	.header("Content-Type", "application/json")
+				    	.mimeType("application/json")
+				    	.on("error", function(error) { callback(error,null); })
+				    	.on("load", function(xhr) { callback(null, xhr); });
+			rq.send("PUT", data);
 		};
 		/* create a new rule
 		 * @input : rule_path : the path of rule
@@ -656,6 +672,15 @@ define(["ressources/d3/d3.js"],function(d3){
 				// .header("Content-Type", "application/json")
 				.get(callback);
 
-		}
+		};
+	    /* get a mpping of nodes to ancestors
+		* @input : g_path : the graph path
+		* @input : degree : int > 1, the desired ancestor degree
+		* @input : callback : the return callback function
+		* @return : on succeed : callback function of dictionary
+		*/	
+		this.getAncestors = function(g_path, degree, callback){
+			d3.request(srv+"/graph/get_ancestors"+g_path+"/"+"?degree="+encodeURIComponent(degree)).get(callback);
+		};
 	}
 });

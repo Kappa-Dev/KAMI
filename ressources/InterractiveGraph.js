@@ -35,7 +35,7 @@ define([
 	var radius = 30;
 	var links_f;//the link force
 	var request = new RqFactory(server_url);
-	var g_id;//the graph id in the hierarchy
+	var g_id="/";//the graph id in the hierarchy
 	var type_list;
 	var locked = false;//lock event actions
 	var zoom;
@@ -45,7 +45,8 @@ define([
 	 */
 	(function init(){
 		initSvg();
-		initForce();
+		simulation = d3.forceSimulation();
+		initForce(function(){});
 	}());
 	/* init all the forces
 	 * this graph has :
@@ -54,14 +55,224 @@ define([
 	 * 	-many bodies forces : repulsing force between nodes
 	 * 	-center force : foce node to stay close to the center
 	 */
-	function initForce(){
-		simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(function(d) {return d.id}))
-    .force("charge", d3.forceManyBody().distanceMax(radius*10))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-	.force("collision",d3.forceCollide(radius+radius/4));
-		simulation.on("tick",move);
+
+	function initForce(loadFunction){
+		simulation.force("link",null);
+		simulation.force("chargeAgent",null);
+		simulation.force("chargeBnd",null);
+		simulation.force("chargeBrk",null);
+		simulation.force("link", d3.forceLink().id(function (d) { return d.id }))
+			.force("charge", new d3.forceManyBody().distanceMax(radius * 10))
+			.force("center", d3.forceCenter(width / 2, height / 2))
+			.force("collision", d3.forceCollide(radius + radius / 4));
+		// simulation.on("tick", move);
+        simulation.alphaDecay(0.06);
 		simulation.stop();
+		loadFunction();
+	}
+
+
+	function initForceKami(path, graph){
+		simulation.force("link",null);
+		simulation.force("charge", null);
+		simulation.force("center", null);
+		simulation.force("chargeAgent", null);
+		simulation.force("chargeBnd", null);
+		simulation.force("chargeBrk", null);
+		simulation.force("collision", d3.forceCollide(radius + radius / 4));
+		var callback = function (ancestorArray) {
+			var distanceOfLink = function (l) {
+				var edge_length =
+					{
+						"mod": { "state": 400 },
+						"state": { "region": 50, "agent": 50, "residue": 50 },
+						"residue": { "agent": 100 },
+						"syn": { "agent": 400 },
+						"deg": { "agent": 400 },
+						"region": { "agent": 50 },
+						"locus": { "agent": 200, "region": 150, "is_bnd": 300, "is_free": 300, "bnd": 500, "brk": 500}
+					}
+				source_type = ancestorArray[l.source["id"]];
+				target_type = ancestorArray[l.target["id"]];
+				return (edge_length[source_type][target_type]*width/2000);
+			}
+			simulation.force("link", d3.forceLink().id(function (d) { return d.id }));
+			simulation.force("link").distance(distanceOfLink);
+            
+			var chargeAgent = d3.forceManyBody();
+			chargeAgent.strength(-10000);
+            chargeAgent.distanceMax(radius*6);
+            chargeAgent.distanceMin(0);
+			var initAgent = chargeAgent.initialize;
+
+			chargeAgent.initialize = (function(){
+				console.log(initAgent);
+				return function (nodes) {
+					var agent_nodes = nodes.filter(function (n, i) {
+						return (
+							ancestorArray[n.id] == "agent" ||
+							// ancestorArray[n.id] === "bnd" ||
+							ancestorArray[n.id] == "mod")
+					});
+					initAgent(agent_nodes);
+					console.log(agent_nodes);
+				};
+			})();
+
+			
+
+            simulation.force("chargeAgent", chargeAgent);
+
+			// var chargeBnd = d3.forceManyBody();
+			// chargeBnd.strength(-100);
+			// chargeBnd.distanceMax(radius * 10);
+			// var initbnd = chargeBnd.initialize;
+			// chargeBnd.initialize = function (nodes) {
+			// 	var bnd_nodes = nodes.filter(function (n, i) {
+			// 		return (
+			// 			ancestorArray[n.id] === "bnd" ||
+			// 			ancestorArray[n.id] === "mod"
+			// 		)
+			// 	});
+			// 	initbnd(bnd_nodes);
+			// };
+
+            // simulation.force("chargeBnd",chargeBnd);
+
+
+			// var chargeBrk = d3.forceManyBody();
+			// chargeBrk.strength(-10000);
+			// chargeBrk.distanceMax(radius * 10);
+			// var initbrk = chargeBrk.initialize;
+			// chargeBrk.initialize = function (nodes) {
+			// 	var brk_nodes = nodes.filter(function (n, i) {
+			// 		return (
+			// 			ancestorArray[n.id] === "brk" ||
+			// 			ancestorArray[n.id] === "mod"
+			// 		)
+			// 	});
+			// 	initbrk(brk_nodes);
+			// };
+
+            // simulation.force("chargeBrk",chargeBrk);
+
+
+            simulation.alphaDecay(0.06);
+
+			// simulation.on("tick", move);
+			// simulation.on("end", function () {
+			// 	simulation.force("chargeAgent", null);
+			// 	simulation.force("chargeBrk", null);
+			// 	simulation.force("chargeBnd", null);
+			// }
+			// );
+			simulation.stop();
+			// var node_to_shape = function (n){
+			// 	var shape_of = {
+			// 			"mod": "circle",
+			// 			"agent": "circle",
+			// 			"state":"circle",
+			// 			"residue":"circle",
+			// 			"syn": "circle",
+			// 			"deg": "circle",
+			// 			"region": "circle",
+			// 			"locus": "circle",
+			// 			"is_bnd": "rectangle",
+			// 			"is_free": "rectangle",
+			// 			"bnd": "rectangle",
+			// 			"brk": "rectangle"
+			// 	};
+			// 	//console.log(shape_of[ancestorArray[n.id]]);
+			// 	return shape_of[ancestorArray[n.id]]
+			// };
+
+			var node_to_symbol = function (n) {
+				var ancestor = ancestorArray[n.id];
+				if (
+					ancestor == "agent" ||
+					ancestor == "state" ||
+					ancestor == "residue" ||
+					ancestor == "region" ||
+					ancestor == "locus"
+				) {
+					return d3.symbolCircle;
+				}
+				else if (
+					ancestor == "mod" ||
+					ancestor == "syn" ||
+					ancestor == "deg" ||
+					ancestor == "bnd" ||
+					ancestor == "brk") {
+					return d3.symbolSquare;
+				}
+				else if (
+					ancestor == "is_bnd" ||
+					ancestor == "is_free") {
+					return d3.symbolDiamond;
+				}
+				else {
+					return d3.symbolCircle;
+				}
+			}
+			var node_to_size = function (n) {
+				var ancestor = ancestorArray[n.id];
+				if (ancestor == "mod" ||
+					ancestor == "syn" ||
+					ancestor == "deg" ||
+					ancestor == "brk" ||
+					ancestor == "bnd" 
+				) { return 4000; }
+				else if (
+					ancestor == "is_bnd" ||
+					ancestor == "is_free" 
+				) { return 3000; }
+				else if (
+					ancestor == "state" ||
+					ancestor == "residue" ||
+					ancestor == "locus"||
+					ancestor == "region"
+				) { return 2000; }
+				else if (
+					ancestor == "agent"
+				) { return 5000; }
+				else {
+					return 4000;
+				}
+			};
+			// var classifier = [
+			// 	[function (d) { return (node_to_shape(d)=="circle") },
+			// 	 function () {
+			// 		console.log(this);
+			// 		this.insert("circle")
+			// 			.attr("x", function (d, i) { return (i * 10) })
+			// 			.attr("r", radius)
+			// 			.style("fill", function (d) {
+			// 				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+			// 				else return "white";
+			// 			})
+			// 	}],
+			// 	[function (d) { return (node_to_shape(d)=="rectangle") },
+			// 	 function () {
+			// 		this.append("path")
+			// 			.attr("x", function (d, i) { return (i * 10) })
+			// 			.attr("d",d3.symbol().type(function(d){return d3.symbolSquare;})
+			// 			                     .size(function(d){return 2000;})
+						
+			// 			)
+			// 			.style("fill", function (d) {
+			// 				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+			// 				else return "white";
+			// 			})
+			// 	}]
+			// 	];
+			var shapeClassifier =
+				{
+					"shape": node_to_symbol,
+					"size": node_to_size
+				};
+			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier)}); 
+		}
+		kamiAncestor(g_id, callback);
 	}
 	/* init the svg object
 	 * add arrows on edges
@@ -150,8 +361,6 @@ define([
 		g_id = path;
 		if(path != "/"){
 			svg_content.selectAll("*").remove();
-		//if(graph.nodes.length<100)
-			loadType(path,graph,loadGraph);
 		}
 		else{
 			svg_content.append("svg:image")
@@ -161,13 +370,44 @@ define([
 			.attr("y",function(){return height/2-200})
 			.attr("xlink:href","ressources/toucan.png");
 		}
+		if (path.search("/kami_base/kami/") == 0){
+            // simulation = d3.forceSimulation();
+			//initForceKami(function () { loadType(path, graph, loadGraph) });
+			initForceKami(path, graph);
+		}
+		else{
+            // simulation = d3.forceSimulation();
+            initForce(function () { loadType(path, graph, loadGraph) });
+		}
 	};
+
+    /* precondition : /kami_base/kami/ is the start of the path */
+	function kamiAncestor(path, doSomething){
+		var path2 = path.split("/");
+		path2 = path2.slice(3);
+		var degree = path2.length;
+		var callback = function(err, resp){
+			if(err){
+				alert(err.currentTarget.response);
+				return false;
+			}
+			var rep = JSON.parse(resp.response);
+			var mapping = rep.reduce(function (obj, x) {
+				obj[x["left"]] = x["right"];
+				return obj;
+			}, {});
+			doSomething(mapping);
+		}
+		request.getAncestors(path, degree, callback);
+
+	};
+
 	/* load all type of a graph, this is needed for node coloration 
 	 * @input : graph : the new graph
 	 * @input : path : the graph path
 	 * @input : callback : the next function to call : loadGraph
 	 */
-	function loadType(path,graph,callback){
+	function loadType(path, graph, callback){
 		if(path != "/"){
 			path=path.split("/");
 			if(path.length<=2){
@@ -187,7 +427,7 @@ define([
 				}
 			});
 		}else callback(graph);
-	}
+	};
 	/* find a specific node in a graph
 	 * @input : n : the node id
 	 * @input : graph : the graph object 
@@ -207,7 +447,7 @@ define([
 	 * nodes can be renamed by double clicking it
 	 * @input : response : a json structure of the graph
 	 */
-	function loadGraph(response){
+	function loadGraph(response, shapeClassifier){
 		//transform links for search optimisation
 		var links = response.edges.map(function(d){
 			return {source:findNode(d.from,response.nodes),target:findNode(d.to,response.nodes)}
@@ -233,12 +473,29 @@ define([
 			.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
 		//class all nodes with there type
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
-		node_g.insert("circle")
-			.attr("r", radius)
-			.style("fill",function(d){
-				if(d.type && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length);
-				else return "white";
-			});
+		if (shapeClassifier) {
+			console.log(shapeClassifier.symbol)
+			node_g.append("path")
+				.attr("x", function (d, i) { return (i * 10) })
+				.attr("d", d3.symbol()
+				             .type(shapeClassifier.shape)
+					         .size(shapeClassifier.size))
+				.style("fill", function (d) {
+					if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+					else return "white";
+				})
+		}
+		else {
+			node_g.insert("circle")
+				.attr("x", function (d, i) { return (i * 10) })
+				.attr("r", radius)
+				.style("fill", function (d) {
+					if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+					else return "white";
+				});
+		}
+
+
 		//add all node id as label
 		node_g.insert("text")
 			.classed("nodeLabel",true)
@@ -246,6 +503,7 @@ define([
 			.attr("dy", ".35em")
 			.attr("text-anchor", "middle")
 			.text(function(d) {return d.id.length>7?d.id.substring(0,5).concat("..."):d.id;})
+			//.text(function(d){return d.id})
 			.attr("font-size", function(){return(radius/2)+"px"})
 			.style("fill",function(d){
 				if(d.type  && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
@@ -257,16 +515,68 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
-		if(response.nodes.length>100)//if the graph has more than 100 nodes : rescale it at load
-			zoom.scaleTo(svg_content,0.2);
-		else zoom.scaleTo(svg_content,1);
+
 		//start the simulation
-		simulation.nodes([]);
+		//simulation.nodes([]);
 		simulation.nodes(response.nodes);
 		simulation.force("link").links(links);
-		//links_f
-		simulation.alpha(1);
+		simulation.alpha(2);
 		simulation.restart();
+		simulation.on("end",function(){
+			var rep = getBounds();
+			simulation.on("tick", move);
+            simulation.alphaDecay(0.02);
+			if(rep){
+		        var xrate = svg.attr("width")/(rep[0][1]-rep[0][0]);
+		        var yrate = svg.attr("height")/(rep[1][1]-rep[1][0]);
+                var xorigine = rep[0][0]
+                var yorigine = rep[1][0]
+				var rate = Math.min(xrate,yrate);
+				rate = Math.max(rate, 0.02);
+				rate = Math.min(1.1, rate);
+				rate = rate*0.9;
+                // svg.call(zoom.transform, d3.zoomIdentity); 
+                // svg_content.call(zoom.transform, d3.zoomIdentity); 
+				// svg.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
+				// svg_content.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
+				var centerX = (svg.attr("width") - (rep[0][1] - rep[0][0]) * rate) / 2;
+				var centerY = (svg.attr("height") - (rep[1][1] - rep[1][0]) * rate) / 2;
+				svg.call(zoom.transform, transform.translate(-xorigine*rate+centerX,-yorigine*rate+centerY).scale(rate));
+                svg_content.selectAll("g.node")
+				           .attr("vx",0)
+				           .attr("vy",0);
+
+			}
+			else{
+				svg.call(zoom.scaleTo,1);
+			}
+			move();
+			simulation.on("end",function(){
+                svg_content.selectAll("g.node")
+				           .attr("vx",0)
+				           .attr("vy",0);
+			});
+		});
+	};
+
+	function getBounds(){
+	    var minx, maxx, miny, maxy;
+        svg_content.selectAll("g.node")
+		           .each(function(d,i){
+					   if (i==0){
+                           minx=d.x;
+						   maxx=d.x;
+						   miny=d.y;
+						   maxy=d.y;
+						   return 0;
+					   }
+					   if (d.x < minx) {minx = d.x};
+					   if (d.x > maxx) {maxx = d.x};
+					   if (d.y < miny) {miny = d.y};
+					   if (d.y > maxy) {maxy = d.y};
+					});
+		if (minx){return [[minx,maxx],[miny,maxy]]}
+		else {return undefined};
 	};
 	/* define a color set according to the size of an array
 	 * and the element position in the array
@@ -284,7 +594,9 @@ define([
 			if(ret <150) return (0xFFFFFF).toString(16);
 			else return (0x000000).toString(16);
 		}
-		return ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
+		var ret = ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0]
+        while(ret.length<6){ret="0"+ret;};
+		return ret;
 	}
 	/* define the svg context menu
 	 * svg context menu allow to unlock all nodes,
@@ -330,7 +642,6 @@ define([
 							if(e) console.error(e);
 							else{ 
 								disp.call("graphUpdate",this,g_id);
-								console.log(r);
 							}
 						});
 					}
@@ -450,7 +761,8 @@ define([
 	var edgeCtMenu =[{
 		title: "Select Source-target",
 		action: function(elm,d,i){
-			svg_content.selectAll("g").filter(function(e){return e.id==d.source.id || e.id==d.target.id })
+			svg_content.selectAll("g")
+			    .filter(function(e){return e.id==d.source.id || e.id==d.target.id })
 				.classed("selected",true);
 		}
 	},{

@@ -68,7 +68,11 @@ define([
 				.classed("unselectable",true);
             container.append("a")
                 .attr("id","json_link")
-                .attr("download","model.kappa")
+                .attr("download","model.ka")
+                .attr("href","#");
+            container.append("a")
+                .attr("id","json_hierarchy_link")
+                .attr("download","hierarchy.json")
                 .attr("href","#");
 			// container.append("div")//add the to Kappa button
 			// 	.attr("id","kappa")
@@ -119,14 +123,14 @@ define([
 				var si   = selector.property('selectedIndex'),
 				s    = selector.selectAll("option").filter(function (d, i) { return i === si }),
 				type = s.datum();
-				if(data.name.split(".")[1]=="json"){
-					if(type == "Snip")
-						converter.snipToRegraph(e.target.result,dispatch,"Hierarchy");
-					else
-						converter.kamiToRegraph(e.target.result,dispatch,type);
-				}
-				else if(file.name.split(".")[1]=="coord")
+				// if(data.name.split(".")[1]=="json"){
+				if(data.name.split(".")[1]=="coord")
 					converter.loadCoord(e.target.result,main_graph);
+				else if (type == "Snip")
+					converter.snipToRegraph(e.target.result, dispatch, "Hierarchy");
+				else
+					converter.kamiToRegraph(e.target.result, dispatch, type);
+				// }
 			}
 			
 		};

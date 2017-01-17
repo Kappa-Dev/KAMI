@@ -119,7 +119,8 @@ define([
     
 		dispatch.on("addGraph", hierarchy.addGraph)
 		dispatch.on("configUpdate",function(type_graph){
-			config.loadGraphConf(type_graph);
+		//	config.loadGraphConf(type_graph);
+			
 		});
 		
 		
@@ -153,8 +154,8 @@ define([
 			if(graph.hierarchy.name=="ActionGraph") //if it is a Kami old format suggest a renaming
 				graph.hierarchy.name=prompt("Give it a name !", "model_"+(Math.random()).toString());
 			if(graph.type=="Hierarchy"){
-				factory.addHierarchy(
-					root+graph.hierarchy.name,
+				factory.mergeHierarchy(
+					"/",
 					JSON.stringify(graph.hierarchy,null,"\t"),
 					callback
 				);
@@ -177,10 +178,11 @@ define([
 		dispatch.on("graphExprt",function(type){
 			switch(type){
 				case "Hierarchy" :
-				factory.getHierarchy(
+				factory.getHierarchyWithGraphs(
 					"/",
 					function(err,ret){
-						converter.exportGraph({hierarchy:ret});
+						console.log(ret)
+						converter.downloadGraph(ret);
 					}
 				);
 				break;
