@@ -129,12 +129,12 @@ define([
 		 * @input : abs_path : the absolute path of the graph in the hierarchy
 		 * if the request succeed, the new graph is loaded on screen
 		 */
-		dispatch.on("graphUpdate",function(abs_path){
+		dispatch.on("graphUpdate",function(abs_path,noTranslate){
 			current_graph=abs_path;
 			factory.getGraph(
 				current_graph,
 				function(err,ret){
-					graph_pan.update(ret,current_graph);
+					graph_pan.update(ret,current_graph,noTranslate);
 				}
 			);
 		});

@@ -46,7 +46,7 @@ define([
 	(function init(){
 		initSvg();
 		simulation = d3.forceSimulation();
-		initForce(function(){});
+		initForce();
 	}());
 	/* init all the forces
 	 * this graph has :
@@ -56,7 +56,7 @@ define([
 	 * 	-center force : foce node to stay close to the center
 	 */
 
-	function initForce(loadFunction){
+	function initForce(path, graph, noTranslate){
 		simulation.force("link",null);
 		simulation.force("chargeAgent",null);
 		simulation.force("chargeBnd",null);
@@ -68,11 +68,13 @@ define([
 		// simulation.on("tick", move);
         simulation.alphaDecay(0.06);
 		simulation.stop();
-		loadFunction();
+		if (path){
+			loadType(path, graph, function(rep){loadGraph(rep,null,noTranslate)});
+		}
 	}
 
 
-	function initForceKami(path, graph){
+	function initForceKami(path, graph, noTranslate){
 		simulation.force("link",null);
 		simulation.force("charge", null);
 		simulation.force("center", null);
@@ -226,7 +228,7 @@ define([
 					"shape": node_to_symbol,
 					"size": node_to_size
 				};
-			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier)}); 
+			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier, noTranslate)}); 
 		}
 		kamiAncestor(g_id, callback);
 	}
@@ -313,7 +315,7 @@ define([
 	 * @input : graph : the new graph
 	 * @input : path : the graph path
 	 */
-	this.update = function update(graph,path){
+	this.update = function update(graph,path,noTranslate){
 		g_id = path;
 		if(path != "/"){
 			svg_content.selectAll("*").remove();
@@ -327,10 +329,10 @@ define([
 			.attr("xlink:href","ressources/toucan.png");
 		}
 		if (path.search("/kami_base/kami/") == 0){
-			initForceKami(path, graph);
+			initForceKami(path, graph, noTranslate);
 		}
 		else{
-            initForce(function () { loadType(path, graph, loadGraph) });
+            initForce(path, graph, noTranslate);
 		}
 	};
 
@@ -400,7 +402,7 @@ define([
 	 * nodes can be renamed by double clicking it
 	 * @input : response : a json structure of the graph
 	 */
-	function loadGraph(response, shapeClassifier){
+	function loadGraph(response, shapeClassifier, noTranslate){
 		//transform links for search optimisation
 		var links = response.edges.map(function(d){
 			return {source:findNode(d.from,response.nodes),target:findNode(d.to,response.nodes)}
@@ -496,33 +498,35 @@ define([
 		simulation.force("link").links(links);
 		simulation.alpha(2);
 		simulation.restart();
-		simulation.on("end",function(){
-			var rep = getBounds();
-			simulation.on("tick", move);
-            simulation.alphaDecay(0.02);
-			if(rep){
-		        var xrate = svg.attr("width")/(rep[0][1]-rep[0][0]);
-		        var yrate = svg.attr("height")/(rep[1][1]-rep[1][0]);
-                var xorigine = rep[0][0]
-                var yorigine = rep[1][0]
-				var rate = Math.min(xrate,yrate);
-				rate = Math.max(rate, 0.02);
-				rate = Math.min(1.1, rate);
-				rate = rate*0.9;
-                // svg.call(zoom.transform, d3.zoomIdentity); 
-                // svg_content.call(zoom.transform, d3.zoomIdentity); 
-				// svg.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
-				// svg_content.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
-				var centerX = (svg.attr("width") - (rep[0][1] - rep[0][0]) * rate) / 2;
-				var centerY = (svg.attr("height") - (rep[1][1] - rep[1][0]) * rate) / 2;
-				svg.call(zoom.transform, transform.translate(-xorigine*rate+centerX,-yorigine*rate+centerY).scale(rate));
-                svg_content.selectAll("g.node")
-				           .attr("vx",0)
-				           .attr("vy",0);
+		simulation.on("end", function () {
+			if (!noTranslate) {
+				var rep = getBounds();
+				simulation.on("tick", move);
+				simulation.alphaDecay(0.02);
+				if (rep) {
+					var xrate = svg.attr("width") / (rep[0][1] - rep[0][0]);
+					var yrate = svg.attr("height") / (rep[1][1] - rep[1][0]);
+					var xorigine = rep[0][0]
+					var yorigine = rep[1][0]
+					var rate = Math.min(xrate, yrate);
+					rate = Math.max(rate, 0.02);
+					rate = Math.min(1.1, rate);
+					rate = rate * 0.9;
+					// svg.call(zoom.transform, d3.zoomIdentity); 
+					// svg_content.call(zoom.transform, d3.zoomIdentity); 
+					// svg.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
+					// svg_content.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
+					var centerX = (svg.attr("width") - (rep[0][1] - rep[0][0]) * rate) / 2;
+					var centerY = (svg.attr("height") - (rep[1][1] - rep[1][0]) * rate) / 2;
+					svg.call(zoom.transform, transform.translate(-xorigine * rate + centerX, -yorigine * rate + centerY).scale(rate));
+					svg_content.selectAll("g.node")
+						.attr("vx", 0)
+						.attr("vy", 0);
 
-			}
-			else{
-				svg.call(zoom.scaleTo,1);
+				}
+				else {
+					svg.call(zoom.scaleTo, 1);
+				}
 			}
 			move();
 			simulation.on("end",function(){
@@ -629,7 +633,7 @@ define([
 									req = {};
 									req[cb.line]={"x":svgmousepos[0],"y":svgmousepos[1]}
 				                    request.addAttr(g_id, JSON.stringify({ positions: req }),
-									                function () { disp.call("graphUpdate", this, g_id);});
+									                function () { disp.call("graphUpdate", this, g_id, true);});
 									
 								}
 							});
@@ -649,7 +653,7 @@ define([
 							request.rmNode(g_id,el.id,true,function(e,r){
 								if(e) console.error(e);
 								else console.log(r);
-								if(i=selected.size()-1) disp.call("graphUpdate",this,g_id);
+								if(i=selected.size()-1) disp.call("graphUpdate",this,g_id,true);
 							})
 						});
 					}
@@ -674,7 +678,7 @@ define([
 					request.rmNode(g_id,d.id,false,function(e,r){
 						if(e) console.error(e);
 						else{ 
-							disp.call("graphUpdate",this,g_id);
+							disp.call("graphUpdate",this,g_id,true);
 							console.log(r);
 						}
 					});
@@ -689,7 +693,7 @@ define([
 						request.cloneNode(g_id,d.id,cb.line,function(e,r){
 							if(e) console.error(e);
 							else{ 
-								disp.call("graphUpdate",this,g_id);
+								disp.call("graphUpdate",this,g_id,true);
 								console.log(r);
 							}
 						});
@@ -718,7 +722,7 @@ define([
 						request.addEdge(g_id,d.id,el.id,function(e,r){
 							if(!e){ console.log(r); cpt++;}
 							else{ console.error(e); err_cpt++;}
-							if(cpt == selected.size()-err_cpt) disp.call("graphUpdate",this,g_id);
+							if(cpt == selected.size()-err_cpt) disp.call("graphUpdate",this,g_id,true);
 						});
 					});
 					
@@ -732,7 +736,7 @@ define([
 					inputMenu("New Name",[d.id+selected.datum().id],null,null,true,true,'center',function(cb){
 						if(cb.line){
 							request.mergeNode(g_id,d.id,selected.datum().id,cb.line,false,function(e,r){
-								if(!e){ console.log(r); disp.call("graphUpdate",this,g_id);}
+								if(!e){ console.log(r); disp.call("graphUpdate",this,g_id,true);}
 								else console.error(e);
 							});
 						}locked=false;
@@ -764,7 +768,7 @@ define([
 					request.rmEdge(g_id,d.source.id,d.target.id,false,function(e,r){
 					if(e) console.error(e);
 					else{ 
-						disp.call("graphUpdate",this,g_id);
+						disp.call("graphUpdate",this,g_id,true);
 						console.log(r);
 					}
 					locked=false;
@@ -851,7 +855,7 @@ define([
 						request.rmNode(g_id,d.id,false,function(e,r){
 							if(e) console.error(e);
 							else{
-								disp.call("graphUpdate",this,g_id);
+								disp.call("graphUpdate",this,g_id,true);
 								console.log(ret);
 							}	
 						})
