@@ -629,15 +629,14 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rmAttr = function rmAttr(g_path,dico_pth,callback){
-			request("PUT",
-				"/graph/update_graph_attr",
-				g_path,
-				null,
-				"application/json",
-				callback,
-				dico_pth,
-				null);
+		this.rmAttr = function rmAttr(g_path,data,callback){
+			var rq = d3.request(srv+"/graph/delete_graph_attr"+g_path)
+				     	.header("X-Requested-With", "XMLHttpRequest")
+				    	.header("Content-Type", "application/json")
+				    	.mimeType("application/json")
+				    	.on("error", function(error) { callback(error,null); })
+				    	.on("load", function(xhr) { callback(null, xhr); });
+			rq.send("PUT", data);
 		};
 		/* get regraph version
 		 * @input : callback : the return callback function

@@ -106,7 +106,6 @@ define([
 			var initAgent = chargeAgent.initialize;
 
 			chargeAgent.initialize = (function(){
-				console.log(initAgent);
 				return function (nodes) {
 					var agent_nodes = nodes.filter(function (n, i) {
 						return (
@@ -115,7 +114,6 @@ define([
 							ancestorArray[n.id] == "mod")
 					});
 					initAgent(agent_nodes);
-					console.log(agent_nodes);
 				};
 			})();
 
@@ -166,25 +164,8 @@ define([
 			// 	simulation.force("chargeBnd", null);
 			// }
 			// );
+
 			simulation.stop();
-			// var node_to_shape = function (n){
-			// 	var shape_of = {
-			// 			"mod": "circle",
-			// 			"agent": "circle",
-			// 			"state":"circle",
-			// 			"residue":"circle",
-			// 			"syn": "circle",
-			// 			"deg": "circle",
-			// 			"region": "circle",
-			// 			"locus": "circle",
-			// 			"is_bnd": "rectangle",
-			// 			"is_free": "rectangle",
-			// 			"bnd": "rectangle",
-			// 			"brk": "rectangle"
-			// 	};
-			// 	//console.log(shape_of[ancestorArray[n.id]]);
-			// 	return shape_of[ancestorArray[n.id]]
-			// };
 
 			var node_to_symbol = function (n) {
 				var ancestor = ancestorArray[n.id];
@@ -239,32 +220,7 @@ define([
 					return 4000;
 				}
 			};
-			// var classifier = [
-			// 	[function (d) { return (node_to_shape(d)=="circle") },
-			// 	 function () {
-			// 		console.log(this);
-			// 		this.insert("circle")
-			// 			.attr("x", function (d, i) { return (i * 10) })
-			// 			.attr("r", radius)
-			// 			.style("fill", function (d) {
-			// 				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
-			// 				else return "white";
-			// 			})
-			// 	}],
-			// 	[function (d) { return (node_to_shape(d)=="rectangle") },
-			// 	 function () {
-			// 		this.append("path")
-			// 			.attr("x", function (d, i) { return (i * 10) })
-			// 			.attr("d",d3.symbol().type(function(d){return d3.symbolSquare;})
-			// 			                     .size(function(d){return 2000;})
-						
-			// 			)
-			// 			.style("fill", function (d) {
-			// 				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
-			// 				else return "white";
-			// 			})
-			// 	}]
-			// 	];
+
 			var shapeClassifier =
 				{
 					"shape": node_to_symbol,
@@ -371,12 +327,9 @@ define([
 			.attr("xlink:href","ressources/toucan.png");
 		}
 		if (path.search("/kami_base/kami/") == 0){
-            // simulation = d3.forceSimulation();
-			//initForceKami(function () { loadType(path, graph, loadGraph) });
 			initForceKami(path, graph);
 		}
 		else{
-            // simulation = d3.forceSimulation();
             initForce(function () { loadType(path, graph, loadGraph) });
 		}
 	};
@@ -466,35 +419,55 @@ define([
 			.data(response.nodes, function(d) {return d.id;});
 		var node_g = node.enter().insert("g")
 			.classed("node",true)
-			.call(d3.drag().on("drag", dragged))
+			.call(d3.drag().on("drag", dragged).on("end", dragNodeEnd))
 			.on("mouseover",mouseOver)
 			.on("mouseout",mouseOut)
 			.on("click",clickHandler)
 			.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
-		//class all nodes with there type
+
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
-		if (shapeClassifier) {
-			console.log(shapeClassifier.symbol)
-			node_g.append("path")
-				.attr("x", function (d, i) { return (i * 10) })
-				.attr("d", d3.symbol()
-				             .type(shapeClassifier.shape)
-					         .size(shapeClassifier.size))
-				.style("fill", function (d) {
-					if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
-					else return "white";
-				})
-		}
-		else {
-			node_g.insert("circle")
-				.attr("x", function (d, i) { return (i * 10) })
-				.attr("r", radius)
-				.style("fill", function (d) {
-					if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
-					else return "white";
-				});
+
+		//define default shapes function if not defined
+		if (!shapeClassifier){
+            var shapeClassifier =
+			{
+				"shape": function(_){return d3.symbolCircle},
+				"size": function(_){return 3000}
+			}
 		}
 
+        //define position functiond
+		if (response.hasOwnProperty("attributes") && response["attributes"].hasOwnProperty("positions")) {
+			var positions = response["attributes"]["positions"];
+			var positionOf = function (d) {
+				if (positions.hasOwnProperty(d.id)) {
+					return [positions[d.id]["x"], positions[d.id]["y"]]
+				}
+				else { return null }
+			}
+		}
+		else {
+			var positionOf = function (d) { return null }
+		}
+
+        //add nodes
+		node_g.each(function(d){
+			pos = positionOf(d);
+			if (pos != null){
+                d.x = pos[0];
+                d.y = pos[1];
+                d.fx = pos[0];
+                d.fy = pos[1];
+			} 
+		});
+		 node_g.append("path")
+			.attr("d", d3.symbol()
+				.type(shapeClassifier.shape)
+				.size(shapeClassifier.size))
+			.style("fill", function (d) {
+				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+				else return "white";
+			})
 
 		//add all node id as label
 		node_g.insert("text")
@@ -515,6 +488,7 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
+
 
 		//start the simulation
 		//simulation.nodes([]);
@@ -614,11 +588,19 @@ define([
 				svg_content.selectAll("g").each(function(d){d.fx=null;d.fy=null});
 				if(simulation.nodes().length>0)
 				simulation.alpha(1).restart();
+			request.rmAttr(g_id, JSON.stringify(["positions"]),function(){});
 			}
 		},{
 			title: "Lock all",
-			action: function(elm,d,i){
-				svg_content.selectAll("g").each(function(d){d.fx=d.x;d.fy=d.y});
+			action: function (elm, d, i) {
+
+				var req = {};
+				svg_content.selectAll("g").each(function (d) {
+					d.fx = d.x;
+					d.fy = d.y;
+					req[d.id] = { "x": d.x, "y": d.y }
+				});
+				request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
 			}
 		},{
 			title: "Select all",
@@ -633,19 +615,28 @@ define([
 		},{
 			title: "Add node",
 			action: function(elm,d,i){
-				var mousepos=d3.mouse(elm);
+				var mousepos = d3.mouse(elm);
+				var svgmousepos = d3.mouse(svg_content.node());
 				locked = true;
-				inputMenu("New Name",[""],type_list,null,true,true,'center',function(cb){
-					locked = false;
-					if(cb.line){
-						request.addNode(g_id,cb.line,cb.radio,function(e,r){
-							if(e) console.error(e);
-							else{ 
-								disp.call("graphUpdate",this,g_id);
-							}
-						});
-					}
-				},{x:mousepos[0],y:mousepos[1],r:radius/2},svg_content)
+				inputMenu("New Name", [""], type_list, null, true, true, 'center',
+					function (cb) {
+						locked = false;
+						if (cb.line) {
+							request.addNode(g_id, cb.line, cb.radio, function (e, r) {
+								if (e) console.error(e);
+								else {
+									console.log(svg);
+									req = {};
+									req[cb.line]={"x":svgmousepos[0],"y":svgmousepos[1]}
+				                    request.addAttr(g_id, JSON.stringify({ positions: req }),
+									                function () { disp.call("graphUpdate", this, g_id);});
+									
+								}
+							});
+						}
+					},
+					{ x: mousepos[0], y: mousepos[1], r: radius / 2 },
+					svg)
 			}
 		}];
 		var selected = svg_content.selectAll("g.selected")
@@ -655,7 +646,7 @@ define([
 				action: function(elm,d,i){
 					if(confirm("Are you sure you want to delete ALL those Nodes ?")){
 						selected.each(function(el,i){
-							request.rmNode(g_id,el.id,false,function(e,r){
+							request.rmNode(g_id,el.id,true,function(e,r){
 								if(e) console.error(e);
 								else console.log(r);
 								if(i=selected.size()-1) disp.call("graphUpdate",this,g_id);
@@ -834,6 +825,7 @@ define([
 			d.fy=null;
 			if(simulation.nodes().length>0)
 			simulation.alpha(1).restart();
+			request.rmAttr(g_id, JSON.stringify(["positions",d.id]),function(){});
 		}
 		if(d3.event.shiftKey){
 			if(d3.select(this).classed("selected"))
@@ -878,7 +870,24 @@ define([
 		if(locked)return;
 		if(simulation.alpha()<0.09 && simulation.nodes().length>0)
 			simulation.alpha(1).restart();
-		d3.select(this).attr("cx", d.fx = d3.event.x).attr("cy", d.fy = d3.event.y);
+		var xpos = 	d3.event.x;
+		var ypos = d3.event.y;
+		d3.select(this).attr("cx", d.fx = xpos).attr("cy", d.fy = ypos);
+
+	};
+
+
+	/* handling dragend event on nodes
+	 * @input : d : the node datas
+	*/  
+
+	function dragNodeEnd(d) {
+		var xpos = 	d3.event.x;
+		var ypos = d3.event.y;
+		var id = d["id"];
+		var req = {};
+		req[id] = {"x":xpos,"y":ypos};
+        request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
 	};
 
 	function addVal(elm, d, i){
