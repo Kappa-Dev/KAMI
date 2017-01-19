@@ -260,10 +260,9 @@ define([
 			.append("svg:path")
 			.attr("d","M0,0 L0,6 L9,3 z");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
-		// svg.on("dragstart",selectionHandlerStart);//add selection handler
-		// svg.on("drag",selectionHandler);//add selection handler
 		svg.call(zoom);
         svg.call(d3.drag().on("drag", selectionHandler).on("end", selectionHandlerEnd).on("start",selectionHandlerStart));
+		svg.on("click",svgClickHandler);
 
 
 		d3.select("#tab_frame").append("div")//add the description tooltip
@@ -939,6 +938,7 @@ define([
 	};
  
     function dragNodeStart(d){
+		console.log("drag node start");
 		saveX = d3.event.x;
 		saveY = d3.event.y;
 		beginX = d3.event.x;
@@ -1030,5 +1030,10 @@ define([
 				   .classed("selected", true);
 		   })
 	};
+	function svgClickHandler(){
+		console.log("svgclick");
+		svg_content.selectAll("g.selected")
+				   .classed("selected", false);
+	}
 
 };});

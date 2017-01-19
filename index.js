@@ -19,7 +19,7 @@ define([
 	//Regraph Gui Core
 	(function pageLoad(){
 		//this section must be changed to feet the server/user requirement.
-		var server_url = "http://0.0.0.0:5000";
+		var server_url = "http://localhost:5000";
 		var main_ct_id = "main_container";
 		var root = "/";
 		var current_graph="/";
