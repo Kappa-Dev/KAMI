@@ -39,6 +39,9 @@ define([
 	var type_list;
 	var locked = false;//lock event actions
 	var zoom;
+	var saveX, saveY;//remember position of node before drag event
+	var beginX, beginy;//remember position of node at start of drag
+	// var selectionStart,selectionCurrent;
 	
 	/* initialize all the svg objects and forces
 	 * this function is self called at instanciation
@@ -100,20 +103,20 @@ define([
 			}
 			simulation.force("link", d3.forceLink().id(function (d) { return d.id }));
 			simulation.force("link").distance(distanceOfLink);
+			simulation.force("link").iterations(2);
             
 			var chargeAgent = d3.forceManyBody();
+			//chargeAgent.theta(0.2);
 			chargeAgent.strength(-10000);
-            chargeAgent.distanceMax(radius*6);
-            chargeAgent.distanceMin(0);
+            chargeAgent.distanceMax(radius*20);
+            // chargeAgent.distanceMin(0);
 			var initAgent = chargeAgent.initialize;
 
 			chargeAgent.initialize = (function(){
 				return function (nodes) {
 					var agent_nodes = nodes.filter(function (n, i) {
 						return (
-							ancestorArray[n.id] == "agent" ||
-							// ancestorArray[n.id] === "bnd" ||
-							ancestorArray[n.id] == "mod")
+							ancestorArray[n.id] == "agent")
 					});
 					initAgent(agent_nodes);
 				};
@@ -124,14 +127,14 @@ define([
             simulation.force("chargeAgent", chargeAgent);
 
 			// var chargeBnd = d3.forceManyBody();
-			// chargeBnd.strength(-100);
+			// chargeBnd.strength(-1000);
 			// chargeBnd.distanceMax(radius * 10);
 			// var initbnd = chargeBnd.initialize;
 			// chargeBnd.initialize = function (nodes) {
 			// 	var bnd_nodes = nodes.filter(function (n, i) {
 			// 		return (
-			// 			ancestorArray[n.id] === "bnd" ||
-			// 			ancestorArray[n.id] === "mod"
+			// 			ancestorArray[n.id] === "agent" 
+			// 			// ancestorArray[n.id] === "mod"
 			// 		)
 			// 	});
 			// 	initbnd(bnd_nodes);
@@ -241,6 +244,7 @@ define([
 	function initSvg(){
 		//add drag/zoom behavior
 		zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
+		zoom.filter(function(){ return !event.button && !event.shiftKey});
 		svg.classed("svg-content-responsive", true);
 			svg.append("svg:defs").selectAll("marker")
 			.data(["arrow_end"])      // Different link/path types can be defined here
@@ -256,7 +260,12 @@ define([
 			.append("svg:path")
 			.attr("d","M0,0 L0,6 L9,3 z");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
+		// svg.on("dragstart",selectionHandlerStart);//add selection handler
+		// svg.on("drag",selectionHandler);//add selection handler
 		svg.call(zoom);
+        svg.call(d3.drag().on("drag", selectionHandler).on("end", selectionHandlerEnd).on("start",selectionHandlerStart));
+
+
 		d3.select("#tab_frame").append("div")//add the description tooltip
 			.attr("id","n_tooltip")
 			.classed("n_tooltip",true)
@@ -421,13 +430,19 @@ define([
 			.data(response.nodes, function(d) {return d.id;});
 		var node_g = node.enter().insert("g")
 			.classed("node",true)
-			.call(d3.drag().on("drag", dragged).on("end", dragNodeEnd))
+			.call(d3.drag().on("drag", dragged).on("end", dragNodeEnd).on("start",dragNodeStart))
 			.on("mouseover",mouseOver)
 			.on("mouseout",mouseOut)
 			.on("click",clickHandler)
 			.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
 
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
+
+		//add rectangle
+        svg_content.append("rect")
+			.attr("id", "selectionRect")
+			.style("visibility","hidden")
+			.data([{ startx: 0, starty: 0}]);
 
 		//define default shapes function if not defined
 		if (!shapeClassifier){
@@ -438,21 +453,25 @@ define([
 			}
 		}
 
-        //define position functiond
-		if (response.hasOwnProperty("attributes") && response["attributes"].hasOwnProperty("positions")) {
-			var positions = response["attributes"]["positions"];
-			var positionOf = function (d) {
-				if (positions.hasOwnProperty(d.id)) {
-					return [positions[d.id]["x"], positions[d.id]["y"]]
-				}
-				else { return null }
+        //define position function
+		var get_position_function = function (response_graph) {
+			if (response_graph.hasOwnProperty("attributes") && response_graph["attributes"].hasOwnProperty("positions")) {
+				var positions = response_graph["attributes"]["positions"];
+				return (function (d) {
+					if (positions.hasOwnProperty(d.id)) {
+						return [positions[d.id]["x"], positions[d.id]["y"]]
+					}
+					else { return null }
+				})
 			}
-		}
-		else {
-			var positionOf = function (d) { return null }
-		}
+			else {
+				return (function (d) { return null })
+			}
+		};
 
-        //add nodes
+		var positionOf = get_position_function(response);
+
+        //set nodes position if known
 		node_g.each(function(d){
 			pos = positionOf(d);
 			if (pos != null){
@@ -462,6 +481,7 @@ define([
                 d.fy = pos[1];
 			} 
 		});
+		//add symbol
 		 node_g.append("path")
 			.attr("d", d3.symbol()
 				.type(shapeClassifier.shape)
@@ -512,10 +532,6 @@ define([
 					rate = Math.max(rate, 0.02);
 					rate = Math.min(1.1, rate);
 					rate = rate * 0.9;
-					// svg.call(zoom.transform, d3.zoomIdentity); 
-					// svg_content.call(zoom.transform, d3.zoomIdentity); 
-					// svg.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
-					// svg_content.attr("transform", "translate("+0+","+0+") scale("+1+")"); 
 					var centerX = (svg.attr("width") - (rep[0][1] - rep[0][0]) * rate) / 2;
 					var centerY = (svg.attr("height") - (rep[1][1] - rep[1][0]) * rate) / 2;
 					svg.call(zoom.transform, transform.translate(-xorigine * rate + centerX, -yorigine * rate + centerY).scale(rate));
@@ -830,6 +846,7 @@ define([
 			if(simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 			request.rmAttr(g_id, JSON.stringify(["positions",d.id]),function(){});
+			console.log("ctrl click")
 		}
 		if(d3.event.shiftKey){
 			if(d3.select(this).classed("selected"))
@@ -876,8 +893,22 @@ define([
 			simulation.alpha(1).restart();
 		var xpos = 	d3.event.x;
 		var ypos = d3.event.y;
+		var tx = xpos-saveX;
+		var ty = ypos-saveY;
 		d3.select(this).attr("cx", d.fx = xpos).attr("cy", d.fy = ypos);
-
+		svg_content.selectAll("g.selected")
+			.filter(function(d2){return d2.id != d.id})
+			.each(function (d2) {
+				d2.x = d2.x + tx;
+				d2.y = d2.y + ty;
+				d2.fx = d2.x;
+				d2.fy = d2.y;
+				d3.select(this)
+				    .attr("cx", d2.fx)
+					.attr("cy", d2.fy)
+			});
+		saveX = xpos;
+		saveY = ypos;
 	};
 
 
@@ -886,14 +917,33 @@ define([
 	*/  
 
 	function dragNodeEnd(d) {
-		var xpos = 	d3.event.x;
+		var xpos = d3.event.x;
 		var ypos = d3.event.y;
 		var id = d["id"];
 		var req = {};
-		req[id] = {"x":xpos,"y":ypos};
-        request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
-	};
+		req[id] = { "x": xpos, "y": ypos };
+		//request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
+		svg_content.selectAll("g.selected")
+			.each(function (d) {
+				d.fx = d.x;
+				d.fy = d.y;
+				req[d.id] = { "x": d.x, "y": d.y }
+			});
+		request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
 
+		if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
+			svg_content.selectAll("g.selected")
+				.classed("selected", false)
+		}
+
+	};
+ 
+    function dragNodeStart(d){
+		saveX = d3.event.x;
+		saveY = d3.event.y;
+		beginX = d3.event.x;
+		beginY = d3.event.y;
+	}
 	function addVal(elm, d, i){
             var val = prompt("Enter a value", "");
 			if (!val){return 0};
@@ -937,6 +987,48 @@ define([
             disp.call("addNugetsToInput",this, children);
 		}
 		request.getChildren(g_id,d.id,callback)
-	}
+	};
+
+	function selectionHandler() {
+		var mousepos = d3.mouse(svg_content.node());
+		svg_content.selectAll("#selectionRect")
+			.each(function (d) {
+				d3.select(this)
+					.attr("width", Math.abs(mousepos[0] - d.startx))
+					.attr("height", Math.abs(mousepos[1] - d.starty))
+					.attr("x", Math.min(mousepos[0], d.startx))
+					.attr("y", Math.min(mousepos[1], d.starty))
+			})
+
+	};
+	function selectionHandlerStart() {
+		var selectionStart = d3.mouse(svg_content.node());
+		svg_content.selectAll("#selectionRect")
+			.style("visibility", "visible")
+			.each(function (d) {
+				d.startx = selectionStart[0];
+				d.starty = selectionStart[1];
+			});
+	};
+	function selectionHandlerEnd() {
+		var mousepos = d3.mouse(svg_content.node());
+		svg_content.selectAll("#selectionRect")
+		   .style("visibility", "hidden")
+		   .each(function(d){
+			   var minx = Math.min(mousepos[0],d.startx);
+			   var maxx = Math.max(mousepos[0],d.startx);
+			   var miny = Math.min(mousepos[1],d.starty);
+			   var maxy = Math.max(mousepos[1],d.starty);
+			   svg_content.selectAll("g")
+				   .filter(function (n) {
+					   return (
+						   n.x <= maxx &&
+						   n.x >= minx &&
+						   n.y <= maxy &&
+						   n.y >= miny)
+				   })
+				   .classed("selected", true);
+		   })
+	};
 
 };});

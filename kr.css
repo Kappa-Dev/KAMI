@@ -441,6 +441,8 @@ svg{
 	width: 150px;
 	overflow : hidden;
 }
-#attributes_manager{
-
+#selectionRect{
+    opacity: 0.2;
+    /*fill: #333333;*/
+    fill: 8EB198;
 }
