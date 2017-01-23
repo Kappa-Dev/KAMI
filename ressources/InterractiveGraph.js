@@ -225,11 +225,21 @@ define([
 					return 4000;
 				}
 			};
-
+            var link_to_dotStyle = function (l){
+				var ancestorSource = ancestorArray[l.source.id];
+				var ancestorTarget = ancestorArray[l.target.id];
+			    var components = [ "state", "residue", "locus", "region", "agent"];
+				if (components.indexOf(ancestorSource) > -1  &&
+				components.indexOf(ancestorTarget) > -1){
+					return ("1,0");
+				}
+				else { return ("3, 6") }
+			}
 			var shapeClassifier =
 				{
 					"shape": node_to_symbol,
-					"size": node_to_size
+					"size": node_to_size,
+					"dotStyle": link_to_dotStyle
 				};
 			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier, noTranslate)}); 
 		}
@@ -424,6 +434,7 @@ define([
 			.attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
+
 		//add all node as circle in the svg
 		var node = svg_content.selectAll("g.node")
 			.data(response.nodes, function(d) {return d.id;});
@@ -458,7 +469,9 @@ define([
             var shapeClassifier =
 			{
 				"shape": function(_){return d3.symbolCircle},
-				"size": function(_){return 3000}
+				"size": function(_){return 3000},
+				"dotStyle":function(_){return ("1,0")}
+
 			}
 		}
 
@@ -519,6 +532,10 @@ define([
 			})
 			.on("dblclick",clickText);
 		node.exit().remove();
+
+
+        svg_content.selectAll(".link")
+		           .attr("stroke-dasharray",shapeClassifier.dotStyle)
 
 
 		//start the simulation

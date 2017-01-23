@@ -58,7 +58,7 @@ define(["ressources/d3/d3.js"],function(d3){
 			request("GET",
 				"/hierarchy",
 				hie_path,
-				[{id:"include_graphs",val:false},{id:"rules",val:false}],
+				[{id:"include_graphs",val:false},{id:"rules",val:true}],
 				"application/json",
 				callback,
 				null,

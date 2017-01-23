@@ -265,7 +265,9 @@ body{
   background-size: 2vw  2vh;   
   background-repeat: no-repeat ;*/
   -webkit-mask-image: url(ico_graph_selected.svg);
+  mask: url(ico_graph_selected.svg);
   -webkit-mask-size: 2vw  2vh;   
+  mask-size: 2vw  2vh;   
   background:rgb(251, 249, 200);
 
 }
@@ -277,7 +279,9 @@ body{
   background-size: 2vw  2vh;   
   background-repeat: no-repeat ;*/
   -webkit-mask-image: url(ico_graph.svg);
+  mask-image: url(ico_graph.svg);
   -webkit-mask-size: 2vw  2vh;   
+  mask-size: 2vw 2vh;
   background: rgb(251, 249, 200);
 
 }
@@ -462,6 +466,7 @@ svg{
   stroke: #000;
   fill:none;
   stroke-width: 3px;
+  /*stroke-dasharray : 3 0;*/
 }
 #n_tooltip{
 	background-color:#fffeec;
@@ -487,5 +492,7 @@ svg{
     opacity: 0.7;
 	stroke: #222222;
 	stroke-width: 10px;
-
+}
+#nugFilter{
+margin-top: 1vh;
 }

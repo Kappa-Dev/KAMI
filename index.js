@@ -39,9 +39,6 @@ define([
 			"configUpdate"//triggered when the graph shown is changed
 		);
 		d3.select("body").append("div").attr("id",main_ct_id);
-		var attr_manager = d3.select("body").append("div")
-                         .attr("id","attributes_manager")
-		                 .style("visibility","hidden");
         
 		var main_container = d3.select("#"+main_ct_id);//Main div
 		//main_container.append("div")//separator between menu and page core
