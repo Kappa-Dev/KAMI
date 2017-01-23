@@ -446,3 +446,9 @@ svg{
     /*fill: #333333;*/
     fill: 8EB198;
 }
+#LinkLine{
+    opacity: 0.7;
+	stroke: #222222;
+	stroke-width: 10px;
+
+}

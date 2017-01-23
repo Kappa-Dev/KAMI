@@ -40,8 +40,8 @@ define([
 	var locked = false;//lock event actions
 	var zoom;
 	var saveX, saveY;//remember position of node before drag event
-	var beginX, beginy;//remember position of node at start of drag
-	// var selectionStart,selectionCurrent;
+	var beginX, beginY;//remember position of node at start of drag
+	var startOfLinkNode;//id of node that started the link
 	
 	/* initialize all the svg objects and forces
 	 * this function is self called at instanciation
@@ -429,19 +429,29 @@ define([
 			.data(response.nodes, function(d) {return d.id;});
 		var node_g = node.enter().insert("g")
 			.classed("node",true)
-			.call(d3.drag().on("drag", dragged).on("end", dragNodeEnd).on("start",dragNodeStart))
+			.call(d3.drag().on("drag", dragged)
+				.on("end", dragNodeEnd)
+				.on("start", dragNodeStart)
+				.filter(function () { return true }))
 			.on("mouseover",mouseOver)
 			.on("mouseout",mouseOut)
+			//.on("mouseup",function(){d3.selectAll("g").dispatch("endOfLink")})
 			.on("click",clickHandler)
-			.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
+			//.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
+			.on("contextmenu", nodeContextMenuHandler);
 
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
 
-		//add rectangle
+		//add selection rectangle
         svg_content.append("rect")
 			.attr("id", "selectionRect")
 			.style("visibility","hidden")
 			.data([{ startx: 0, starty: 0}]);
+		
+		//add line for edges creation and deletion
+        svg_content.append("line")
+			.attr("id", "LinkLine")
+			.style("visibility","hidden");
 
 		//define default shapes function if not defined
 		if (!shapeClassifier){
@@ -702,6 +712,7 @@ define([
 		},{
 			title: "Clone",
 			action: function(elm,d,i){
+				console.log(elm,d,i);
 				locked = true;
 				inputMenu("New Name",[d.id+"copy"],null,null,true,true,'center',function(cb){
 					if(cb.line){
@@ -838,6 +849,7 @@ define([
 	 * @input : d : the node datas
 	 */
 	function clickHandler(d) {
+		console.log("nodeclick");
 		d3.event.stopPropagation();
 		if(d3.event.ctrlKey){
 			d.fx=null;
@@ -887,27 +899,37 @@ define([
 	 * @input : d : the node datas
 	 */
 	function dragged(d) {
-		if(locked)return;
-		if(simulation.alpha()<0.09 && simulation.nodes().length>0)
-			simulation.alpha(1).restart();
-		var xpos = 	d3.event.x;
+		if (locked) return;
+		var xpos = d3.event.x;
 		var ypos = d3.event.y;
-		var tx = xpos-saveX;
-		var ty = ypos-saveY;
-		d3.select(this).attr("cx", d.fx = xpos).attr("cy", d.fy = ypos);
-		svg_content.selectAll("g.selected")
-			.filter(function(d2){return d2.id != d.id})
-			.each(function (d2) {
-				d2.x = d2.x + tx;
-				d2.y = d2.y + ty;
-				d2.fx = d2.x;
-				d2.fy = d2.y;
-				d3.select(this)
-				    .attr("cx", d2.fx)
-					.attr("cy", d2.fy)
-			});
-		saveX = xpos;
-		saveY = ypos;
+		if (!d3.event.sourceEvent.button){
+			if (simulation.alpha() < 0.09 && simulation.nodes().length > 0)
+				simulation.alpha(1).restart();
+			// var xpos = d3.event.x;
+			// var ypos = d3.event.y;
+			var tx = xpos - saveX;
+			var ty = ypos - saveY;
+			d3.select(this).attr("cx", d.fx = xpos).attr("cy", d.fy = ypos);
+			svg_content.selectAll("g.selected")
+				.filter(function (d2) { return d2.id != d.id })
+				.each(function (d2) {
+					d2.x = d2.x + tx;
+					d2.y = d2.y + ty;
+					d2.fx = d2.x;
+					d2.fy = d2.y;
+					d3.select(this)
+						.attr("cx", d2.fx)
+						.attr("cy", d2.fy)
+				});
+			saveX = xpos;
+			saveY = ypos;
+		}
+		else {
+			var mousepos = d3.mouse(svg_content.node());
+			svg_content.selectAll("#LinkLine")
+				.attr("x2", beginMouseX+(mousepos[0]-beginMouseX)*0.99)
+				.attr("y2", beginMouseY+(mousepos[1]-beginMouseY)*0.99);
+		}
 	};
 
 
@@ -915,26 +937,52 @@ define([
 	 * @input : d : the node datas
 	*/  
 
-	function dragNodeEnd(d) {
+	function dragNodeEnd(d,elm,i) {
+		var nodecontext = this;
+		var currentEvent = d3.event;
 		var xpos = d3.event.x;
 		var ypos = d3.event.y;
-		var id = d["id"];
-		var req = {};
-		req[id] = { "x": xpos, "y": ypos };
-		//request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
-		svg_content.selectAll("g.selected")
-			.each(function (d) {
-				d.fx = d.x;
-				d.fy = d.y;
-				req[d.id] = { "x": d.x, "y": d.y }
-			});
-		request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
-
-		if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
+		if (!d3.event.sourceEvent.button) {
+			var id = d["id"];
+			var req = {};
+			req[id] = { "x": xpos, "y": ypos };
+			//request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
 			svg_content.selectAll("g.selected")
-				.classed("selected", false)
-		}
+				.each(function (d) {
+					d.fx = d.x;
+					d.fy = d.y;
+					req[d.id] = { "x": d.x, "y": d.y }
+				});
+			request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
 
+			if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
+				svg_content.selectAll("g.selected")
+					.classed("selected", false)
+			}
+		}
+		else {
+			console.log("right drag end");
+			svg_content.selectAll("#LinkLine")
+				.style("visibility", "hidden")
+			var targetElement = d3.select(d3.event.sourceEvent.path[1]);
+			if (targetElement.classed("node")) {
+				targetElement.each(function(d2){
+					console.log(d2.id)
+					console.log(d.id)
+					if (d2.id !== d.id){
+						request.addEdge(g_id,d.id,d2.id,function(e,r){
+							if(!e){ console.log(r);
+								disp.call("graphUpdate",this,g_id,true)}
+							else{ console.error(e)}
+						});
+					}
+					else{
+						var handler = d3ContextMenu(function () { return nodeCtMenu() })
+						d3.customEvent(currentEvent.sourceEvent, handler, nodecontext, [d,null]);
+					}
+				});
+			}
+		}
 	};
  
     function dragNodeStart(d){
@@ -943,7 +991,30 @@ define([
 		saveY = d3.event.y;
 		beginX = d3.event.x;
 		beginY = d3.event.y;
-	}
+		if (d3.event.sourceEvent.button) {
+			var mousepos = d3.mouse(svg_content.node());
+			beginMouseX = mousepos[0];
+			beginMouseY = mousepos[1];
+			svg_content.selectAll("#LinkLine")
+				.attr("x1", beginMouseX)
+				.attr("y1", beginMouseY)
+				.attr("x2", beginMouseX)
+				.attr("y2", beginMouseY)
+				.style("visibility", "visible");
+        startOfLinkNode = d.id;
+		}
+
+	};
+
+	function nodeContextMenuHandler(d) {
+		console.log("myContextmenu");
+		d3.event.stopPropagation();
+		d3.event.preventDefault();
+		// d3.select(this)
+		// 	.on("mouseup", function () { console.log("mouseout") });
+
+	};
+
 	function addVal(elm, d, i){
             var val = prompt("Enter a value", "");
 			if (!val){return 0};
@@ -1011,6 +1082,7 @@ define([
 			});
 	};
 	function selectionHandlerEnd() {
+		console.log("end select drag");
 		var mousepos = d3.mouse(svg_content.node());
 		svg_content.selectAll("#selectionRect")
 		   .style("visibility", "hidden")
@@ -1034,6 +1106,6 @@ define([
 		console.log("svgclick");
 		svg_content.selectAll("g.selected")
 				   .classed("selected", false);
-	}
+	};
 
 };});
