@@ -105,8 +105,13 @@ define([
 				.attr("id",function(d){return d})
 				.on("click",function(d,i){return dispach_click(d,i,this)})
 				.on("contextmenu",d3ContextMenu(right_click_menu))
-				.on("dblclick",function(d){return lvlChange(d)})
-				.append("div")
+				.on("dblclick",function(d){return lvlChange(d)});
+
+			var slc=h_list.selectAll(".tab_menu_el");
+            slc.append("i")
+			   .classed("icon",true);
+
+			slc.append("div")
 				.classed("tab_menu_el_name",true)
 				.text(function(d){
 					// let nm = hierarchy.getName(d);
