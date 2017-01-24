@@ -91,11 +91,12 @@ define([
 					{
 						"mod": { "state": 400 },
 						"state": { "region": 50, "agent": 50, "residue": 50 },
-						"residue": { "agent": 100 },
+						"residue": { "agent": 100, "region": 50},
 						"syn": { "agent": 400 },
+						"agent": { "mod": 800 },
 						"deg": { "agent": 400 },
 						"region": { "agent": 50 },
-						"locus": { "agent": 200, "region": 150, "is_bnd": 300, "is_free": 300, "bnd": 500, "brk": 500}
+						"locus": { "agent": 500, "region": 500, "is_bnd": 150, "is_free": 150, "bnd": 150, "brk": 150}
 					}
 				source_type = ancestorArray[l.source["id"]];
 				target_type = ancestorArray[l.target["id"]];
@@ -285,6 +286,7 @@ define([
 			.attr("x",function(){return width/2-450})
 			.attr("y",function(){return height/2-200})
 			.attr("xlink:href","ressources/toucan.png");
+			console.log(svg);
 	};
 	/* this fonction  is triggered by tick events
 	 * move all the svg object (node and links)
