@@ -16,7 +16,7 @@ define([
 	 * @input : server_url : the regraph server url
 	 * @return : a new InterractiveGraph object
 	 */
-	return function InterractiveGraph(container_id,new_svg_name,svg_width,svg_height,dispatch,request,readOnly){
+	return function InterractiveGraph(container_id,new_svg_name,svg_width,svg_height,dispatch,request,readOnly,localDispatch){
 	var disp = dispatch;
 	//var size = d3.select("#"+container_id).node().getBoundingClientRect();//the svg size
 	// d3.select("#"+container_id)//the main svg object
@@ -71,7 +71,7 @@ define([
 	 * 	-center force : foce node to stay close to the center
 	 */
 
-	function initForce(path, graph, noTranslate){
+	function initForce(path, graph, noTranslate, repDispatch){
 		simulation.force("link",null);
 		simulation.force("chargeAgent",null);
 		simulation.force("chargeBnd",null);
@@ -84,12 +84,12 @@ define([
         simulation.alphaDecay(0.06);
 		simulation.stop();
 		if (path){
-			loadType(path, graph, function(rep){loadGraph(rep,null,noTranslate)});
+			loadType(path, graph, function(rep){loadGraph(rep,null,noTranslate,repDispatch)});
 		}
 	}
 
 
-	function initForceKami(path, graph, noTranslate){
+	function initForceKami(path, graph, noTranslate, repDispatch){
 		simulation.force("link",null);
 		simulation.force("charge", null);
 		simulation.force("center", null);
@@ -254,7 +254,7 @@ define([
 					"size": node_to_size,
 					"dotStyle": link_to_dotStyle
 				};
-			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier, noTranslate)}); 
+			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier, noTranslate, repDispatch)}); 
 		}
 		kamiAncestor(g_id, callback);
 	}
@@ -291,12 +291,12 @@ define([
 			.attr("id","n_tooltip")
 			.classed("n_tooltip",true)
 			.style("visibility","hidden");
-		// svg_content.append("svg:image")
-		// 	.attr("width",900)
-		// 	.attr("height",400)
-		// 	.attr("x",function(){return width/2-450})
-		// 	.attr("y",function(){return height/2-200})
-		// 	.attr("xlink:href","ressources/toucan.png");
+		svg_content.append("svg:image")
+			.attr("width",900)
+			.attr("height",400)
+			.attr("x",function(){return width/2-450})
+			.attr("y",function(){return height/2-200})
+			.attr("xlink:href","ressources/toucan.png");
 	};
 	this.initSvg = initSvg;
 	/* this fonction  is triggered by tick events
@@ -333,7 +333,7 @@ define([
 				} 
 				return "M"+x1+","+y1+"A"+drx+","+dry+" "+xRotation+","+largeArc+","+sweep+" "+x2+","+y2;
 			});	
-			disp.call("move");
+			if (localDispatch){localDispatch.call("move")};
 	}
 	/* this fonction  is triggered by zoom events
 	 * transform the svg container according to zoom
@@ -341,7 +341,7 @@ define([
 	function zoomed() {
 		if (!locked) {
 			svg_content.attr("transform", d3.event.transform);
-			disp.call("move");
+			if (localDispatch){localDispatch.call("move");}
 		}
 	}
 	/* update the current view to a new graph
@@ -349,10 +349,16 @@ define([
 	 * @input : graph : the new graph
 	 * @input : path : the graph path
 	 */
-	this.update = function update(graph,path,noTranslate){
+	this.update = function update(graph,path,noTranslate,repDispatch){
 		g_id = path;
 		if(path != "/"){
 			svg_content.selectAll("*").remove();
+			if (path.search("/kami_base/kami/") == 0) {
+				initForceKami(path, graph, noTranslate, repDispatch);
+			}
+			else {
+				initForce(path, graph, noTranslate, repDispatch);
+			}
 		}
 		else{
 			svg_content.append("svg:image")
@@ -361,12 +367,6 @@ define([
 			.attr("x",function(){return width/2-450})
 			.attr("y",function(){return height/2-200})
 			.attr("xlink:href","ressources/toucan.png");
-		}
-		if (path.search("/kami_base/kami/") == 0){
-			initForceKami(path, graph, noTranslate);
-		}
-		else{
-            initForce(path, graph, noTranslate);
 		}
 	};
 
@@ -436,7 +436,7 @@ define([
 	 * nodes can be renamed by double clicking it
 	 * @input : response : a json structure of the graph
 	 */
-	function loadGraph(response, shapeClassifier, noTranslate){
+	function loadGraph(response, shapeClassifier, noTranslate, repDispatch){
 		//transform links for search optimisation
 		var links = response.edges.map(function(d){
 			return {source:findNode(d.from,response.nodes),target:findNode(d.to,response.nodes)}
@@ -459,7 +459,7 @@ define([
 			.call(d3.drag().on("drag", dragged)
 				.on("end", dragNodeEnd)
 				.on("start", dragNodeStart)
-				.filter(function () { return true }))
+				.filter(function () { return !d3.event.button || !readOnly }))//disable right click drag if readOnly
 			.on("mouseover",mouseOver)
 			.on("mouseout",mouseOut)
 			//.on("mouseup",function(){d3.selectAll("g").dispatch("endOfLink")})
@@ -468,7 +468,8 @@ define([
 			.on("contextmenu", nodeContextMenuHandler);
 
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
-		disp.call("loadingEnded")
+
+		if (repDispatch) { repDispatch.call("loadingEnded") };
 
 		//add selection rectangle
         svg_content.append("rect")
@@ -691,35 +692,38 @@ define([
 			action: function(elm,d,i){
 				svg_content.selectAll("g").classed("selected",false);
 			}
-		},{
-			title: "Add node",
-			action: function(elm,d,i){
-				var mousepos = d3.mouse(elm);
-				var svgmousepos = d3.mouse(svg_content.node());
-				locked = true;
-				inputMenu("New Name", [""], type_list, null, true, true, 'center',
-					function (cb) {
-						locked = false;
-						if (cb.line) {
-							request.addNode(g_id, cb.line, cb.radio, function (e, r) {
-								if (e) console.error(e);
-								else {
-									console.log("node added")
-									req = {};
-									req[cb.line]={"x":svgmousepos[0],"y":svgmousepos[1]}
-				                    request.addAttr(g_id, JSON.stringify({ positions: req }),
-									                function () { disp.call("graphUpdate", this, g_id, true);});
-									
-								}
-							});
-						}
-					},
-					{ x: mousepos[0], y: mousepos[1], r: radius / 2 },
-					svg)
-			}
 		}];
+		if (!readOnly) {
+			menu.push({
+				title: "Add node",
+				action: function (elm, d, i) {
+					var mousepos = d3.mouse(elm);
+					var svgmousepos = d3.mouse(svg_content.node());
+					locked = true;
+					inputMenu("New Name", [""], type_list, null, true, true, 'center',
+						function (cb) {
+							locked = false;
+							if (cb.line) {
+								request.addNode(g_id, cb.line, cb.radio, function (e, r) {
+									if (e) console.error(e);
+									else {
+										console.log("node added")
+										req = {};
+										req[cb.line] = { "x": svgmousepos[0], "y": svgmousepos[1] }
+										request.addAttr(g_id, JSON.stringify({ positions: req }),
+											function () { disp.call("graphUpdate", this, g_id, true); });
+
+									}
+								});
+							}
+						},
+						{ x: mousepos[0], y: mousepos[1], r: radius / 2 },
+						svg)
+				}
+			});
+		};
 		var selected = svg_content.selectAll("g.selected")
-		if(selected.size()){
+		if(!readOnly && selected.size()){
 			menu.push({
 				title: "Remove Selected nodes",
 				action: function(elm,d,i){

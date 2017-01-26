@@ -57,7 +57,11 @@ define([
 			   action : setRate
 			  }
 		];
-
+        var only_graph_menu = [
+			{title : "create rule",
+		     action: createRule
+			}
+		];
 		/* load a new hierarchy from the server
 		 * @input : root_path : the hierarchy root pathname
 		 */
@@ -104,7 +108,7 @@ define([
 				.classed("selected",false)
 				.attr("id",function(d){return d})
 				.on("click",function(d,i){return dispach_click(d,i,this)})
-				.on("contextmenu",d3ContextMenu(right_click_menu))
+				.on("contextmenu",d3ContextMenu(right_click_menu.concat(only_graph_menu)))
 				.on("dblclick",function(d){return lvlChange(d)});
 
 			var slc=h_list.selectAll(".tab_menu_el");
@@ -290,7 +294,7 @@ define([
 
 		this.addGraph = function(){
 			//var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
-			var name = prompt("Give it a name !", "");
+			var name = prompt("Name of the new graph?", "");
 			if (!name) {return 0}
 			var current_path = hierarchy.getAbsPath(current_node)+"/";
 			if (current_path == "//"){current_path="/"}
@@ -329,7 +333,23 @@ define([
 				})
 				.style("display", "flex");
 	    };
+
         this.filterNuggets = filterNuggets; 
 
+		function createRule(elm,d,i){
+			var name = prompt("Name of the new rule?", "");
+			var path = hierarchy.getAbsPath(current_node)+"/";
+			if (path=="//"){path = "/"};
+            var patternName = hierarchy.getName(d);
+		    var callback = function(err,ret){
+					if(!err){
+						dispatch.call("hieUpdate",this,null);
+						console.log(ret);
+					}
+					else console.error(err);
+				};
+			factory.addRule(path+name+"/",patternName,callback);
+		};
 	};
+
 });

@@ -218,7 +218,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : on succeed : callback function
 		 */
 		this.addRule = function addRule(rule_path,pattern,callback){
-			d3.request(srv+"/rule"+rule_path+"?pattern_name="+pattern)
+			d3.request(srv+"/rule"+encodeURIComponent(rule_path)+"?pattern_name="+pattern)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(null, callback);
