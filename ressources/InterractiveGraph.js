@@ -16,17 +16,29 @@ define([
 	 * @input : server_url : the regraph server url
 	 * @return : a new InterractiveGraph object
 	 */
-	return function InterractiveGraph(container_id,dispatch,server_url){
+	return function InterractiveGraph(container_id,new_svg_name,svg_width,svg_height,dispatch,request,readOnly){
 	var disp = dispatch;
-	var size = d3.select("#"+container_id).node().getBoundingClientRect();//the svg size
-	d3.select("#"+container_id)//the main svg object
-		.append("div")
-		.attr("id","tab_frame")
-		.append("svg:svg")
-		.attr("height",size.height)
-		.attr("width",size.width);
-	var svg = d3.select("svg"),
-		width = +svg.attr("width"),
+	//var size = d3.select("#"+container_id).node().getBoundingClientRect();//the svg size
+	// d3.select("#"+container_id)//the main svg object
+	// 	// .append("div")
+	// 	// .attr("id","tab_frame")
+	// 	.append("svg:svg")
+
+	//var svg = d3.select(document.createElement("svg:svg"))
+	var svgDom = document.createElementNS("http://www.w3.org/2000/svg", "svg:svg");
+	svgDom.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+	var svg = d3.select(svgDom)
+		.attr("id", new_svg_name)
+		.attr("height", svg_height)
+		.attr("width", svg_width);
+
+	svg.append('svg:rect')
+		.attr('width', svg_width) // the whole width of g/svg
+		.attr('height', svg_height) // the whole heigh of g/svg
+		.attr('fill', 'none')
+		.attr('pointer-events', 'all');
+	var	width = +svg.attr("width"),
 		height = +svg.attr("height"),
 		transform = d3.zoomIdentity;;
 	var svg_content = svg.append("g")//the internal zoom and drag object for svg
@@ -34,7 +46,7 @@ define([
 	var simulation;//the force simulation
 	var radius = 30;
 	var links_f;//the link force
-	var request = new RqFactory(server_url);
+	//var request = new RqFactory(server_url);
 	var g_id="/";//the graph id in the hierarchy
 	var type_list;
 	var locked = false;//lock event actions
@@ -91,11 +103,11 @@ define([
 					{
 						"mod": { "state": 400 },
 						"state": { "region": 50, "agent": 50, "residue": 50 },
-						"residue": { "agent": 100, "region": 50},
+						"residue": { "agent": 30, "region": 25},
 						"syn": { "agent": 400 },
 						"agent": { "mod": 800 },
 						"deg": { "agent": 400 },
-						"region": { "agent": 50 },
+						"region": { "agent": 20 },
 						"locus": { "agent": 500, "region": 500, "is_bnd": 150, "is_free": 150, "bnd": 150, "brk": 150}
 					}
 				source_type = ancestorArray[l.source["id"]];
@@ -109,7 +121,7 @@ define([
 			var chargeAgent = d3.forceManyBody();
 			//chargeAgent.theta(0.2);
 			chargeAgent.strength(-10000);
-            chargeAgent.distanceMax(radius*20);
+            chargeAgent.distanceMax(radius*30);
             // chargeAgent.distanceMin(0);
 			var initAgent = chargeAgent.initialize;
 
@@ -267,7 +279,7 @@ define([
 			.attr("markerHeight", 10)
 			.attr("orient", "auto")
 			.attr("markerUnits","strokeWidth")
-			//.attr("position","50%")
+			//.attr("position","80%")
 			.append("svg:path")
 			.attr("d","M0,0 L0,6 L9,3 z");
 		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
@@ -275,19 +287,18 @@ define([
         svg.call(d3.drag().on("drag", selectionHandler).on("end", selectionHandlerEnd).on("start",selectionHandlerStart));
 		svg.on("click",svgClickHandler);
 
-
 		d3.select("#tab_frame").append("div")//add the description tooltip
 			.attr("id","n_tooltip")
 			.classed("n_tooltip",true)
 			.style("visibility","hidden");
-		svg_content.append("svg:image")
-			.attr("width",900)
-			.attr("height",400)
-			.attr("x",function(){return width/2-450})
-			.attr("y",function(){return height/2-200})
-			.attr("xlink:href","ressources/toucan.png");
-			console.log(svg);
+		// svg_content.append("svg:image")
+		// 	.attr("width",900)
+		// 	.attr("height",400)
+		// 	.attr("x",function(){return width/2-450})
+		// 	.attr("y",function(){return height/2-200})
+		// 	.attr("xlink:href","ressources/toucan.png");
 	};
+	this.initSvg = initSvg;
 	/* this fonction  is triggered by tick events
 	 * move all the svg object (node and links)
 	 * movement can be due to force simulation or user dragging
@@ -322,13 +333,16 @@ define([
 				} 
 				return "M"+x1+","+y1+"A"+drx+","+dry+" "+xRotation+","+largeArc+","+sweep+" "+x2+","+y2;
 			});	
+			disp.call("move");
 	}
 	/* this fonction  is triggered by zoom events
 	 * transform the svg container according to zoom
 	 */
 	function zoomed() {
-		if(!locked)
+		if (!locked) {
 			svg_content.attr("transform", d3.event.transform);
+			disp.call("move");
+		}
 	}
 	/* update the current view to a new graph
 	 * this function also load all nodes types
@@ -361,12 +375,12 @@ define([
 		var path2 = path.split("/");
 		path2 = path2.slice(3);
 		var degree = path2.length;
-		var callback = function(err, resp){
+		var callback = function(err, rep){
 			if(err){
 				alert(err.currentTarget.response);
 				return false;
 			}
-			var rep = JSON.parse(resp.response);
+			//var rep = JSON.parse(resp.response);
 			var mapping = rep.reduce(function (obj, x) {
 				obj[x["left"]] = x["right"];
 				return obj;
@@ -433,7 +447,7 @@ define([
 		link.enter()//.insert("line","g")
 			.append("path")
 			.classed("link",true)
-			.attr("marker-mid", "url(#arrow_end)")
+			// .attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
 
@@ -454,6 +468,7 @@ define([
 			.on("contextmenu", nodeContextMenuHandler);
 
 		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
+		disp.call("loadingEnded")
 
 		//add selection rectangle
         svg_content.append("rect")
@@ -512,8 +527,11 @@ define([
 				.size(shapeClassifier.size))
 			.style("fill", function (d) {
 				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
-				else return "white";
-			})
+				else return "#EEEEEE";
+			});
+		//  node_g.style("WebkitFilter","grayscale(100%)");
+		//  node_g.style("-webkit-filter","grayscale(100%)");
+		//  node_g.style("filter","grayscale(100%)");
 
 		//add all node id as label
 		node_g.insert("text")
@@ -609,16 +627,29 @@ define([
 	 */
 	function setColor(nb,tot,neg){
 		if(neg){
-			//calculate color luminosity
-			var tmp = ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0];
-			var ret =(parseInt(tmp[0]+tmp[1],16)*299+parseInt(tmp[2]+tmp[3],16)*587+parseInt(tmp[4]+tmp[5],16)*114)/1000;
-			//if brigth : return black, else return white
-			if(ret <150) return (0xFFFFFF).toString(16);
-			else return (0x000000).toString(16);
+			// //calculate color luminosity
+			// var tmp = ((0x777777/tot)*(nb+1)).toString(16).split(".")[0];
+			// var ret =(parseInt(tmp[0]+tmp[1],16)*299+parseInt(tmp[2]+tmp[3],16)*587+parseInt(tmp[4]+tmp[5],16)*114)/1000;
+			// //if brigth : return black, else return white
+			// // if(ret <150) return (0xDDDDDD).toString(16);
+			// // else return (0x000000).toString(16);
+
+			//return (0x0b0b0b).toString(16);
+			return (0x282828).toString(16);
+
+            
 		}
-		var ret = ((0xFFFFFF/tot)*(nb+1)).toString(16).split(".")[0]
-        while(ret.length<6){ret="0"+ret;};
-		return ret;
+			var red = 136+(33 / tot) * (nb+1);
+			var blue = (150000 - red*886)/114;
+            var reds = red.toString(16).split(".")[0];
+            while(reds.length<2){reds="0"+reds;};
+            var blues = blue.toString(16).split(".")[0];
+            while(blues.length<2){blues="0"+blues;};
+			return(reds+reds+blues);
+
+		// var ret = ((0x777777/tot)*(nb+1)).toString(16).split(".")[0]
+        //while(ret.length<6){ret="0"+ret;};
+		// return ret;
 	}
 	/* define the svg context menu
 	 * svg context menu allow to unlock all nodes,
@@ -673,7 +704,7 @@ define([
 							request.addNode(g_id, cb.line, cb.radio, function (e, r) {
 								if (e) console.error(e);
 								else {
-									console.log(svg);
+									console.log("node added")
 									req = {};
 									req[cb.line]={"x":svgmousepos[0],"y":svgmousepos[1]}
 				                    request.addAttr(g_id, JSON.stringify({ positions: req }),
@@ -719,7 +750,7 @@ define([
 			title: "Remove",
 			action: function(elm,d,i){
 				if(confirm("Are you sure you want to delete this Node ?")){
-					request.rmNode(g_id,d.id,false,function(e,r){
+					request.rmNode(g_id,d.id,true,function(e,r){
 						if(e) console.error(e);
 						else{ 
 							disp.call("graphUpdate",this,g_id,true);
@@ -868,7 +899,6 @@ define([
 	 * @input : d : the node datas
 	 */
 	function clickHandler(d) {
-		console.log("nodeclick");
 		d3.event.stopPropagation();
 		if(d3.event.ctrlKey){
 			d.fx=null;
@@ -876,7 +906,6 @@ define([
 			if(simulation.nodes().length>0)
 			simulation.alpha(1).restart();
 			request.rmAttr(g_id, JSON.stringify(["positions",d.id]),function(){});
-			console.log("ctrl click")
 		}
 		if(d3.event.shiftKey){
 			if(d3.select(this).classed("selected"))
@@ -980,14 +1009,11 @@ define([
 			}
 		}
 		else {
-			console.log("right drag end");
 			svg_content.selectAll("#LinkLine")
 				.style("visibility", "hidden")
 			var targetElement = d3.select(d3.event.sourceEvent.path[1]);
 			if (targetElement.classed("node")) {
 				targetElement.each(function(d2){
-					console.log(d2.id)
-					console.log(d.id)
 					if (d2.id !== d.id){
 						request.addEdge(g_id,d.id,d2.id,function(e,r){
 							if(!e){ console.log(r);
@@ -1005,7 +1031,6 @@ define([
 	};
  
     function dragNodeStart(d){
-		console.log("drag node start");
 		saveX = d3.event.x;
 		saveY = d3.event.y;
 		beginX = d3.event.x;
@@ -1122,9 +1147,9 @@ define([
 		   })
 	};
 	function svgClickHandler(){
-		console.log("svgclick");
 		svg_content.selectAll("g.selected")
 				   .classed("selected", false);
 	};
+	this.svg_result = function(){return (svg.node());};
 
 };});

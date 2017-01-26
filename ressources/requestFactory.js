@@ -104,6 +104,22 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				JSON.parse);
 		};
+
+		/* get a graph in json format, without callback override for fail case
+		 * @input : gr_path : the graph path
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function
+		 */
+		// this.getGraph2 = function getGraph2(gr_path,callback){
+		// 	d3.request(srv+"/graph"+gr_path+"/")
+		// 		// .header("X-Requested-With", "XMLHttpRequest")
+		// 		// .header("Content-Type", "application/json")
+		// 		.get(callback);
+		// };
+
+
+
+
 		/* return the possible matchings for a rule on the graph
 		 * @input : gr_path : the graph path
 		 * @input : rule_path : the rule path
@@ -126,13 +142,14 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.getRule = function getRule(gr_path,rule_name,callback){
+		this.getRule = function getRule(gr_path,callback){
 			request("GET",
-				"/hierarchy",
+				"/rule",
 				gr_path,
-				[{id:"include_graphs",val:false},{id:"rules",val:true}],
+				null,
 				"application/json",
-				function(err,resp){return callback(err,subRule(rule_name,resp))},
+				callback,
+				// function(err,resp){return callback(err,subRule(rule_name,resp))},
 				null,
 				JSON.parse);
 		};
@@ -246,7 +263,7 @@ define(["ressources/d3/d3.js"],function(d3){
 			request("PUT",
 				"/graph/add_node",
 				g_path,
-				[{id:"node_id",val:n_id},{id:"node_type",val:n_type}],
+				[{id:"node_id",val:n_id},{id:"node_type",val:(n_type?n_type:"")}],
 				"text/html",
 				callback,
 				null,
@@ -352,7 +369,7 @@ define(["ressources/d3/d3.js"],function(d3){
 			request("PUT",
 				"/graph/add_edge",
 				g_path,
-				[{id:"source_node",val:src},{id:"target_node",val:trg}],
+				[{id:"source_node",val:encodeURIComponent(src)},{id:"target_node",val:encodeURIComponent(trg)}],
 				"text/html",
 				callback,
 				null,
@@ -679,7 +696,12 @@ define(["ressources/d3/d3.js"],function(d3){
 		* @return : on succeed : callback function of dictionary
 		*/	
 		this.getAncestors = function(g_path, degree, callback){
-			d3.request(srv+"/graph/get_ancestors"+g_path+"/"+"?degree="+encodeURIComponent(degree)).get(callback);
+			var myCallback = function(err,rep){
+				if (err){callback(err,null)}
+				else{
+					callback(null, JSON.parse(rep.response))}
+			}
+			d3.request(srv+"/graph/get_ancestors"+g_path+"/"+"?degree="+encodeURIComponent(degree)).get(myCallback);
 		};
 	}
 });

@@ -1,3 +1,4 @@
+@import url("{{css_defs}}");
 @media all and (min-width: 50px)   {  body  { font-size:0.33em;  } }
 @media all and (min-width: 100px)  {  body  { font-size:0.36em;  } }
 @media all and (min-width: 200px)  {  body  { font-size:0.40em;  } }
@@ -21,9 +22,9 @@
 @media all and (min-width: 1900px) {  body  { font-size:1em;  } }
 @media all and (min-width: 2000px) {  body  { font-size:1.03em;  } }
 
+
 #top_chart {
-  --folder-bg-color: #333333;
-  /*--folder-bg-color: #FFFEEC;*/
+  --folder-bg-color: var(--top-chart-bg-color);
 }
 body{
 	padding:0px;
@@ -33,7 +34,8 @@ body{
 #main_container{
 	width:100vw;
 	height:100vh;
-	background-color:#fffeec;
+	/*background-color:#fffeec;*/
+	background-color: var(--global-bg-color);
 	display: flex;
 	flex-direction: row-reverse;
 	/*flex-direction: row;*/
@@ -165,7 +167,8 @@ body{
 #graph_frame{
 	height:100%;
 	transition: margin-left .5s;
-	background-color: #fffeec;
+	/*background-color: #fffeec;*/
+	background-color: var(--global-bg-color);
 }
 .top_menu{
 	/*float:left;
@@ -234,7 +237,8 @@ body{
 	border-top-left-radius:5px;*/
 	text-align:center;
 	font-weight: bold;
-	color:rgb(251, 249, 200);
+	/*color:rgb(251, 249, 200);*/
+	color: var(--menu-color);
 	font-family: Capriola, Helvetica, sans-serif;
 	display: flex;
 	flex-direction: row-reverse;
@@ -279,26 +283,42 @@ body{
   background-size: 2vw  2vh;   
   background-repeat: no-repeat ;*/
   -webkit-mask-image: url(ico_graph.svg);
-  mask-image: url(ico_graph.svg);
   -webkit-mask-size: 2vw  2vh;   
-  mask-size: 2vw 2vh;
   background: rgb(251, 249, 200);
 
 }
+
+.tab_menu_el.selected .icon_rule{
+  display: block;
+  width: 3vw;
+  height: 2vh;
+  -webkit-mask-image: url(rule.svg);
+  -webkit-mask-size: 3vw  2vh;   
+  -webkit-mask-repeat: no-repeat ;
+  background:rgb(251, 249, 200);
+
+}
+.tab_menu_el .icon_rule{
+  display: block;
+  width: 3vw;
+  height: 2vh;
+  -webkit-mask-image: url(rule.svg);
+  -webkit-mask-size: 3vw  2vh;   
+  -webkit-mask-repeat: no-repeat ;
+  background-repeat: no-repeat ;
+  background: rgb(251, 249, 200);
+}
+
 .tab_menu_el.current{
-	/*border: solid;*/
     background: rgb(251, 249, 200);
 	color: #222222;
 }
 .tab_menu_el.current .icon{
   display: block;
-  /*background: url(ico_graph.svg);
-  background-size: 2vw  2vh;   
-  background-repeat: no-repeat ;*/
-
-  /*-webkit-mask-image: url(ico_graph.svg);
-  -webkit-mask-size: 2vw  2vh;   */
-
+  background: #222222;
+}
+.tab_menu_el.current .icon_rule{
+  display: block;
   background: #222222;
 }
 
@@ -357,7 +377,8 @@ body{
 	background:linear-gradient(to bottom, #3fa4f0 0%, #0f71ba 100%);
 }
 svg{
-	background-color:#fffeec;
+	/*background-color:#fffeec;*/
+	background-color:var(--global-bg-color);
 }
 .svg_pan{
 	width:100%;
@@ -452,21 +473,29 @@ svg{
     display: inline-block;
 }
 .node{
-	fill:white;
-	stroke:black;
+	fill:var(--node-default-fill);
+	stroke:var(--node-default-stroke);
+	-webkit-filter:grayscale(100%) !important;
+	filter:grayscale(100%) !important;
 }
 .node.selected{
-	stroke:red;
+	stroke:var(--node-default-select);
 }
 .nodeLabel{
   fill: #000;
   font-family: sans-serif;
 }
 .link {
-  stroke: #000;
+  stroke: var(--link-color);
   fill:none;
   stroke-width: 3px;
   /*stroke-dasharray : 3 0;*/
+}
+.ruleMapping {
+  stroke: var(--link-color);
+  fill:none;
+  stroke-width: 3px;
+  stroke-dasharray : 6 24;
 }
 #n_tooltip{
 	background-color:#fffeec;
@@ -490,9 +519,20 @@ svg{
 }
 #LinkLine{
     opacity: 0.7;
-	stroke: #222222;
+	stroke: var(--link-line-color);
 	stroke-width: 10px;
 }
 #nugFilter{
 margin-top: 1vh;
+}
+
+.separation_line{
+    /*opacity: 0.7;*/
+	/*stroke: #222222;*/
+    stroke : #7B7162;
+	stroke-width: 5px;
+
+}
+#arrow_end{
+	fill: var(--link-color);
 }

@@ -1,0 +1,9 @@
+ :root{
+	 --global-bg-color: #1e1e1e;
+	 --top-chart-bg-color: #252526;
+	 --link-color: #aaaaaa;
+	 --node-default-fill:#000000;
+	 --node-default-select:red;
+	 --menu-color:rgb(251, 249, 200);
+	 --link-line-color: #999999;
+ }

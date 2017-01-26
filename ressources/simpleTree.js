@@ -6,6 +6,7 @@
  * this project is under AGPL Licence
 */
 define([],function(){return function Tree(){
+	var self = this;
 	var nodesHash = {};//hashtable of nodes
 	var NODE_ID = 0;//id count
 	/* load a new tree from a json hierarchy fileCreatedDate
@@ -25,7 +26,7 @@ define([],function(){return function Tree(){
 		if(!ctx) ctx ="";
 		if(!fth) fth = "n_-1";
 		var id = "n_"+(NODE_ID++);
-		nodesHash[id] = {name:json_hie.name,path:ctx,father:fth,children:[]};
+		nodesHash[id] = {name:json_hie.name,path:ctx,father:fth,children:[],rules:json_hie.rules};
 		if(fth!="n_-1"){nodesHash[fth].children.push(id);}
 		json_hie.children.forEach(function(e){
 			var is_slash = ctx==""||ctx=="/"?"":"/";
@@ -46,6 +47,11 @@ define([],function(){return function Tree(){
 	this.getSons = function getSons(n_id){
 		return nodesHash[n_id].children.concat();
 	};
+	this.getRules = function (n_id){
+		return nodesHash[n_id].rules.map(
+			function (r){return {id:r,path:self.getAbsPath(n_id)}}
+		)
+	}
 	/* return the name of a node
 	 * @input : n_id : the node id
 	 * @return : the node name

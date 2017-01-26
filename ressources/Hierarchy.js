@@ -65,7 +65,7 @@ define([
 			factory.getHierarchy(root_path,function(err,req){
 				hierarchy.load(req);
 				current_node = hierarchy.getRoot();
-				initHlist(hierarchy.getSons(current_node));
+				initHlist(hierarchy.getSons(current_node),hierarchy.getRules(current_node));
 				initHselect(hierarchy.getTreePath(current_node));
 			});
 		};
@@ -78,7 +78,7 @@ define([
 			factory.getHierarchy(root_path,function(err,req){
 				hierarchy.load(req);
 				current_node = node_id;
-				initHlist(hierarchy.getSons(current_node));
+				initHlist(hierarchy.getSons(current_node),hierarchy.getRules(current_node));
 				initHselect(hierarchy.getTreePath(current_node));
 			});
 		};
@@ -86,14 +86,14 @@ define([
 		this.updateInPlace = function (root_path){
 			factory.getHierarchy(root_path,function(err,req){
 				hierarchy.load(req);
-				initHlist(hierarchy.getSons(current_node));
+				initHlist(hierarchy.getSons(current_node),hierarchy.getRules(current_node));
 				initHselect(hierarchy.getTreePath(current_node));
 			});
 		};
 		/* update the scrolling tab menu with the current node sons
 		 * @input : data : the list of sons of the current node
 		 */
-		function initHlist(data){
+		function initHlist(data,rules){
 			h_list.selectAll("*").remove();
 			var slc =h_list.selectAll(".tab_menu_el")
 				.data(data);
@@ -110,7 +110,6 @@ define([
 			var slc=h_list.selectAll(".tab_menu_el");
             slc.append("i")
 			   .classed("icon",true);
-
 			slc.append("div")
 				.classed("tab_menu_el_name",true)
 				.text(function(d){
@@ -118,6 +117,22 @@ define([
 					// return nm.length>14?nm.substring(0,12).concat("..."):nm;
 					return hierarchy.getName(d);
 				});
+
+			slc = slc.data(data.concat(rules));
+            ruleSelection = slc.enter().append("div")
+				.classed("tab_menu_el",true)
+				.classed("unselectable",true)
+				.classed("selected",false)
+				.attr("id",function(d){return d})
+				.on("click",function(d){return display_rule(d,this)})
+				.on("contextmenu",d3ContextMenu(right_click_menu));
+            ruleSelection.append("i")
+			   .classed("icon_rule",true);
+			ruleSelection.append("div")
+				.classed("tab_menu_el_name",true)
+				.text(function(d){return d.id});
+			    
+
             try {
 			if (hierarchy.getName(hierarchy.getFather(hierarchy.getFather(data[0])))==="kami"){
                  d3.selectAll(".tab_menu_el")
@@ -158,6 +173,15 @@ define([
 				
 		};
 
+        function display_rule(d,elem){
+			h_list.selectAll(".tab_menu_el")
+			      .classed("current",false)
+			d3.select(elem)
+			      .classed("current",true)	  
+			var absPath = (d.path=="/"?"":d.path)+"/"+d.id;
+			disp.call("loadRule",this,absPath);
+		};
+
 		function dispach_click(d,i,elem){
 		    d3.event.stopPropagation();
 			if(d3.event.ctrlKey){
@@ -187,8 +211,8 @@ define([
 			h_list.selectAll(".tab_menu_el")
 			      .classed("current",false)
 			d3.select(elem)
-			      .classed("current",true)	  
-			disp.call("graphUpdate",this,hierarchy.getAbsPath(id));
+			      .classed("current",true)	 
+			disp.call("loadGraph",this,hierarchy.getAbsPath(id));
 			disp.call(
 				"tabUpdate",
 				this,
@@ -214,7 +238,7 @@ define([
 			}
 			// if(hierarchy.getSons(data).length==0)return;
 			current_node = data;
-			initHlist(hierarchy.getSons(data));
+			initHlist(hierarchy.getSons(data),hierarchy.getRules(data));
 			initHselect(hierarchy.getTreePath(data));
 		};
 
