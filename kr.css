@@ -341,6 +341,7 @@ body{
 	/*padding-left:0.36rem;*/
 	margin-bottom: 1vh;
 	height:20px;
+	width: 85%;
 }
 .undoredo{
 	height:100%;
@@ -549,7 +550,26 @@ opacity: 0.1;
 	color: var(--menu-color);
 	font-family: Capriola, Helvetica, sans-serif;
 }
+
 .cond:before {
 /*content: 'x';*/
-content: "\2716 ";
+    content: "\2716 ";
+}
+
+#top_h_select{
+	display: flex;
+}
+
+#top_h_select .icon{
+  display: block;
+width: 15%;
+height: 20px;
+  -webkit-mask-image: url(arrow.svg);
+  mask: url(arrow.svg);
+  -webkit-mask-size: 2vw  2vh;   
+  mask-size: 2vw  2vh;   
+  /*-webkit-mask-size: 15%  20px;   
+  mask-size: 15%  20px;   */
+  background:rgb(251, 249, 200);
+  -webkit-mask-repeat: no-repeat ;
 }

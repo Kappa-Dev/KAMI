@@ -24,7 +24,9 @@ define([
 		var disp = dispatch;//global dispatcher for events
 		var container = d3.select("#"+container_id).append("div").attr("id","tab_menu").classed("top_menu",true);//add all tabl to menu
 		var hierarchy = new Tree();//a tree containing the whole hierarchy
-		var h_select = container.append("select").attr("id","h_select").classed("mod_el",true);//the hierarchy selector
+		var top_h_select = container.append("div").attr("id","top_h_select");
+		var h_select = top_h_select.append("select").attr("id","h_select").classed("mod_el",true);//the hierarchy selector
+		top_h_select.append("i").attr("id","gotoParent").classed("icon",true);//the hierarchy selector
 		var h_list = container.append("div").attr("id","scrolling_list");//the list of son of the specified node
 		var textBox = container.append("input")
 		                       .attr("type","text")
@@ -179,7 +181,8 @@ define([
 					.text(function(d){return hierarchy.getName(d)})
 					.attr("selected",function(d){return d==current_node});
 			h_select.on("change",lvlChange);
-				
+			top_h_select.select("i").on("click", function () {
+			disp.call("loadGraph", this, hierarchy.getAbsPath(data[data.length - 1]))});
 		};
 
         function display_rule(d,elem){
@@ -249,6 +252,8 @@ define([
 			current_node = data;
 			initHlist(hierarchy.getSons(data),hierarchy.getRules(data));
 			initHselect(hierarchy.getTreePath(data));
+			disp.call("loadGraph",this,hierarchy.getAbsPath(data));
+
 		};
 
 		/* Convert the current graph into kappa : TODO
