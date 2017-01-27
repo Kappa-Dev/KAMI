@@ -221,20 +221,20 @@ define([
 			// 	});
 
 			h_list.selectAll(".tab_menu_el")
-			      .classed("current",false)
+			      .classed("current",false);
 			d3.select(elem)
-			      .classed("current",true)	 
+				  .classed("current",true) ;
 			disp.call("loadGraph",this,hierarchy.getAbsPath(id));
-			disp.call(
-				"tabUpdate",
-				this,
-				hierarchy.getAbsPath(id),
-				hierarchy.getSons(current_node).map(function(d){
-					return hierarchy.getName(d);
-				}),
-				hierarchy.getAbsPath(current_node),
-				"hierarchy"
-			);
+			// disp.call(
+			// 	"tabUpdate",
+			// 	this,
+			// 	hierarchy.getAbsPath(id),
+			// 	hierarchy.getSons(current_node).map(function(d){
+			// 		return hierarchy.getName(d);
+			// 	}),
+			// 	hierarchy.getAbsPath(current_node),
+			// 	"hierarchy"
+			// );
 		};
 		/* change the current node in the hierarchy
 		 * this function update the selector and the tab menu
@@ -252,7 +252,7 @@ define([
 			current_node = data;
 			initHlist(hierarchy.getSons(data),hierarchy.getRules(data));
 			initHselect(hierarchy.getTreePath(data));
-			disp.call("loadGraph",this,hierarchy.getAbsPath(data));
+			//disp.call("loadGraph",this,hierarchy.getAbsPath(data));
 
 		};
 

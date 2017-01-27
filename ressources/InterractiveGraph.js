@@ -458,7 +458,7 @@ define([
 		link.enter()//.insert("line","g")
 			.append("path")
 			.classed("link",true)
-			// .attr("marker-mid", "url(#arrow_end)")
+			.attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
 
