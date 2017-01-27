@@ -87,7 +87,7 @@ define([
                 localDispatch.on("move", moveMappingEdges);
             };
 
-            this.update = function update(rep, current_graph, noTranslate) {
+            this.update = function update(rep, current_graph, config) {
                 localDispatch.on("move", null);
                 main_svg.selectAll("#lhs").remove();
                 main_svg.selectAll("#rhs").remove();
@@ -99,9 +99,9 @@ define([
                 main_svg.append(rhs.svg_result);
                 var repDispatch = d3.dispatch("loadingEnded");
                 repDispatch.on("loadingEnded", loadedEndedHandler(() => draw_mappings(rep["PL"], rep["PR"], repDispatch)));
-                lhs.update(rep["L"], current_graph, noTranslate, repDispatch);
-                phs.update(rep["P"], current_graph, noTranslate, repDispatch);
-                rhs.update(rep["R"], current_graph, noTranslate, repDispatch);
+                lhs.update(rep["L"], current_graph, {noTranslate:config.noTranslate, repDispatch:repDispatch});
+                phs.update(rep["P"], current_graph, {noTranslate:config.noTranslate, repDispatch:repDispatch});
+                rhs.update(rep["R"], current_graph, {noTranslate:config.noTranslate, repDispatch:repDispatch});
                 main_svg.append("line")
                     .classed("separation_line", true)
                     .attr("x1", 0)

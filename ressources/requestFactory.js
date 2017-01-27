@@ -74,6 +74,17 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				JSON.parse);
 		};
+
+		this.getGraphAndDirectChildren = function getHierarchyWithGraphs(hie_path,callback){
+			request("GET",
+				"/hierarchy",
+				hie_path,
+				[{id:"include_graphs",val:true},{id:"rules",val:false},{depth_bound:1}],
+				"application/json",
+				callback,
+				null,
+				JSON.parse);
+		};
 		/* return the regraph version on the server
 		 * @input : callback  : the return callback function
 		 * @return : on succeed : callback function

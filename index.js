@@ -120,16 +120,31 @@ define([
 
 			// });
 
+			function sameSubgraph(hie) {
+				var sameSubgraphAux = function (hie, n_id) {
+					var f = function (acc, subG) {
+						return acc.concat(subG["top_graph"]["nodes"].map((d) => d["type"]))
+					};
+					var images = hie["children"]
+						.filter((graph) =>
+							graph["top_graph"]["nodes"].some((d) => d["type"] == n_id))
+						.reduce(f, []);
+					return (n2_id) => images.indexOf(n2_id) > -1;
+				};
+				return (n_id) => sameSubgraphAux(hie, n_id);
+			};
+
 			function update_graph(abs_path, noTranslate) {
 				current_graph = abs_path;
-				factory.getGraph(
+				factory.getGraphAndDirectChildren(
 					current_graph,
 					function (err, ret) {
 						if (!err) {
-							graph_pan.update(ret, current_graph, noTranslate);
+							graph_pan.update(ret["top_graph"], current_graph,
+								{ noTranslate: noTranslate, highlightRel: sameSubgraph(ret) });
 							tab_frame.append(graph_pan.svg_result)
-							           .attr("x",0)
-							           .attr("y",0);
+								.attr("x", 0)
+								.attr("y", 0);
 						}
 					});
 			};
@@ -140,26 +155,26 @@ define([
 					current_graph,
 					function (err, ret) {
 						if (!err) {
-							rule_pan.update(ret, current_graph, noTranslate);
+							rule_pan.update(ret, current_graph, { noTranslate: noTranslate });
 							tab_frame.append(rule_pan.svg_result)
-							           .attr("x",0)
-							           .attr("y",0);
+								.attr("x", 0)
+								.attr("y", 0);
 						}
 					});
 			};
 
 			dispatch.on("loadGraph", function (abs_path) {
-                tab_frame.selectAll("svg")
-				           .remove();
-				rule_pan.stop();		   
+				tab_frame.selectAll("svg")
+					.remove();
+				rule_pan.stop();
 				dispatch.on("graphUpdate", update_graph);
 				update_graph(abs_path, false);
 			});
 
 			dispatch.on("loadRule", function (abs_path) {
-                tab_frame.selectAll("svg")
-				           .remove();
-				rule_pan.stop();		   
+				tab_frame.selectAll("svg")
+					.remove();
+				rule_pan.stop();
 				dispatch.on("graphUpdate", update_rule);
 				update_rule(abs_path, false);
 			});

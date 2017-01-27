@@ -536,3 +536,10 @@ margin-top: 1vh;
 #arrow_end{
 	fill: var(--link-color);
 }
+.highlighted{
+
+
+}
+.lowlighted{
+opacity: 0.1;
+}
