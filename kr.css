@@ -536,10 +536,20 @@ margin-top: 1vh;
 #arrow_end{
 	fill: var(--link-color);
 }
-.highlighted{
 
-
-}
 .lowlighted{
 opacity: 0.1;
+}
+
+.cond{
+	text-align: center;
+	width:100%;
+	height:20px;
+	font-size:1em;
+	color: var(--menu-color);
+	font-family: Capriola, Helvetica, sans-serif;
+}
+.cond:before {
+/*content: 'x';*/
+content: "\2716 ";
 }

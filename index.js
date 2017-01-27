@@ -244,11 +244,12 @@ define([
 				//current_graph="/";
 			});
 
-			dispatch.on("addNugetsToInput", function (nuggets) {
-				var searchString = d3.select("#nugFilter").property("value");
-				if (searchString !== "") { searchString = searchString + "|" };
-				d3.select("#nugFilter").property("value", searchString + nuggets.join("|"));
-				hierarchy.filterNuggets();
+			dispatch.on("addNugetsToInput", function (nuggets, name, keepOldConds) {
+				// var searchString = d3.select("#nugFilter").property("value");
+				// if (searchString !== "") { searchString = searchString + "|" };
+				// d3.select("#nugFilter").property("value", searchString + nuggets.join("|"));
+                if (!keepOldConds){hierarchy.clearCondData()};
+				hierarchy.addToCondData({name:name,cond:(nug)=>nuggets.indexOf(nug)>-1});
 
 			});
 

@@ -794,8 +794,8 @@ define([
 			}
 		},
 
-	    {title: "children",
-	     action: getChildren},
+	    // {title: "children",
+	    //  action: getChildren},
 
 	    {title: "Add value",
 	     action: addVal},
@@ -1048,8 +1048,16 @@ define([
 							d3.customEvent(currentEvent.sourceEvent, handler, nodecontext, [d, null]);
 						}
 						else if (d2.id == d.id && d3.event.sourceEvent.button == 1) {
-							if (config.highlightRel){
-								highlightNodes(config.highlightRel(d.id));
+							if (config.highlightRel) {
+								if (d3.event.sourceEvent.shiftKey) {
+									highlightSubNodes(config.highlightRel(d.id));
+									getChildren(d,true);
+								}
+								else {
+									highlightNodes(config.highlightRel(d.id));
+									getChildren(d,false);
+
+								}
 							}
 						}
 					});
@@ -1118,7 +1126,7 @@ define([
 		request.rmNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
 	};
 
-	function getChildren(elm, d, i) {
+	function getChildren(d, keepOldConds) {
 		var callback = function (err, rep) {
 			if (err) {
 				alert(err.currentTarget.response);
@@ -1126,7 +1134,7 @@ define([
 			}
 			jsonRep = JSON.parse(rep.response);
 			children = jsonRep["children"];
-			disp.call("addNugetsToInput", this, children);
+			disp.call("addNugetsToInput", this, children, d.id, keepOldConds);
 		}
 		request.getChildren(g_id, d.id, callback)
 	};
@@ -1187,10 +1195,19 @@ define([
 			.classed("lowlighted", false);
 
 	};
+
 	function highlightNodes(to_highlight) {
 		svg.selectAll(".node")
-			.classed("highlighted",(d) => to_highlight(d.id))
-			.classed("lowlighted", (d) => !to_highlight(d.id));
+			.classed("lowlighted", function(d){return !to_highlight(d.id)});
+
+		svg.selectAll(".link")
+			.classed("lowlighted", true);
+	};
+    
+	//only highlights node among the already highlighted
+	function highlightSubNodes(to_highlight) {
+		svg.selectAll(".node")
+			.classed("lowlighted", function(d){return (d3.select(this).classed("lowlighted")) || !to_highlight(d.id)});
 
 		svg.selectAll(".link")
 			.classed("lowlighted", true);

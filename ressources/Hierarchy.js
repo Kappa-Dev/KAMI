@@ -30,6 +30,10 @@ define([
 		                       .attr("type","text")
 		                       .attr("id","nugFilter")
 							   .on("input",filterNuggets);
+        var condData = [];
+		var condList = container.append("div")
+		         .attr("id","conditionsList");
+
 		var current_node = null;//the current node
 		var selected_node = null;//the current selected son
 		var selected_graphs = {};//the currently selected graphs
@@ -98,6 +102,7 @@ define([
 		 * @input : data : the list of sons of the current node
 		 */
 		function initHlist(data,rules){
+			clearCondData();
 			h_list.selectAll("*").remove();
 			var slc =h_list.selectAll(".tab_menu_el")
 				.data(data);
@@ -314,9 +319,18 @@ define([
 	    function filterNuggets(){
 			var searchString = d3.select("#nugFilter").property("value");
 			var searchStrings = searchString.split("|");
-            var test = function(nugName){
+            var testTextBox = function(nugName){
 				return searchStrings.some(function (s){
 					return (-1) !== nugName.search(s) })};
+
+			var testCondList = function(nugName){
+				return condData.map(d => d.cond)
+						.reduce((acc,f)=>acc && f(nugName), true);
+			};
+			var test = function (nugName){
+				return testCondList(nugName) && testTextBox(nugName);
+			};
+			    		
             var notTest = function(nugName){
 				return !test(nugName)
 			};
@@ -350,6 +364,36 @@ define([
 				};
 			factory.addRule(path+name+"/",patternName,callback);
 		};
+
+		function updateCondList(){
+			var s = condList.selectAll("div")
+				.data(condData);
+			s.exit().remove();
+			s.enter().append("div")
+			         .classed("cond",true)
+			         .classed("unselectable",true)
+					 .on("click",removeFromCondList)
+					 .text(function(d){return d.name+"_filter"});
+			filterNuggets();
+		};
+
+		function removeFromCondList(d) {
+			var index = condData.indexOf(d);
+			if (index > -1) {
+				condData.splice(index, 1);
+			}
+			updateCondList();
+		};
+        var clearCondData = function(){
+			condData = [];
+			updateCondList();
+		};
+		this.clearCondData = clearCondData;
+		this.addToCondData = function (d){
+			condData.push(d);
+			updateCondList();
+		};
+
 	};
 
 });
