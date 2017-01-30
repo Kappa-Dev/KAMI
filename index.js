@@ -84,7 +84,7 @@ define([
 			var size = d3.select("#graph_frame").node().getBoundingClientRect();
 			var rule_pan = new RuleViewer("svg_rule", tab_frame, dispatch, server_url);
 			var graph_pan = new InterractiveGraph("tab_frame", "sub_svg_graph", size.width, size.height, dispatch, factory);
-			var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width*0.9, size.height/2, dispatch, factory, true);
+			var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width*0.6, size.height/3, dispatch, factory, true);
             tab_frame.selectAll("#svg_rule").remove();
 			tab_frame.append(graph_pan.svg_result);
 
@@ -153,14 +153,13 @@ define([
 			};
 
 			function update_preview(abs_path, noTranslate) {
-				console.log("updatePreview");
+				tab_frame.append(preview_pan.svg_result);
 				factory.getGraph(
 					abs_path,
 					function (err, ret) {
 						if (!err) {
 							preview_pan.update(ret, abs_path,
 								{ noTranslate: noTranslate, highlightRel: null });
-							tab_frame.append(preview_pan.svg_result);
 						}
 					});
 			};
@@ -188,7 +187,6 @@ define([
 			});
 
 			dispatch.on("loadPreview", function (abs_path) {
-				rule_pan.stop();
 				update_preview(abs_path, false);
 			});
 

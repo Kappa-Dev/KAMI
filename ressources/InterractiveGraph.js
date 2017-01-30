@@ -273,71 +273,90 @@ define([
 		zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
 		zoom.filter(function(){ return !event.button && !event.shiftKey});
 		svg.classed("svg-content-responsive", true);
-			svg.append("svg:defs").selectAll("marker")
+		svg.append("svg:defs").selectAll("marker")
 			.data(["arrow_end"])      // Different link/path types can be defined here
 			.enter().append("svg:marker")    // This section adds the arrows
-			.attr("id", function(d){return d;})
+			.attr("id", function (d) { return d; })
 			.attr("refX", 0)
 			.attr("refY", 3)
 			.attr("markerWidth", 10)
 			.attr("markerHeight", 10)
 			.attr("orient", "auto")
-			.attr("markerUnits","strokeWidth")
-			//.attr("position","80%")
+			.attr("markerUnits", "strokeWidth")
+			// .attr("position","90%")
 			.append("svg:path")
-			.attr("d","M0,0 L0,6 L9,3 z");
-		svg.on("contextmenu",d3ContextMenu(function(){return svgMenu();}));//add context menu
+			.attr("d", "M0,0 L0,6 L9,3 z");
+		svg.on("contextmenu", d3ContextMenu(function () { return svgMenu(); }));//add context menu
 		svg.call(zoom);
-        svg.call(d3.drag().on("drag", selectionHandler).on("end", selectionHandlerEnd).on("start",selectionHandlerStart));
-		svg.on("click",svgClickHandler);
+		svg.call(d3.drag().on("drag", selectionHandler).on("end", selectionHandlerEnd).on("start", selectionHandlerStart));
+		svg.on("click", svgClickHandler);
 
 		d3.select("#tab_frame").append("div")//add the description tooltip
-			.attr("id","n_tooltip")
-			.classed("n_tooltip",true)
-			.style("visibility","hidden");
+			.attr("id", "n_tooltip")
+			.classed("n_tooltip", true)
+			.style("visibility", "hidden");
 		svg_content.append("svg:image")
-			.attr("width",900)
-			.attr("height",400)
-			.attr("x",function(){return width/2-450})
-			.attr("y",function(){return height/2-200})
-			.attr("xlink:href","ressources/toucan.png");
+			.attr("width", 900)
+			.attr("height", 400)
+			.attr("x", function () { return width / 2 - 450 })
+			.attr("y", function () { return height / 2 - 200 })
+			.attr("xlink:href", "ressources/toucan.png");
 	};
-	this.initSvg = initSvg;
+	// this.initSvg = initSvg;
 	/* this fonction  is triggered by tick events
 	 * move all the svg object (node and links)
 	 * movement can be due to force simulation or user dragging
 	 */
-	function move(){
-		var nodes = svg_content.selectAll("g.node");
-			nodes.attr("transform", function(d) {
-				return "translate(" + d.x + "," + d.y + ")"; 
-				});
+
+
+	function move(radius_of_node) {
+		return function () {
+			var nodes = svg_content.selectAll("g.node");
+			nodes.attr("transform", function (d) {
+				return "translate(" + d.x + "," + d.y + ")";
+			});
 			svg_content.selectAll(".link")
-			.attr("d", function(d) {
-				var x1 = d.source.x,
-					y1 = d.source.y,
-					x2 = d.target.x,
-					y2 = d.target.y,
-					dx = x2 - x1,
-					dy = y2 - y1,
-					dr = Math.sqrt(dx * dx + dy * dy),
-					drx = dr,
-					dry = dr,
-					xRotation = 0,
-					largeArc = 0,
-					sweep = 1;
+				.attr("d", function (d) {
+					var x1 = d.source.x,
+						y1 = d.source.y,
+						x2 = d.target.x,
+						y2 = d.target.y,
+						dx = x2 - x1,
+						dy = y2 - y1,
+						dr = Math.sqrt(dx * dx + dy * dy),
+						drx = dr,
+						dry = dr,
+						xRotation = 0,
+						largeArc = 0,
+						sweep = 1;
+
 					// Self edge.
-				if ( x1 === x2 && y1 === y2 ) {
-					xRotation = -45;
-					largeArc = 1;
-					drx = 30;
-					dry = 20;
-					x2 = x2 + 1;
-					y2 = y2 + 1;
-				} 
-				return "M"+x1+","+y1+"A"+drx+","+dry+" "+xRotation+","+largeArc+","+sweep+" "+x2+","+y2;
-			});	
-			if (localDispatch){localDispatch.call("move")};
+					if (x1 === x2 && y1 === y2) {
+						xRotation = -45;
+						largeArc = 1;
+						drx = 30;
+						dry = 20;
+						x2 = x2 + 1;
+						y2 = y2 + 1;
+						return "M" + x1 + "," + y1 + "A" + drx + "," + dry + " " + xRotation + "," + largeArc + "," + sweep + " " + x2 + "," + y2;
+					}
+					else {
+                        //transf = d3.zoomTransform(svg.node());
+						let nodeRadius = Math.sqrt(radius_of_node(d.target))/1.77245385091;
+						arrowLength = 10;
+						arrowWidth = 5;
+						[arrowX, arrowY] = [x2 - dx * (nodeRadius + arrowLength) / dr, y2 - dy * (nodeRadius + arrowLength) / dr];
+						[orthoX, orthoY] = [-dy / dr * arrowWidth, dx / dr * arrowWidth];
+						[arrowLeftX, arrowLeftY] = [arrowX + orthoX, arrowY + orthoY];
+						[arrowRightX, arrowRightY] = [arrowX - orthoX, arrowY - orthoY];
+						[endx, endy] = [x2 - dx * nodeRadius / dr, y2 - dy * nodeRadius / dr];
+						return `M ${x1} ${y1} L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
+						//return "M" + x1 + "," + y1 + "A" + drx + "," + dry + " " + xRotation + "," + largeArc + "," + sweep + " " + x2 + "," + y2;
+					}
+					//return "M" + x1 + "," + y1 + "C 1 1, 0 0,"+ x2+ "," + y2;
+				});
+			if (localDispatch) { localDispatch.call("move") };
+		};
 	}
 	/* this fonction  is triggered by zoom events
 	 * transform the svg container according to zoom
@@ -345,7 +364,7 @@ define([
 	function zoomed() {
 		if (!locked) {
 			svg_content.attr("transform", d3.event.transform);
-			if (localDispatch){localDispatch.call("move");}
+			if (localDispatch) { localDispatch.call("move"); }
 		}
 	}
 	/* update the current view to a new graph
@@ -358,11 +377,11 @@ define([
 	 *          which nodes to highlight when hovering over a node
 	 */
 
-	this.update = function update(graph,path,config){
+	this.update = function update(graph, path, config) {
 
 		simulation.stop();
 		g_id = path;
-		if(path != "/"){
+		if (path != "/") {
 			svg_content.selectAll("*").remove();
 			if (path.search("/kami_base/kami/") == 0) {
 				initForceKami(path, graph, config);
@@ -371,23 +390,23 @@ define([
 				initForce(path, graph, config);
 			}
 		}
-		else{
+		else {
 			svg_content.append("svg:image")
-			.attr("width",900)
-			.attr("height",400)
-			.attr("x",function(){return width/2-450})
-			.attr("y",function(){return height/2-200})
-			.attr("xlink:href","ressources/toucan.png");
+				.attr("width", 900)
+				.attr("height", 400)
+				.attr("x", function () { return width / 2 - 450 })
+				.attr("y", function () { return height / 2 - 200 })
+				.attr("xlink:href", "ressources/toucan.png");
 		}
 	};
 
-    /* precondition : /kami_base/kami/ is the start of the path */
-	function kamiAncestor(path, doSomething){
+	/* precondition : /kami_base/kami/ is the start of the path */
+	function kamiAncestor(path, doSomething) {
 		var path2 = path.split("/");
 		path2 = path2.slice(3);
 		var degree = path2.length;
-		var callback = function(err, rep){
-			if(err){
+		var callback = function (err, rep) {
+			if (err) {
 				alert(err.currentTarget.response);
 				return false;
 			}
@@ -407,35 +426,35 @@ define([
 	 * @input : path : the graph path
 	 * @input : callback : the next function to call : loadGraph
 	 */
-	function loadType(path, graph, callback){
-		if(path != "/"){
-			path=path.split("/");
-			if(path.length<=2){
-				type_list =[];
+	function loadType(path, graph, callback) {
+		if (path != "/") {
+			path = path.split("/");
+			if (path.length <= 2) {
+				type_list = [];
 				return callback(graph);
 			}
 			path.pop();
-			path=path.join("/");
-			request.getGraph(path,function(e,r){
-				if(e) console.error(e);
+			path = path.join("/");
+			request.getGraph(path, function (e, r) {
+				if (e) console.error(e);
 				else {
-					type_list=r.nodes.map(function(e){
+					type_list = r.nodes.map(function (e) {
 						return e.id;
 					});
 					//disp.call("configUpdate",this,type_list);
 					callback(graph);
 				}
 			});
-		}else callback(graph);
+		} else callback(graph);
 	};
 	/* find a specific node in a graph
 	 * @input : n : the node id
 	 * @input : graph : the graph object 
 	 * @return : the node DOM object
 	 */
-	function findNode(n,graph){
-		var ret=graph.filter(function(e){
-			return e.id==n;		
+	function findNode(n, graph) {
+		var ret = graph.filter(function (e) {
+			return e.id == n;
 		});
 		return ret[0];
 	}
@@ -447,75 +466,76 @@ define([
 	 * nodes can be renamed by double clicking it
 	 * @input : response : a json structure of the graph
 	 */
-	function loadGraph(response, shapeClassifier, config){
+	function loadGraph(response, shapeClassifier, config) {
 		//define default shapes function if not defined
-		if (!shapeClassifier){
-            var shapeClassifier =
-			{
-				"shape": function(_){return d3.symbolCircle},
-				"size": function(_){return 3000},
-				"dotStyle":function(_){return ("1,0")}
-			}
+		if (!shapeClassifier) {
+			var shapeClassifier =
+				{
+					"shape": function (_) { return d3.symbolCircle },
+					"size": function (_) { return 3000 },
+					"dotStyle": function (_) { return ("1,0") }
+				}
 		}
 
 		//transform links for search optimisation
-		var links = response.edges.map(function(d){
-			return {source:findNode(d.from,response.nodes),target:findNode(d.to,response.nodes)}
+		var links = response.edges.map(function (d) {
+			return { source: findNode(d.from, response.nodes), target: findNode(d.to, response.nodes) }
 		});
 
 
 
 		//add all links as line in the svg
 		var link = svg_content.selectAll(".link")
-			.data(links, function(d) { return d.source.id + "-" + d.target.id; });
+			.data(links, function (d) { return d.source.id + "-" + d.target.id; });
 		link.enter()//.insert("line","g")
 			.append("path")
-			.classed("link",true)
-			.attr("marker-mid", "url(#arrow_end)")
-			.on("contextmenu",d3ContextMenu(edgeCtMenu));
+			.classed("link", true)
+			//.attr("marker-mid", "url(#arrow_end)")
+			.on("contextmenu", d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
-        svg_content.selectAll(".link")
-		           .attr("stroke-dasharray",shapeClassifier.dotStyle)
+		svg_content.selectAll(".link")
+			.attr("stroke-dasharray", shapeClassifier.dotStyle)
 
-        try {
-		simulation.force("link").links(links);}
-		catch(err){return 0;}
+		try {
+			simulation.force("link").links(links);
+		}
+		catch (err) { return 0; }
 
 
 		//add all node as circle in the svg
 		var node = svg_content.selectAll("g.node")
-			.data(response.nodes, function(d) {return d.id;});
+			.data(response.nodes, function (d) { return d.id; });
 
 		var node_g = node.enter().insert("g")
-			.classed("node",true)
+			.classed("node", true)
 			.call(d3.drag().on("drag", dragged)
 				.on("end", dragNodeEndHighlightRel(config))
 				.on("start", dragNodeStart)
-				.filter(function () { return (d3.event.button==0) || !readOnly  }))//disable right click drag if readOnly
+				.filter(function () { return (d3.event.button == 0) || !readOnly }))//disable right click drag if readOnly
 			.on("mouseover", mouseOver)
-			.on("mouseout",mouseOut)
+			.on("mouseout", mouseOut)
 			//.on("mouseup",function(){d3.selectAll("g").dispatch("endOfLink")})
-			.on("click",clickHandler)
+			.on("click", clickHandler)
 			//.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
 			.on("contextmenu", nodeContextMenuHandler);
 
-		svg_content.selectAll("g.node").each(function(d){if(d.type) d3.select(this).classed(d.type,true)});
+		svg_content.selectAll("g.node").each(function (d) { if (d.type) d3.select(this).classed(d.type, true) });
 
 		if (config.repDispatch) { config.repDispatch.call("loadingEnded") };
 
 		//add selection rectangle
-        svg_content.append("rect")
+		svg_content.append("rect")
 			.attr("id", "selectionRect")
-			.style("visibility","hidden")
-			.data([{ startx: 0, starty: 0}]);
-		
+			.style("visibility", "hidden")
+			.data([{ startx: 0, starty: 0 }]);
+
 		//add line for edges creation and deletion
-        svg_content.append("line")
+		svg_content.append("line")
 			.attr("id", "LinkLine")
-			.style("visibility","hidden");
+			.style("visibility", "hidden");
 
 
-        //define position function
+		//define position function
 		var get_position_function = function (response_graph) {
 			if (response_graph.hasOwnProperty("attributes") && response_graph["attributes"].hasOwnProperty("positions")) {
 				var positions = response_graph["attributes"]["positions"];
@@ -533,20 +553,20 @@ define([
 
 		var positionOf = get_position_function(response);
 
-        //set nodes position if known
+		//set nodes position if known
 		var unknownNum = 0;
-		node_g.each(function(d){
+		node_g.each(function (d) {
 			pos = positionOf(d);
-			if (pos != null){
-                d.x = pos[0];
-                d.y = pos[1];
-                d.fx = pos[0];
-                d.fy = pos[1];
-			} 
-			else {unknownNum++}
+			if (pos != null) {
+				d.x = pos[0];
+				d.y = pos[1];
+				d.fx = pos[0];
+				d.fy = pos[1];
+			}
+			else { unknownNum++ }
 		});
 		//add symbol
-		 node_g.append("path")
+		node_g.append("path")
 			.attr("d", d3.symbol()
 				.type(shapeClassifier.shape)
 				.size(shapeClassifier.size))
@@ -560,22 +580,22 @@ define([
 
 		//add all node id as label
 		node_g.insert("text")
-			.classed("nodeLabel",true)
+			.classed("nodeLabel", true)
 			.attr("x", 0)
 			.attr("dy", ".35em")
 			.attr("text-anchor", "middle")
-			.text(function(d) {return d.id.length>7?d.id.substring(0,5).concat("..."):d.id;})
+			.text(function (d) { return d.id.length > 7 ? d.id.substring(0, 5).concat("...") : d.id; })
 			//.text(function(d){return d.id})
-			.attr("font-size", function(){return(radius/2)+"px"})
-			.style("fill",function(d){
-				if(d.type  && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
+			.attr("font-size", function () { return (radius / 2) + "px" })
+			.style("fill", function (d) {
+				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
 				else return "black";
 			})
-			.style("stroke",function(d){
-				if(d.type && d.type!="") return "#"+setColor(type_list.indexOf(d.type),type_list.length,true);
+			.style("stroke", function (d) {
+				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
 				else return "black";
 			})
-			.on("dblclick",clickText);
+			.on("dblclick", clickText);
 		node.exit().remove();
 
 
@@ -583,12 +603,12 @@ define([
 		//simulation.nodes([]);
 		simulation.nodes(response.nodes);
 
-		simulation.alpha(0.01*unknownNum);
-        simulation.alphaDecay(0.1);
+		simulation.alpha(0.01 * unknownNum);
+		simulation.alphaDecay(0.1);
 		simulation.on("end", function () {
 			if (!config.noTranslate) {
 				var rep = getBounds();
-				simulation.on("tick", move);
+				simulation.on("tick", move(shapeClassifier.size));
 				simulation.alphaDecay(0.02);
 				if (rep) {
 					var xrate = svg.attr("width") / (rep[0][1] - rep[0][0]);
@@ -611,34 +631,34 @@ define([
 					svg.call(zoom.scaleTo, 1);
 				}
 			}
-			move();
-			simulation.on("end",function(){
-                svg_content.selectAll("g.node")
-				           .attr("vx",0)
-				           .attr("vy",0);
+            move(shapeClassifier.size)();
+			simulation.on("end", function () {
+				svg_content.selectAll("g.node")
+					.attr("vx", 0)
+					.attr("vy", 0);
 			});
 		});
 		simulation.restart();
 	};
 
-	function getBounds(){
-	    var minx, maxx, miny, maxy;
-        svg_content.selectAll("g.node")
-		           .each(function(d,i){
-					   if (i==0){
-                           minx=d.x;
-						   maxx=d.x;
-						   miny=d.y;
-						   maxy=d.y;
-						   return 0;
-					   }
-					   if (d.x < minx) {minx = d.x};
-					   if (d.x > maxx) {maxx = d.x};
-					   if (d.y < miny) {miny = d.y};
-					   if (d.y > maxy) {maxy = d.y};
-					});
-		if (minx){return [[minx,maxx],[miny,maxy]]}
-		else {return undefined};
+	function getBounds() {
+		var minx, maxx, miny, maxy;
+		svg_content.selectAll("g.node")
+			.each(function (d, i) {
+				if (i == 0) {
+					minx = d.x;
+					maxx = d.x;
+					miny = d.y;
+					maxy = d.y;
+					return 0;
+				}
+				if (d.x < minx) { minx = d.x };
+				if (d.x > maxx) { maxx = d.x };
+				if (d.y < miny) { miny = d.y };
+				if (d.y > maxy) { maxy = d.y };
+			});
+		if (minx) { return [[minx, maxx], [miny, maxy]] }
+		else { return undefined };
 	};
 	/* define a color set according to the size of an array
 	 * and the element position in the array
@@ -647,8 +667,8 @@ define([
 	 * @input : neg : return the color as negative
 	 * @return : a color in hex format
 	 */
-	function setColor(nb,tot,neg){
-		if(neg){
+	function setColor(nb, tot, neg) {
+		if (neg) {
 			// //calculate color luminosity
 			// var tmp = ((0x777777/tot)*(nb+1)).toString(16).split(".")[0];
 			// var ret =(parseInt(tmp[0]+tmp[1],16)*299+parseInt(tmp[2]+tmp[3],16)*587+parseInt(tmp[4]+tmp[5],16)*114)/1000;
@@ -659,18 +679,18 @@ define([
 			//return (0x0b0b0b).toString(16);
 			return (0x282828).toString(16);
 
-            
+
 		}
-			var red = 136+(33 / tot) * (nb+1);
-			var blue = (150000 - red*886)/114;
-            var reds = red.toString(16).split(".")[0];
-            while(reds.length<2){reds="0"+reds;};
-            var blues = blue.toString(16).split(".")[0];
-            while(blues.length<2){blues="0"+blues;};
-			return(reds+reds+blues);
+		var red = 136 + (33 / tot) * (nb + 1);
+		var blue = (150000 - red * 886) / 114;
+		var reds = red.toString(16).split(".")[0];
+		while (reds.length < 2) { reds = "0" + reds; };
+		var blues = blue.toString(16).split(".")[0];
+		while (blues.length < 2) { blues = "0" + blues; };
+		return (reds + reds + blues);
 
 		// var ret = ((0x777777/tot)*(nb+1)).toString(16).split(".")[0]
-        //while(ret.length<6){ret="0"+ret;};
+		//while(ret.length<6){ret="0"+ret;};
 		// return ret;
 	}
 	/* define the svg context menu
@@ -682,16 +702,16 @@ define([
 	 * @return : the svg context menu object
 	 * @call : graphUpdate
 	*/
-	function svgMenu(){
+	function svgMenu() {
 		var menu = [{
 			title: "Unlock all",
-			action: function(elm,d,i){
-				svg_content.selectAll("g").each(function(d){d.fx=null;d.fy=null});
-				if(simulation.nodes().length>0)
-				simulation.alpha(1).restart();
-			request.rmAttr(g_id, JSON.stringify(["positions"]),function(){});
+			action: function (elm, d, i) {
+				svg_content.selectAll("g").each(function (d) { d.fx = null; d.fy = null });
+				if (simulation.nodes().length > 0)
+					simulation.alpha(1).restart();
+				request.rmAttr(g_id, JSON.stringify(["positions"]), function () { });
 			}
-		},{
+		}, {
 			title: "Lock all",
 			action: function (elm, d, i) {
 
@@ -703,15 +723,15 @@ define([
 				});
 				request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
 			}
-		},{
+		}, {
 			title: "Select all",
-			action: function(elm,d,i){
-				svg_content.selectAll("g").classed("selected",true);
+			action: function (elm, d, i) {
+				svg_content.selectAll("g").classed("selected", true);
 			}
-		},{
+		}, {
 			title: "Unselect all",
-			action: function(elm,d,i){
-				svg_content.selectAll("g").classed("selected",false);
+			action: function (elm, d, i) {
+				svg_content.selectAll("g").classed("selected", false);
 			}
 		}];
 		if (!readOnly) {
@@ -744,16 +764,16 @@ define([
 			});
 		};
 		var selected = svg_content.selectAll("g.selected")
-		if(!readOnly && selected.size()){
+		if (!readOnly && selected.size()) {
 			menu.push({
 				title: "Remove Selected nodes",
-				action: function(elm,d,i){
-					if(confirm("Are you sure you want to delete ALL those Nodes ?")){
-						selected.each(function(el,i){
-							request.rmNode(g_id,el.id,true,function(e,r){
-								if(e) console.error(e);
+				action: function (elm, d, i) {
+					if (confirm("Are you sure you want to delete ALL those Nodes ?")) {
+						selected.each(function (el, i) {
+							request.rmNode(g_id, el.id, true, function (e, r) {
+								if (e) console.error(e);
 								else console.log(r);
-								if(i=selected.size()-1) disp.call("graphUpdate",this,g_id,true);
+								if (i = selected.size() - 1) disp.call("graphUpdate", this, g_id, true);
 							})
 						});
 					}
@@ -770,111 +790,115 @@ define([
 	 * @return : the node context menu object
 	 * @call : graphUpdate
 	*/
-	function nodeCtMenu(){
-		var menu=[{
+	function nodeCtMenu() {
+		var menu = [{
 			title: "Remove",
-			action: function(elm,d,i){
-				if(confirm("Are you sure you want to delete this Node ?")){
-					request.rmNode(g_id,d.id,true,function(e,r){
-						if(e) console.error(e);
-						else{ 
-							disp.call("graphUpdate",this,g_id,true);
+			action: function (elm, d, i) {
+				if (confirm("Are you sure you want to delete this Node ?")) {
+					request.rmNode(g_id, d.id, true, function (e, r) {
+						if (e) console.error(e);
+						else {
+							disp.call("graphUpdate", this, g_id, true);
 							console.log(r);
 						}
 					});
 				}
 			}
-		},{
+		}, {
 			title: "Clone",
-			action: function(elm,d,i){
-				console.log(elm,d,i);
+			action: function (elm, d, i) {
+				console.log(elm, d, i);
 				locked = true;
-				inputMenu("New Name",[d.id+"copy"],null,null,true,true,'center',function(cb){
-					if(cb.line){
-						request.cloneNode(g_id,d.id,cb.line,function(e,r){
-							if(e) console.error(e);
-							else{ 
-								disp.call("graphUpdate",this,g_id,true);
+				inputMenu("New Name", [d.id + "copy"], null, null, true, true, 'center', function (cb) {
+					if (cb.line) {
+						request.cloneNode(g_id, d.id, cb.line, function (e, r) {
+							if (e) console.error(e);
+							else {
+								disp.call("graphUpdate", this, g_id, true);
 								console.log(r);
 							}
 						});
 					}
 					locked = false;
-				},d,svg_content)
+				}, d, svg_content)
 			}
 		},
 
-	    // {title: "children",
-	    //  action: getChildren},
+		// {title: "children",
+		//  action: getChildren},
 
-	    {title: "Add value",
-	     action: addVal},
+		{
+			title: "Add value",
+			action: addVal
+		},
 
-	    {title: "remove value",
-	     action: rmVal}];
+		{
+			title: "remove value",
+			action: rmVal
+		}];
 
 		var selected = svg_content.selectAll("g.selected")
-		if(selected.size()){
+		if (selected.size()) {
 			menu.push({
 				title: "Link to",
-				action: function(elm,d,i){
-					var cpt=0,err_cpt=0;
-					selected.each(function(el){
-						request.addEdge(g_id,d.id,el.id,function(e,r){
-							if(!e){ console.log(r); cpt++;}
-							else{ console.error(e); err_cpt++;}
-							if(cpt == selected.size()-err_cpt) disp.call("graphUpdate",this,g_id,true);
+				action: function (elm, d, i) {
+					var cpt = 0, err_cpt = 0;
+					selected.each(function (el) {
+						request.addEdge(g_id, d.id, el.id, function (e, r) {
+							if (!e) { console.log(r); cpt++; }
+							else { console.error(e); err_cpt++; }
+							if (cpt == selected.size() - err_cpt) disp.call("graphUpdate", this, g_id, true);
 						});
 					});
-					
+
 				}
 			});
-		if(selected.size()==1){
-			menu.push({
-				title: "Merge with selected nodes",
-				action: function(elm,d,i){
-					locked=true;
-					inputMenu("New Name",[d.id+selected.datum().id],null,null,true,true,'center',function(cb){
-						if(cb.line){
-							request.mergeNode(g_id,d.id,selected.datum().id,cb.line,false,function(e,r){
-								if(!e){ console.log(r); disp.call("graphUpdate",this,g_id,true);}
-								else console.error(e);
-							});
-						}locked=false;
-					},d,svg_content);
-				}
-			})
-		}
+			if (selected.size() == 1) {
+				menu.push({
+					title: "Merge with selected nodes",
+					action: function (elm, d, i) {
+						locked = true;
+						inputMenu("New Name", [d.id + selected.datum().id], null, null, true, true, 'center', function (cb) {
+							if (cb.line) {
+								request.mergeNode(g_id, d.id, selected.datum().id, cb.line, false, function (e, r) {
+									if (!e) { console.log(r); disp.call("graphUpdate", this, g_id, true); }
+									else console.error(e);
+								});
+							} locked = false;
+						}, d, svg_content);
+					}
+				})
+			}
 
 		}
-		return menu;		
+		return menu;
 	};
 	/* define the edge context menu
 	 * edge context menu allow to remove it,
 	 * select source and target node,
 	 * @call : graphUpdate
 	*/
-	var edgeCtMenu =[{
+	var edgeCtMenu = [{
 		title: "Select Source-target",
-		action: function(elm,d,i){
+		action: function (elm, d, i) {
 			svg_content.selectAll("g")
-			    .filter(function(e){return e.id==d.source.id || e.id==d.target.id })
-				.classed("selected",true);
+				.filter(function (e) { return e.id == d.source.id || e.id == d.target.id })
+				.classed("selected", true);
 		}
-	},{
+	}, {
 		title: "Remove",
-		action: function(elm,d,i){
-			locked=true;
-			if(confirm('Are you sure you want to delete this Edge ? The linked element wont be removed')){
-					request.rmEdge(g_id,d.source.id,d.target.id,false,function(e,r){
-					if(e) console.error(e);
-					else{ 
-						disp.call("graphUpdate",this,g_id,true);
+		action: function (elm, d, i) {
+			locked = true;
+			if (confirm('Are you sure you want to delete this Edge ? The linked element wont be removed')) {
+				request.rmEdge(g_id, d.source.id, d.target.id, false, function (e, r) {
+					if (e) console.error(e);
+					else {
+						disp.call("graphUpdate", this, g_id, true);
 						console.log(r);
 					}
-					locked=false;
+					locked = false;
 				});
-			}else locked=false;
+			} else locked = false;
 		}
 	}];
 	/* handling mouse over nodes
@@ -883,32 +907,32 @@ define([
 	 */
 
 	function mouseOver(d) {
-			var div_ct = "<p><h3><b><center>" + d.id + "</center></b>";
-			div_ct += "<h5><b><center>class: " + d.type + "</center></b></h5>";
-			if (d.attrs) {
-				div_ct += "<ul>";
-				for (el in d.attrs) {
-					div_ct += "<li><b><center>" + el + ":" + d.attrs[el].join(",") + "</center></b></li>";
-				}
-				div_ct += "</ul>";
+		var div_ct = "<p><h3><b><center>" + d.id + "</center></b>";
+		div_ct += "<h5><b><center>class: " + d.type + "</center></b></h5>";
+		if (d.attrs) {
+			div_ct += "<ul>";
+			for (el in d.attrs) {
+				div_ct += "<li><b><center>" + el + ":" + d.attrs[el].join(",") + "</center></b></li>";
 			}
-			div_ct += "</p>";
-			d3.select("#n_tooltip")
-				.style("visibility", "visible")
-				.style("background-color", "#fffeec")
-				.style("position", "absolute")
-				.style("bottom", "20px")
-				.style("left", "10px")
-				.style("border", "4px solid #0f71ba")
-				.style("border-radius", "10px")
-				.style("box-shadow", " 3px 3px 3px #888888")
-				.style("z-index", " 100")
-				.style("display", " block")
-				.style("text-align", " left")
-				.style("vertical-align", " top")
-				.style("width", " 150px")
-				.style("overflow ", " hidden")
-				.html(div_ct);
+			div_ct += "</ul>";
+		}
+		div_ct += "</p>";
+		d3.select("#n_tooltip")
+			.style("visibility", "visible")
+			.style("background-color", "#fffeec")
+			.style("position", "absolute")
+			.style("bottom", "20px")
+			.style("left", "10px")
+			.style("border", "4px solid #0f71ba")
+			.style("border-radius", "10px")
+			.style("box-shadow", " 3px 3px 3px #888888")
+			.style("z-index", " 100")
+			.style("display", " block")
+			.style("text-align", " left")
+			.style("vertical-align", " top")
+			.style("width", " 150px")
+			.style("overflow ", " hidden")
+			.html(div_ct);
 	};
 	/* handling mouse out of nodes
 	 * hide the bottom left tooltip
@@ -1031,8 +1055,9 @@ define([
 						d.fy = d.y;
 						req[d.id] = { "x": d.x, "y": d.y }
 					});
-				if (!readOnly){
-				request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });}
+				if (!readOnly) {
+					request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
+				}
 
 				if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
 					svg_content.selectAll("g.selected")
@@ -1062,11 +1087,11 @@ define([
 							if (config.highlightRel) {
 								if (d3.event.sourceEvent.shiftKey) {
 									highlightSubNodes(config.highlightRel(d.id));
-									getChildren(d,true);
+									getChildren(d, true);
 								}
 								else {
 									highlightNodes(config.highlightRel(d.id));
-									getChildren(d,false);
+									getChildren(d, false);
 
 								}
 							}
@@ -1198,7 +1223,7 @@ define([
 	};
 	this.svg_result = function () { return (svg.node()); };
 
-    function dehilightNodes(){
+	function dehilightNodes() {
 		svg.selectAll(".node")
 			.classed("highlighted", false)
 			.classed("lowlighted", false);
@@ -1209,16 +1234,16 @@ define([
 
 	function highlightNodes(to_highlight) {
 		svg.selectAll(".node")
-			.classed("lowlighted", function(d){return !to_highlight(d.id)});
+			.classed("lowlighted", function (d) { return !to_highlight(d.id) });
 
 		svg.selectAll(".link")
 			.classed("lowlighted", true);
 	};
-    
+
 	//only highlights node among the already highlighted
 	function highlightSubNodes(to_highlight) {
 		svg.selectAll(".node")
-			.classed("lowlighted", function(d){return (d3.select(this).classed("lowlighted")) || !to_highlight(d.id)});
+			.classed("lowlighted", function (d) { return (d3.select(this).classed("lowlighted")) || !to_highlight(d.id) });
 
 		svg.selectAll(".link")
 			.classed("lowlighted", true);
