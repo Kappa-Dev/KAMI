@@ -61,7 +61,7 @@ define([
 	(function init(){
 		initSvg();
 		simulation = d3.forceSimulation();
-		initForce();
+		// initForce();
 	}());
 	/* init all the forces
 	 * this graph has :
@@ -72,7 +72,7 @@ define([
 	 */
 
 	function initForce(path, graph, config){
-
+		simulation.stop();
 		simulation.force("link",null);
 		simulation.force("chargeAgent",null);
 		simulation.force("chargeBnd",null);
@@ -91,10 +91,11 @@ define([
 
 
 	function initForceKami(path, graph, config){
-	
+		simulation.stop();
 		simulation.force("link", null);
 		simulation.force("charge", null);
-		simulation.force("center", null);
+		// simulation.force("center", null);
+		simulation.force("center", d3.forceCenter(width / 2, height / 2));
 		simulation.force("chargeAgent", null);
 		simulation.force("chargeBnd", null);
 		simulation.force("chargeBrk", null);
@@ -175,7 +176,6 @@ define([
             // simulation.force("chargeBrk",chargeBrk);
 
 
-            simulation.alphaDecay(0.06);
 
 			// simulation.on("tick", move);
 			// simulation.on("end", function () {
@@ -448,10 +448,23 @@ define([
 	 * @input : response : a json structure of the graph
 	 */
 	function loadGraph(response, shapeClassifier, config){
+		//define default shapes function if not defined
+		if (!shapeClassifier){
+            var shapeClassifier =
+			{
+				"shape": function(_){return d3.symbolCircle},
+				"size": function(_){return 3000},
+				"dotStyle":function(_){return ("1,0")}
+			}
+		}
+
 		//transform links for search optimisation
 		var links = response.edges.map(function(d){
 			return {source:findNode(d.from,response.nodes),target:findNode(d.to,response.nodes)}
 		});
+
+
+
 		//add all links as line in the svg
 		var link = svg_content.selectAll(".link")
 			.data(links, function(d) { return d.source.id + "-" + d.target.id; });
@@ -461,10 +474,18 @@ define([
 			.attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu",d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
+        svg_content.selectAll(".link")
+		           .attr("stroke-dasharray",shapeClassifier.dotStyle)
+
+        try {
+		simulation.force("link").links(links);}
+		catch(err){return 0;}
+
 
 		//add all node as circle in the svg
 		var node = svg_content.selectAll("g.node")
 			.data(response.nodes, function(d) {return d.id;});
+
 		var node_g = node.enter().insert("g")
 			.classed("node",true)
 			.call(d3.drag().on("drag", dragged)
@@ -493,16 +514,6 @@ define([
 			.attr("id", "LinkLine")
 			.style("visibility","hidden");
 
-		//define default shapes function if not defined
-		if (!shapeClassifier){
-            var shapeClassifier =
-			{
-				"shape": function(_){return d3.symbolCircle},
-				"size": function(_){return 3000},
-				"dotStyle":function(_){return ("1,0")}
-
-			}
-		}
 
         //define position function
 		var get_position_function = function (response_graph) {
@@ -523,6 +534,7 @@ define([
 		var positionOf = get_position_function(response);
 
         //set nodes position if known
+		var unknownNum = 0;
 		node_g.each(function(d){
 			pos = positionOf(d);
 			if (pos != null){
@@ -531,6 +543,7 @@ define([
                 d.fx = pos[0];
                 d.fy = pos[1];
 			} 
+			else {unknownNum++}
 		});
 		//add symbol
 		 node_g.append("path")
@@ -566,16 +579,12 @@ define([
 		node.exit().remove();
 
 
-        svg_content.selectAll(".link")
-		           .attr("stroke-dasharray",shapeClassifier.dotStyle)
-
-
 		//start the simulation
 		//simulation.nodes([]);
 		simulation.nodes(response.nodes);
-		simulation.force("link").links(links);
-		simulation.alpha(2);
-		simulation.restart();
+
+		simulation.alpha(0.01*unknownNum);
+        simulation.alphaDecay(0.1);
 		simulation.on("end", function () {
 			if (!config.noTranslate) {
 				var rep = getBounds();
@@ -609,6 +618,7 @@ define([
 				           .attr("vy",0);
 			});
 		});
+		simulation.restart();
 	};
 
 	function getBounds(){
@@ -1021,7 +1031,8 @@ define([
 						d.fy = d.y;
 						req[d.id] = { "x": d.x, "y": d.y }
 					});
-				request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
+				if (!readOnly){
+				request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });}
 
 				if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
 					svg_content.selectAll("g.selected")

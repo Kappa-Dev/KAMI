@@ -116,6 +116,8 @@ define([
 				.attr("id",function(d){return d})
 				.on("click",function(d,i){return dispach_click(d,i,this)})
 				.on("contextmenu",d3ContextMenu(right_click_menu.concat(only_graph_menu)))
+				.on("mouseover",function(d){disp.call("loadPreview",this,hierarchy.getAbsPath(d))})
+				.on("mouseout",function(d){disp.call("closePreview",this)})
 				.on("dblclick",function(d){return lvlChange(d)});
 
 			var slc=h_list.selectAll(".tab_menu_el");

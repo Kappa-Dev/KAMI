@@ -38,7 +38,9 @@ define([
 				"addNugetsToInput",//triggered when finding the children of a node
 				"configUpdate",//triggered when the graph shown is changed
 				"loadGraph",//triggered by the menu when clicking on a graph name
-				"loadRule"//triggered by the menu when clicking on a rule name 
+				"loadRule",//triggered by the menu when clicking on a rule name 
+				"loadPreview",//triggered by hovering on a name
+				"closePreview"//triggered by hovering on a name
 			);
 
 			d3.select("body").append("div").attr("id", main_ct_id);
@@ -82,6 +84,7 @@ define([
 			var size = d3.select("#graph_frame").node().getBoundingClientRect();
 			var rule_pan = new RuleViewer("svg_rule", tab_frame, dispatch, server_url);
 			var graph_pan = new InterractiveGraph("tab_frame", "sub_svg_graph", size.width, size.height, dispatch, factory);
+			var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width*0.9, size.height/2, dispatch, factory, true);
             tab_frame.selectAll("#svg_rule").remove();
 			tab_frame.append(graph_pan.svg_result);
 
@@ -149,6 +152,19 @@ define([
 					});
 			};
 
+			function update_preview(abs_path, noTranslate) {
+				console.log("updatePreview");
+				factory.getGraph(
+					abs_path,
+					function (err, ret) {
+						if (!err) {
+							preview_pan.update(ret, abs_path,
+								{ noTranslate: noTranslate, highlightRel: null });
+							tab_frame.append(preview_pan.svg_result);
+						}
+					});
+			};
+
 			function update_rule(abs_path, noTranslate) {
 				current_graph = abs_path;
 				factory.getRule(
@@ -169,6 +185,16 @@ define([
 				rule_pan.stop();
 				dispatch.on("graphUpdate", update_graph);
 				update_graph(abs_path, false);
+			});
+
+			dispatch.on("loadPreview", function (abs_path) {
+				rule_pan.stop();
+				update_preview(abs_path, false);
+			});
+
+			dispatch.on("closePreview", function (abs_path) {
+				tab_frame.selectAll("#preview_graph")
+					.remove();
 			});
 
 			dispatch.on("loadRule", function (abs_path) {
