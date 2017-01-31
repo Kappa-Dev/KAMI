@@ -248,9 +248,13 @@ define([
 			    var components = [ "state", "residue", "locus", "region", "agent"];
 				if (components.indexOf(ancestorSource) > -1  &&
 				components.indexOf(ancestorTarget) > -1){
-					return ("1,0");
+					return ("notDotted");
+					// return ("1,0");
 				}
-				else { return ("3, 6") }
+				else { 
+					return ("Dotted");
+					//return ("3, 6")
+				 }
 			}
 			var shapeClassifier =
 				{
@@ -309,7 +313,7 @@ define([
 	 */
 
 
-	function move(radius_of_node) {
+	function move(shapeClassifier) {
 		return function () {
 			var nodes = svg_content.selectAll("g.node");
 			nodes.attr("transform", function (d) {
@@ -342,15 +346,29 @@ define([
 					}
 					else {
                         //transf = d3.zoomTransform(svg.node());
-						let nodeRadius = Math.sqrt(radius_of_node(d.target))/1.77245385091;
-						arrowLength = 10;
-						arrowWidth = 5;
-						[arrowX, arrowY] = [x2 - dx * (nodeRadius + arrowLength) / dr, y2 - dy * (nodeRadius + arrowLength) / dr];
-						[orthoX, orthoY] = [-dy / dr * arrowWidth, dx / dr * arrowWidth];
-						[arrowLeftX, arrowLeftY] = [arrowX + orthoX, arrowY + orthoY];
-						[arrowRightX, arrowRightY] = [arrowX - orthoX, arrowY - orthoY];
-						[endx, endy] = [x2 - dx * nodeRadius / dr, y2 - dy * nodeRadius / dr];
-						return `M ${x1} ${y1} L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
+						let nodeRadius = Math.sqrt(shapeClassifier["size"](d.target))/1.77245385091;
+						    arrowLength = 10;
+							arrowWidth = 5;
+							[arrowX, arrowY] = [x2 - dx * (nodeRadius + arrowLength) / dr, y2 - dy * (nodeRadius + arrowLength) / dr];
+							[orthoX, orthoY] = [-dy / dr * arrowWidth, dx / dr * arrowWidth];
+							[arrowLeftX, arrowLeftY] = [arrowX + orthoX, arrowY + orthoY];
+							[arrowRightX, arrowRightY] = [arrowX - orthoX, arrowY - orthoY];
+							[endx, endy] = [x2 - dx * nodeRadius / dr, y2 - dy * nodeRadius / dr];
+
+							if (shapeClassifier["dotStyle"](d) === "Dotted") {
+								let dotArrayLength = ~~(dr / 12);
+									dottedpoints = Array(~~(dotArrayLength / 2)).fill()
+										.map((_, i) => [x1 + 2 * i * dx / dotArrayLength,
+										y1 + 2 * i * dy / dotArrayLength,
+										x1 + (2 * i + 1) * dx / dotArrayLength,
+										y1 + (2 * i + 1) * dy / dotArrayLength]);
+									str = dottedpoints.map(([xd1, yd1, xd2, yd2]) => `L ${xd1} ${yd1} M ${xd2} ${yd2}`)
+										.join(" ");
+								return `M ${x1} ${y1}` + str + `L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
+							}
+							else {
+								return `M ${x1} ${y1} L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
+							}
 						//return "M" + x1 + "," + y1 + "A" + drx + "," + dry + " " + xRotation + "," + largeArc + "," + sweep + " " + x2 + "," + y2;
 					}
 					//return "M" + x1 + "," + y1 + "C 1 1, 0 0,"+ x2+ "," + y2;
@@ -375,6 +393,7 @@ define([
 	 * @input : config.repDispatch (d3.dispatch) : canal used to signal end of loading to caller
 	 * @input : config.highlightRel (nodeData -> nodeData -> bool)
 	 *          which nodes to highlight when hovering over a node
+	 * @input : config.showAttributes : if true show the node attributes on the graph
 	 */
 
 	this.update = function update(graph, path, config) {
@@ -473,7 +492,7 @@ define([
 				{
 					"shape": function (_) { return d3.symbolCircle },
 					"size": function (_) { return 3000 },
-					"dotStyle": function (_) { return ("1,0") }
+					"dotStyle": function (_) { return "notDotted" }
 				}
 		}
 
@@ -493,8 +512,8 @@ define([
 			//.attr("marker-mid", "url(#arrow_end)")
 			.on("contextmenu", d3ContextMenu(edgeCtMenu));
 		link.exit().remove();
-		svg_content.selectAll(".link")
-			.attr("stroke-dasharray", shapeClassifier.dotStyle)
+		// svg_content.selectAll(".link")
+		// 	.attr("stroke-dasharray", shapeClassifier.dotStyle)
 
 		try {
 			simulation.force("link").links(links);
@@ -584,7 +603,7 @@ define([
 			.attr("x", 0)
 			.attr("dy", ".35em")
 			.attr("text-anchor", "middle")
-			.text(function (d) { return d.id.length > 7 ? d.id.substring(0, 5).concat("...") : d.id; })
+			.text(function (d) { return d.id.length > 7 ? d.id.substring(0, 5).concat("..") : d.id; })
 			//.text(function(d){return d.id})
 			.attr("font-size", function () { return (radius / 2) + "px" })
 			.style("fill", function (d) {
@@ -596,6 +615,26 @@ define([
 				else return "black";
 			})
 			.on("dblclick", clickText);
+
+		node_g
+			.filter(d=> d.attrs && "val" in d.attrs)
+            .insert("text")
+			.classed("nodeLabel", true)
+			.attr("x", 0)
+			.attr("dy", "1.35em")
+			.attr("text-anchor", "middle")
+			.text(d => d.attrs["val"].length > 7 ? d.attrs["val"].substring(0, 5).concat("..") : d.attrs["val"])
+			//.text(function(d){return d.id})
+			.attr("font-size", function () { return (radius / 2) + "px" })
+			.style("fill", function (d) {
+				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+				else return "black";
+			})
+			.style("stroke", function (d) {
+				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+				else return "black";
+			})
+
 		node.exit().remove();
 
 
@@ -608,7 +647,7 @@ define([
 		simulation.on("end", function () {
 			if (!config.noTranslate) {
 				var rep = getBounds();
-				simulation.on("tick", move(shapeClassifier.size));
+				simulation.on("tick", move(shapeClassifier));
 				simulation.alphaDecay(0.02);
 				if (rep) {
 					var xrate = svg.attr("width") / (rep[0][1] - rep[0][0]);
@@ -631,7 +670,7 @@ define([
 					svg.call(zoom.scaleTo, 1);
 				}
 			}
-            move(shapeClassifier.size)();
+			move(shapeClassifier)();
 			simulation.on("end", function () {
 				svg_content.selectAll("g.node")
 					.attr("vx", 0)
