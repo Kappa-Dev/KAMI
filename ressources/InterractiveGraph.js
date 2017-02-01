@@ -191,12 +191,35 @@ define([
 				var ancestor = ancestorArray[n.id];
 				if (
 					ancestor == "agent" ||
-					ancestor == "state" ||
 					ancestor == "residue" ||
 					ancestor == "region" ||
 					ancestor == "locus"
 				) {
 					return d3.symbolCircle;
+				}
+				else if (ancestor == "state") {
+					let pi = 3.14,
+					    tau = 6.28,
+					    ka = 0.89081309152928522810,
+						kr = Math.sin(pi / 10) / Math.sin(1.5 * pi / 10),
+						kx = Math.sin(tau / 10) * kr,
+						ky = -Math.cos(tau / 10) * kr;
+						return {draw : function (context, size) {
+							let r = Math.sqrt(size * ka),
+								x = kx * r,
+								y = ky * r;
+							context.moveTo(0, -r);
+							context.lineTo(x, y);
+							for (let i = 1; i < 7; ++i) {
+								let a = tau * i / 7,
+									c = Math.cos(a),
+									s = Math.sin(a);
+								context.lineTo(s * r, -c * r);
+								context.lineTo(c * x - s * y, s * x + c * y);
+							}
+							context.closePath();
+						}};
+					//return d3.symbolStar;
 				}
 				else if (
 					ancestor == "mod" ||
@@ -221,11 +244,11 @@ define([
 					ancestor == "syn" ||
 					ancestor == "deg" ||
 					ancestor == "brk" ||
-					ancestor == "bnd" 
+					ancestor == "bnd"
 				) { return 4000; }
 				else if (
 					ancestor == "is_bnd" ||
-					ancestor == "is_free" 
+					ancestor == "is_free"
 				) { return 3000; }
 				else if (
 					ancestor == "state" ||
@@ -242,27 +265,47 @@ define([
 					return 4000;
 				}
 			};
-            var link_to_dotStyle = function (l){
+			var node_to_color = function (n){
+				let ancestor = ancestorArray[n.id];
+				return ({
+					"mod":"#77855C",
+					"syn":"#55A485",
+					"deg":"#A47066",
+					"brk":"#B83319",
+					"bnd":"#648226",
+					"is_bnd":"#648226",
+					"is_free":"#B83319",
+					"state":"#77855C",
+					"region":"#AB8472",
+					"agent":"#AB7372",
+					"locus":"#718CC4",
+					"residue":"#94716A"
+				}[ancestor]);
+
+			};
+
+			var link_to_dotStyle = function (l) {
 				var ancestorSource = ancestorArray[l.source.id];
 				var ancestorTarget = ancestorArray[l.target.id];
-			    var components = [ "state", "residue", "locus", "region", "agent"];
-				if (components.indexOf(ancestorSource) > -1  &&
-				components.indexOf(ancestorTarget) > -1){
+				var components = ["state", "residue", "locus", "region", "agent"];
+				if (components.indexOf(ancestorSource) > -1 &&
+					components.indexOf(ancestorTarget) > -1) {
 					return ("notDotted");
 					// return ("1,0");
 				}
-				else { 
+				else {
 					return ("Dotted");
 					//return ("3, 6")
-				 }
-			}
+				}
+			};
 			var shapeClassifier =
 				{
 					"shape": node_to_symbol,
 					"size": node_to_size,
-					"dotStyle": link_to_dotStyle
+					"dotStyle": link_to_dotStyle,
+					"nodeColor": node_to_color
 				};
-			loadType(path, graph, function(rep){loadGraph(rep, shapeClassifier, config)}); 
+			loadType(path, graph, function (rep) { loadGraph(rep, shapeClassifier, config) });
 		}
 		kamiAncestor(g_id, callback);
 	}
@@ -272,10 +315,10 @@ define([
 	 * add tooltip
 	 * add zoom and drag behavior
 	 */
-	function initSvg(){
+	function initSvg() {
 		//add drag/zoom behavior
 		zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
-		zoom.filter(function(){ return !event.button && !event.shiftKey});
+		zoom.filter(function () { return !event.button && !event.shiftKey });
 		svg.classed("svg-content-responsive", true);
 		svg.append("svg:defs").selectAll("marker")
 			.data(["arrow_end"])      // Different link/path types can be defined here
@@ -345,30 +388,30 @@ define([
 						return "M" + x1 + "," + y1 + "A" + drx + "," + dry + " " + xRotation + "," + largeArc + "," + sweep + " " + x2 + "," + y2;
 					}
 					else {
-                        //transf = d3.zoomTransform(svg.node());
-						let nodeRadius = Math.sqrt(shapeClassifier["size"](d.target))/1.77245385091;
-						    arrowLength = 10;
-							arrowWidth = 5;
-							[arrowX, arrowY] = [x2 - dx * (nodeRadius + arrowLength) / dr, y2 - dy * (nodeRadius + arrowLength) / dr];
-							[orthoX, orthoY] = [-dy / dr * arrowWidth, dx / dr * arrowWidth];
-							[arrowLeftX, arrowLeftY] = [arrowX + orthoX, arrowY + orthoY];
-							[arrowRightX, arrowRightY] = [arrowX - orthoX, arrowY - orthoY];
-							[endx, endy] = [x2 - dx * nodeRadius / dr, y2 - dy * nodeRadius / dr];
+						//transf = d3.zoomTransform(svg.node());
+						let nodeRadius = Math.sqrt(shapeClassifier["size"](d.target)) / 1.77245385091;
+						arrowLength = 10;
+						arrowWidth = 5;
+						[arrowX, arrowY] = [x2 - dx * (nodeRadius + arrowLength) / dr, y2 - dy * (nodeRadius + arrowLength) / dr];
+						[orthoX, orthoY] = [-dy / dr * arrowWidth, dx / dr * arrowWidth];
+						[arrowLeftX, arrowLeftY] = [arrowX + orthoX, arrowY + orthoY];
+						[arrowRightX, arrowRightY] = [arrowX - orthoX, arrowY - orthoY];
+						[endx, endy] = [x2 - dx * nodeRadius / dr, y2 - dy * nodeRadius / dr];
 
-							if (shapeClassifier["dotStyle"](d) === "Dotted") {
-								let dotArrayLength = ~~(dr / 12);
-									dottedpoints = Array(~~(dotArrayLength / 2)).fill()
-										.map((_, i) => [x1 + 2 * i * dx / dotArrayLength,
-										y1 + 2 * i * dy / dotArrayLength,
-										x1 + (2 * i + 1) * dx / dotArrayLength,
-										y1 + (2 * i + 1) * dy / dotArrayLength]);
-									str = dottedpoints.map(([xd1, yd1, xd2, yd2]) => `L ${xd1} ${yd1} M ${xd2} ${yd2}`)
-										.join(" ");
-								return `M ${x1} ${y1}` + str + `L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
-							}
-							else {
-								return `M ${x1} ${y1} L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
-							}
+						if (shapeClassifier["dotStyle"](d) === "Dotted") {
+							let dotArrayLength = ~~(dr / 12);
+							dottedpoints = Array(~~(dotArrayLength / 2)).fill()
+								.map((_, i) => [x1 + 2 * i * dx / dotArrayLength,
+								y1 + 2 * i * dy / dotArrayLength,
+								x1 + (2 * i + 1) * dx / dotArrayLength,
+								y1 + (2 * i + 1) * dy / dotArrayLength]);
+							str = dottedpoints.map(([xd1, yd1, xd2, yd2]) => `L ${xd1} ${yd1} M ${xd2} ${yd2}`)
+								.join(" ");
+							return `M ${x1} ${y1}` + str + `L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
+						}
+						else {
+							return `M ${x1} ${y1} L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
+						}
 						//return "M" + x1 + "," + y1 + "A" + drx + "," + dry + " " + xRotation + "," + largeArc + "," + sweep + " " + x2 + "," + y2;
 					}
 					//return "M" + x1 + "," + y1 + "C 1 1, 0 0,"+ x2+ "," + y2;
@@ -486,15 +529,19 @@ define([
 	 * @input : response : a json structure of the graph
 	 */
 	function loadGraph(response, shapeClassifier, config) {
-		//define default shapes function if not defined
-		if (!shapeClassifier) {
-			var shapeClassifier =
-				{
-					"shape": function (_) { return d3.symbolCircle },
-					"size": function (_) { return 3000 },
-					"dotStyle": function (_) { return "notDotted" }
-				}
-		}
+		//define default shapes functions if not defined
+		if (!shapeClassifier) { var shapeClassifier = {} };
+		if (!shapeClassifier.shape) { shapeClassifier.shape = function (_) { return d3.symbolCircle } };
+		if (!shapeClassifier.size) { shapeClassifier.size = function (_) { return 3000 } };
+		if (!shapeClassifier.dotStyle) { shapeClassifier.dotStyle = function (_) { return "notDotted" } };
+		if (!shapeClassifier.nodeColor) {
+			shapeClassifier.nodeColor = function (d) {
+				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+				else return "#EEEEEE";
+			}
+		};
+
+
 
 		//transform links for search optimisation
 		var links = response.edges.map(function (d) {
@@ -589,10 +636,12 @@ define([
 			.attr("d", d3.symbol()
 				.type(shapeClassifier.shape)
 				.size(shapeClassifier.size))
-			.style("fill", function (d) {
-				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
-				else return "#EEEEEE";
-			});
+			.style("fill", shapeClassifier.nodeColor)	
+			// .style("fill", function (d) {
+			// 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
+			// 	else return "#EEEEEE";
+			// });
+
 		//  node_g.style("WebkitFilter","grayscale(100%)");
 		//  node_g.style("-webkit-filter","grayscale(100%)");
 		//  node_g.style("filter","grayscale(100%)");
@@ -603,22 +652,24 @@ define([
 			.attr("x", 0)
 			.attr("dy", ".35em")
 			.attr("text-anchor", "middle")
-			.text(function (d) { return d.id.length > 7 ? d.id.substring(0, 5).concat("..") : d.id; })
+			.text(function (d) { 
+				let name = d.id.split(" ")[0]
+				return name.length > 7 ? name.substring(0, 5).concat("..") : name; })
 			//.text(function(d){return d.id})
 			.attr("font-size", function () { return (radius / 2) + "px" })
-			.style("fill", function (d) {
-				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
-				else return "black";
-			})
-			.style("stroke", function (d) {
-				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
-				else return "black";
-			})
+			// .style("fill", function (d) {
+			// 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+			// 	else return "black";
+			// })
+			// .style("stroke", function (d) {
+			// 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+			// 	else return "black";
+			// })
 			.on("dblclick", clickText);
 
 		node_g
-			.filter(d=> d.attrs && "val" in d.attrs)
-            .insert("text")
+			.filter(d => d.attrs && "val" in d.attrs)
+			.insert("text")
 			.classed("nodeLabel", true)
 			.attr("x", 0)
 			.attr("dy", "1.35em")
@@ -626,14 +677,14 @@ define([
 			.text(d => d.attrs["val"].length > 7 ? d.attrs["val"].substring(0, 5).concat("..") : d.attrs["val"])
 			//.text(function(d){return d.id})
 			.attr("font-size", function () { return (radius / 2) + "px" })
-			.style("fill", function (d) {
-				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
-				else return "black";
-			})
-			.style("stroke", function (d) {
-				if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
-				else return "black";
-			})
+			// .style("fill", function (d) {
+			// 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+			// 	else return "black";
+			// })
+			// .style("stroke", function (d) {
+			// 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+			// 	else return "black";
+			// })
 
 		node.exit().remove();
 
@@ -716,7 +767,8 @@ define([
 			// // else return (0x000000).toString(16);
 
 			//return (0x0b0b0b).toString(16);
-			return (0x282828).toString(16);
+			// return (0x282828).toString(16);
+			return (0x252525).toString(16);
 
 
 		}
@@ -788,7 +840,7 @@ define([
 									if (e) console.error(e);
 									else {
 										console.log("node added")
-										req = {};
+										let req = {};
 										req[cb.line] = { "x": svgmousepos[0], "y": svgmousepos[1] }
 										request.addAttr(g_id, JSON.stringify({ positions: req }),
 											function () { disp.call("graphUpdate", this, g_id, true); });
@@ -846,6 +898,8 @@ define([
 		}, {
 			title: "Clone",
 			action: function (elm, d, i) {
+
+				let svgmousepos = d3.mouse(svg_content.node());
 				console.log(elm, d, i);
 				locked = true;
 				inputMenu("New Name", [d.id + "copy"], null, null, true, true, 'center', function (cb) {
@@ -853,8 +907,10 @@ define([
 						request.cloneNode(g_id, d.id, cb.line, function (e, r) {
 							if (e) console.error(e);
 							else {
-								disp.call("graphUpdate", this, g_id, true);
-								console.log(r);
+								let req = {};
+								req[cb.line] = { "x": svgmousepos[0]+10, "y": svgmousepos[1] }
+								request.addAttr(g_id, JSON.stringify({ positions: req }),
+									function () { disp.call("graphUpdate", this, g_id, true); });
 							}
 						});
 					}
@@ -899,7 +955,7 @@ define([
 						locked = true;
 						inputMenu("New Name", [d.id + selected.datum().id], null, null, true, true, 'center', function (cb) {
 							if (cb.line) {
-								request.mergeNode(g_id, d.id, selected.datum().id, cb.line, false, function (e, r) {
+								request.mergeNode(g_id, d.id, selected.datum().id, cb.line, true, function (e, r) {
 									if (!e) { console.log(r); disp.call("graphUpdate", this, g_id, true); }
 									else console.error(e);
 								});
@@ -988,7 +1044,6 @@ define([
 	 * @input : d : the node datas
 	 */
 	function clickHandler(d) {
-		console.log(d3.event.button);
 		d3.event.stopPropagation();
 		if (d3.event.ctrlKey) {
 			d.fx = null;
@@ -1014,6 +1069,7 @@ define([
 	 * @call : graphUpdate
 	 */
 	function clickText(d) {
+		let svgmousepos = d3.mouse(svg_content.node());
 		var el = d3.select(this);
 		var lab = [d.id];
 		locked = true;
@@ -1024,8 +1080,10 @@ define([
 						request.rmNode(g_id, d.id, false, function (e, r) {
 							if (e) console.error(e);
 							else {
-								disp.call("graphUpdate", this, g_id, true);
-								console.log(ret);
+								let req = {};
+								req[cb.line] = { "x": svgmousepos[0]+10, "y": svgmousepos[1] }
+								request.addAttr(g_id, JSON.stringify({ positions: req }),
+									function () { disp.call("graphUpdate", this, g_id, true); });
 							}
 						})
 					}

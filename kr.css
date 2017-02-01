@@ -483,8 +483,9 @@ svg{
 	stroke:var(--node-default-select);
 }
 .nodeLabel{
-  fill: #000;
+  fill: var(--node-label-color);
   font-family: sans-serif;
+  stroke: var(--node-label-color);
 }
 .link {
   stroke: var(--link-color);
