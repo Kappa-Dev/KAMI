@@ -1075,276 +1075,285 @@ define([
 		locked = true;
 		inputMenu("name", lab, null, null, true, true, 'center', function (cb) {
 			if (cb.line && cb.line != d.id) {
-				request.cloneNode(g_id, d.id, cb.line, function (err, ret) {
-					if (!err) {
-						request.rmNode(g_id, d.id, false, function (e, r) {
-							if (e) console.error(e);
-							else {
-								let req = {};
-								req[cb.line] = { "x": svgmousepos[0]+10, "y": svgmousepos[1] }
-								request.addAttr(g_id, JSON.stringify({ positions: req }),
-									function () { disp.call("graphUpdate", this, g_id, true); });
-							}
-						})
-					}
-					else console.error(err);
+				request.renameNode(g_id, d.id, cb.line, function (err, ret) {
+					let req = {};
+					req[cb.line] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
+					locked = false;
+					request.addAttr(g_id, JSON.stringify({ positions: req }),
+						function () { disp.call("graphUpdate", this, g_id, true);
+				 });
 				});
 			}
-			locked = false;
-		}, d, svg_content);
+			else{ locked = false;}
+		},d, svg_content);
+
+		// request.cloneNode(g_id, d.id, cb.line, function (err, ret) {
+		// 	if (!err) {
+		// 		request.rmNode(g_id, d.id, false, function (e, r) {
+		// 			if (e) console.error(e);
+		// 			else {
+		// 				let req = {};
+		// 				req[cb.line] = { "x": svgmousepos[0]+10, "y": svgmousepos[1] }
+		// 				request.addAttr(g_id, JSON.stringify({ positions: req }),
+		// 					function () { disp.call("graphUpdate", this, g_id, true); });
+		// 			}
+		// 		})
+		// 	}
+		// 	else console.error(err);
+		// });
 
 	};
-	/* handling dragging event on nodes
-	 * @input : d : the node datas
-	 */
-	function dragged(d) {
-		if (locked) return;
+/* handling dragging event on nodes
+ * @input : d : the node datas
+ */
+function dragged(d) {
+	if (locked) return;
+	var xpos = d3.event.x;
+	var ypos = d3.event.y;
+	if (!d3.event.sourceEvent.button) {
+		if (simulation.alpha() < 0.09 && simulation.nodes().length > 0)
+			simulation.alpha(1).restart();
+		// var xpos = d3.event.x;
+		// var ypos = d3.event.y;
+		var tx = xpos - saveX;
+		var ty = ypos - saveY;
+		d3.select(this).attr("cx", d.fx = xpos).attr("cy", d.fy = ypos);
+		svg_content.selectAll("g.selected")
+			.filter(function (d2) { return d2.id != d.id })
+			.each(function (d2) {
+				d2.x = d2.x + tx;
+				d2.y = d2.y + ty;
+				d2.fx = d2.x;
+				d2.fy = d2.y;
+				d3.select(this)
+					.attr("cx", d2.fx)
+					.attr("cy", d2.fy)
+			});
+		saveX = xpos;
+		saveY = ypos;
+	}
+	else if (d3.event.sourceEvent.button == 2) {
+		var mousepos = d3.mouse(svg_content.node());
+		svg_content.selectAll("#LinkLine")
+			.attr("x2", beginMouseX + (mousepos[0] - beginMouseX) * 0.99)
+			.attr("y2", beginMouseY + (mousepos[1] - beginMouseY) * 0.99);
+	}
+};
+
+
+/* handling dragend event on nodes
+ * @input : d : the node datas
+*/
+function dragNodeEndHighlightRel(config) {
+	return function (d, elm, i) {
+		var nodecontext = this;
+		var currentEvent = d3.event;
 		var xpos = d3.event.x;
 		var ypos = d3.event.y;
 		if (!d3.event.sourceEvent.button) {
-			if (simulation.alpha() < 0.09 && simulation.nodes().length > 0)
-				simulation.alpha(1).restart();
-			// var xpos = d3.event.x;
-			// var ypos = d3.event.y;
-			var tx = xpos - saveX;
-			var ty = ypos - saveY;
-			d3.select(this).attr("cx", d.fx = xpos).attr("cy", d.fy = ypos);
+			var id = d["id"];
+			var req = {};
+			req[id] = { "x": xpos, "y": ypos };
+			//request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
 			svg_content.selectAll("g.selected")
-				.filter(function (d2) { return d2.id != d.id })
-				.each(function (d2) {
-					d2.x = d2.x + tx;
-					d2.y = d2.y + ty;
-					d2.fx = d2.x;
-					d2.fy = d2.y;
-					d3.select(this)
-						.attr("cx", d2.fx)
-						.attr("cy", d2.fy)
+				.each(function (d) {
+					d.fx = d.x;
+					d.fy = d.y;
+					req[d.id] = { "x": d.x, "y": d.y }
 				});
-			saveX = xpos;
-			saveY = ypos;
-		}
-		else if (d3.event.sourceEvent.button == 2) {
-			var mousepos = d3.mouse(svg_content.node());
-			svg_content.selectAll("#LinkLine")
-				.attr("x2", beginMouseX + (mousepos[0] - beginMouseX) * 0.99)
-				.attr("y2", beginMouseY + (mousepos[1] - beginMouseY) * 0.99);
-		}
-	};
-
-
-	/* handling dragend event on nodes
-	 * @input : d : the node datas
-	*/
-	function dragNodeEndHighlightRel(config) {
-		return function (d, elm, i) {
-			var nodecontext = this;
-			var currentEvent = d3.event;
-			var xpos = d3.event.x;
-			var ypos = d3.event.y;
-			if (!d3.event.sourceEvent.button) {
-				var id = d["id"];
-				var req = {};
-				req[id] = { "x": xpos, "y": ypos };
-				//request.addAttr(g_id, JSON.stringify({positions:req}),function(){});
-				svg_content.selectAll("g.selected")
-					.each(function (d) {
-						d.fx = d.x;
-						d.fy = d.y;
-						req[d.id] = { "x": d.x, "y": d.y }
-					});
-				if (!readOnly) {
-					request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
-				}
-
-				if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
-					svg_content.selectAll("g.selected")
-						.classed("selected", false)
-				}
+			if (!readOnly) {
+				request.addAttr(g_id, JSON.stringify({ positions: req }), function () { });
 			}
-			else if (d3.event.sourceEvent.button != 0) {
-				svg_content.selectAll("#LinkLine")
-					.style("visibility", "hidden")
-				var targetElement = d3.select(d3.event.sourceEvent.path[1]);
-				if (targetElement.classed("node")) {
-					targetElement.each(function (d2) {
-						if (d2.id !== d.id && d3.event.sourceEvent.button == 2) {
-							request.addEdge(g_id, d.id, d2.id, function (e, r) {
-								if (!e) {
-									console.log(r);
-									disp.call("graphUpdate", this, g_id, true)
-								}
-								else { console.error(e) }
-							});
-						}
-						else if (d2.id == d.id && d3.event.sourceEvent.button == 2) {
-							var handler = d3ContextMenu(function () { return nodeCtMenu() })
-							d3.customEvent(currentEvent.sourceEvent, handler, nodecontext, [d, null]);
-						}
-						else if (d2.id == d.id && d3.event.sourceEvent.button == 1) {
-							if (config.highlightRel) {
-								if (d3.event.sourceEvent.shiftKey) {
-									highlightSubNodes(config.highlightRel(d.id));
-									getChildren(d, true);
-								}
-								else {
-									highlightNodes(config.highlightRel(d.id));
-									getChildren(d, false);
 
-								}
+			if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
+				svg_content.selectAll("g.selected")
+					.classed("selected", false)
+			}
+		}
+		else if (d3.event.sourceEvent.button != 0) {
+			svg_content.selectAll("#LinkLine")
+				.style("visibility", "hidden")
+			var targetElement = d3.select(d3.event.sourceEvent.path[1]);
+			if (targetElement.classed("node")) {
+				targetElement.each(function (d2) {
+					if (d2.id !== d.id && d3.event.sourceEvent.button == 2) {
+						request.addEdge(g_id, d.id, d2.id, function (e, r) {
+							if (!e) {
+								console.log(r);
+								disp.call("graphUpdate", this, g_id, true)
+							}
+							else { console.error(e) }
+						});
+					}
+					else if (d2.id == d.id && d3.event.sourceEvent.button == 2) {
+						var handler = d3ContextMenu(function () { return nodeCtMenu() })
+						d3.customEvent(currentEvent.sourceEvent, handler, nodecontext, [d, null]);
+					}
+					else if (d2.id == d.id && d3.event.sourceEvent.button == 1) {
+						if (config.highlightRel) {
+							if (d3.event.sourceEvent.shiftKey) {
+								highlightSubNodes(config.highlightRel(d.id));
+								getChildren(d, true);
+							}
+							else {
+								highlightNodes(config.highlightRel(d.id));
+								getChildren(d, false);
+
 							}
 						}
-					});
-				}
+					}
+				});
 			}
-		};
-	};
-
-	function dragNodeStart(d) {
-		saveX = d3.event.x;
-		saveY = d3.event.y;
-		beginX = d3.event.x;
-		beginY = d3.event.y;
-		if (d3.event.sourceEvent.button == 2) {
-			var mousepos = d3.mouse(svg_content.node());
-			beginMouseX = mousepos[0];
-			beginMouseY = mousepos[1];
-			svg_content.selectAll("#LinkLine")
-				.attr("x1", beginMouseX)
-				.attr("y1", beginMouseY)
-				.attr("x2", beginMouseX)
-				.attr("y2", beginMouseY)
-				.style("visibility", "visible");
-			startOfLinkNode = d.id;
 		}
-
 	};
+};
 
-	function nodeContextMenuHandler(d) {
-		d3.event.stopPropagation();
-		d3.event.preventDefault();
-		// d3.select(this)
-		// 	.on("mouseup", function () { console.log("mouseout") });
-
-	};
-
-	function addVal(elm, d, i) {
-		var val = prompt("Enter a value", "");
-		if (!val) { return 0 };
-		var callback = function (err, resp) {
-			if (err) {
-				alert(err.currentTarget.response);
-				return false;
-			}
-			if (!d.attrs) { d.attrs = {} };
-			if (!d.attrs["val"]) { d.attrs["val"] = [] };
-			index = d.attrs["val"].indexOf(val);
-			if (index === -1) { d.attrs["val"].push(val) };
-		}
-		request.addNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
-	};
-
-	function rmVal(elm, d, i) {
-		var val = prompt("Enter a value", "");
-		if (!val) { return 0 };
-		var callback = function (err, resp) {
-			if (err) {
-				alert(err.currentTarget.response);
-				return false;
-			}
-			if (!d.attrs) { return 0 };
-			if (!d.attrs["val"]) { return 0 };
-			index = d.attrs["val"].indexOf(val);
-			if (index != -1) { d.attrs["val"].splice(index, 1) };
-		}
-		request.rmNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
-	};
-
-	function getChildren(d, keepOldConds) {
-		var callback = function (err, rep) {
-			if (err) {
-				alert(err.currentTarget.response);
-				return false;
-			}
-			jsonRep = JSON.parse(rep.response);
-			children = jsonRep["children"];
-			disp.call("addNugetsToInput", this, children, d.id, keepOldConds);
-		}
-		request.getChildren(g_id, d.id, callback)
-	};
-
-	function selectionHandler() {
+function dragNodeStart(d) {
+	saveX = d3.event.x;
+	saveY = d3.event.y;
+	beginX = d3.event.x;
+	beginY = d3.event.y;
+	if (d3.event.sourceEvent.button == 2) {
 		var mousepos = d3.mouse(svg_content.node());
-		svg_content.selectAll("#selectionRect")
-			.each(function (d) {
-				d3.select(this)
-					.attr("width", Math.abs(mousepos[0] - d.startx))
-					.attr("height", Math.abs(mousepos[1] - d.starty))
-					.attr("x", Math.min(mousepos[0], d.startx))
-					.attr("y", Math.min(mousepos[1], d.starty))
-			})
+		beginMouseX = mousepos[0];
+		beginMouseY = mousepos[1];
+		svg_content.selectAll("#LinkLine")
+			.attr("x1", beginMouseX)
+			.attr("y1", beginMouseY)
+			.attr("x2", beginMouseX)
+			.attr("y2", beginMouseY)
+			.style("visibility", "visible");
+		startOfLinkNode = d.id;
+	}
 
-	};
-	function selectionHandlerStart() {
-		var selectionStart = d3.mouse(svg_content.node());
-		svg_content.selectAll("#selectionRect")
-			.style("visibility", "visible")
-			.each(function (d) {
-				d.startx = selectionStart[0];
-				d.starty = selectionStart[1];
-			});
-	};
-	function selectionHandlerEnd() {
-		var mousepos = d3.mouse(svg_content.node());
-		svg_content.selectAll("#selectionRect")
-			.style("visibility", "hidden")
-			.each(function (d) {
-				var minx = Math.min(mousepos[0], d.startx);
-				var maxx = Math.max(mousepos[0], d.startx);
-				var miny = Math.min(mousepos[1], d.starty);
-				var maxy = Math.max(mousepos[1], d.starty);
-				svg_content.selectAll("g")
-					.filter(function (n) {
-						return (
-							n.x <= maxx &&
-							n.x >= minx &&
-							n.y <= maxy &&
-							n.y >= miny)
-					})
-					.classed("selected", true);
-			})
-	};
-	function svgClickHandler() {
-		svg_content.selectAll("g.selected")
-			.classed("selected", false);
-		dehilightNodes();
-	};
-	this.svg_result = function () { return (svg.node()); };
+};
 
-	function dehilightNodes() {
-		svg.selectAll(".node")
-			.classed("highlighted", false)
-			.classed("lowlighted", false);
-		svg.selectAll(".link")
-			.classed("lowlighted", false);
+function nodeContextMenuHandler(d) {
+	d3.event.stopPropagation();
+	d3.event.preventDefault();
+	// d3.select(this)
+	// 	.on("mouseup", function () { console.log("mouseout") });
 
-	};
+};
 
-	function highlightNodes(to_highlight) {
-		svg.selectAll(".node")
-			.classed("lowlighted", function (d) { return !to_highlight(d.id) });
+function addVal(elm, d, i) {
+	var val = prompt("Enter a value", "");
+	if (!val) { return 0 };
+	var callback = function (err, resp) {
+		if (err) {
+			alert(err.currentTarget.response);
+			return false;
+		}
+		if (!d.attrs) { d.attrs = {} };
+		if (!d.attrs["val"]) { d.attrs["val"] = [] };
+		index = d.attrs["val"].indexOf(val);
+		if (index === -1) { d.attrs["val"].push(val) };
+	}
+	request.addNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
+};
 
-		svg.selectAll(".link")
-			.classed("lowlighted", true);
-	};
+function rmVal(elm, d, i) {
+	var val = prompt("Enter a value", "");
+	if (!val) { return 0 };
+	var callback = function (err, resp) {
+		if (err) {
+			alert(err.currentTarget.response);
+			return false;
+		}
+		if (!d.attrs) { return 0 };
+		if (!d.attrs["val"]) { return 0 };
+		index = d.attrs["val"].indexOf(val);
+		if (index != -1) { d.attrs["val"].splice(index, 1) };
+	}
+	request.rmNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
+};
 
-	//only highlights node among the already highlighted
-	function highlightSubNodes(to_highlight) {
-		svg.selectAll(".node")
-			.classed("lowlighted", function (d) { return (d3.select(this).classed("lowlighted")) || !to_highlight(d.id) });
+function getChildren(d, keepOldConds) {
+	var callback = function (err, rep) {
+		if (err) {
+			alert(err.currentTarget.response);
+			return false;
+		}
+		jsonRep = JSON.parse(rep.response);
+		children = jsonRep["children"];
+		disp.call("addNugetsToInput", this, children, d.id, keepOldConds);
+	}
+	request.getChildren(g_id, d.id, callback)
+};
 
-		svg.selectAll(".link")
-			.classed("lowlighted", true);
-	};
+function selectionHandler() {
+	var mousepos = d3.mouse(svg_content.node());
+	svg_content.selectAll("#selectionRect")
+		.each(function (d) {
+			d3.select(this)
+				.attr("width", Math.abs(mousepos[0] - d.startx))
+				.attr("height", Math.abs(mousepos[1] - d.starty))
+				.attr("x", Math.min(mousepos[0], d.startx))
+				.attr("y", Math.min(mousepos[1], d.starty))
+		})
+
+};
+function selectionHandlerStart() {
+	var selectionStart = d3.mouse(svg_content.node());
+	svg_content.selectAll("#selectionRect")
+		.style("visibility", "visible")
+		.each(function (d) {
+			d.startx = selectionStart[0];
+			d.starty = selectionStart[1];
+		});
+};
+function selectionHandlerEnd() {
+	var mousepos = d3.mouse(svg_content.node());
+	svg_content.selectAll("#selectionRect")
+		.style("visibility", "hidden")
+		.each(function (d) {
+			var minx = Math.min(mousepos[0], d.startx);
+			var maxx = Math.max(mousepos[0], d.startx);
+			var miny = Math.min(mousepos[1], d.starty);
+			var maxy = Math.max(mousepos[1], d.starty);
+			svg_content.selectAll("g")
+				.filter(function (n) {
+					return (
+						n.x <= maxx &&
+						n.x >= minx &&
+						n.y <= maxy &&
+						n.y >= miny)
+				})
+				.classed("selected", true);
+		})
+};
+function svgClickHandler() {
+	svg_content.selectAll("g.selected")
+		.classed("selected", false);
+	dehilightNodes();
+};
+this.svg_result = function () { return (svg.node()); };
+
+function dehilightNodes() {
+	svg.selectAll(".node")
+		.classed("highlighted", false)
+		.classed("lowlighted", false);
+	svg.selectAll(".link")
+		.classed("lowlighted", false);
+
+};
+
+function highlightNodes(to_highlight) {
+	svg.selectAll(".node")
+		.classed("lowlighted", function (d) { return !to_highlight(d.id) });
+
+	svg.selectAll(".link")
+		.classed("lowlighted", true);
+};
+
+//only highlights node among the already highlighted
+function highlightSubNodes(to_highlight) {
+	svg.selectAll(".node")
+		.classed("lowlighted", function (d) { return (d3.select(this).classed("lowlighted")) || !to_highlight(d.id) });
+
+	svg.selectAll(".link")
+		.classed("lowlighted", true);
+};
 
 		};
 	});

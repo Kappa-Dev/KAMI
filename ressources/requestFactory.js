@@ -263,6 +263,18 @@ define(["ressources/d3/d3.js"],function(d3){
 				null,
 				null);
 		};
+
+		this.renameNode = function (graph_path,node_id,new_name,callback){
+			request("PUT",
+				"/graph/rename_node",
+				graph_path,
+				[{id:"node_id",val:node_id},{id:"new_name",val:new_name}],
+				"text/html",
+				callback,
+				null,
+				null);
+		};
+
 		/* add a node to a graph
 		 * @input : g_path : the graph path
 		 * @input : n_id : the node id

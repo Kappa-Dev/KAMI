@@ -1,5 +1,5 @@
 @import url("{{css_defs}}");
-@media all and (min-width: 50px)   {  body  { font-size:0.33em;  } }
+/*@media all and (min-width: 50px)   {  body  { font-size:0.33em;  } }
 @media all and (min-width: 100px)  {  body  { font-size:0.36em;  } }
 @media all and (min-width: 200px)  {  body  { font-size:0.40em;  } }
 @media all and (min-width: 300px)  {  body  { font-size:0.43em;  } }
@@ -20,7 +20,8 @@
 @media all and (min-width: 1700px) {  body  { font-size:0.93em;  } }
 @media all and (min-width: 1800px) {  body  { font-size:0.96em;  } }
 @media all and (min-width: 1900px) {  body  { font-size:1em;  } }
-@media all and (min-width: 2000px) {  body  { font-size:1.03em;  } }
+@media all and (min-width: 2000px) {  body  { font-size:1.03em;  } }*/
+
 
 
 #top_chart {
@@ -178,10 +179,12 @@ body{
 	display:flex;
 	flex-direction: column;
 	/*overflow:hidden;*/
+    border-radius:10px;
 	border-style:solid;
 	border-color:#DDDDDD;
+
 	width: 90%;
-	margin-top:2vh;
+	/*margin-top:2vh;*/
 }
 #scrolling_list{
 	/*float:left;
@@ -329,10 +332,10 @@ body{
 	/*margin-left :10rem;*/
 	/*height:50%;*/
 	display:flex;
-	align-items: center;
+	align-items: left;
 	flex-direction: column;
-	border-style:solid;
-	border-color:#DDDDDD;
+	/*border-style:solid;
+	border-color:#DDDDDD;*/
 	margin-top:1vh;
 
 }
@@ -581,4 +584,94 @@ height: 20px;
 	bottom: 3vh;
 	border: dotted 5px var(--separation-line-color);
 	opacity: 0.95;
+}
+
+.menu-icon {
+  display: block;
+  width: 3vw;
+  height: 3vh;
+  -webkit-mask-image: url(menu.svg);
+  mask: url(menu.svg);
+  -webkit-mask-size: 3vw  3vh;   
+  mask-size: 3vw  3vh;   
+  background:rgb(251, 249, 200);
+}
+
+.navbar-header.custom-header{
+    background-color: var(--top-chart-bg-color)!important;
+	border: 0!important;
+}
+
+#myNavBar{
+    background-color: var(--top-chart-bg-color)!important;
+	border: 0!important;
+	width: 100%;
+
+}
+.navbar-collapse.custom-menu{
+    background-color: white!important;
+	/*overflow: visible !important;*/
+}
+.divider{
+	border-top: solid;
+}
+#test_menu{
+	width:100%;
+}
+#hamMenu1{
+	width:100%;
+	border-radius: 10px;
+}
+
+.inputfile {
+    display: none!important;
+	width: 0.1px;
+	height: 0.1px;
+	opacity: 0;
+	overflow: hidden;
+	/*position: absolute;*/
+	z-index: -1;
+}
+
+/*.dropdown-menu {
+  width: 100%; 
+}*/
+
+
+#newGraphBtn:hover > .newGraph-icon{
+  background:#000000;
+}
+
+#newGraphBtn:focus:not(:hover) > .newGraph-icon{
+  background:#cccccc;
+}
+
+
+.newGraph-icon {
+  display: block;
+  width: 2vw;
+  height: 2vh;
+  -webkit-mask-image: url(ico_new_graph.svg);
+  mask: url(ico_new_graph.svg);
+  -webkit-mask-size: 2vw  2vh;   
+  mask-size: 2vw  2vh;   
+  background:#cccccc;
+}
+
+.menubtn{
+  width: 2vw;
+  height: 2vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.navbar-toggle :hover{
+  background-color: #dddddd;
+}
+.navbar-toggle:focus:not(:hover){
+	/*background-color: var(--top-chart-bg-color) ;*/
+	background-color: transparent !important ;
 }
