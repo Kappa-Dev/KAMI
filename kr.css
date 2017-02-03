@@ -178,11 +178,13 @@ body{
 	/*height:100%;*/
 	display:flex;
 	flex-direction: column;
+	align-items: center;
 	/*overflow:hidden;*/
     border-radius:10px;
 	border-style:solid;
+	border-width:1px;
 	border-color:#DDDDDD;
-
+	padding: 2vh;
 	width: 90%;
 	/*margin-top:2vh;*/
 }
@@ -190,6 +192,7 @@ body{
 	/*float:left;
 	max-width:600px;*/
 	height:100%;
+	width:100%;
 	display:flex;
 	flex-direction: column;
 	flex-wrap: wrap;
@@ -250,7 +253,7 @@ body{
 
 }
 .tab_menu_el_name{
-	max-width: 60%;
+	max-width: 80%;
 	overflow: hidden;
 
 }
@@ -529,6 +532,7 @@ svg{
 }
 #nugFilter{
 margin-top: 1vh;
+margin-bottom: 1vh;
 }
 
 .separation_line{
@@ -562,12 +566,14 @@ opacity: 0.1;
 
 #top_h_select{
 	display: flex;
+	width:100%;
 }
 
 #top_h_select .icon{
+  margin-left: 10px;
   display: block;
-width: 15%;
-height: 20px;
+  width: 15%;
+  height: 20px;
   -webkit-mask-image: url(arrow.svg);
   mask: url(arrow.svg);
   -webkit-mask-size: 2vw  2vh;   
@@ -674,4 +680,13 @@ height: 20px;
 .navbar-toggle:focus:not(:hover){
 	/*background-color: var(--top-chart-bg-color) ;*/
 	background-color: transparent !important ;
+}
+
+.tab_menu_el_separator{
+	margin-top: 1vh;
+	margin-bottom: 1vh;
+	width:50%;
+	height:3px;
+	background:#717171;
+	border-bottom:1px solid #313030;
 }

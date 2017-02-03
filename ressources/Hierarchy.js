@@ -25,9 +25,11 @@ define([
 		var container = d3.select("#"+container_id).append("div").attr("id","tab_menu").classed("top_menu",true);//add all tabl to menu
 		var hierarchy = new Tree();//a tree containing the whole hierarchy
 		var top_h_select = container.append("div").attr("id","top_h_select");
+		container.append("div").classed("tab_menu_el_separator",true);
 		var h_select = top_h_select.append("select").attr("id","h_select").classed("mod_el",true);//the hierarchy selector
 		top_h_select.append("i").attr("id","gotoParent").classed("icon",true);//the hierarchy selector
 		var h_list = container.append("div").attr("id","scrolling_list");//the list of son of the specified node
+		container.append("div").classed("tab_menu_el_separator",true);
 		var textBox = container.append("input")
 		                       .attr("type","text")
 		                       .attr("id","nugFilter")

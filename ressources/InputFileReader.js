@@ -47,7 +47,7 @@ define([
 					 <nav class="navbar navbar-default" id="myNavBar" role="navigation">
             <!-- Brand and toggle get grouped for better mobile display -->
             <div class="navbar-header custom-header">
-               <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#hamMenu1">
+               <button type="button" class="navbar-toggle" id="navbarButton" data-toggle="collapse" data-target="#hamMenu1">
 			   <div class="menubtn">
                <span class="sr-only">Toggle navigation</span>
                <span class="icon-bar"></span>
@@ -125,7 +125,19 @@ define([
 			  .on("submit",exportFile2);
 
 			d3.select("#newGraphBtn")
-			  .on("click",() => disp.call("addGraph",this))  
+			  .on("click",() => disp.call("addGraph",this));
+
+
+            container.append("a")
+                .attr("id","json_link")
+                .attr("download","model.ka")
+                .attr("href","#");
+            container.append("a")
+                .attr("id","json_hierarchy_link")
+                .attr("download","hierarchy.json")
+                .attr("href","#");
+
+
 
 			// container.append("div")//add the export button
 			// 	.attr("id","export")
@@ -165,14 +177,6 @@ define([
 			// 	.classed("unselectable",true);
 
 
-            container.append("a")
-                .attr("id","json_link")
-                .attr("download","model.ka")
-                .attr("href","#");
-            container.append("a")
-                .attr("id","json_hierarchy_link")
-                .attr("download","hierarchy.json")
-                .attr("href","#");
 
 
 			// container.append("div")//add the to Kappa button
