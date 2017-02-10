@@ -76,6 +76,11 @@ define([
                                        <input type="checkbox" id="mergeCheckBox"> Merge 
                                        </label>
                                     </div>
+                                    <div class="checkbox">
+                                       <label>
+                                       <input type="checkbox" id="OldFormatCheckBox"> Old format
+                                       </label>
+                                    </div>
                                     <div class="form-group">
                                       <input type="file" class="form-control inputfile" id="ImportfileInput" placeholder="" required="true">
 									  <label for="ImportfileInput" class="btn btn-success btn-block">Import</label>
@@ -209,28 +214,33 @@ define([
 		function importFile2() {
 			let input_files = d3.select("#ImportfileInput").node().files;
 			let merge = d3.select("#mergeCheckBox").property("checked");
+			let oldFormat = d3.select("#OldFormatCheckBox").property("checked");
 			let top_graph = d3.select("#graphPathInput").property("value");
-			if (top_graph === "") { alert("the new hierarchy position is empty"); return 0; }
+			if (top_graph === "" && !oldFormat) { alert("the new hierarchy position is empty"); return 0; }
 			if (input_files.length > 0) {
 				let file = input_files[0];
 				let ka = new FileReader();
 				ka.onloadend = function (e) {
-					d3.json(e.target.result, function (rep) {
-						if (merge) {
-							request.mergeHierarchy(
-								top_graph,
-								JSON.stringify(rep, null, "\t"),
-								afterImport);
-						}
-						else {
-							request.AddHierarchy(
-								top_graph,
-								JSON.stringify(rep, null, "\t"),
-								afterImport);
-						}
-						console.log(rep, merge);
+					if (oldFormat) {
+						converter.kamiToRegraph(e.target.result, dispatch, "Graph");
+					}
+					else {
+						d3.json(e.target.result, function (rep) {
+							if (merge) {
+								request.mergeHierarchy(
+									top_graph,
+									JSON.stringify(rep, null, "\t"),
+									afterImport);
+							}
+							else {
+								request.addHierarchy(
+									top_graph,
+									JSON.stringify(rep, null, "\t"),
+									afterImport);
+							}
 
-					})
+						})
+					}
 				};
 				ka.readAsDataURL(file);
 			}
@@ -259,7 +269,7 @@ define([
 		function exportFile2() {
 			d3.event.preventDefault();
 			let graphPath = d3.select("#graphPathInput-export")
-			  .property("value");
+				.property("value");
 			request.getHierarchyWithGraphs(
 				graphPath,
 				function (err, ret) {
