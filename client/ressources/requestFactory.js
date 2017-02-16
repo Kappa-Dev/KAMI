@@ -4,8 +4,8 @@
  * This module is part of regraphGui project
  * this project is under AGPL Licence
 */
-define(["ressources/d3/d3.js"],function(d3){
-	return function RequestFactory(url){
+define(["ressources/d3/d3.js"], function (d3) {
+	return function RequestFactory(url) {
 		var self = this;
 		var srv = url;
 		/* Uniformized request function
@@ -21,31 +21,31 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : rsp_pars : a parser to call on the response before calling the callback function
 		 * @return : the callback function
 		 */
-		function request(type,loc,path,urlparam,content_type,callback,data,rsp_pars){
-			var url_param_string = "" ;
-			if(urlparam && urlparam.length>0){
-				url_param_string=urlparam.reduce(function(accu,e,i){
-					return accu+=e.id+"="+e.val+(i<urlparam.length-1?"&":"");
-				},"?");
+		function request(type, loc, path, urlparam, content_type, callback, data, rsp_pars) {
+			var url_param_string = "";
+			if (urlparam && urlparam.length > 0) {
+				url_param_string = urlparam.reduce(function (accu, e, i) {
+					return accu += e.id + "=" + e.val + (i < urlparam.length - 1 ? "&" : "");
+				}, "?");
 			}
-			var isSlash = (path && path!="/")?"/":"";
-			var rq = d3.request(srv+loc+path+isSlash+url_param_string)
+			var isSlash = (path && path != "/") ? "/" : "";
+			var rq = d3.request(srv + loc + path + isSlash + url_param_string)
 				.mimeType(content_type)
-				.response(function(xhr){return rsp_pars?rsp_pars(xhr.responseText):xhr.responseText;})
-				.on("error", function(error) { errorCb(error); })
-				if(type == "POST") 
-					rq.header("X-Requested-With", "XMLHttpRequest")
-				rq.on("load", function(xhr) { callback(null, xhr); });
-				rq.send(type,data);
+				.response(function (xhr) { return rsp_pars ? rsp_pars(xhr.responseText) : xhr.responseText; })
+				.on("error", function (error) { errorCb(error); })
+			if (type == "POST")
+				rq.header("X-Requested-With", "XMLHttpRequest")
+			rq.on("load", function (xhr) { callback(null, xhr); });
+			rq.send(type, data);
 		};
 		/* Generic Error handler for request
 		 * @input : error : the error returned by the request
 		 * @return : console error message
 		 */
-		function errorCb(error){
-			if(error.currentTarget.status !=0){
-				alert(error.currentTarget.status+" : "+error.currentTarget.statusText+"\n"+error.currentTarget.response);
-			}else alert("Unexpected Server Error");
+		function errorCb(error) {
+			if (error.currentTarget.status != 0) {
+				alert(error.currentTarget.status + " : " + error.currentTarget.statusText + "\n" + error.currentTarget.response);
+			} else alert("Unexpected Server Error");
 			console.error("unable to complete request :");
 			console.error(error);
 		};
@@ -54,32 +54,32 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.getHierarchy = function getHierarchy(hie_path,callback){
+		this.getHierarchy = function getHierarchy(hie_path, callback) {
 			request("GET",
 				"/hierarchy",
 				hie_path,
-				[{id:"include_graphs",val:false},{id:"rules",val:true}],
+				[{ id: "include_graphs", val: false }, { id: "rules", val: true }],
 				"application/json",
 				callback,
 				null,
 				JSON.parse);
 		};
-		this.getHierarchyWithGraphs = function getHierarchyWithGraphs(hie_path,callback){
+		this.getHierarchyWithGraphs = function getHierarchyWithGraphs(hie_path, callback) {
 			request("GET",
 				"/hierarchy",
 				hie_path,
-				[{id:"include_graphs",val:true},{id:"rules",val:false}],
+				[{ id: "include_graphs", val: true }, { id: "rules", val: false }],
 				"application/json",
 				callback,
 				null,
 				JSON.parse);
 		};
 
-		this.getGraphAndDirectChildren = function getHierarchyWithGraphs(hie_path,callback){
+		this.getGraphAndDirectChildren = function getHierarchyWithGraphs(hie_path, callback) {
 			request("GET",
 				"/hierarchy",
 				hie_path,
-				[{id:"include_graphs",val:true},{id:"rules",val:false},{depth_bound:1}],
+				[{ id: "include_graphs", val: true }, { id: "rules", val: false }, { depth_bound: 1 }],
 				"application/json",
 				callback,
 				null,
@@ -89,15 +89,15 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback  : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.getVersion = function getVersion(callback){
+		this.getVersion = function getVersion(callback) {
 			request("GET",
-			"/version",
-			"",
-			null,
-			"text/html",
-			callback,
-			null,
-			null
+				"/version",
+				"",
+				null,
+				"text/html",
+				callback,
+				null,
+				null
 			)
 		};
 		/* get a graph in json format
@@ -105,7 +105,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.getGraph = function getGraph(gr_path,callback){
+		this.getGraph = function getGraph(gr_path, callback) {
 			request("GET",
 				"/graph",
 				gr_path,
@@ -137,11 +137,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.getMatching = function getMatching(gr_path,rule_path,callback){
+		this.getMatching = function getMatching(gr_path, rule_path, callback) {
 			request("GET",
 				"/graph/matchings",
 				gr_path,
-				[{id:"rule_name",val:rule_path}],
+				[{ id: "rule_name", val: rule_path }],
 				"application/json",
 				callback,
 				null,
@@ -153,7 +153,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.getRule = function getRule(gr_path,callback){
+		this.getRule = function getRule(gr_path, callback) {
 			request("GET",
 				"/rule",
 				gr_path,
@@ -169,13 +169,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : resp : the graph as a hierarchy
 		 * @return : the requested rule
 		 */
-		function subRule(r_name,resp){
-			if(!resp.rules){
+		function subRule(r_name, resp) {
+			if (!resp.rules) {
 				console.error("this hierarchy has no rules");
 				return {};
 			}
 			var r_idx = resp.rules.indexOf(r_name);
-			if(r_idx<0) throw new Error("unable to find this rule : "+r_name)
+			if (r_idx < 0) throw new Error("unable to find this rule : " + r_name)
 			return resp.rules[r_idx];
 		};
 		/* delete a graph and all its children
@@ -183,7 +183,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.delHierarchy = function delHierarchy(hie_path,callback){
+		this.delHierarchy = function delHierarchy(hie_path, callback) {
 			request("DELETE",
 				"/hierarchy",
 				hie_path,
@@ -199,8 +199,8 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addHierarchy = function addHierarchy(hie_path,data,callback){
-			d3.request(srv+"/hierarchy"+hie_path)
+		this.addHierarchy = function addHierarchy(hie_path, data, callback) {
+			d3.request(srv + "/hierarchy" + hie_path)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(data, callback);
@@ -213,13 +213,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @return : on succeed : callback function
 		 * TODO : transforming this function in something usefull
 		 */
-		this.mergeHierarchy = function mergeHierarchy(hie_path,data,callback){
-			var rq = d3.request(srv+"/hierarchy"+hie_path)
-				     	.header("X-Requested-With", "XMLHttpRequest")
-				    	.header("Content-Type", "application/json")
-				    	.mimeType("application/json")
-				    	.on("error", function(error) { callback(error,null); })
-				    	.on("load", function(xhr) { callback(null, xhr); });
+		this.mergeHierarchy = function mergeHierarchy(hie_path, data, callback) {
+			var rq = d3.request(srv + "/hierarchy" + hie_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.mimeType("application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", data);
 		};
 		/* create a new rule
@@ -228,8 +228,8 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addRule = function addRule(rule_path,pattern,callback){
-			d3.request(srv+"/rule"+encodeURIComponent(rule_path)+"?pattern_name="+pattern)
+		this.addRule = function addRule(rule_path, pattern, callback) {
+			d3.request(srv + "/rule" + encodeURIComponent(rule_path) + "?pattern_name=" + pattern)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(null, callback);
@@ -242,8 +242,8 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.graphFromRule = function graphFromRule(graph_path,src_gr,rule_n,data,callback){
-			d3.request(srv+"/graph/apply"+graph_path+"?target_graph="+src_gr+"&rule_name="+rule_n)
+		this.graphFromRule = function graphFromRule(graph_path, src_gr, rule_n, data, callback) {
+			d3.request(srv + "/graph/apply" + graph_path + "?target_graph=" + src_gr + "&rule_name=" + rule_n)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(data, callback);
@@ -253,7 +253,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.delGraph = function delGraph(gr_path,callback){
+		this.delGraph = function delGraph(gr_path, callback) {
 			request("DELETE",
 				"/graph",
 				gr_path,
@@ -264,11 +264,11 @@ define(["ressources/d3/d3.js"],function(d3){
 				null);
 		};
 
-		this.renameNode = function (graph_path,node_id,new_name,callback){
+		this.renameNode = function (graph_path, node_id, new_name, callback) {
 			request("PUT",
 				"/graph/rename_node",
 				graph_path,
-				[{id:"node_id",val:node_id},{id:"new_name",val:new_name}],
+				[{ id: "node_id", val: node_id }, { id: "new_name", val: new_name }],
 				"text/html",
 				callback,
 				null,
@@ -282,11 +282,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addNode = function addNode(g_path,n_id,n_type,callback){
+		this.addNode = function addNode(g_path, n_id, n_type, callback) {
 			request("PUT",
 				"/graph/add_node",
 				g_path,
-				[{id:"node_id",val:n_id},{id:"node_type",val:(n_type?n_type:"")}],
+				[{ id: "node_id", val: n_id }, { id: "node_type", val: (n_type ? n_type : "") }],
 				"text/html",
 				callback,
 				null,
@@ -301,11 +301,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rmNode = function rmNode(g_path,n_id,force,callback){
+		this.rmNode = function rmNode(g_path, n_id, force, callback) {
 			request("PUT",
 				"/graph/rm_node",
 				g_path,
-				[{id:"node_id",val:n_id},{id:"force",val:force}],
+				[{ id: "node_id", val: n_id }, { id: "force", val: force }],
 				"text/html",
 				callback,
 				null,
@@ -318,13 +318,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addNodeAtt = function addNodeAtt(g_path,n_id,dico,callback){
-			var rq = d3.request(srv+"/graph/add_attr"+g_path+"?node_id="+encodeURIComponent(n_id))
-				     	.header("X-Requested-With", "XMLHttpRequest")
-				    	.header("Content-Type", "application/json")
-				    	.mimeType("application/json")
-				    	.on("error", function(error) { callback(error,null); })
-				    	.on("load", function(xhr) { callback(null, xhr); });
+		this.addNodeAtt = function addNodeAtt(g_path, n_id, dico, callback) {
+			var rq = d3.request(srv + "/graph/add_attr" + g_path + "?node_id=" + encodeURIComponent(n_id))
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.mimeType("application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", dico);
 		};
 		/* remove specified attrobutes from an existing node
@@ -334,13 +334,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rmNodeAtt = function rmNodeAtt(g_path,n_id,dico,callback){
-			var rq = d3.request(srv+"/graph/rm_attr"+g_path+"?node_id="+encodeURIComponent(n_id))
-				     	.header("X-Requested-With", "XMLHttpRequest")
-				    	.header("Content-Type", "application/json")
-				    	.mimeType("application/json")
-				    	.on("error", function(error) { callback(error,null); })
-				    	.on("load", function(xhr) { callback(null, xhr); });
+		this.rmNodeAtt = function rmNodeAtt(g_path, n_id, dico, callback) {
+			var rq = d3.request(srv + "/graph/rm_attr" + g_path + "?node_id=" + encodeURIComponent(n_id))
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.mimeType("application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", dico);
 		};
 		/* merge two nodes of the same type
@@ -354,11 +354,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.mergeNode = function mergeNode(g_path,n_id1,n_id2,new_id,force,callback){
+		this.mergeNode = function mergeNode(g_path, n_id1, n_id2, new_id, force, callback) {
 			request("PUT",
 				"/graph/merge_node",
 				g_path,
-				[{id:"force",val:force},{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id}],
+				[{ id: "force", val: force }, { id: "node1", val: n_id1 }, { id: "node2", val: n_id2 }, { id: "new_node_id", val: new_id }],
 				"text/html",
 				callback,
 				null,
@@ -371,11 +371,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.cloneNode = function cloneNode(g_path,n_id,new_id,callback){
+		this.cloneNode = function cloneNode(g_path, n_id, new_id, callback) {
 			request("PUT",
 				"/graph/clone_node",
 				g_path,
-				[{id:"node_id",val:n_id},{id:"new_node_id",val:new_id}],
+				[{ id: "node_id", val: n_id }, { id: "new_node_id", val: new_id }],
 				"text/html",
 				callback,
 				null,
@@ -388,11 +388,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addEdge = function addEdge(g_path,src,trg,callback){
+		this.addEdge = function addEdge(g_path, src, trg, callback) {
 			request("PUT",
 				"/graph/add_edge",
 				g_path,
-				[{id:"source_node",val:encodeURIComponent(src)},{id:"target_node",val:encodeURIComponent(trg)}],
+				[{ id: "source_node", val: encodeURIComponent(src) }, { id: "target_node", val: encodeURIComponent(trg) }],
 				"text/html",
 				callback,
 				null,
@@ -408,11 +408,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rmEdge = function rmEdge(g_path,src,trg,force,callback){
+		this.rmEdge = function rmEdge(g_path, src, trg, force, callback) {
 			request("PUT",
 				"/graph/rm_edge",
 				g_path,
-				[{id:"source_node",val:src},{id:"target_node",val:trg},{id:"force",val:force}],
+				[{ id: "source_node", val: src }, { id: "target_node", val: trg }, { id: "force", val: force }],
 				"text/html",
 				callback,
 				null,
@@ -424,11 +424,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rnGraph = function rnGraph(g_path,name,callback){
+		this.rnGraph = function rnGraph(g_path, name, callback) {
 			request("PUT",
 				"/graph/rename_graph",
 				g_path,
-				[{id:"new_name",val:name}],
+				[{ id: "new_name", val: name }],
 				"text/html",
 				callback,
 				null,
@@ -439,8 +439,8 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addGraph = function addGraph(gr_path,callback){
-			d3.request(srv+"/graph"+gr_path)
+		this.addGraph = function addGraph(gr_path, callback) {
+			d3.request(srv + "/graph" + gr_path)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.post(null, callback);
 		};
@@ -451,11 +451,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.ruleaddNode = function ruleaddNode(g_path,n_id,n_type,callback){
+		this.ruleaddNode = function ruleaddNode(g_path, n_id, n_type, callback) {
 			request("PUT",
 				"/rule/add_node",
 				g_path,
-				[{id:"node_id",val:n_id},{id:"node_type",val:n_type}],
+				[{ id: "node_id", val: n_id }, { id: "node_type", val: n_type }],
 				"text/html",
 				callback,
 				null,
@@ -467,11 +467,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rulermNode = function rulermNode(g_path,n_id,callback){
+		this.rulermNode = function rulermNode(g_path, n_id, callback) {
 			request("PUT",
 				"/rule/rm_node",
 				g_path,
-				[{id:"node_id",val:n_id}],
+				[{ id: "node_id", val: n_id }],
 				"text/html",
 				callback,
 				null,
@@ -488,11 +488,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rulemergeNode = function rulemergeNode(g_path,n_id1,n_id2,new_id,force,callback){
+		this.rulemergeNode = function rulemergeNode(g_path, n_id1, n_id2, new_id, force, callback) {
 			request("PUT",
 				"/rule/merge_node",
 				g_path,
-				[{id:"node1",val:n_id1},{id:"node2",val:n_id2},{id:"new_node_id",val:new_id},{id:"force",val:force}],
+				[{ id: "node1", val: n_id1 }, { id: "node2", val: n_id2 }, { id: "new_node_id", val: new_id }, { id: "force", val: force }],
 				"text/html",
 				callback,
 				null,
@@ -505,11 +505,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rulecloneNode = function rulecloneNode(g_path,n_id,new_id,callback){
+		this.rulecloneNode = function rulecloneNode(g_path, n_id, new_id, callback) {
 			request("PUT",
 				"/rule/clone_node",
 				g_path,
-				[{id:"node_id",val:n_id},{id:"new_node_id",val:new_id}],
+				[{ id: "node_id", val: n_id }, { id: "new_node_id", val: new_id }],
 				"text/html",
 				callback,
 				null,
@@ -522,11 +522,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.ruleaddEdge = function ruleaddEdge(g_path,src,trg,callback){
+		this.ruleaddEdge = function ruleaddEdge(g_path, src, trg, callback) {
 			request("PUT",
 				"/rule/add_edge",
 				g_path,
-				[{id:"source_node",val:src},{id:"target_node",val:trg}],
+				[{ id: "source_node", val: src }, { id: "target_node", val: trg }],
 				"text/html",
 				callback,
 				null,
@@ -539,11 +539,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rulermEdge = function rulermEdge(g_path,src,trg,callback){
+		this.rulermEdge = function rulermEdge(g_path, src, trg, callback) {
 			request("PUT",
 				"/rule/rm_edge",
 				g_path,
-				[{id:"source_node",val:src},{id:"target_node",val:trg}],
+				[{ id: "source_node", val: src }, { id: "target_node", val: trg }],
 				"text/html",
 				callback,
 				null,
@@ -555,11 +555,11 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rnRule = function rnRule(g_path,name,callback){
+		this.rnRule = function rnRule(g_path, name, callback) {
 			request("PUT",
 				"/rule/rename_graph",
 				g_path,
-				[{id:"new_name",val:name}],
+				[{ id: "new_name", val: name }],
 				"text/html",
 				callback,
 				null,
@@ -575,13 +575,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addConstraint = function addConstraint(g_path,n_id,e_type,cstr,bnd,order,callback){
+		this.addConstraint = function addConstraint(g_path, n_id, e_type, cstr, bnd, order, callback) {
 			request("PUT",
 				"/graph/add_constraint",
 				g_path,
-				[{id:"node_id",val:n_id},
-				{id:"input_or_output",val:e_type},
-				{id:"constraint_node",val:cstr},{id:"bound",val:bnd},{id:"le_or_ge",val:order}],
+				[{ id: "node_id", val: n_id },
+				{ id: "input_or_output", val: e_type },
+				{ id: "constraint_node", val: cstr }, { id: "bound", val: bnd }, { id: "le_or_ge", val: order }],
 				"text/html",
 				callback,
 				null,
@@ -597,13 +597,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rmConstraint = function rmConstraint(g_path,n_id,e_type,cstr,bnd,order,callback){
+		this.rmConstraint = function rmConstraint(g_path, n_id, e_type, cstr, bnd, order, callback) {
 			request("PUT",
 				"/graph/delete_constraint",
 				g_path,
-				[{id:"node_id",val:n_id},
-				{id:"input_or_output",val:e_type},
-				{id:"constraint_node",val:cstr},{id:"bound",val:bnd},{id:"le_or_ge",val:order}],
+				[{ id: "node_id", val: n_id },
+				{ id: "input_or_output", val: e_type },
+				{ id: "constraint_node", val: cstr }, { id: "bound", val: bnd }, { id: "le_or_ge", val: order }],
 				"text/html",
 				callback,
 				null,
@@ -614,7 +614,7 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function of string list
 		 */
-		this.validate = function validate(g_path,callback){
+		this.validate = function validate(g_path, callback) {
 			request("PUT",
 				"/graph/validate_constraint",
 				g_path,
@@ -623,13 +623,13 @@ define(["ressources/d3/d3.js"],function(d3){
 				callback,
 				null,
 				null);
-		};	
+		};
 		/* get meta-data from graphs
 		 * @input : g_path : the graph path
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function of dictionary
 		 */
-		this.getAttr = function getAttr(g_path,callback){
+		this.getAttr = function getAttr(g_path, callback) {
 			request("GET",
 				"/graph/get_graph_attr",
 				g_path,
@@ -645,13 +645,13 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.addAttr = function addAttr(hie_path,data,callback){
-			var rq = d3.request(srv+"/graph/update_graph_attr"+hie_path)
-				     	.header("X-Requested-With", "XMLHttpRequest")
-				    	.header("Content-Type", "application/json")
-				    	.mimeType("application/json")
-				    	.on("error", function(error) { callback(error,null); })
-				    	.on("load", function(xhr) { callback(null, xhr); });
+		this.addAttr = function addAttr(hie_path, data, callback) {
+			var rq = d3.request(srv + "/graph/update_graph_attr" + hie_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.mimeType("application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", data);
 		};
 		// 	request("PUT",
@@ -669,20 +669,20 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function
 		 */
-		this.rmAttr = function rmAttr(g_path,data,callback){
-			var rq = d3.request(srv+"/graph/delete_graph_attr"+g_path)
-				     	.header("X-Requested-With", "XMLHttpRequest")
-				    	.header("Content-Type", "application/json")
-				    	.mimeType("application/json")
-				    	.on("error", function(error) { callback(error,null); })
-				    	.on("load", function(xhr) { callback(null, xhr); });
+		this.rmAttr = function rmAttr(g_path, data, callback) {
+			var rq = d3.request(srv + "/graph/delete_graph_attr" + g_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.mimeType("application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", data);
 		};
 		/* get regraph version
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function of dictionary
 		 */
-		this.getVersion = function getVersion(callback){
+		this.getVersion = function getVersion(callback) {
 			request("GET",
 				"/version",
 				null,
@@ -698,15 +698,15 @@ define(["ressources/d3/d3.js"],function(d3){
 		 * @input : callback : the return callback function
 		 * @return : on succeed : callback function of dictionary
 		 */
-		this.getKappa = function getKappa(g_path, nuggets, callback){
-			d3.request(srv+"/graph/get_kappa"+g_path)
+		this.getKappa = function getKappa(g_path, nuggets, callback) {
+			d3.request(srv + "/graph/get_kappa" + g_path)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(nuggets, callback);
 		};
 
-		this.getChildren = function(g_path,n_id,callback){
-			d3.request(srv+"/graph/get_children"+g_path+"?node_id="+encodeURIComponent(n_id))
+		this.getChildren = function (g_path, n_id, callback) {
+			d3.request(srv + "/graph/get_children" + g_path + "?node_id=" + encodeURIComponent(n_id))
 				// .header("X-Requested-With", "XMLHttpRequest")
 				// .header("Content-Type", "application/json")
 				.get(callback);
@@ -717,14 +717,37 @@ define(["ressources/d3/d3.js"],function(d3){
 		* @input : degree : int > 1, the desired ancestor degree
 		* @input : callback : the return callback function
 		* @return : on succeed : callback function of dictionary
-		*/	
-		this.getAncestors = function(g_path, degree, callback){
-			var myCallback = function(err,rep){
-				if (err){callback(err,null)}
-				else{
-					callback(null, JSON.parse(rep.response))}
+		*/
+		this.getAncestors = function (g_path, degree, callback) {
+			var myCallback = function (err, rep) {
+				if (err) { callback(err, null) }
+				else {
+					callback(null, JSON.parse(rep.response))
+				}
 			}
-			d3.request(srv+"/graph/get_ancestors"+g_path+"/"+"?degree="+encodeURIComponent(degree)).get(myCallback);
+			d3.request(srv + "/graph/get_ancestors" + g_path + "/" + "?degree=" + encodeURIComponent(degree)).get(myCallback);
 		};
+
+	    /* creates a graph from selected nodes
+		* @input : g_path : the graph path
+		* @input : new_name : the name of the new graph
+		* @input : node_list : the selected nodes
+		*/
+
+		this.newGraphFromNodes = function (g_path, new_name, node_list, callback) {
+			d3.request(srv + "/graph/graph_from_nodes" + g_path + "/" + new_name + "/")
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(JSON.stringify({"names": node_list}), callback);
+		};
+
+		this.mergeGraphs = function (g_path, new_name, graphLeft, graphRight, relation, callback) {
+			d3.request(srv + "/graph/merge_graphs" + g_path + "/" +
+				encodeURIComponent(new_name) + "/" + "?graph1=" + graphLeft + "&graph2=" + graphRight)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(JSON.stringify(relation), callback);
+		};
+
 	}
 });

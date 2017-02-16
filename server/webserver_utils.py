@@ -7,13 +7,13 @@ def parse_path(cmd, path_to_graph):
         parent_cmd = cmd
     else:
         graph_name = l[-1]
-        parent_cmd = cmd.subCmd(l[:-1])
+        parent_cmd = cmd.get_sub_hierarchy(l[:-1])
     return (parent_cmd, graph_name)
 
 
 def get_cmd(cmd, path):
     path_list = [s for s in path.split("/") if s and not s.isspace()]
-    return(cmd.subCmd(path_list))
+    return(cmd.get_sub_hierarchy(path_list))
 
 def get_command(cmd, path_to_graph, callback):
     try:

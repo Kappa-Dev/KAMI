@@ -2,7 +2,10 @@ from flask import Blueprint, Response, request
 import json
 from metamodels import (base_metamodel, metamodel_kappa, kami, base_kami)
 from exporters import KappaExporter
-from webserver_utils import get_command
+from webserver_utils import get_command, parse_path
+import flex
+from flex.loading.schema.paths.path_item.operation.responses.single.schema\
+    import schema_validator
 
 import os
 import subprocess
@@ -10,6 +13,8 @@ import subprocess
 base_name = "kappa_base_metamodel"
 metamodel_name = "kappa_metamodel"
 
+YAML = os.path.join(os.path.dirname(__file__), 'iRegraph_api.yaml')
+json_schema_context = flex.load(YAML)
 
 kami_blueprint = Blueprint("kami_blueprint", __name__, template_folder="RegraphGui")
 
@@ -47,20 +52,20 @@ def get_kappa(path_to_graph=""):
             resp = Response(response=json.dumps(json_rep),
                             status=200,
                             mimetype="application/json")
-            return (resp)
+            return resp
         except ValueError as e:
             return (str(e), 412)
     return get_command(kami_blueprint.cmd, path_to_graph, get_kappa_aux)
 
 
-
 @kami_blueprint.route("/graph/to_metakappa/", methods=["PUT"])
-@kami_blueprint.route("/graph/to_metakappa/<path:path_to_graph>", methods=["PUT"])
+@kami_blueprint.route("/graph/to_metakappa/<path:path_to_graph>",
+                      methods=["PUT"])
 def to_metakappa(path_to_graph=""):
     def to_metakappa_aux(command):
         new_metamodel_name = request.args.get("new_metamodel_name")
         if not new_metamodel_name:
-            return("the query parameter new_metamodel_name is necessary", 404)
+            return ("the query parameter new_metamodel_name is necessary", 404)
         try:
             command.link_states()
             new_kappa_command = command.to_kappa_like()
@@ -71,27 +76,73 @@ def to_metakappa(path_to_graph=""):
             new_kappa_command.parent = kappa_meta
             new_kappa_command.name = new_metamodel_name
             new_kappa_command.graph.metamodel_ = kappa_meta.graph
-            return("translation done", 200)
+            return ("translation done", 200)
         except (ValueError, KeyError) as e:
-            return(str(e), 412)
+            return (str(e), 412)
     return get_command(kami_blueprint.cmd, path_to_graph, to_metakappa_aux)
 
 
-# functions used to add the kami metamodels to the hierarchy
-def include_kappa_metamodel(server, base_name=base_name, metamodel_name=metamodel_name):
+@kami_blueprint.route("/graph/link_components/", methods=["PUT"])
+@kami_blueprint.route("/graph/link_components/<path:path_to_graph>",
+                      methods=["PUT"])
+def link_components(path_to_graph=""):
+    def link_components_aux(command):
+        if command.graph.metamodel_ != kami:
+            return("the graph has to be an action graph", 404)
+        component1 = request.args.get("component1")
+        component2 = request.args.get("component2")
+        if not (component1 and component2):
+            return("parameters component1 and component2 are necessary", 404)
+        try:
+            command.link_components(component1, component2)
+            return("component linked", 200)
+        except (ValueError, KeyError) as e:
+            return(str(e), 412)
+    return get_command(kami_blueprint.cmd, path_to_graph, link_components_aux)
+
+
+@kami_blueprint.route("/graph/graph_from_nodes/", methods=["POST"])
+@kami_blueprint.route("/graph/graph_from_nodes/<path:path_to_graph>",
+                      methods=["POST"])
+def graph_from_nodes(path_to_graph=""):
+    """create a graph typed by the selected nodes"""
     try:
-        server.cmd._do_mkdir(base_name)
+        (parent_cmd, graph_name) = parse_path(kami_blueprint.cmd, path_to_graph)
+    except KeyError as e:
+        return ("the path is not valid", 404)
+    if graph_name is None:
+        return ("the empty path is not valid", 404)
+    nodes = request.json
+    try:
+        schema = schema_validator({'$ref': '#/definitions/NameList'},
+                                  context=json_schema_context)
+        flex.core.validate(schema, nodes, context=json_schema_context)
+    except ValueError as e:
+        return(str(e), 404)
+    try:
+        parent_cmd.new_graph_from_nodes(nodes["names"], graph_name)
+        return("graph created successfully", 200)
+    except (ValueError, KeyError) as e:
+        return (str(e), 404)
+
+# functions used to add the kami metamodels to the hierarchy
+def include_kappa_metamodel(server, base_name=base_name,
+                            metamodel_name=metamodel_name):
+    try:
+        server.cmd.new_graph(base_name)
         server.cmd.subCmds[base_name].graph = base_metamodel
-        server.cmd.subCmds[base_name]._do_mkdir(metamodel_name)
+        server.cmd.subCmds[base_name].new_graph(metamodel_name)
         server.cmd.subCmds[base_name].subCmds[metamodel_name].graph = metamodel_kappa
     except KeyError as e:
         return (str(e), 404)
 
-def include_kami_metamodel(server, base_name="kami_base", metamodel_name="kami"):
+
+def include_kami_metamodel(server, base_name="kami_base",
+                           metamodel_name="kami"):
     try:
-        server.cmd._do_mkdir(base_name)
+        server.cmd.new_graph(base_name)
         server.cmd.subCmds[base_name].graph = base_kami
-        server.cmd.subCmds[base_name]._do_mkdir(metamodel_name)
+        server.cmd.subCmds[base_name].new_graph(metamodel_name)
         server.cmd.subCmds[base_name].subCmds[metamodel_name].graph = kami
     except KeyError as e:
         return (str(e), 404)

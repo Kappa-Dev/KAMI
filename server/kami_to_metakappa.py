@@ -1,3 +1,4 @@
+"""manipulations specific to kami"""
 import copy
 from regraph.library.data_structures import TypedDiGraph
 from regraph.library.rewriters import Rewriter

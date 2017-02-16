@@ -1,1 +1,8 @@
 tests/js_tests/node_modules/*
+venv/*
+.vscode/*
+client/ressources/d3/*
+server/__pycache__/*
+node_modules/*
+.eslintrc.json
+package.json

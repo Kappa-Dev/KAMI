@@ -72,6 +72,11 @@ paths:
           default: false
           type: boolean
 
+        - name: depth_bound
+          in: query
+          description: bound the depth of the hierarchy, if 0 only show the top graph
+          type: integer
+
       responses:
         404:
           description: hierarchy not found
@@ -1228,6 +1233,92 @@ paths:
           description: the graph was not found
         212:
           description: other failure
+
+  /graph/get_children{graph_id}:
+    get:
+      summary: get the subgraphs referencing a node
+      parameters:
+        - name: graph_id
+          in: path
+          description: the id of the graph
+          required: true
+          type: string
+        - name: node_id
+          in: query
+          required: true
+          description: The parent node
+          type: string
+      responses:
+
+
+        200:
+          description: the nuggets
+          schema:
+            type: object
+            properties:
+              children:
+                type: array
+                items:
+                  type: string
+
+        404:
+          description: the graph was not found
+        212:
+          description: other failure
+
+  /graph/get_ancestors{graph_id}:
+    get:
+      summary: get a mapping from nodes to their ancestor
+      parameters:
+        - name: graph_id
+          in: path
+          description: the id of the graph
+          required: true
+          type: string
+        - name: degree
+          in: query
+          required: true
+          description: The ancestor degree
+          type: integer
+          minimum: 1
+
+      responses:
+
+        200:
+          description: the mapping
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Matching'
+
+        404:
+          description: the graph was not found
+        212:
+          description: other failure
+
+  /graph/nugget_from_nodes{graph_id}:
+    post:
+      summary: submit a of nodes from a graph and create a new graph typed by it
+      parameters:
+        - name: graph_id
+          in: path
+          description: the id of the new graph
+          required: true
+          type: string
+        - name: nodes_names
+          in: body
+          description: the names of the nodes
+          required: true
+          schema:
+            $ref: '#/definitions/NameList'
+      responses:
+        200:
+          description: graph creation successful
+        404:
+          description: the action graph or one nugget was not found
+        412:
+          description: one nugget is not valid
+
 definitions:
 
   Node:
@@ -1387,4 +1478,14 @@ definitions:
     type: array
     items:
       $ref: '#/definitions/Couple'
+
+  NameList:
+    type: object
+    required:
+    - names
+    properties:
+      names:
+        type: array
+        items:
+          type: string
 

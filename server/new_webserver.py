@@ -1,46 +1,56 @@
-from flask import Flask
+""" webserver with kami functionnalities"""
+
+import os
 import json
-from regraph.library.kami_graph_hierarchy import KamiHierarchy
-# from metamodels import (base_metamodel, metamodel_kappa, kami, base_kami)
+from flask import Flask
+from kami_graph_hierarchy import KamiHierarchy
 from webserver_base import app
-from webserver_kami import (include_kami_metamodel, include_kappa_metamodel, kami_blueprint)
-from flask_cors import CORS, cross_origin
+from webserver_kami import (include_kami_metamodel,
+                            include_kappa_metamodel,
+                            kami_blueprint)
+
+from flask_cors import CORS
+
 
 class MyFlask(Flask):
+    """flask server containing a hierarchy """
+
     def __init__(self, name, template_folder, hierarchy_constructor):
-        super().__init__(name, static_url_path="", template_folder=template_folder)
+        super().__init__(name,
+                         static_url_path="",
+                         template_folder=template_folder)
         self.cmd = hierarchy_constructor("/", None)
         self.cmd.graph = None
 
-server = MyFlask(__name__,
-   template_folder="RegraphGui",
-   hierarchy_constructor=KamiHierarchy)
+SERVER = MyFlask(__name__,
+                 template_folder="RegraphGui",
+                 hierarchy_constructor=KamiHierarchy)
 
-server.config['DEBUG'] = True
-CORS(server)
+# configures server
+SERVER.config['DEBUG'] = True
+CORS(SERVER)
 
-# give a pointer to the hierarchy to the blueprints 
+# give a pointer to the hierarchy to the blueprints
+app.cmd = SERVER.cmd
+kami_blueprint.cmd = SERVER.cmd
 
-app.cmd = server.cmd
-kami_blueprint.cmd = server.cmd
-
-# make the server use the blueprints
+# make the SERVER use the blueprints:
 # app handles the generic requests
 # kami_blueprint handles the kami specific requests
-
-server.register_blueprint(app)
-server.register_blueprint(kami_blueprint)
+SERVER.register_blueprint(app)
+SERVER.register_blueprint(kami_blueprint)
 
 
 # add the kami graphs to the hierarchy
-include_kappa_metamodel(server)
-include_kami_metamodel(server)
+include_kappa_metamodel(SERVER)
+include_kami_metamodel(SERVER)
 
 
 # load the exemples.json file to the hierarchy
-with open('example.json') as data_file:
-    data = json.load(data_file)
-server.cmd.merge_hierarchy(data)
+EXAMPLE = os.path.join(os.path.dirname(__file__), 'example.json')
+with open(EXAMPLE) as data_file:
+    DATA = json.load(data_file)
+SERVER.cmd.merge_hierarchy(DATA)
 
 if __name__ == "__main__":
-    server.run(host='0.0.0.0')
+    SERVER.run(host='0.0.0.0')

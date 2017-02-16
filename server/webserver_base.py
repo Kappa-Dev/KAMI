@@ -9,11 +9,14 @@ from exporters import KappaExporter
 import os
 import subprocess
 
-json_schema_context = flex.load('iRegraph_api.yaml')
+
+GUI_FOLDER = os.path.join(os.path.dirname(__file__), '../client/')
+YAML = os.path.join(os.path.dirname(__file__), 'iRegraph_api.yaml')
+json_schema_context = flex.load(YAML)
 
 
 # the app blueprint handles the generic regraph requests
-app = Blueprint("app", __name__, template_folder="RegraphGui")
+app = Blueprint("app", __name__, template_folder=GUI_FOLDER)
 
 @app.route("/hierarchy/", methods=["POST"])
 @app.route("/hierarchy/<path:path_to_graph>", methods=["POST"])
@@ -217,7 +220,7 @@ def get_rule(path_to_graph=""):
 #     if not pattern_name:
 #         return("the pattern_name argument is required", 404)
 #     try :
-#         parent_cmd = app.cmd.subCmd(parent_path)
+#         parent_cmd = app.cmd.get_sub_hierarchy(parent_path)
 #         if not parent_cmd.valid_new_name(new_name):
 #             return("Graph or rule already exists with this name", 409)
 #         elif pattern_name not in parent_cmd.subCmds.keys():
@@ -239,7 +242,7 @@ def create_graph(path_to_graph=""):
         if not parent_cmd.valid_new_name(graph_name):
             return("Graph or rule already exists with this name", 409)
         else:
-            parent_cmd._do_mkdir(graph_name)
+            parent_cmd.new_graph(graph_name)
             return("Graph created", 200)
     except KeyError as e:
         return(str(e), 404)
@@ -437,7 +440,7 @@ def add_node(command):
     if node_id in command.main_graph().nodes():
         return(Response("the node already exists", 412))
     try:
-        command._do_add_not_catched(node_id, node_type)
+        command.add_node(node_id, node_type)
         return("node added", 200)
     except ValueError as e:
         return("error: " + str(e), 412)
@@ -519,7 +522,7 @@ def add_edge(command):
     if command.main_graph().exists_edge(source_node, target_node):
         return("The edge already exists", 412)
     try:
-        command._do_ln_not_catched(source_node, target_node)
+        command.add_edge(source_node, target_node)
         return("edge added", 200)
     except ValueError as e:
         return("error: " + str(e), 412)
@@ -638,7 +641,7 @@ def add_constraint(path_to_graph=""):
     if input_or_output == "input":
         def add_constraint_to(command):
             try:
-                command.addInputConstraint(
+                command.add_input_constraint(
                     node_id, constraint_node, condition, viewableCondition)
                 return ("constraint added", 200)
             except ValueError as e:
@@ -683,14 +686,14 @@ def delete_constraint(path_to_graph=""):
     if input_or_output == "input":
         def delete_constraint_to(command):
             try:
-                command.deleteInputConstraint(node_id, viewableCondition)
+                command.delete_input_constraint(node_id, viewableCondition)
                 return ("constraint deleted", 200)
             except ValueError as e:
                 return(str(e), 412)
     elif input_or_output == "output":
         def delete_constraint_to(command):
             try:
-                command.deleteOutputConstraint(node_id, viewableCondition)
+                command.delete_output_constraint(node_id, viewableCondition)
                 return("constraint deleted", 200)
             except ValueError as e:
                 return (str(e), 412)
@@ -797,11 +800,12 @@ def get_version():
 
 @app.route("/favicon.ico", methods=["GET"])
 def get_icon():
-    return send_from_directory('RegraphGui', "favicon.ico")
+
+    return send_from_directory(GUI_FOLDER, "favicon.ico")
 
 @app.route("/", methods=["GET"])
 def goto_gui():
-    return redirect(url_for("get_gui"))
+    return redirect(url_for("app.get_gui"))
 
 
 @app.route("/guidark/index.js", methods=["GET"])
@@ -836,10 +840,7 @@ def get_dark_kr():
 @app.route("/gui/", methods=["GET"])
 @app.route("/gui/<path:path>", methods=["GET"])
 def get_gui(path="index.html"):
-    if os.path.isdir("RegraphGui"):
-        return send_from_directory('RegraphGui', path)
-    else:
-        return ("The gui is not in the directory", 404)
+    return send_from_directory(GUI_FOLDER, path)
 
 
 @app.route("/graph/get_graph_attr/", methods=["GET"])
@@ -964,7 +965,7 @@ def get_children(path_to_graph=""):
             return("the query parameter node_id is necessary", 404)
         try:
             nugget_list = command.get_children(node_id)
-            resp = Response(response=json.dumps({"children":nugget_list}),
+            resp = Response(response=json.dumps({"children": nugget_list}),
                             status=200,
                             mimetype="application/json")
             return resp
@@ -972,7 +973,38 @@ def get_children(path_to_graph=""):
             return(str(e), 412)
     return get_command(app.cmd, path_to_graph, get_children_aux)
 
-    
+
+@app.route("/graph/merge_graphs/", methods=["POST"])
+@app.route("/graph/merge_graphs/<path:path_to_graph>", methods=["POST"])
+def merge_graphs(path_to_graph=""):
+    """create a graph typed by the selected nodes"""
+    try:
+        (parent_cmd, graph_name) = parse_path(app.cmd, path_to_graph)
+    except KeyError as e:
+        return ("the path is not valid", 404)
+    if graph_name is None:
+        return ("the empty path is not valid", 404)
+    graph1 = request.args.get("graph1")
+    if not graph1:
+        return("argument graph1 is required")
+    graph2 = request.args.get("graph2")
+    if not graph2:
+        return("argument graph2 is required")
+    relation = request.json
+    try:
+        schema = schema_validator({'$ref': '#/definitions/Matching'},
+                                  context=json_schema_context)
+        flex.core.validate(schema, relation, context=json_schema_context)
+        rel = [(c["left"], c["right"]) for c in relation]
+    except ValueError as e:
+        return(str(e), 404)
+    try:
+        parent_cmd.merge_graphs(graph1, graph2, rel, graph_name)
+        return("graphs merged successfully", 200)
+    except (ValueError, KeyError) as e:
+        return (str(e), 404)
+
+
 @app.route("/rule/get_ancestors/", methods=["GET"])
 @app.route("/rule/get_ancestors/<path:path_to_graph>", methods=["GET"])
 @app.route("/graph/get_ancestors/", methods=["GET"])

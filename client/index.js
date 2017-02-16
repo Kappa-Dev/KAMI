@@ -5,24 +5,28 @@
  * this project is under AGPL Licence
 */
 define([
-	"ressources/d3/d3.js",
-	"ressources/simpleTree.js",
-	"ressources/Hierarchy.js",
-	"ressources/converter.js",
-	"ressources/InputFileReader.js",
-	"ressources/requestFactory.js",
-	"ressources/InterractiveGraph.js",
-	"ressources/SideMenu.js",
-	"ressources/ruleViewer.js"
+	'ressources/d3/d3.js',
+	'ressources/simpleTree.js',
+	'ressources/Hierarchy.js',
+	'ressources/converter.js',
+	'ressources/InputFileReader.js',
+	'ressources/requestFactory.js',
+	'ressources/InterractiveGraph.js',
+	'ressources/SideMenu.js',
+	'ressources/ruleViewer.js',
+	'ressources/kami.js',
+	'ressources/graphMerger.js',
 ],
-	function (d3, Tree, Hierarchy, converter, InputFileReader, RFactory, InterractiveGraph, SideMenu, RuleViewer) {
-		//Regraph Gui Core
+	function(d3, Tree, Hierarchy, converter, InputFileReader,
+             RFactory, InterractiveGraph, SideMenu, RuleViewer,
+             Kami, graphMerger) {
+		// Regraph Gui Core
 		(function pageLoad() {
-			//this section must be changed to feet the server/user requirement.
-			//var server_url = "http://0.0.0.0:5000";
-			var server_url = "{{server_url}}";
-			var main_ct_id = "main_container";
-			var root = "/";
+			// this section must be changed to feet the server/user requirement.
+			// var server_url = "http://0.0.0.0:5000";
+			let server_url = "{{server_url}}";
+			let main_ct_id = "main_container";
+			let root = "/";
 			var current_graph = "/";
 			//end of config section : Todo : add this section as a config html page.
 			//dispatch event between modules
@@ -40,11 +44,12 @@ define([
 				"loadGraph",//triggered by the menu when clicking on a graph name
 				"loadRule",//triggered by the menu when clicking on a rule name 
 				"loadPreview",//triggered by hovering on a name
-				"closePreview"//triggered by hovering on a name
+				"closePreview",//triggered by hovering on a name
+				"loadMerger"//triggered by the menu in order to merge graphs
 			);
 
+			var kamiBehaviour = new Kami(dispatch, server_url);
 			d3.select("body").append("div").attr("id", main_ct_id);
-
 			var main_container = d3.select("#" + main_ct_id);//Main div
 			//main_container.append("div")//separator between menu and page core
 			//	.attr("id","bottom_top_chart");
@@ -73,7 +78,7 @@ define([
 			var hierarchy = new Hierarchy("top_chart", dispatch, server_url);
 			hierarchy.update(root);
 			//modification menu : add, export and new graph + file input + type selector
-			var input_hie = new InputFileReader("top_chart", dispatch, server_url);
+			new InputFileReader("top_chart", dispatch, server_url);
 
 			//configuration menu : change serveur url, node color, size and shape.
 			// var config = new ConfigTab("top_chart",dispatch,server_url);
@@ -85,6 +90,7 @@ define([
 			var rule_pan = new RuleViewer("svg_rule", tab_frame, dispatch, server_url);
 			var graph_pan = new InterractiveGraph("tab_frame", "sub_svg_graph", size.width, size.height, dispatch, factory);
 			var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width*0.6, size.height/3, dispatch, factory, true);
+			var merger_pan = new graphMerger("svg_merge", tab_frame, dispatch, server_url);
             tab_frame.selectAll("#svg_rule").remove();
 			tab_frame.append(graph_pan.svg_result);
 
@@ -96,13 +102,13 @@ define([
 			 */
 			/* On tabMenu : open or close the tab menu
 			 */
-			dispatch.on("tabMenu", function () {
-				d3.event.stopPropagation();
-				var size = side.style("width") != "0px" ? "0px" : "15.6%";
-				side.style("min-width", size);
-				graph_frame.style("margin-left", size);
-				side.style("width", size);
-			});
+			// dispatch.on("tabMenu", function () {
+			// 	d3.event.stopPropagation();
+			// 	var size = side.style("width") != "0px" ? "0px" : "15.6%";
+			// 	side.style("min-width", size);
+			// 	graph_frame.style("margin-left", size);
+			// 	side.style("width", size);
+			// });
 
 			/* On tabUpdate : change the tab content
 			 * @input : g_id : the current object in the hierarchy
@@ -117,7 +123,7 @@ define([
 			 * TODO : change server rule to to allow graph and rule adding
 			 */
 
-			dispatch.on("addGraph", hierarchy.addGraph);
+			dispatch.on('addGraph', hierarchy.addGraph);
 			// dispatch.on("configUpdate",function(type_graph){
 			// //	config.loadGraphConf(type_graph);
 
@@ -135,22 +141,26 @@ define([
 					return (n2_id) => images.indexOf(n2_id) > -1;
 				};
 				return (n_id) => sameSubgraphAux(hie, n_id);
-			};
+			}
 
 			function update_graph(abs_path, noTranslate) {
 				current_graph = abs_path;
+				let config = { noTranslate: noTranslate};
+				if (abs_path.search("/kami_base/kami/") == 0){
+					config.shiftLeftDragEndHandler = kamiBehaviour.shiftLeftDragEndHandler
+				}
 				factory.getGraphAndDirectChildren(
 					current_graph,
 					function (err, ret) {
 						if (!err) {
-							graph_pan.update(ret["top_graph"], current_graph,
-								{ noTranslate: noTranslate, highlightRel: sameSubgraph(ret) });
+							config.highlightRel = sameSubgraph(ret) ;
+							graph_pan.update(ret["top_graph"], current_graph,config);
 							tab_frame.append(graph_pan.svg_result)
 								.attr("x", 0)
 								.attr("y", 0);
 						}
 					});
-			};
+			}
 
 			function update_preview(abs_path, noTranslate) {
 				tab_frame.append(preview_pan.svg_result);
@@ -162,7 +172,7 @@ define([
 								{ noTranslate: noTranslate, highlightRel: null });
 						}
 					});
-			};
+			}
 
 			function update_rule(abs_path, noTranslate) {
 				current_graph = abs_path;
@@ -176,12 +186,42 @@ define([
 								.attr("y", 0);
 						}
 					});
-			};
+			}
 
-			dispatch.on("loadGraph", function (abs_path) {
-				tab_frame.selectAll("svg")
+			function update_merger(abs_path1, abs_path2, noTranslate) {
+				factory.getGraph(
+					abs_path1,
+					function (err, ret1) {
+						if (!err) {
+							factory.getGraph(
+								abs_path2,
+								function (err, ret2) {
+									if (!err) {
+										merger_pan.update(ret1, ret2, abs_path1, abs_path2, { noTranslate: noTranslate });
+										tab_frame.append(merger_pan.svg_result)
+											.attr("x", 0)
+											.attr("y", 0);
+										//d3.select("#top_chart").append(merger_pan.buttons);"
+										d3.select("#top_chart").insert(merger_pan.buttons,":first-child");
+									}
+
+								});
+						}
+					});
+			}
+
+            function clean(){
+				tab_frame.selectAll('svg')
 					.remove();
 				rule_pan.stop();
+				merger_pan.stop();
+				d3.select("#mergeButtons").remove();
+
+
+			}
+
+			dispatch.on('loadGraph', function(abs_path) {
+				clean();
 				dispatch.on("graphUpdate", update_graph);
 				update_graph(abs_path, false);
 			});
@@ -190,17 +230,20 @@ define([
 				update_preview(abs_path, false);
 			});
 
-			dispatch.on("closePreview", function (abs_path) {
+			dispatch.on("closePreview", function () {
 				tab_frame.selectAll("#preview_graph")
 					.remove();
 			});
 
 			dispatch.on("loadRule", function (abs_path) {
-				tab_frame.selectAll("svg")
-					.remove();
-				rule_pan.stop();
+				clean();
 				dispatch.on("graphUpdate", update_rule);
 				update_rule(abs_path, false);
+			});
+
+			dispatch.on("loadMerger", function (abs_path1, abs_path2) {
+				clean();
+				update_merger(abs_path1, abs_path2, false);
 			});
 
 			/* On graphFileLoaded : Load a graph into the server and update Gui
@@ -209,12 +252,12 @@ define([
 			 * TODO : change server rule to to allow graph and rule adding
 			 */
 			dispatch.on("graphFileLoaded", function (graph) {
-				function callback(err, ret) {
+				function callback(err, _ret) {
 					if (!err) {
 						dispatch.call("hieUpdate", this, null);
 					}
 					else console.error(err);
-				};
+				}
 				if (graph.hierarchy.name == "ActionGraph") //if it is a Kami old format suggest a renaming
 					graph.hierarchy.name = prompt("Give it a name !", "model_" + (Math.random()).toString());
 				if (graph.type == "Hierarchy") {
@@ -272,11 +315,11 @@ define([
 				// var searchString = d3.select("#nugFilter").property("value");
 				// if (searchString !== "") { searchString = searchString + "|" };
 				// d3.select("#nugFilter").property("value", searchString + nuggets.join("|"));
-                if (!keepOldConds){hierarchy.clearCondData()};
-				hierarchy.addToCondData({name:name,cond:(nug)=>nuggets.indexOf(nug)>-1});
+				if (!keepOldConds) { hierarchy.clearCondData() }
+				hierarchy.addToCondData({ name: name, cond: (nug) => nuggets.indexOf(nug) > -1 });
 
 			});
 
-		} ())
+		}())
 	});
 	

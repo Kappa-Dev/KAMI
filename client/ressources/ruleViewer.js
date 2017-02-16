@@ -12,16 +12,16 @@ define([
             );
 
             var size = d3.select("#graph_frame").node().getBoundingClientRect();
-            main_svg = fatherElem
+            let main_svg = fatherElem
                 .append("svg")
                 .attr("id", topSvgId)
                 .classed("svg-content-responsive", true)
                 .attr("width", size.width)
                 .attr("height", size.height);
 
-            lhs_factory = new ruleFactory(server_url, function (rule) { return rule["L"] })
-            phs_factory = new ruleFactory(server_url, function (rule) { return rule["P"] })
-            rhs_factory = new ruleFactory(server_url, function (rule) { return rule["R"] })
+            let lhs_factory = new ruleFactory(server_url, function (rule) { return rule["L"] })
+            let phs_factory = new ruleFactory(server_url, function (rule) { return rule["P"] })
+            let rhs_factory = new ruleFactory(server_url, function (rule) { return rule["R"] })
 
             var lhs = new InterractiveGraph(topSvgId, "lhs", size.width / 2, size.height / 3, dispatch, lhs_factory, true, localDispatch);
             var phs = new InterractiveGraph(topSvgId, "phs", size.width / 2, size.height / 3, dispatch, phs_factory, true, localDispatch);
@@ -38,32 +38,31 @@ define([
                 .attr("y", size.height / 3);
 
             function draw_mappings(pl_mapping, pr_mapping) {
-                var pl = [];
-                for (var key in pl_mapping) {
-                    var source_node = main_svg.selectAll("#phs .node")
+                let pl = [];
+                for (let key in pl_mapping) {
+                    let source_node = main_svg.selectAll("#phs .node")
                         .filter(function (d) {
                             return d.id == key
                         });
-                    var target_node = main_svg.selectAll("#lhs .node")
+                    let target_node = main_svg.selectAll("#lhs .node")
                         .filter(function (d) {
                             return d.id == pl_mapping[key]
                         });
                     pl.push({ source: source_node.data()[0], target: target_node.data()[0] });
-                };
-                var pr = [];
-                for (var key in pr_mapping) {
-                    var source_node = main_svg.selectAll("#phs .node")
+                }
+                let pr = [];
+                for (let key in pr_mapping) {
+                    let source_node = main_svg.selectAll("#phs .node")
                         .filter(function (d) {
                             return d.id == key
                         });
-                    var target_node = main_svg.selectAll("#rhs .node")
+                    let target_node = main_svg.selectAll("#rhs .node")
                         .filter(function (d) {
                             return d.id == pr_mapping[key]
                         });
                     pr.push({ source: source_node.data()[0], target: target_node.data()[0] });
-                };
-
-                var links = main_svg.selectAll(".plMapping")
+                }
+                let links = main_svg.selectAll(".plMapping")
                     //.data(pl, function (d) { return d.source + "-" + d.target; });
                     .data(pl);
 
@@ -74,7 +73,7 @@ define([
                     .attr("marker-mid", "url(#arrow_end)");
                 links.exit().remove();
 
-                var links = main_svg.selectAll(".prMapping")
+                links = main_svg.selectAll(".prMapping")
                     //.data(pl, function (d) { return d.source + "-" + d.target; });
                     .data(pr);
 
@@ -129,9 +128,9 @@ define([
             /* move the edges representing rule morphisms when one of the graphs moved 
             */
             function moveMappingEdges() {
-                rTransf = d3.zoomTransform(main_svg.select("#rhs").node());
-                pTransf = d3.zoomTransform(main_svg.select("#phs").node());
-                lTransf = d3.zoomTransform(main_svg.select("#lhs").node());
+                let rTransf = d3.zoomTransform(main_svg.select("#rhs").node());
+                let pTransf = d3.zoomTransform(main_svg.select("#phs").node());
+                let lTransf = d3.zoomTransform(main_svg.select("#lhs").node());
                 main_svg.selectAll(".plMapping")
                     .attr("d", function (d) {
                         return "M" + ((d.source.x * pTransf.k + pTransf.x) + size.width / 2) + "," + (d.source.y * pTransf.k + pTransf.y)
