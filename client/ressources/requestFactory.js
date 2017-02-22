@@ -738,7 +738,7 @@ define(["ressources/d3/d3.js"], function (d3) {
 			d3.request(srv + "/graph/graph_from_nodes" + g_path + "/" + new_name + "/")
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
-				.post(JSON.stringify({"names": node_list}), callback);
+				.post(JSON.stringify({ "names": node_list }), callback);
 		};
 
 		this.mergeGraphs = function (g_path, new_name, graphLeft, graphRight, relation, callback) {
@@ -747,6 +747,10 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(JSON.stringify(relation), callback);
+		};
+		this.checkFormulae = function (g_path, callback) {
+			d3.request(srv + "/graph/check" + g_path +"/")
+				.get(callback);
 		};
 
 	}

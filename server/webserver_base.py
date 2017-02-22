@@ -842,6 +842,10 @@ def get_dark_kr():
 def get_gui(path="index.html"):
     return send_from_directory(GUI_FOLDER, path)
 
+@app.route("/fonts/<path:path>", methods=["GET"])
+def get_font(path=""):
+    return send_from_directory(GUI_FOLDER, path)
+
 
 @app.route("/graph/get_graph_attr/", methods=["GET"])
 @app.route("/graph/get_graph_attr/<path:path_to_graph>", methods=["GET"])

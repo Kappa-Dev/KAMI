@@ -16,10 +16,12 @@ define([
 	'ressources/ruleViewer.js',
 	'ressources/kami.js',
 	'ressources/graphMerger.js',
+	'ressources/formulaEditor.js',
+	'ressources/formulaResult.js',
 ],
 	function(d3, Tree, Hierarchy, converter, InputFileReader,
              RFactory, InterractiveGraph, SideMenu, RuleViewer,
-             Kami, graphMerger) {
+             Kami, graphMerger, formulaEditor, formulaResult) {
 		// Regraph Gui Core
 		(function pageLoad() {
 			// this section must be changed to feet the server/user requirement.
@@ -45,7 +47,9 @@ define([
 				"loadRule",//triggered by the menu when clicking on a rule name 
 				"loadPreview",//triggered by hovering on a name
 				"closePreview",//triggered by hovering on a name
-				"loadMerger"//triggered by the menu in order to merge graphs
+				"loadMerger",//triggered by the menu in order to merge graphs
+				"loadFormulaEditor",//triggered by the menu to load formulae
+				"showFormulaResult"//triggered by the menu when checking 
 			);
 
 			var kamiBehaviour = new Kami(dispatch, server_url);
@@ -55,10 +59,19 @@ define([
 			//	.attr("id","bottom_top_chart");
 			var container = main_container.append("div")//page core
 				.attr("id", "container");
+
+			//request factory for the given regraph server
+			var factory = new RFactory(server_url);
+
+
+			var formulaeEditor = new formulaEditor(main_container, "formulaEditor", dispatch, factory);
+			var formulaeResult = new formulaResult(main_container, "formulaResult");
+            // $('#formulaEditor').modal({ show: false});
 			main_container.append("div")//top menu
 				.attr("id", "top_chart");
 			// var side = container.append("div")//main div of side menu
 			// 	.attr("id","side_menu");
+
 			var graph_frame = container.append("div")//main div of graph
 				.attr("id", "graph_frame");
 
@@ -72,8 +85,6 @@ define([
 			// 	.on("click",function(){return dispatch.call("tabMenu",this)});
 
 
-			//request factory for the given regraph server
-			var factory = new RFactory(server_url);
 			//regraph hierarchy
 			var hierarchy = new Hierarchy("top_chart", dispatch, server_url);
 			hierarchy.update(root);
@@ -158,6 +169,7 @@ define([
 							tab_frame.append(graph_pan.svg_result)
 								.attr("x", 0)
 								.attr("y", 0);
+							d3.select("#top_chart").insert(graph_pan.buttons,":first-child");
 						}
 					});
 			}
@@ -317,7 +329,27 @@ define([
 				// d3.select("#nugFilter").property("value", searchString + nuggets.join("|"));
 				if (!keepOldConds) { hierarchy.clearCondData() }
 				hierarchy.addToCondData({ name: name, cond: (nug) => nuggets.indexOf(nug) > -1 });
+			});
 
+			dispatch.on("loadFormulaEditor", function (path){
+				let callback = function(err, graphAttr){
+					if (!err){
+						console.log(graphAttr);
+						let formulae = [];
+						if (graphAttr.hasOwnProperty("formulae")) {
+							formulae = graphAttr["formulae"];
+						}
+						formulaeEditor.update(path, formulae);
+						// $('#formulaEditor').modal("show");
+						$('#formulaEditor').modal({backdrop: 'static', keyboard: false});
+					}
+				}
+				factory.getAttr(path, callback);
+			});
+
+			dispatch.on("showFormulaResult", function (results) {
+				formulaeResult.update(results);
+				$('#formulaResult').modal({ backdrop: 'static', keyboard: false });
 			});
 
 		}())

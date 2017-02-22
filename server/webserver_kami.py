@@ -16,7 +16,7 @@ metamodel_name = "kappa_metamodel"
 YAML = os.path.join(os.path.dirname(__file__), 'iRegraph_api.yaml')
 json_schema_context = flex.load(YAML)
 
-kami_blueprint = Blueprint("kami_blueprint", __name__, template_folder="RegraphGui")
+kami_blueprint = Blueprint("kami_blueprint", __name__)
 
 @kami_blueprint.route("/graph/get_kappa/", methods=["POST"])
 @kami_blueprint.route("/graph/get_kappa/<path:path_to_graph>", methods=["POST"])

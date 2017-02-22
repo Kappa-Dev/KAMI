@@ -25,7 +25,8 @@ define([
 
             
 
-            let request = new factory(server_url, function (rule) { return rule["L"] })
+            //let request = new factory(server_url, function (rule) { return rule["L"] })
+            let request = new factory(server_url)
             let leftGraph = new InterractiveGraph(topSvgId, "leftGraph", size.width / 2, size.height, dispatch, request, true, localDispatch);
             let rightGraph = new InterractiveGraph(topSvgId, "rightGraph", size.width / 2, size.height, dispatch, request, true, localDispatch);
             let beginMouseX, beginMouseY, startOfLinkNode

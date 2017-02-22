@@ -1,10 +1,11 @@
-""" webserver with kami functionnalities"""
+""" webserver with kami and mu calculus functionnalities"""
 
 import os
 import json
 from flask import Flask
-from kami_graph_hierarchy import KamiHierarchy
+from server_hierarchy import ServerHierarchy
 from webserver_base import app
+from webserver_mu import mu_blueprint
 from webserver_kami import (include_kami_metamodel,
                             include_kappa_metamodel,
                             kami_blueprint)
@@ -17,14 +18,14 @@ class MyFlask(Flask):
 
     def __init__(self, name, template_folder, hierarchy_constructor):
         super().__init__(name,
-                         static_url_path="",
-                         template_folder=template_folder)
+                         static_url_path="")
+                        #  template_folder=template_folder)
         self.cmd = hierarchy_constructor("/", None)
         self.cmd.graph = None
 
 SERVER = MyFlask(__name__,
                  template_folder="RegraphGui",
-                 hierarchy_constructor=KamiHierarchy)
+                 hierarchy_constructor=ServerHierarchy)
 
 # configures server
 SERVER.config['DEBUG'] = True
@@ -33,11 +34,13 @@ CORS(SERVER)
 # give a pointer to the hierarchy to the blueprints
 app.cmd = SERVER.cmd
 kami_blueprint.cmd = SERVER.cmd
+mu_blueprint.cmd = SERVER.cmd
 
 # make the SERVER use the blueprints:
 # app handles the generic requests
 # kami_blueprint handles the kami specific requests
 SERVER.register_blueprint(app)
+SERVER.register_blueprint(mu_blueprint)
 SERVER.register_blueprint(kami_blueprint)
 
 

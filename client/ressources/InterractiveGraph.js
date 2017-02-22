@@ -56,6 +56,9 @@ define([
 		var beginX, beginY;//remember position of node at start of drag
 		var startOfLinkNode;//id of node that started the link
 
+
+        let buttonsDiv = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
+		createButtons();
 		/* initialize all the svg objects and forces
 		 * this function is self called at instanciation
 		 */
@@ -824,11 +827,13 @@ define([
 				title: "Select all",
 				action: function (elm, d, i) {
 					svg_content.selectAll("g").classed("selected", true);
+					maybeDrawButtons();
 				}
 			}, {
 				title: "Unselect all",
 				action: function (elm, d, i) {
 					svg_content.selectAll("g").classed("selected", false);
+					hideButtons();
 				}
 			}];
 			if (!readOnly) {
@@ -866,6 +871,7 @@ define([
 					title: "Remove Selected nodes",
 					action: function (elm, d, i) {
 						if (confirm("Are you sure you want to delete ALL those Nodes ?")) {
+							hideButtons();
 							selected.each(function (el, i) {
 								request.rmNode(g_id, el.id, true, function (e, r) {
 									if (e) console.error(e);
@@ -963,6 +969,7 @@ define([
 					menu.push({
 						title: "Link to",
 						action: function (elm, d, i) {
+							hideButtons();
 							var cpt = 0, err_cpt = 0;
 							selected.each(function (el) {
 								request.addEdge(g_id, d.id, el.id, function (e, r) {
@@ -981,6 +988,7 @@ define([
 								locked = true;
 								inputMenu("New Name", [d.id + selected.datum().id], null, null, true, true, 'center', function (cb) {
 									if (cb.line) {
+										hideButtons();
 										request.mergeNode(g_id, d.id, selected.datum().id, cb.line, true, function (e, r) {
 											if (!e) { console.log(r); disp.call("graphUpdate", this, g_id, true); }
 											else console.error(e);
@@ -1005,6 +1013,7 @@ define([
 					svg_content.selectAll("g")
 						.filter(function (e) { return e.id == d.source.id || e.id == d.target.id })
 						.classed("selected", true);
+                    drawButtons();
 				}
 			}, {
 				title: "Remove",
@@ -1079,10 +1088,14 @@ define([
 					request.rmAttr(g_id, JSON.stringify(["positions", d.id]), function () { });
 				}
 				if (d3.event.shiftKey) {
-					if (d3.select(this).classed("selected"))
+					if (d3.select(this).classed("selected")){
 						d3.select(this).classed("selected", false);
-					else
+						maybeDrawButtons();
+					}
+					else{
 						d3.select(this).classed("selected", true);
+						drawButtons();
+					}
 				}
 				if (d3.event.button == 1) {
 					console.log("middle button");
@@ -1194,7 +1207,8 @@ define([
 
 						if (Math.abs(xpos - beginX) > 3 || Math.abs(ypos - beginY) > 3) {
 							svg_content.selectAll("g.selected")
-								.classed("selected", false)
+								.classed("selected", false);
+				            hideButtons();
 						}
 					}
 					else if (d3.event.sourceEvent.button != 0) {
@@ -1358,13 +1372,15 @@ define([
 									n.y >= miny)
 							})
 							.classed("selected", true);
+							maybeDrawButtons();
 					})
-			};
+			}
 			function svgClickHandler() {
 				svg_content.selectAll("g.selected")
 					.classed("selected", false);
+				hideButtons();	
 				dehilightNodes();
-			};
+			}
 			this.svg_result = function () { return (svg.node()); };
 
 			function dehilightNodes() {
@@ -1374,7 +1390,7 @@ define([
 				svg.selectAll(".link")
 					.classed("lowlighted", false);
 
-			};
+			}
 
 			function highlightNodes(to_highlight) {
 				svg.selectAll(".node")
@@ -1382,7 +1398,7 @@ define([
 
 				svg.selectAll(".link")
 					.classed("lowlighted", true);
-			};
+			}
 
 			//only highlights node among the already highlighted
 			function highlightSubNodes(to_highlight) {
@@ -1391,8 +1407,75 @@ define([
 
 				svg.selectAll(".link")
 					.classed("lowlighted", true);
-			};
+			}
+
+			function newGraph(_elm, _d, _i) {
+				var selected = svg_content.selectAll("g.selected")
+				let val = prompt("New name:", "");
+				if (!val) { return 0 }
+				let node_ids = selected.data().map(d => d.id);
+				let callback = function (err, _ret) {
+					if (err) { console.error(err) }
+					else {
+						disp.call("hieUpdate", this);
+					}
+				};
+				request.newGraphFromNodes(g_id, val, node_ids, callback);
+			}
+
+            function maybeDrawButtons(){
+				var selected = svg_content.selectAll("g.selected")
+				if (selected.size()) {
+					drawButtons();
+				}
+				else{
+					hideButtons();
+				}
+			}
+
+			function drawButtons() {
+				d3.select(buttonsDiv)
+					.style("display", "block");
+			}
+
+			function hideButtons() {
+				d3.select(buttonsDiv)
+					.style("display", "none");
+			}
+
+			function createButtons() {
+				if (!readOnly) {
+					let buttons = d3.select(buttonsDiv);
+					buttons.attr("id", "GraphButtons")
+						.append("button")
+						.text("New typed Graph")
+						.on("click", newGraph);
+
+					buttons.attr("id", "GraphButtons")
+						.append("button")
+						.text("New subgraph")
+						.on("click", function () { alert("graph rule") });
+
+					buttons.append("button")
+						.text("New matched Rule")
+						.on("click", function () { alert("matched rule") });
+
+					buttons.append("button")
+						.text("New unmatched Rule")
+						.on("click", function () { alert("unmatched rule") });
+
+					buttons.selectAll("button")
+						.attr("type", "button")
+						.classed("top_chart_elem", true)
+						.classed("btn", true)
+						.classed("btn-block", true);
+					buttons.style("display", "none");
+					return buttons.node();
+				}
+			}
+
+			this.buttons = function () { return buttonsDiv };
 
 
 		};
-		});
+	});

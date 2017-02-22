@@ -64,6 +64,11 @@ define([
 			{
 				title: "set rate",
 				action: setRate
+			},
+
+			{
+				title: "check",
+				action: checkFormulae
 			}
 		];
 		var only_graph_menu = [
@@ -74,6 +79,10 @@ define([
 			{
 				title: "merge selected graphs",
 				action: mergeGraphs
+			},
+			{
+				title: "formulae",
+				action: editFormulae
 			},
 		];
 		/* load a new hierarchy from the server
@@ -162,7 +171,7 @@ define([
 							factory.getGraph(hierarchy.getAbsPath(id),
 								function (err, resp) {
 									if (err) { return 0 }
-									rate = resp.attributes["rate"];
+									let rate = resp.attributes["rate"];
 									rate = rate ? rate : "und";
 									elem.append("div")
 										.style("width", "1vw");
@@ -313,6 +322,23 @@ define([
 
 		}
 
+		function checkFormulae(_elm, d, _i) {
+			let callback = function (err, ret) {
+				if (err) {
+					console.log(err);
+					alert(err.srcElement.responseText);
+				}
+				else {
+					console.log(ret.response);
+					let log = JSON.parse(ret.response);
+					console.log(log);
+					// alert(JSON.stringify(log));
+					dispatch.call("showFormulaResult", this, log);
+				}
+			}
+			factory.checkFormulae(hierarchy.getAbsPath(d), callback);
+		}
+
 		this.addGraph = function () {
 			//var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
 			var name = prompt("Name of the new graph?", "");
@@ -398,6 +424,10 @@ define([
 				let [g1, g2] = selectedGraphs.map(s => path + s)
 				dispatch.call("loadMerger", this, g1, g2)
 			}
+		}
+
+		function editFormulae(_elm, d, _i) {
+			dispatch.call("loadFormulaEditor", this, hierarchy.getAbsPath(d));
 		}
 
 		function updateCondList() {
