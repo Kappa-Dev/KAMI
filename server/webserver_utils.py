@@ -1,31 +1,64 @@
-# todo : pass cmd as an argument to the functions
+from regraph.library.tree import child_from_path
 
-def parse_path(cmd, path_to_graph):
-    l = [s for s in path_to_graph.split("/") if s and not s.isspace()]
-    if l == []:
-        graph_name = None
-        parent_cmd = cmd
+
+def _get_father_id(hie, top, path_to_graph):
+    path_list = [s for s in path_to_graph.split("/") if s and not s.isspace()]
+    if path_list == []:
+        raise ValueError("/ is not a valid name")
+        # graph_id = None
+        # parent_id = top
     else:
-        graph_name = l[-1]
-        parent_cmd = cmd.get_sub_hierarchy(l[:-1])
-    return (parent_cmd, graph_name)
+        graph_id = path_list[-1]
+        parent_id = child_from_path(hie, top, path_list[:-1])
+    return (parent_id, graph_id)
 
 
-def get_cmd(cmd, path):
+def _get_node_id(hie, top, path_to_graph):
+    path_list = [s for s in path_to_graph.split("/") if s and not s.isspace()]
+    return child_from_path(hie, top, path_list)
+
+
+def same_graphs(hie, top, path1, path2):
+    """test if two path lead to the same graph"""
+    path_list1 = [s for s in path1.split("/") if s and not s.isspace()]
+    path_list2 = [s for s in path2.split("/") if s and not s.isspace()]
+    return (_get_node_id(hie, top, path_list1) ==
+            _get_node_id(hie, top, path_list2))
+
+
+def empty_path(path):
+    """test if a path is empty"""
     path_list = [s for s in path.split("/") if s and not s.isspace()]
-    return(cmd.get_sub_hierarchy(path_list))
+    return path_list == []
 
-def get_command(cmd, path_to_graph, callback):
+
+def apply_on_node(hie, top, path, callback):
+    """apply callback on node identified by path starting from top"""
+    # try:
+    node_id = _get_node_id(hie, top, path)
+    return callback(node_id)
+    # except ValueError as err:
+    #     return (str(err), 404)
+
+
+def apply_on_node_with_parent(hie, top, path, callback):
+    """apply callback on node identified by path starting from top"""
+    # try:
+    node_id = _get_node_id(hie, top, path)
     try:
-        (parent_cmd, child_name) = parse_path(cmd, path_to_graph)
-        if child_name in parent_cmd.subCmds.keys():
-            command = parent_cmd.subCmds[child_name]
-            return callback(command)
-        elif child_name in parent_cmd.subRules.keys():
-            command = parent_cmd.subRules[child_name]
-            return callback(command)
-        else:
-            raise(KeyError)
-    except KeyError as e:
-        return("Graph not found: {}".format(e), 404)
+        (parent_id, _) = _get_father_id(hie, top, path)
+    except ValueError:
+        parent_id = None
+    return callback(node_id, parent_id)
+    # except ValueError as err:
+    #     return (str(err), 404)
+
+
+def apply_on_parent(hie, top, path, callback):
+    """apply callback on parent of node identified by path starting from top"""
+    # try:
+    (parent_id, node_name) = _get_father_id(hie, top, path)
+    return callback(parent_id, node_name)
+    # except ValueError as err:
+    #     return (str(err), 404)
 

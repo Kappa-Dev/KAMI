@@ -101,30 +101,6 @@ def link_components(path_to_graph=""):
     return get_command(kami_blueprint.cmd, path_to_graph, link_components_aux)
 
 
-@kami_blueprint.route("/graph/graph_from_nodes/", methods=["POST"])
-@kami_blueprint.route("/graph/graph_from_nodes/<path:path_to_graph>",
-                      methods=["POST"])
-def graph_from_nodes(path_to_graph=""):
-    """create a graph typed by the selected nodes"""
-    try:
-        (parent_cmd, graph_name) = parse_path(kami_blueprint.cmd, path_to_graph)
-    except KeyError as e:
-        return ("the path is not valid", 404)
-    if graph_name is None:
-        return ("the empty path is not valid", 404)
-    nodes = request.json
-    try:
-        schema = schema_validator({'$ref': '#/definitions/NameList'},
-                                  context=json_schema_context)
-        flex.core.validate(schema, nodes, context=json_schema_context)
-    except ValueError as e:
-        return(str(e), 404)
-    try:
-        parent_cmd.new_graph_from_nodes(nodes["names"], graph_name)
-        return("graph created successfully", 200)
-    except (ValueError, KeyError) as e:
-        return (str(e), 404)
-
 # functions used to add the kami metamodels to the hierarchy
 def include_kappa_metamodel(server, base_name=base_name,
                             metamodel_name=metamodel_name):

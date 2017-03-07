@@ -97,7 +97,7 @@ define([
                 main_svg.append(phs.svg_result);
                 main_svg.append(rhs.svg_result);
                 var repDispatch = d3.dispatch("loadingEnded");
-                repDispatch.on("loadingEnded", loadedEndedHandler(() => draw_mappings(rep["PL"], rep["PR"], repDispatch)));
+                repDispatch.on("loadingEnded", loadedEndedHandler(() => draw_mappings(rep["PL"], rep["PR"])));
                 lhs.update(rep["L"], current_graph, {noTranslate:config.noTranslate, repDispatch:repDispatch});
                 phs.update(rep["P"], current_graph, {noTranslate:config.noTranslate, repDispatch:repDispatch});
                 rhs.update(rep["R"], current_graph, {noTranslate:config.noTranslate, repDispatch:repDispatch});

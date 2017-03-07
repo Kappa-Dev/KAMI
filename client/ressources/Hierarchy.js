@@ -90,6 +90,7 @@ define([
 		 */
 		this.update = function update(root_path) {
 			factory.getHierarchy(root_path, function (err, req) {
+				console.log(req)
 				hierarchy.load(req);
 				current_node = hierarchy.getRoot();
 				initHlist(hierarchy.getSons(current_node), hierarchy.getRules(current_node));
@@ -160,7 +161,7 @@ define([
 				.classed("icon_rule", true);
 			ruleSelection.append("div")
 				.classed("tab_menu_el_name", true)
-				.text(function (d) { return d.id });
+				.text(function (d) {console.log(d); return d.id });
 
 
 			try {
@@ -345,17 +346,24 @@ define([
 			if (!name) { return 0 }
 			var current_path = hierarchy.getAbsPath(current_node) + "/";
 			if (current_path == "//") { current_path = "/" }
-
-			factory.addHierarchy(current_path + name + "/",
-				JSON.stringify({ name: name, top_graph: { edges: [], nodes: [] }, children: [] }, null, "\t"),
+            factory.addGraph(current_path + name + "/",
 				function (err, ret) {
 					if (!err) {
 						dispatch.call("hieUpdate", this, null);
 						console.log(ret);
 					}
-					else console.error(err);
-				}
-			);
+					else console.error(err);});
+			// factory.addHierarchy(
+			// 	current_path + name + "/",
+			// 	JSON.stringify({ name: name, top_graph: { edges: [], nodes: [] }, children: [] }, null, "\t"),
+			// 	function (err, ret) {
+			// 		if (!err) {
+			// 			dispatch.call("hieUpdate", this, null);
+			// 			console.log(ret);
+			// 		}
+			// 		else console.error(err);
+			// 	}
+			// );
 		};
 
 		function filterNuggets() {

@@ -49,7 +49,7 @@ define([],function(){return function Tree(){
 	};
 	this.getRules = function (n_id){
 		return nodesHash[n_id].rules.map(
-			function (r){return {id:r,path:self.getAbsPath(n_id)}}
+			function (r){return {id:r, path:self.getAbsPath(n_id)}}
 		)
 	}
 	/* return the name of a node

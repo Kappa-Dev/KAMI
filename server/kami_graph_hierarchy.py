@@ -66,16 +66,4 @@ class KamiHierarchy(Hierarchy):
                                        "y": (ypos1+vect[1]*distance/2 +
                                              vect[0]*60)}
 
-    def new_graph_from_nodes(self, nodes, name):
-        """build a nugget from some nodes of the action graph"""
-        if not self.valid_new_name(name):
-            raise ValueError("graph or rule named {} already exists".format(name))
-        new_graph = self.graph.subgraph(nodes)
-        new_graph.metamodel_ = None
-        for node in new_graph.nodes():
-            new_graph.cast_node(node, node)
-        new_graph.metamodel_ = self.graph
-        new_nugget = self.__class__(name, self)
-        new_nugget.graph = new_graph
-        self.subCmds[name] = new_nugget
-
+   

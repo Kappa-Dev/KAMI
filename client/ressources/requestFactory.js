@@ -48,7 +48,7 @@ define(["ressources/d3/d3.js"], function (d3) {
 			} else alert("Unexpected Server Error");
 			console.error("unable to complete request :");
 			console.error(error);
-		};
+		}
 		/* get all the hierarchy starting from a graph
 		 * @input : hie_path : the root path
 		 * @input : callback : the return callback function
@@ -75,7 +75,7 @@ define(["ressources/d3/d3.js"], function (d3) {
 				JSON.parse);
 		};
 
-		this.getGraphAndDirectChildren = function getHierarchyWithGraphs(hie_path, callback) {
+		this.getGraphAndDirectChildren = function (hie_path, callback) {
 			request("GET",
 				"/hierarchy",
 				hie_path,
@@ -752,6 +752,10 @@ define(["ressources/d3/d3.js"], function (d3) {
 			d3.request(srv + "/graph/check" + g_path +"/")
 				.get(callback);
 		};
-
+		this.addGraph = function (g_path, callback) {
+			d3.request(srv + "/graph" + g_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.post(null, callback);
+		};
 	}
 });

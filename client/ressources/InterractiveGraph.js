@@ -446,7 +446,6 @@ define([
 		 */
 
 		this.update = function update(graph, path, config) {
-
 			simulation.stop();
 			g_id = path;
 			if (path != "/") {
@@ -1448,21 +1447,21 @@ define([
 					let buttons = d3.select(buttonsDiv);
 					buttons.attr("id", "GraphButtons")
 						.append("button")
-						.text("New typed Graph")
+						.text("New child graph")
 						.on("click", newGraph);
 
 					buttons.attr("id", "GraphButtons")
 						.append("button")
-						.text("New subgraph")
-						.on("click", function () { alert("graph rule") });
+						.text("New sigbling graph")
+						.on("click", function () { alert("sibling graph") });
 
 					buttons.append("button")
-						.text("New matched Rule")
-						.on("click", function () { alert("matched rule") });
+						.text("New child rule")
+						.on("click", function () { alert("child rule") });
 
 					buttons.append("button")
-						.text("New unmatched Rule")
-						.on("click", function () { alert("unmatched rule") });
+						.text("New sibling rule")
+						.on("click", function () { alert("sibling rule") });
 
 					buttons.selectAll("button")
 						.attr("type", "button")
