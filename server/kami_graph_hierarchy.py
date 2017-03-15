@@ -68,6 +68,7 @@ class KamiHierarchy(Hierarchy):
 
     def new_graph_from_nodes(self, nodes, name):
         """build a nugget from some nodes of the action graph"""
+
         if not self.valid_new_name(name):
             raise ValueError("graph or rule named {} already exists".format(name))
         new_graph = self.graph.subgraph(nodes)

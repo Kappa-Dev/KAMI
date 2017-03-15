@@ -27,6 +27,7 @@ def get_kappa(path_to_graph=""):
                     404)
         nuggets_names = request.json["names"]
         if command.graph.metamodel_ == kami:
+            print("kami")
             command.link_states()
             new_kappa_command = command.to_kappa_like()
             kappa_meta = kami_blueprint.cmd.subCmds[base_name].subCmds[metamodel_name]
