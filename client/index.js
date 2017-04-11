@@ -18,10 +18,13 @@ define([
 	'ressources/graphMerger.js',
 	'ressources/formulaEditor.js',
 	'ressources/formulaResult.js',
+	'ressources/kappaExporter.js',
+	'ressources/typeEditor.js',
 ],
-	function(d3, Tree, Hierarchy, converter, InputFileReader,
-             RFactory, InterractiveGraph, SideMenu, RuleViewer,
-             Kami, graphMerger, formulaEditor, formulaResult) {
+	function (d3, Tree, Hierarchy, converter, InputFileReader,
+		RFactory, InterractiveGraph, SideMenu, RuleViewer,
+		Kami, graphMerger, formulaEditor, formulaResult,
+		kappaExporter, typeEditor) {
 		// Regraph Gui Core
 		(function pageLoad() {
 			// this section must be changed to feet the server/user requirement.
@@ -49,7 +52,10 @@ define([
 				"closePreview",//triggered by hovering on a name
 				"loadMerger",//triggered by the menu in order to merge graphs
 				"loadFormulaEditor",//triggered by the menu to load formulae
-				"showFormulaResult"//triggered by the menu when checking 
+				"loadCompositionsEditor",//triggered by the menu to write compositions
+				"showFormulaResult",//triggered by the menu when checking 
+				"loadKappaExporter",
+				"loadTypeEditor"
 			);
 
 			var kamiBehaviour = new Kami(dispatch, server_url);
@@ -63,10 +69,13 @@ define([
 			//request factory for the given regraph server
 			var factory = new RFactory(server_url);
 
-
-			var formulaeEditor = new formulaEditor(main_container, "formulaEditor", dispatch, factory);
+            
+			var typesEditor = new typeEditor(main_container, "typesEditor", dispatch, factory);
+			var kapExporter = new kappaExporter(main_container, "kappaExporter", dispatch, factory);
+			var formulaeEditor = new formulaEditor(main_container, "formulaEditor", dispatch, factory, "formulae");
+			var compositionsEditor = new formulaEditor(main_container, "compositionsEditor", dispatch, factory, "compositions");
 			var formulaeResult = new formulaResult(main_container, "formulaResult");
-            // $('#formulaEditor').modal({ show: false});
+			// $('#formulaEditor').modal({ show: false});
 			main_container.append("div")//top menu
 				.attr("id", "top_chart");
 			// var side = container.append("div")//main div of side menu
@@ -100,9 +109,9 @@ define([
 			var size = d3.select("#graph_frame").node().getBoundingClientRect();
 			var rule_pan = new RuleViewer("svg_rule", tab_frame, dispatch, server_url);
 			var graph_pan = new InterractiveGraph("tab_frame", "sub_svg_graph", size.width, size.height, dispatch, factory);
-			var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width*0.6, size.height/3, dispatch, factory, true);
+			var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width * 0.6, size.height / 3, dispatch, factory, true);
 			var merger_pan = new graphMerger("svg_merge", tab_frame, dispatch, server_url);
-            tab_frame.selectAll("#svg_rule").remove();
+			tab_frame.selectAll("#svg_rule").remove();
 			tab_frame.append(graph_pan.svg_result);
 
 
@@ -156,48 +165,86 @@ define([
 
 			function update_graph(abs_path, noTranslate) {
 				current_graph = abs_path;
-				let config = { noTranslate: noTranslate};
-				if (abs_path.search("/kami_base/kami/") == 0){
-					config.shiftLeftDragEndHandler = kamiBehaviour.shiftLeftDragEndHandler
+				let config = { noTranslate: noTranslate };
+				let get_graph_and_update = function (mapping) {
+					if (mapping !== undefined) {
+						config.ancestor_mapping = mapping;
+					}
+					factory.getGraphAndDirectChildren(
+						current_graph,
+						function (err, ret) {
+							if (!err) {
+								config.highlightRel = sameSubgraph(ret);
+								graph_pan.update(ret["top_graph"], current_graph, config);
+								tab_frame.append(graph_pan.svg_result)
+									.attr("x", 0)
+									.attr("y", 0);
+								d3.select("#top_chart").insert(graph_pan.buttons, ":first-child");
+							}
+						});
 				}
-				factory.getGraphAndDirectChildren(
-					current_graph,
-					function (err, ret) {
-						if (!err) {
-							config.highlightRel = sameSubgraph(ret) ;
-							graph_pan.update(ret["top_graph"], current_graph,config);
-							tab_frame.append(graph_pan.svg_result)
-								.attr("x", 0)
-								.attr("y", 0);
-							d3.select("#top_chart").insert(graph_pan.buttons,":first-child");
-						}
-					});
+				if (abs_path.search("/kami_base/kami/") == 0) {
+					config.shiftLeftDragEndHandler = kamiBehaviour.shiftLeftDragEndHandler
+					kamiBehaviour.kamiAncestors(abs_path)
+						.then(get_graph_and_update)
+				}
+				else {
+					get_graph_and_update();
+				}
 			}
 
 			function update_preview(abs_path, noTranslate) {
 				tab_frame.append(preview_pan.svg_result);
-				factory.getGraph(
-					abs_path,
-					function (err, ret) {
-						if (!err) {
-							preview_pan.update(ret, abs_path,
-								{ noTranslate: noTranslate, highlightRel: null });
-						}
-					});
+				let config = { noTranslate: noTranslate, highlightRel: null };
+				let update_aux = function (mapping) {
+					if (mapping !== undefined) {
+						config.ancestor_mapping = mapping;
+					}
+					factory.getGraph(
+						abs_path,
+						function (err, ret) {
+							if (!err) {
+								preview_pan.update(ret, abs_path, config);
+							}
+						});
+				}
+				if (abs_path.search("/kami_base/kami/") == 0) {
+					kamiBehaviour.kamiAncestors(abs_path)
+						.then(update_aux)
+				}
+				else {
+					update_aux();
+				}
+
 			}
 
 			function update_rule(abs_path, noTranslate) {
 				current_graph = abs_path;
-				factory.getRule(
-					current_graph,
-					function (err, ret) {
-						if (!err) {
-							rule_pan.update(ret, current_graph, { noTranslate: noTranslate });
-							tab_frame.append(rule_pan.svg_result)
-								.attr("x", 0)
-								.attr("y", 0);
+				let config = { noTranslate: noTranslate };
+				let update_aux =
+					function (mappings) {
+						if (mappings !== undefined) {
+							config.ancestor_mappings = mappings;
 						}
-					});
+						factory.getRule(
+							current_graph,
+							function (err, ret) {
+								if (!err) {
+									rule_pan.update(ret, current_graph, config);
+									tab_frame.append(rule_pan.svg_result)
+										.attr("x", 0)
+										.attr("y", 0);
+								}
+							});
+					};
+				if (abs_path.search("/kami_base/kami/") == 0) {
+					factory.promRuleTyping(abs_path, "/kami_base/kami/")
+						.then(update_aux)
+				}
+				else {
+					update_aux();
+				}
+
 			}
 
 			function update_merger(abs_path1, abs_path2, noTranslate) {
@@ -214,7 +261,7 @@ define([
 											.attr("x", 0)
 											.attr("y", 0);
 										//d3.select("#top_chart").append(merger_pan.buttons);"
-										d3.select("#top_chart").insert(merger_pan.buttons,":first-child");
+										d3.select("#top_chart").insert(merger_pan.buttons, ":first-child");
 									}
 
 								});
@@ -222,7 +269,7 @@ define([
 					});
 			}
 
-            function clean(){
+			function clean() {
 				tab_frame.selectAll('svg')
 					.remove();
 				rule_pan.stop();
@@ -232,7 +279,7 @@ define([
 
 			}
 
-			dispatch.on('loadGraph', function(abs_path) {
+			dispatch.on('loadGraph', function (abs_path) {
 				clean();
 				dispatch.on("graphUpdate", update_graph);
 				update_graph(abs_path, false);
@@ -331,9 +378,9 @@ define([
 				hierarchy.addToCondData({ name: name, cond: (nug) => nuggets.indexOf(nug) > -1 });
 			});
 
-			dispatch.on("loadFormulaEditor", function (path){
-				let callback = function(err, graphAttr){
-					if (!err){
+			dispatch.on("loadFormulaEditor", function (path) {
+				let callback = function (err, graphAttr) {
+					if (!err) {
 						console.log(graphAttr);
 						let formulae = [];
 						if (graphAttr.hasOwnProperty("formulae")) {
@@ -341,7 +388,22 @@ define([
 						}
 						formulaeEditor.update(path, formulae);
 						// $('#formulaEditor').modal("show");
-						$('#formulaEditor').modal({backdrop: 'static', keyboard: false});
+						$('#formulaEditor').modal({ backdrop: 'static', keyboard: false });
+					}
+				}
+				factory.getAttr(path, callback);
+			});
+			dispatch.on("loadCompositionsEditor", function (path) {
+				let callback = function (err, graphAttr) {
+					if (!err) {
+						console.log(graphAttr);
+						let compositions = [];
+						if (graphAttr.hasOwnProperty("compositions")) {
+							compositions = graphAttr["compositions"];
+						}
+						compositionsEditor.update(path, compositions);
+						// $('#formulaEditor').modal("show");
+						$('#compositionsEditor').modal({ backdrop: 'static', keyboard: false });
 					}
 				}
 				factory.getAttr(path, callback);
@@ -352,6 +414,26 @@ define([
 				$('#formulaResult').modal({ backdrop: 'static', keyboard: false });
 			});
 
+			dispatch.on("loadKappaExporter", function (path) {
+				let callback = function (err, parts) {
+					if (!err) {
+						console.log(parts);
+						kapExporter.update(path, JSON.parse(parts.response));
+						$('#kappaExporter').modal({ backdrop: 'static', keyboard: false });
+					}
+				}
+				factory.getParts(path, callback);
+			});
+			dispatch.on("loadTypeEditor", function (path, nodeId) {
+				let callback = function (err, types) {
+					if (!err) {
+						console.log(types);
+						typesEditor.update(path, nodeId, JSON.parse(types.response));
+						$('#typesEditor').modal({ backdrop: 'static', keyboard: false });
+					}
+				}
+				factory.getTypes(path, nodeId, callback);
+			});
 		}())
 	});
 	

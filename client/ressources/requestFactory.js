@@ -222,6 +222,16 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", data);
 		};
+
+		this.mergeHierarchy2 = function mergeHierarchy2(hie_path, data, callback) {
+			var rq = d3.request(srv + "/hierarchy2" + hie_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.mimeType("application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
+			rq.send("PUT", data);
+		};
 		/* create a new rule
 		 * @input : rule_path : the path of rule
 		 * @input : pattern : the rule pattern to match.
@@ -705,6 +715,27 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.post(nuggets, callback);
 		};
 
+		/* submit a list of splices and create the coresponding rewriting rule
+		 * @input : g_path : the graph path
+		 * @input : splices : the list of splices names { "names": ["string"]}
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function of dictionary
+		 */
+
+		this.makeSplices = function makeSplices(g_path, splices, callback) {
+			d3.request(srv + "/graph/splices" + g_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(splices, callback);
+		};
+
+		this.makeConcat = function makeConcat(g_path, splices, callback) {
+			d3.request(srv + "/graph/testconcat" + g_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(splices, callback);
+		};
+
 		this.getChildren = function (g_path, n_id, callback) {
 			d3.request(srv + "/graph/get_children" + g_path + "?node_id=" + encodeURIComponent(n_id))
 				// .header("X-Requested-With", "XMLHttpRequest")
@@ -712,12 +743,12 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.get(callback);
 
 		};
-	    /* get a mpping of nodes to ancestors
-		* @input : g_path : the graph path
-		* @input : degree : int > 1, the desired ancestor degree
-		* @input : callback : the return callback function
-		* @return : on succeed : callback function of dictionary
-		*/
+		/* get a mapping of nodes to ancestors
+		 * @input : g_path : the graph path
+		 * @input : degree : int > 1, the desired ancestor degree
+		 * @input : callback : the return callback function
+		 * @return : on succeed : callback function of dictionary
+		 */
 		this.getAncestors = function (g_path, degree, callback) {
 			var myCallback = function (err, rep) {
 				if (err) { callback(err, null) }
@@ -728,17 +759,85 @@ define(["ressources/d3/d3.js"], function (d3) {
 			d3.request(srv + "/graph/get_ancestors" + g_path + "/" + "?degree=" + encodeURIComponent(degree)).get(myCallback);
 		};
 
-	    /* creates a graph from selected nodes
-		* @input : g_path : the graph path
-		* @input : new_name : the name of the new graph
-		* @input : node_list : the selected nodes
-		*/
+		function rel_to_object(rel) {
+			return rel.reduce(function (obj, x) {
+				obj[x["left"]] = x["right"];
+				return obj;
+			}, {});
+		}
+
+		this.promAncestors = function (g_path, degree) {
+			return new Promise(function (resolve, reject) {
+				let myCallback = function (err, rep) {
+					if (err) { reject(err) }
+					else {
+						resolve(rel_to_object(JSON.parse(rep.response)));
+					}
+				}
+				d3.request(srv + "/graph/get_ancestors" + g_path + "/" + "?degree=" + encodeURIComponent(degree)).get(myCallback);
+			});
+		}
+
+		this.promRuleTyping = function (rule_path, parent_path) {
+			return new Promise(function (resolve, reject) {
+				let callback = function (err, rep) {
+					if (err) { reject(err) }
+					else {
+						let mappings = JSON.parse(rep.response)
+						Object.keys(mappings).forEach(k => mappings[k] = rel_to_object(mappings[k]));
+						resolve(mappings);
+					}
+				}
+				d3.request(srv + "/rule/get_typing" + rule_path + "/" + "?parent=" + encodeURIComponent(parent_path)).get(callback);
+			})
+		}
+
+		/* creates a graph from selected nodes
+				 * @input : g_path : the graph path
+				 * @input : new_name : the name of the new graph
+				 * @input : node_list : the selected nodes
+				 */
 
 		this.newGraphFromNodes = function (g_path, new_name, node_list, callback) {
 			d3.request(srv + "/graph/graph_from_nodes" + g_path + "/" + new_name + "/")
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(JSON.stringify({ "names": node_list }), callback);
+		};
+
+		this.promNewGraphFromNodes = function (g_path, new_name, node_ids) {
+			return new Promise(function (resolve, reject) {
+				let myCallback = function (err, _rep) {
+					if (err) { reject(err) }
+					else {
+						resolve();
+					}
+			d3.request(srv + "/graph/graph_from_nodes" + g_path + "/" + new_name + "/")
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(JSON.stringify({ "names": node_ids }), myCallback);
+				}
+			});
+		}
+
+		/* creates a child rule from selected nodes
+				 * @input : g_path : the graph path
+				 * @input : new_name : the name of the new graph
+				 * @input : node_list : the selected nodes
+				 */
+
+		this.newChildRuleFromNodes = function (g_path, new_name, node_list, callback){
+			d3.request(srv + "/rule/child_rule_from_nodes" + g_path + "/" + new_name + "/")
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(JSON.stringify({ "names": node_list }), callback);
+		};
+
+		this.applyRuleOnParent = function (rule_path, suffix, callback){
+			d3.request(srv + "/rule/apply_on_parent" + rule_path + "/?suffix=" + encodeURIComponent(suffix))
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(null, callback);
 		};
 
 		this.mergeGraphs = function (g_path, new_name, graphLeft, graphRight, relation, callback) {
@@ -748,14 +847,27 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.header("Content-Type", "application/json")
 				.post(JSON.stringify(relation), callback);
 		};
+
 		this.checkFormulae = function (g_path, callback) {
-			d3.request(srv + "/graph/check" + g_path +"/")
+			d3.request(srv + "/graph/check" + g_path + "/")
 				.get(callback);
 		};
+
 		this.addGraph = function (g_path, callback) {
 			d3.request(srv + "/graph" + g_path)
 				.header("X-Requested-With", "XMLHttpRequest")
 				.post(null, callback);
 		};
+
+		this.getParts = function (g_path, callback) {
+			d3.request(srv + "/getparts" + g_path + "/")
+				.get(callback);
+		};
+
+		this.getTypes = function (g_path, nodeId, callback) {
+			d3.request(srv + "/gettypes" + g_path + "/?nodeId=" + nodeId)
+				.get(callback);
+		};
+
 	}
 });

@@ -2,8 +2,6 @@
 
 from flask import Blueprint, Response, request
 import json
-from metamodels import (base_metamodel, metamodel_kappa, kami, base_kami)
-from exporters import KappaExporter
 from webserver_utils import apply_on_node
 import flex
 from flex.loading.schema.paths.path_item.operation.responses.single.schema\

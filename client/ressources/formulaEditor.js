@@ -4,7 +4,7 @@ define([
     function (d3) {
 
         //Interface allowing to define relations between nodes of different graphs
-        return function formulaEditor(fatherElem, modalId, dispatch, request) {
+        return function formulaEditor(fatherElem, modalId, dispatch, request, fieldName) {
             let formulae_data = [];
             let graph_path = "";
             let active_formula = -1;
@@ -36,18 +36,18 @@ define([
                     </div>
                 `);
 
-            d3.select("#newFormulaButton")
+            modal.select("#newFormulaButton")
               .on("click", addFormula);
 
-            d3.select("#formulaTextArea")  
+            modal.select("#formulaTextArea")  
               .on("input", function(){
                     if (!active_modified && active_formula !== -1) {
                         active_modified = true;
-                        d3.selectAll(".hide-if-modified")
+                        modal.selectAll(".hide-if-modified")
                             .style("display", "none");
-                        d3.selectAll(".show-if-modified")
+                        modal.selectAll(".show-if-modified")
                             .style("display", "inline");
-                        d3.select("#formulaeList")
+                        modal.select("#formulaeList")
                             .selectAll("a")
                             .on("click", null)
                             .classed("disabled", true);
@@ -55,38 +55,40 @@ define([
                     }
                 });
 
-            d3.select("#saveButton")
+            modal.select("#saveButton")
                 .on("click", function () {
-                    let new_formula = d3.select("#formulaTextArea")
+                    let new_formula = modal.select("#formulaTextArea")
                         .property("value");
                     formulae_data[active_formula]["formula"] = new_formula;
                     let callback = function (err, _ret) {
                         if (err) { console.log(err) }
                         else {
-                            d3.selectAll(".hide-if-modified")
+                            modal.selectAll(".hide-if-modified")
                                 .style("display", "inline");
-                            d3.selectAll(".show-if-modified")
+                            modal.selectAll(".show-if-modified")
                                 .style("display", "none");
                             active_modified = false;
-                            d3.select("#formulaeList")
+                            modal.select("#formulaeList")
                                 .selectAll("a")
                                 .on("click", formulaClickHandler)
                                 .classed("disabled", false);
                         }
                     }
-                    request.addAttr(graph_path + "/", JSON.stringify({ formulae: formulae_data }), callback)
+                    let obj = {};
+                    obj[fieldName] = formulae_data;
+                    request.addAttr(graph_path + "/", JSON.stringify(obj), callback)
                 });
 
-            d3.select("#cancelButton")
+            modal.select("#cancelButton")
                 .on("click", function () {
-                    d3.select("#formulaTextArea")
+                    modal.select("#formulaTextArea")
                         .property("value", formulae_data[active_formula].formula);
-                    d3.selectAll(".hide-if-modified")
+                    modal.selectAll(".hide-if-modified")
                         .style("display", "inline");
-                    d3.selectAll(".show-if-modified")
+                    modal.selectAll(".show-if-modified")
                         .style("display", "none");
                     active_modified = false;
-                    d3.select("#formulaeList")
+                    modal.select("#formulaeList")
                         .selectAll("a")
                         .on("click", formulaClickHandler)
                         .classed("disabled", false);
@@ -119,7 +121,9 @@ define([
                             drawFormulae();
                         }
                     }
-                    request.addAttr(graph_path + "/", JSON.stringify({ formulae: new_formulae_data }), callback)
+                    let obj = {};
+                    obj[fieldName] = new_formulae_data;
+                    request.addAttr(graph_path + "/", JSON.stringify(obj), callback)
                 }
             }
 
@@ -130,10 +134,10 @@ define([
 
             }
             function drawFormulae() {
-                d3.select("#formulaeList")
+                modal.select("#formulaeList")
                     .selectAll("a")
                     .remove();
-                let list = d3.select("#formulaeList")
+                let list = modal.select("#formulaeList")
                     .selectAll("a")
                     .data(formulae_data);
                 list.enter()
@@ -150,11 +154,11 @@ define([
                     .on("click", deleteFormula);
 
                 if (active_formula !== -1) {
-                    d3.select("#formulaTextArea")
+                    modal.select("#formulaTextArea")
                         .property("value", formulae_data[active_formula].formula);
                 }
                 else {
-                    d3.select("#formulaTextArea")
+                    modal.select("#formulaTextArea")
                         .property("value", "");
                 }
                 // list.exit()
@@ -167,9 +171,9 @@ define([
                 active_formula = (formulae.length > 0) ? 0 : -1;
                 active_modified = false;
                 drawFormulae();
-                d3.selectAll(".hide-if-modified")
+                modal.selectAll(".hide-if-modified")
                     .style("display", "inline");
-                d3.selectAll(".show-if-modified")
+                modal.selectAll(".show-if-modified")
                     .style("display", "none");
             };
 

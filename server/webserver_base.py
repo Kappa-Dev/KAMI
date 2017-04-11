@@ -9,7 +9,7 @@ from webserver_utils import (apply_on_node, apply_on_parent, empty_path,
 import json
 import flex
 # from metamodels import (base_metamodel, metamodel_kappa, kami, base_kami)
-from exporters import KappaExporter
+# from exporters import KappaExporter
 import os
 import subprocess
 
@@ -167,7 +167,6 @@ def get_rule(path_to_graph=""):
     def callback(rule_id, parent_id):
         json_rep = json.dumps(tree.typed_rule_to_json(app.hie(), rule_id,
                                                       parent_id))
-        print(json_rep)
         resp = Response(
             response=json_rep,
             status=200,
@@ -319,49 +318,49 @@ def rm_attr_graph(path_to_graph=""):
 @app.route("/rule/add_node/", methods=["PUT"])
 @app.route("/rule/add_node/<path:path_to_rule>", methods=["PUT"])
 def add_node_rule(path_to_rule=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, add_node)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, add_node)
 
 
 @app.route("/rule/add_edge/", methods=["PUT"])
 @app.route("/rule/add_edge/<path:path_to_rule>", methods=["PUT"])
 def add_edge_rule(path_to_rule=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, add_edge)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, add_edge)
 
 
 @app.route("/rule/rm_node/", methods=["PUT"])
 @app.route("/rule/rm_node/<path:path_to_rule>", methods=["PUT"])
 def rm_node_rule(path_to_rule=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, rm_node)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, rm_node)
 
 
 @app.route("/rule/merge_node/", methods=["PUT"])
 @app.route("/rule/merge_node/<path:path_to_rule>", methods=["PUT"])
 def merge_node_rule(path_to_rule=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, merge_nodes)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, merge_nodes)
 
 
 @app.route("/rule/clone_node/", methods=["PUT"])
 @app.route("/rule/clone_node/<path:path_to_rule>", methods=["PUT"])
 def clone_node_rule(path_to_rule=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, clone_node)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, clone_node)
 
 
 @app.route("/rule/rm_edge/", methods=["PUT"])
 @app.route("/rule/rm_edge/<path:path_to_rule>", methods=["PUT"])
 def rm_edge_rule(path_to_rule=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, rm_edge)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, rm_edge)
 
 
 @app.route("/rule/add_attr/", methods=["PUT"])
-@app.route("/rule/add_attr/<path:path_to_graph>", methods=["PUT"])
-def add_attr_rule(path_to_graph=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, add_attr)
+@app.route("/rule/add_attr/<path:path_to_rule>", methods=["PUT"])
+def add_attr_rule(path_to_rule=""):
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, add_attr)
 
 
 @app.route("/rule/rm_attr/", methods=["PUT"])
-@app.route("/rule/rm_attr/<path:path_to_graph>", methods=["PUT"])
-def rm_attr_rule(path_to_graph=""):
-    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, remove_attr)
+@app.route("/rule/rm_attr/<path:path_to_rule>", methods=["PUT"])
+def rm_attr_rule(path_to_rule=""):
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule, remove_attr)
 
 
 def add_node(graph_id, parent_id):
@@ -369,7 +368,7 @@ def add_node(graph_id, parent_id):
     if not node_id:
         return ("the node_id argument is necessary", 404)
     node_type = request.args.get("node_type")
-    if node_type == "":
+    if node_type == "" or node_type == "notype":
         node_type = None
     tree.add_node(app.hie(), graph_id, parent_id, node_id, node_type)
     return("node added", 200)
@@ -894,9 +893,57 @@ def graph_from_nodes(path_to_graph=""):
 
     return apply_on_parent(app.hie(), app.top, path_to_graph, callback)
 
-# only works on a graph
-@app.route("/rule/get_ancestors/", methods=["GET"])
-@app.route("/rule/get_ancestors/<path:path_to_graph>", methods=["GET"])
+
+@app.route("/rule/child_rule_from_nodes/", methods=["POST"])
+@app.route("/rule/child_rule_from_nodes/<path:path_to_rule>",
+           methods=["POST"])
+def child_rule_from_nodes(path_to_rule=""):
+    """create a graph typed by the selected nodes"""
+    nodes = request.json
+    try:
+        schema = schema_validator({'$ref': '#/definitions/NameList'},
+                                  context=json_schema_context)
+        flex.core.validate(schema, nodes, context=json_schema_context)
+    except ValueError as e:
+        return(str(e), 404)
+
+    def callback(parent_id, name):
+        tree.child_rule_from_nodes(app.hie(), nodes["names"], parent_id,
+                                   name)
+        return("rule created successfully", 200)
+
+    return apply_on_parent(app.hie(), app.top, path_to_rule, callback)
+
+
+@app.route("/rule/apply_on_parent/", methods=["POST"])
+@app.route("/rule/apply_on_parent/<path:path_to_rule>", methods=["POST"])
+def apply_rule_on_parent(path_to_rule=""):
+    def apply_rule_on_parent_aux(graph_id, parent_id):
+        suffix = request.args.get("suffix")
+        if not suffix:
+            suffix = "new"
+        tree.rewrite_parent(app.hie(), graph_id, parent_id, suffix)
+        return ("graph rewritten", 200)
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_rule,
+                                     apply_rule_on_parent_aux)
+
+
+@app.route("/rule/get_typing/", methods=["GET"])
+@app.route("/rule/get_typing/<path:path_to_rule>", methods=["GET"])
+def get_rule_typing(path_to_rule=""):
+    def get_rule_typing_aux(graph_id):
+        parent_path = request.args.get("parent")
+        if not parent_path:
+            return("the query parameter parent is necessary", 404)
+        mappings = tree.ancestors_rule_mapping(app.hie(), app.top, graph_id,
+                                               parent_path)
+        resp = Response(response=json.dumps(mappings),
+                        status=200,
+                        mimetype="application/json")
+        return resp
+    return apply_on_node(app.hie(), app.top, path_to_rule, get_rule_typing_aux)
+
+
 @app.route("/graph/get_ancestors/", methods=["GET"])
 @app.route("/graph/get_ancestors/<path:path_to_graph>", methods=["GET"])
 def get_ancestors(path_to_graph=""):

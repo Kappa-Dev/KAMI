@@ -73,7 +73,7 @@ define([
                                     </div>
                                     <div class="checkbox">
                                        <label>
-                                       <input type="checkbox" id="mergeCheckBox"> Merge 
+                                       <input type="checkbox" id="mergeCheckBox"> Indra 
                                        </label>
                                     </div>
                                     <div class="checkbox">
@@ -227,16 +227,20 @@ define([
 					else {
 						d3.json(e.target.result, function (rep) {
 							if (merge) {
-								request.mergeHierarchy(
+								request.mergeHierarchy2(
 									top_graph,
 									JSON.stringify(rep, null, "\t"),
 									afterImport);
 							}
 							else {
-								request.addHierarchy(
+								request.mergeHierarchy(
 									top_graph,
 									JSON.stringify(rep, null, "\t"),
 									afterImport);
+								// request.addHierarchy(
+								// 	top_graph,
+								// 	JSON.stringify(rep, null, "\t"),
+								// 	afterImport);
 							}
 
 						})

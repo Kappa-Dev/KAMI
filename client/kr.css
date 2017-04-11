@@ -700,7 +700,7 @@ opacity: 0.1;
 }
 
 
-#formulaEditor, #formulaResult {    
+#formulaEditor, #formulaResult{    
     /*z-index:1 !important;*/
 	width:60%;
 	margin-top: 20vh;
@@ -712,6 +712,34 @@ opacity: 0.1;
 	height: 90%;
 }
 
+.partList{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+.kappaPart{
+	margin: 4px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+#kappaExporter {    
+    /*z-index:1 !important;*/
+	width:90%;
+	margin-top: 5vh;
+	margin-right: auto;
+	margin-left: auto;
+}
 /*.modal-backdrop{
 	z-index: 0 !important;
 }*/
+h4{text-align: center}
+
+.typeForm { margin-left: 10px; }
+
+#typesForm{
+
+}
+.formTypeField{
+
+}

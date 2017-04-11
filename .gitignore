@@ -6,3 +6,4 @@ server/__pycache__/*
 node_modules/*
 .eslintrc.json
 package.json
+.pylintrc

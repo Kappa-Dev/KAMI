@@ -44,6 +44,30 @@ define([
 		var selfHierarchy = this;
 		var right_click_menu = [
 			{
+				title: "get kappa",
+				action: toKappa
+			},
+			{
+				title: "get kappa2",
+				action: showKAppaExporter
+			},
+			{
+				title: "splice rule",
+				action: createSplicesRule
+			},
+			{
+				title: "concat",
+				action: createConcats
+			},
+
+			{
+				title: "set rate",
+				action: setRate
+			}
+
+		];
+		var only_graph_menu = [
+			{
 				title: "delete",
 				action: function (elm, d, _i) {
 					let current_obj = hierarchy.getAbsPath(d)
@@ -57,22 +81,6 @@ define([
 
 			},
 			{
-				title: "get kappa",
-				action: toKappa
-			},
-
-			{
-				title: "set rate",
-				action: setRate
-			},
-
-			{
-				title: "check",
-				action: checkFormulae
-			}
-		];
-		var only_graph_menu = [
-			{
 				title: "create rule",
 				action: createRule
 			},
@@ -84,6 +92,25 @@ define([
 				title: "formulae",
 				action: editFormulae
 			},
+			{
+				title: "compositions",
+				action: editCompositions
+			},
+			{
+				title: "check",
+				action: checkFormulae
+			}
+		];
+		var only_rules_menu = [
+			{
+				title: "delete",
+				action: deleteRule
+
+			},
+			{
+				title: "apply on parent",
+				action: applyOnParent
+			}
 		];
 		/* load a new hierarchy from the server
 		 * @input : root_path : the hierarchy root pathname
@@ -156,7 +183,7 @@ define([
 				.classed("selected", false)
 				.attr("id", function (d) { return d })
 				.on("click", function (d) { return display_rule(d, this) })
-				.on("contextmenu", d3ContextMenu(right_click_menu));
+				.on("contextmenu", d3ContextMenu(right_click_menu.concat(only_rules_menu)));
 			ruleSelection.append("i")
 				.classed("icon_rule", true);
 			ruleSelection.append("div")
@@ -277,7 +304,13 @@ define([
 			//disp.call("loadGraph",this,hierarchy.getAbsPath(data));
 
 		}
+        
 
+		/* triggers the the kappaExporter modal */
+        function showKAppaExporter(){
+			let current_path = hierarchy.getAbsPath(current_node) + "/";
+			dispatch.call("loadKappaExporter", this, current_path)
+		}
 		/* Convert the current graph into kappa : TODO
 		 * Open a new page with the Kappa code 
 		 */
@@ -306,6 +339,45 @@ define([
 				.style("cursor", "progress");
 			factory.getKappa(path, JSON.stringify({ "names": nugget_list }), callback)
 			return false;
+		}
+
+		function createSplicesRule() {
+			let callback = function (err, _rep) {
+				if (err) {
+					console.log(err);
+				}
+				else {
+					dispatch.call("hieUpdate", this, null);
+				}
+			}
+			let splices = []
+			d3.selectAll(".tab_menu_el.selected")
+				.each(function () {
+					splices.push(hierarchy.getName(this.id))
+				})
+			var path = hierarchy.getAbsPath(current_node) + "/";
+			path = (path == "//") ? "/" : path;
+			console.log("toto");
+			factory.makeSplices(path, JSON.stringify({ "names": splices }), callback)
+		}
+
+		function createConcats() {
+			let callback = function (err, _rep) {
+				if (err) {
+					console.log(err);
+				}
+				else {
+					dispatch.call("hieUpdate", this, null);
+				}
+			}
+			let splices = []
+			d3.selectAll(".tab_menu_el.selected")
+				.each(function () {
+					splices.push(hierarchy.getName(this.id))
+				})
+			var path = hierarchy.getAbsPath(current_node) + "/";
+			path = (path == "//") ? "/" : path;
+			factory.makeConcat(path, JSON.stringify({ "names": splices }), callback)
 		}
 
 		function setRate(elm, d, _i) {
@@ -346,13 +418,14 @@ define([
 			if (!name) { return 0 }
 			var current_path = hierarchy.getAbsPath(current_node) + "/";
 			if (current_path == "//") { current_path = "/" }
-            factory.addGraph(current_path + name + "/",
+			factory.addGraph(current_path + name + "/",
 				function (err, ret) {
 					if (!err) {
 						dispatch.call("hieUpdate", this, null);
 						console.log(ret);
 					}
-					else console.error(err);});
+					else console.error(err);
+				});
 			// factory.addHierarchy(
 			// 	current_path + name + "/",
 			// 	JSON.stringify({ name: name, top_graph: { edges: [], nodes: [] }, children: [] }, null, "\t"),
@@ -365,7 +438,7 @@ define([
 			// 	}
 			// );
 		};
-
+		
 		function filterNuggets() {
 			var searchString = d3.select("#nugFilter").property("value");
 			var searchStrings = searchString.split("|");
@@ -434,8 +507,38 @@ define([
 			}
 		}
 
+        function deleteRule(_elm, d, _i){
+			let callback = function (err, ret) {
+				if (!err) {
+					dispatch.call("hieUpdate", this, null);
+					console.log(ret);
+				}
+				else console.error(err);
+			};
+			factory.delHierarchy(d.path + "/" + d.id,  callback);
+
+		}
+
+		function applyOnParent(_elm, d, _i) {
+			console.log(d);
+			let suffix = prompt("Name of the new rule?", "");
+			if (!suffix) { return 0 }
+			let callback = function (err, ret) {
+				if (!err) {
+					dispatch.call("hieUpdate", this, null);
+					console.log(ret);
+				}
+				else console.error(err);
+			};
+			factory.applyRuleOnParent(d.path + "/" + d.id, suffix, callback);
+		}
+
 		function editFormulae(_elm, d, _i) {
 			dispatch.call("loadFormulaEditor", this, hierarchy.getAbsPath(d));
+		}
+
+		function editCompositions(_elm, d, _i) {
+			dispatch.call("loadCompositionsEditor", this, hierarchy.getAbsPath(d));
 		}
 
 		function updateCondList() {
