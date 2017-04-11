@@ -1,18 +1,33 @@
-# RegraphGui
-regraph Gui using d3
+# KAMI: Knowledge Aggregator and Model Instantiator
 
 ## About project
+
+## Configuration
+
+## KAMI Hierarchy
+
+## Imports from other formats
+
+### INDRA
+
+## Exports to other formats
+
+### Kappa
+
+### INDRA
+
+## KAMI Gui
 
 The **RegraphGui** is a javascript library for Regraph
 Hierarchy can be added, edited, merged and removed.
 The UI is dumb : due to the current implementation of regraph, it reload the whole graph or hierarchy on each update.
 This UI is autonomus and only need itself to work.... and a regraph server.
 
-## Configuration
+### Configuration
 To configure the ui, simply edit the index.js file.
 Change the server url and if needed the root node name.
 
-## Usage
+### Usage
 
 Top tab allow hierachy navigation and loading,adding and exporting graph or hierarchy.
 to select a graph, click on its name, to go inside it, double click on its name. to go back, select another level in the hierarchy selector on the right

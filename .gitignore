@@ -1,3 +1,5 @@
+dist/*
+build/*
 tests/js_tests/node_modules/*
 venv/*
 .vscode/*
@@ -10,3 +12,4 @@ node_modules/*
 .eslintrc.json
 package.json
 .pylintrc
+*.egg-info
