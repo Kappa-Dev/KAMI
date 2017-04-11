@@ -4,7 +4,7 @@ from flask import (Blueprint, Response, request, send_from_directory,
                    redirect, url_for, render_template)
 from flex.loading.schema.paths.path_item.operation.responses.single.schema\
     import schema_validator
-from webserver_utils import (apply_on_node, apply_on_parent, empty_path,
+from base.webserver_utils import (apply_on_node, apply_on_parent, empty_path,
                              apply_on_node_with_parent)
 import json
 import flex
@@ -16,8 +16,8 @@ import subprocess
 import regraph.library.tree as tree
 from regraph.library.primitives import graph_to_json, relabel_node
 
-GUI_FOLDER = os.path.join(os.path.dirname(__file__), '../client/')
-YAML = os.path.join(os.path.dirname(__file__), 'iRegraph_api.yaml')
+GUI_FOLDER = os.path.join(os.path.dirname(__file__), '../../client/')
+YAML = os.path.join(os.path.dirname(__file__), '../iRegraph_api.yaml')
 json_schema_context = flex.load(YAML)
 
 
@@ -672,6 +672,7 @@ def get_icon():
 
     return send_from_directory(GUI_FOLDER, "favicon.ico")
 
+
 @app.route("/", methods=["GET"])
 def goto_gui():
     return redirect(url_for("app.get_gui"))
@@ -680,29 +681,32 @@ def goto_gui():
 @app.route("/guidark/index.js", methods=["GET"])
 @app.route("/gui/index.js", methods=["GET"])
 def get_index():
-    return render_template("index.js",server_url=request.url_root[:-1])
+    return render_template("index.js", server_url=request.url_root[:-1])
+
 
 @app.route("/guidark/index2.js", methods=["GET"])
 @app.route("/gui/index2.js", methods=["GET"])
 def get_index2():
-    return render_template("index2.js",server_url=request.url_root[:-1])
+    return render_template("index2.js", server_url=request.url_root[:-1])
 
 
 @app.route("/gui/kr.css", methods=["GET"])
 def get_kr():
-        resp = Response(response=render_template("kr.css",
-                                css_defs="def_light.css"),
-                        status=200,
-                        mimetype="text/css")
-        return resp
+    resp = Response(response=render_template("kr.css",
+                                             css_defs="def_light.css"),
+                    status=200,
+                    mimetype="text/css")
+    return resp
+
 
 @app.route("/guidark/kr.css", methods=["GET"])
 def get_dark_kr():
-        resp = Response(response=render_template("kr.css",
-                                css_defs="def_dark.css"),
-                        status=200,
-                        mimetype="text/css")
-        return resp
+    resp = Response(response=render_template("kr.css",
+                                             css_defs="def_dark.css"),
+                    status=200,
+                    mimetype="text/css")
+    return resp
+
 
 @app.route("/guidark/", methods=["GET"])
 @app.route("/guidark/<path:path>", methods=["GET"])
@@ -710,6 +714,7 @@ def get_dark_kr():
 @app.route("/gui/<path:path>", methods=["GET"])
 def get_gui(path="index.html"):
     return send_from_directory(GUI_FOLDER, path)
+
 
 @app.route("/fonts/<path:path>", methods=["GET"])
 def get_font(path=""):
@@ -768,65 +773,29 @@ def delete_graph_attr(path_to_graph=""):
         if keypath[0] in current_dict:
             del current_dict[keypath[0]]
         return ("deletion successful", 200)
-    return apply_on_node(app.hie(), app.top, path_to_graph, delete_graph_attr_aux)
+    return apply_on_node(app.hie(), app.top, path_to_graph,
+                         delete_graph_attr_aux)
 
 
 # @app.route("/graph/unfold/", methods=["PUT"])
 # @app.route("/graph/unfold/<path:path_to_graph>", methods=["PUT"])
-# def unfold_nugget(path_to_graph=""):
-#     def unfold_nugget_aux(command):
+# def unfold_nuggets(path_to_graph=""):
+#     def unfold_nuggets_aux(command):
 #         new_metamodel_name = request.args.get("new_metamodel_name")
 #         if not new_metamodel_name:
 #             return("the query parameter new_metamodel_name is necessary", 404)
+#         if not isinstance(request.json, list):
+#             return("the body must be a list of subgraphs", 412)
+#         if request.json == []:
+#             return("the body must not be the empty list", 412)
+#         nuggets = list(request.json)
 #         try:
-#             command.unfold_abstract_nugget(new_metamodel_name)
+#             command.unfold_abstract_nuggets(new_metamodel_name, nuggets)
 #             return("unfolding done", 200)
 #         except (ValueError, KeyError) as e:
 #             return(str(e), 412)
+#     return get_command(app.cmd, path_to_graph, unfold_nuggets_aux)
 
-#     return get_command(app.cmd, path_to_graph, unfold_nugget_aux)
-
-@app.route("/graph/unfold/", methods=["PUT"])
-@app.route("/graph/unfold/<path:path_to_graph>", methods=["PUT"])
-def unfold_nuggets(path_to_graph=""):
-    def unfold_nuggets_aux(command):
-        new_metamodel_name = request.args.get("new_metamodel_name")
-        if not new_metamodel_name:
-            return("the query parameter new_metamodel_name is necessary", 404)
-        if not isinstance(request.json, list):
-            return("the body must be a list of subgraphs", 412)
-        if request.json == []:
-            return("the body must not be the empty list", 412)
-        nuggets = list(request.json)
-        try:
-            command.unfold_abstract_nuggets(new_metamodel_name, nuggets)
-            return("unfolding done", 200)
-        except (ValueError, KeyError) as e:
-            return(str(e), 412)
-    return get_command(app.cmd, path_to_graph, unfold_nuggets_aux)
-
-
-# @app.route("/graph/to_metakappa/", methods=["PUT"])
-# @app.route("/graph/to_metakappa/<path:path_to_graph>", methods=["PUT"])
-# def to_metakappa(path_to_graph=""):
-#     def to_metakappa_aux(command):
-#         new_metamodel_name = request.args.get("new_metamodel_name")
-#         if not new_metamodel_name:
-#             return("the query parameter new_metamodel_name is necessary", 404)
-#         try:
-#             command.link_states()
-#             new_kappa_command = command.to_kappa_like()
-#             kappa_meta = app.cmd.subCmds[base_name].subCmds[metamodel_name]
-#             if new_metamodel_name in kappa_meta.subCmds.keys():
-#                 raise KeyError("The new metamodel name already exists")
-#             kappa_meta.subCmds[new_metamodel_name] = new_kappa_command
-#             new_kappa_command.parent = kappa_meta
-#             new_kappa_command.name = new_metamodel_name
-#             new_kappa_command.graph.metamodel_ = kappa_meta.graph
-#             return("translation done", 200)
-#         except (ValueError, KeyError) as e:
-#             return(str(e), 412)
-#     return get_command(app.cmd, path_to_graph, to_metakappa_aux)
 
 @app.route("/graph/get_children/", methods=["GET"])
 @app.route("/graph/get_children/<path:path_to_graph>", methods=["GET"])
@@ -843,35 +812,35 @@ def get_children(path_to_graph=""):
     return apply_on_node(app.hie(), app.top, path_to_graph, get_children_aux)
 
 
-@app.route("/graph/merge_graphs/", methods=["POST"])
-@app.route("/graph/merge_graphs/<path:path_to_graph>", methods=["POST"])
-def merge_graphs(path_to_graph=""):
-    """create a graph typed by the selected nodes"""
-    try:
-        (parent_cmd, graph_name) = parse_path(app.cmd, path_to_graph)
-    except KeyError as e:
-        return ("the path is not valid", 404)
-    if graph_name is None:
-        return ("the empty path is not valid", 404)
-    graph1 = request.args.get("graph1")
-    if not graph1:
-        return("argument graph1 is required")
-    graph2 = request.args.get("graph2")
-    if not graph2:
-        return("argument graph2 is required")
-    relation = request.json
-    try:
-        schema = schema_validator({'$ref': '#/definitions/Matching'},
-                                  context=json_schema_context)
-        flex.core.validate(schema, relation, context=json_schema_context)
-        rel = [(c["left"], c["right"]) for c in relation]
-    except ValueError as e:
-        return(str(e), 404)
-    try:
-        parent_cmd.merge_graphs(graph1, graph2, rel, graph_name)
-        return("graphs merged successfully", 200)
-    except (ValueError, KeyError) as e:
-        return (str(e), 404)
+# @app.route("/graph/merge_graphs/", methods=["POST"])
+# @app.route("/graph/merge_graphs/<path:path_to_graph>", methods=["POST"])
+# def merge_graphs(path_to_graph=""):
+#     """create a graph typed by the selected nodes"""
+#     try:
+#         (parent_cmd, graph_name) = parse_path(app.cmd, path_to_graph)
+#     except KeyError as e:
+#         return ("the path is not valid", 404)
+#     if graph_name is None:
+#         return ("the empty path is not valid", 404)
+#     graph1 = request.args.get("graph1")
+#     if not graph1:
+#         return "argument graph1 is required"
+#     graph2 = request.args.get("graph2")
+#     if not graph2:
+#         return "argument graph2 is required"
+#     relation = request.json
+#     try:
+#         schema = schema_validator({'$ref': '#/definitions/Matching'},
+#                                   context=json_schema_context)
+#         flex.core.validate(schema, relation, context=json_schema_context)
+#         rel = [(c["left"], c["right"]) for c in relation]
+#     except ValueError as e:
+#         return(str(e), 404)
+#     try:
+#         parent_cmd.merge_graphs(graph1, graph2, rel, graph_name)
+#         return("graphs merged successfully", 200)
+#     except (ValueError, KeyError) as e:
+#         return (str(e), 404)
 
 
 @app.route("/graph/graph_from_nodes/", methods=["POST"])
@@ -960,6 +929,3 @@ def get_ancestors(path_to_graph=""):
                         mimetype="application/json")
         return resp
     return apply_on_node(app.hie(), app.top, path_to_graph, get_ancestors_aux)
-
-# if __name__ == "__main__":
-#     app.run(host='0.0.0.0')

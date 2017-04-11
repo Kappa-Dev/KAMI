@@ -2,19 +2,26 @@
 
 import os
 import json
+import networkx as nx
 from flask import Flask, request
-from server_hierarchy import ServerHierarchy
-from webserver_base import app
-from webserver_kami import kami_blueprint
-from webserver_mu import mu_blueprint
+# from server_hierarchy import ServerHierarchy
+from base.base_blueprint import app
+from kami.kami_blueprint import kami_blueprint
+from mu_calculus.mu_blueprint import mu_blueprint
 from regraph.library.tree import from_json_tree, to_json_tree, new_action_graph
 from regraph.library.primitives import graph_to_json, add_edge
-from metamodels import untypedkami, untyped_base_kami, kami_basekami
-#from webserver_kami import (include_kami_metamodel,
-#                             include_kappa_metamodel,
-#                             kami_blueprint)
+from regraph.library.hierarchy import MuHierarchy
+from kami.metamodels import untypedkami, untyped_base_kami, kami_basekami
 
 from flask_cors import CORS
+
+
+class ServerHierarchy(MuHierarchy):
+    """hierarchy class with kami and mu-calculus functionalities"""
+    def __init__(self):
+        super().__init__()
+        self.add_graph("/", nx.DiGraph(), {"name": "/"})
+        # self.node["/"].graph = None
 
 
 class MyFlask(Flask):
@@ -23,10 +30,8 @@ class MyFlask(Flask):
     def __init__(self, name, template_folder, hierarchy_constructor):
         super().__init__(name,
                          static_url_path="")
-        #  template_folder=template_folder)
         self._hie = hierarchy_constructor()
         self.top = "/"
-        # self.cmd.graph = None
 
     def hie(self): return self._hie
 
@@ -65,6 +70,8 @@ SERVER.register_blueprint(kami_blueprint)
 #     DATA = json.load(data_file)
 # SERVER.cmd.merge_hierarchy(DATA)
 
+
+# import and replace hierarchy
 @SERVER.route("/hierarchy/", methods=["PUT"])
 @SERVER.route("/hierarchy/<path:path_to_graph>", methods=["PUT"])
 def replace_hierachy(path_to_graph=""):
@@ -78,18 +85,12 @@ def replace_hierachy(path_to_graph=""):
     return("hierarchy replaced", 200)
 
 
-# def _tmp_complete_target(source, target, morph):
-#     for node1 in morph:
-#         for node2 in morph:
-#             if ((node1, node2) in source[edges() and
-#                (morph[node1], morph[node2]) not in target.edges()):
-#                 add_edge(target, morph[node1], morph[node2])
-
+# import and replace hierarchy from partially typed nuggets
 @SERVER.route("/hierarchy2/", methods=["PUT"])
 @SERVER.route("/hierarchy2/<path:path_to_graph>", methods=["PUT"])
 def replace_hierachy2(path_to_graph=""):
     hierarchy = request.json
-    print("hie",hierarchy)
+    print("hie", hierarchy)
     for g in hierarchy["graphs"]:
         if "attrs" not in g.keys():
             g["attrs"] = g["graph"]["attrs"]

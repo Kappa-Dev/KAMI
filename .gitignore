@@ -3,6 +3,9 @@ venv/*
 .vscode/*
 client/ressources/d3/*
 server/__pycache__/*
+server/base/__pycache__/*
+server/mu_calculus/__pycache__/*
+server/kami/__pycache__/*
 node_modules/*
 .eslintrc.json
 package.json

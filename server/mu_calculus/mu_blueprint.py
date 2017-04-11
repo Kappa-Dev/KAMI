@@ -2,7 +2,7 @@
 
 from flask import Blueprint, Response, request
 import json
-from webserver_utils import apply_on_node
+from base.webserver_utils import apply_on_node
 import flex
 from flex.loading.schema.paths.path_item.operation.responses.single.schema\
     import schema_validator

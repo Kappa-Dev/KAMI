@@ -3,10 +3,10 @@
 from flask import Blueprint, Response, request
 import json
 # from metamodels import (kami, base_kami)
-from webserver_utils import (apply_on_node_with_parent,
-                             apply_on_node)
-import kappa
-from algebra import concat_test, create_compositions
+from base.webserver_utils import (apply_on_node_with_parent,
+                                  apply_on_node)
+import kami.kappa as kappa
+from kami.algebra import concat_test, create_compositions
 import regraph.library.tree as tree
 import flex
 import os
@@ -14,7 +14,7 @@ from flex.loading.schema.paths.path_item.operation.responses.single.schema\
     import schema_validator
 
 
-YAML = os.path.join(os.path.dirname(__file__), 'iRegraph_api.yaml')
+YAML = os.path.join(os.path.dirname(__file__)+"/../", 'iRegraph_api.yaml')
 json_schema_context = flex.load(YAML)
 kami_blueprint = Blueprint("kami_blueprint", __name__)
 
@@ -173,8 +173,10 @@ def link_components(path_to_graph=""):
         if not (component1 and component2):
             return("parameters component1 and component2 are necessary", 404)
         try:
-            kappa.link_components(kami_blueprint.hie(), graph_id, component1, component2)
+            kappa.link_components(kami_blueprint.hie(), graph_id, component1,
+                                  component2)
             return("component linked", 200)
         except (ValueError, KeyError) as e:
             return(str(e), 412)
-    return apply_on_node(kami_blueprint.hie(), kami_blueprint.top, path_to_graph, link_components_aux)
+    return apply_on_node(kami_blueprint.hie(), kami_blueprint.top,
+                         path_to_graph, link_components_aux)

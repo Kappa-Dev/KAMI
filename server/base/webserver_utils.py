@@ -5,8 +5,6 @@ def _get_father_id(hie, top, path_to_graph):
     path_list = [s for s in path_to_graph.split("/") if s and not s.isspace()]
     if path_list == []:
         raise ValueError("/ is not a valid name")
-        # graph_id = None
-        # parent_id = top
     else:
         graph_id = path_list[-1]
         parent_id = child_from_path(hie, top, path_list[:-1])
@@ -32,6 +30,7 @@ def empty_path(path):
     return path_list == []
 
 
+# exceptions are not catched for debugging purpose
 def apply_on_node(hie, top, path, callback):
     """apply callback on node identified by path starting from top"""
     # try:
