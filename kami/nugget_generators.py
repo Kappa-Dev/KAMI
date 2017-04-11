@@ -19,7 +19,8 @@ from kami.utils.id_generators import (get_nugget_agent_id,
                                       get_nugget_state_id,
                                       get_nugget_is_bnd_id,
                                       get_nugget_locus_id,
-                                      get_nugget_is_free_id)
+                                      get_nugget_is_free_id,
+                                      get_nugget_bnd_id)
 
 
 class NuggetGenerator(object):
@@ -352,11 +353,11 @@ class NuggetGenerator(object):
 
 
 class ModGenerator(NuggetGenerator):
-    """Generator of modification nugget and its typing."""
+    """Generator class for modification nugget and its typing."""
 
     def __init__(self, enzyme, substrate, mod_target,
                  mod_value=True, annotation=None, direct=False):
-        """Basic nugget construction."""
+        """Initialize generator object."""
         self.nugget = nx.DiGraph()
         self.meta_typing = dict()
 
@@ -457,13 +458,12 @@ class ModGenerator(NuggetGenerator):
 
 
 class AutoModGenerator(ModGenerator):
-    """Class for auto modification nuggets."""
+    """Generator class for automodification nuggets."""
 
     def __init__(self, enzyme_agent, mod_target, mod_value=True,
                  enz_region=None, sub_region=None, annotation=None,
                  direct=False):
-        """Basic nugget construction."""
-
+        """Initialize generator object."""
         if not isinstance(enzyme_agent, PhysicalAgent):
             raise NuggetGenerationError(
                 "Automodification parameter 'enzyme_agent' "
@@ -554,19 +554,71 @@ class AutoModGenerator(ModGenerator):
 
 
 class TransModGenerator(ModGenerator):
+    """Generator class for transmodification nugget."""
 
     def __init__(self):
+        """Initialize generator object."""
         pass
 
 
-class BndGenerator(NuggetGenerator):
+class AnonymousModGenerator(ModGenerator):
+    """Generator class for anonymous modification nugget."""
 
-    def __init__(self, members, annotation=None):
+    def __init__(self):
+        """Initialize generator object."""
+        pass
+
+
+class BinaryBndGenerator(NuggetGenerator):
+    """Generator class for generic binary binding nugget."""
+
+    def __init__(self, left_members, right_members,
+                 annotation=None, direct=False):
+        """Initialize generator object."""
         self.nugget = nx.DiGraph()
         self.meta_typing = dict()
 
-        self.member_nodes = []
+        self.left_nodes = []
+        self.right_nodes = []
 
-        for member in members:
+        # 1. create physical agent nodes and conditions
+        for member in left_members:
             member_id = self._generate_agent_group(member)
-            self.member_nodes.append(member_id)
+            self.left_nodes.append(member_id)
+
+        for member in right_members:
+            member_id = self._generate_agent_group(member)
+            self.right_nodes.append(member_id)
+
+        # 2. create binding action
+        left_ids = "_".join(self.left_nodes)
+        right_ids = "_".join(self.right_nodes)
+        bnd_id = get_nugget_bnd_id(left_ids, right_ids)
+
+        bnd_attrs = {
+            "direct": direct
+        }
+        if annotation:
+            bnd_attrs.update(annotation.to_attrs())
+
+        add_node(self.nugget, bnd_id, bnd_attrs)
+        self.meta_typing[bnd_id] = "bnd"
+
+        # 3. create loci
+        left_locus = get_nugget_locus_id(left_ids, bnd_id)
+        add_node(self.nugget, left_locus)
+        self.meta_typing[left_locus] = "locus"
+        add_edge(self.nugget, left_locus, bnd_id)
+
+        right_locus = get_nugget_locus_id(right_ids, bnd_id)
+        add_node(self.nugget, right_locus)
+        self.meta_typing[right_locus] = "locus"
+        add_edge(self.nugget, right_locus, bnd_id)
+
+        # 4. connect left/right members to the respective loci
+        for member in self.left_nodes:
+            add_edge(self.nugget, member, left_locus)
+
+        for member in self.right_nodes:
+            add_edge(self.nugget, member, right_locus)
+        return

@@ -11,7 +11,7 @@ from kami.data_structures.entities import (PhysicalAgent, Agent,
 
 
 class TestNuggetGenerators(object):
-    """."""
+    """Collection of tests for nugget generators."""
 
     def test_mod_nugget(self):
 

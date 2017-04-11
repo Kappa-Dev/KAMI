@@ -58,6 +58,14 @@ def get_nugget_is_bnd_id(nugget, agent_1, agent_2):
     return is_bnd_id
 
 
+def get_nugget_bnd_id(nugget, left, right):
+    """Generate bnd node id."""
+    bnd_id = "%s_bnd_%s" % (left, right)
+    if bnd_id in nugget.nodes():
+        bnd_id = _generate_new_id(nugget, bnd_id)
+    return bnd_id
+
+
 def get_nugget_is_free_id(nugget, agent_1, agent_2):
     """Generate is_free node id."""
     is_free_id = "%s_is_free_%s" % (agent_1, agent_2)

@@ -13,3 +13,4 @@ node_modules/*
 package.json
 .pylintrc
 *.egg-info
+__pycache__/
