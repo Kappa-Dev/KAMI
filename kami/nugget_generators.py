@@ -1,4 +1,5 @@
 """Collection of nugget generators."""
+import copy
 import warnings
 import networkx as nx
 
@@ -92,7 +93,14 @@ class NuggetGenerator(object):
             )
             self.meta_typing[partner_locus_id] = "locus"
 
-            partner_id = self._generate_agent_group(partner)
+            if isinstance(partner, PhysicalAgent):
+                partner_id = self._generate_agent_group(partner)
+            elif isinstance(partner, PhysicalRegionAgent):
+                (_, partner_id) = self._generate_agent_region_group(partner)
+            else:
+                raise NuggetGenerationError(
+                    "Invalid type of binding partner: '%s'" % type(partner)
+                )
 
             add_edge(self.nugget, partner_locus_id, is_bnd_id)
             add_edge(self.nugget, partner_id, partner_locus_id)
@@ -127,50 +135,44 @@ class NuggetGenerator(object):
             add_edge(self.nugget, region_id, bound_locus_id)
         return region_id
 
+    def _generate_agent_region_group(self, agent):
+        agent_id = self._generate_agent_group(
+            agent.physical_agent
+        )
+        region_id = self._generate_region_group(
+            agent.physical_region, agent_id
+        )
+        add_edge(self.nugget, region_id, agent_id)
+        return (agent_id, region_id)
+
     def _generate_agent_group(self, agent):
         # 1. create agent node
+        agent_id = get_nugget_agent_id(self.nugget, agent.agent)
+        add_node(
+            self.nugget,
+            agent_id,
+            agent.agent.to_attrs()
+        )
+        self.meta_typing[agent_id] = "agent"
+        # 2. create and attach regions
+        for region in agent.regions:
+            region_id = self._generate_region_group(region, agent_id)
+            add_edge(self.nugget, region_id, agent_id)
+        # 3. create and attach residues
+        for residue in agent.residues:
+            (residue_id, _) = self._generate_residue(residue, agent_id)
+            add_edge(self.nugget, residue_id, agent_id)
 
-        if isinstance(agent, PhysicalAgent):
-            agent_id = get_nugget_agent_id(self.nugget, agent.agent)
-            add_node(
-                self.nugget,
-                agent_id,
-                agent.agent.to_attrs()
-            )
-            self.meta_typing[agent_id] = "agent"
-            # 2. create and attach regions
-            for region in agent.regions:
-                region_id = self._generate_region_group(region, agent_id)
-                add_edge(self.nugget, region_id, agent_id)
-            # 3. create and attach residues
-            for residue in agent.residues:
-                (residue_id, _) = self._generate_residue(residue, agent_id)
-                add_edge(self.nugget, residue_id, agent_id)
+        # 4. create and attach states
+        for state in agent.states:
+            state_id = self._generate_state(state, agent_id)
+            add_edge(self.nugget, state_id, agent_id)
 
-            # 4. create and attach states
-            for state in agent.states:
-                state_id = self._generate_state(state, agent_id)
-                add_edge(self.nugget, state_id, agent_id)
+        # 5. create and attach bounds
+        for bnd in agent.bounds:
+            bound_locus_id = self._generate_bound(bnd, agent_id)
+            add_edge(self.nugget, agent_id, bound_locus_id)
 
-            # 5. create and attach bounds
-            for bnd in agent.bounds:
-                bound_locus_id = self._generate_bound(bnd, agent_id)
-                add_edge(self.nugget, agent_id, bound_locus_id)
-
-        elif isinstance(agent, PhysicalRegionAgent):
-            super_agent_id = self._generate_agent_group(
-                agent.physical_agent
-            )
-            agent_id = self._generate_region_group(
-                agent.physical_region, super_agent_id
-            )
-            add_edge(self.nugget, agent_id, super_agent_id)
-        else:
-            raise NuggetGenerationError(
-                "Agent group is generated from kami 'PhysicalAgent' or "
-                "'PhysicalRegionAgent' objects, %s was provided!" %
-                type(agent)
-            )
         return agent_id
 
     def add_residue_to_agent(self, agent_node_id, residue):
@@ -351,6 +353,28 @@ class NuggetGenerator(object):
         add_edge(self.nugget, element_id, region_id)
         add_edge(self.nugget, region_id, agent_id)
 
+    def add_is_bnd_between(self, agent_1, agent_2):
+        """Add is bnd condition between two nodes."""
+        self._check_node_type_memeber(agent_1, ["agent", "region"])
+        self._check_node_type_memeber(agent_2, ["agent", "region"])
+
+        is_bnd_id = get_nugget_is_bnd_id(self.nugget, agent_1, agent_2)
+        agent_1_locus = get_nugget_locus_id(self.nugget, agent_1, is_bnd_id)
+        agent_2_locus = get_nugget_locus_id(self.nugget, agent_2, is_bnd_id)
+
+        add_node(self.nugget, is_bnd_id)
+        self.meta_typing[is_bnd_id] = "is_bnd"
+        add_node(self.nugget, agent_1_locus)
+        self.meta_typing[agent_1_locus] = "locus"
+        self.meta_typing[agent_2_locus] = "locus"
+
+        add_edge(self.nugget, agent_1_locus, is_bnd_id)
+        add_edge(self.nugget, agent_2_locus, is_bnd_id)
+
+        add_edge(self.nugget, agent_1, agent_1_locus)
+        add_edge(self.nugget, agent_2, agent_2_locus)
+        return
+
 
 class ModGenerator(NuggetGenerator):
     """Generator class for modification nugget and its typing."""
@@ -360,12 +384,39 @@ class ModGenerator(NuggetGenerator):
         """Initialize generator object."""
         self.nugget = nx.DiGraph()
         self.meta_typing = dict()
+        self.template_relation = set()
 
-        enzyme_id = self._generate_agent_group(enzyme)
-        self.enzyme_node = enzyme_id
+        if isinstance(enzyme, PhysicalAgent):
+            self.enzyme = self._generate_agent_group(enzyme)
+            self.enzyme_region = None
+        elif isinstance(enzyme, PhysicalRegionAgent):
+            (self.enzyme, self.enzyme_region) = self._generate_agent_region_group(
+                enzyme
+            )
+        else:
+            raise NuggetGenerationError(
+                "Unkown type of an enzyme: '%s'" % type(enzyme)
+            )
 
-        substrate_id = self._generate_agent_group(substrate)
-        self.substrate_id = substrate_id
+        self.template_relation.add((self.enzyme, "enzyme"))
+        if self.enzyme_region:
+            self.template_relation.add((self.enzyme_region, "enzyme_region"))
+
+        if isinstance(substrate, PhysicalAgent):
+            self.substrate = self._generate_agent_group(substrate)
+            self.substrate_region = None
+        elif isinstance(substrate, PhysicalRegionAgent):
+            (self.substrate, self.substrate_region) = self._generate_agent_region_group(
+                substrate
+            )
+        else:
+            raise NuggetGenerationError(
+                "Unkown type of a substrate: '%s'" % type(substrate)
+            )
+
+        self.template_relation.add((self.substrate, "substrate"))
+        if self.substrate_region:
+            self.template_relation.add((self.substrate_region, "substrate_region"))
 
         # 2. create mod node
         mod_attrs = {
@@ -376,8 +427,14 @@ class ModGenerator(NuggetGenerator):
             mod_attrs.update(annotation.to_attrs())
         add_node(self.nugget, "mod", mod_attrs)
         self.meta_typing["mod"] = "mod"
+        self.template_relation.add(("mod", "mod"))
 
-        # 3. create state related nodes subject to modification
+        # 3. create state related nodes subject to modification\
+        if self.substrate_region:
+            attached_to = self.substrate_region
+        else:
+            attached_to = self.substrate
+
         if isinstance(mod_target, State):
             mod_target.name
             if mod_target.value == mod_value:
@@ -385,9 +442,9 @@ class ModGenerator(NuggetGenerator):
                     "Modification does not change the state's value!",
                     UserWarning
                 )
-            mod_state_id = self._generate_state(mod_target, self.substrate_id)
-            add_edge(self.nugget, mod_state_id, self.substrate_id)
-
+            mod_state_id = self._generate_state(mod_target, attached_to)
+            add_edge(self.nugget, mod_state_id, attached_to)
+            self.template_relation.add((mod_state_id, "mod_state"))
         elif isinstance(mod_target, Residue):
             if mod_target.state:
                 if mod_target.state.value == mod_value:
@@ -397,9 +454,11 @@ class ModGenerator(NuggetGenerator):
                     )
                 (residue_id, mod_state_id) = self._generate_residue(
                     mod_target,
-                    self.substrate_id
+                    attached_to
                 )
-                add_edge(self.nugget, residue_id, self.substrate_id)
+                add_edge(self.nugget, residue_id, attached_to)
+                self.template_relation.add((mod_state_id, "mod_state"))
+                self.template_relation.add((residue_id, "mod_residue"))
             else:
                 raise KamiError(
                     "Target of modification is required to be either "
@@ -413,48 +472,48 @@ class ModGenerator(NuggetGenerator):
                 "is provided" % type(mod_target)
             )
 
-        add_edge(self.nugget, self.enzyme_node, "mod")
+        add_edge(self.nugget, self.enzyme, "mod")
         add_edge(self.nugget, "mod", mod_state_id)
         return
 
     def add_enzyme_residue(self, residue):
         """Add residue mod conditions to enzyme."""
-        self.add_residue_to_agent(self.enzyme_node, residue)
+        self.add_residue_to_agent(self.enzyme, residue)
         return
 
     def add_enzyme_state(self, state):
         """Add state mod conditions to enzyme."""
-        self.add_state_to_agent(self.enzyme_node, state)
+        self.add_state_to_agent(self.enzyme, state)
         return
 
     def add_substrate_residue(self, residue):
         """Add residue mod conditions to enzyme."""
-        self.add_residue_to_agent(self.substrate_node, residue)
+        self.add_residue_to_agent(self.substrate, residue)
         return
 
     def add_substrate_state(self, state):
         """Add state mod conditions to enzyme."""
-        self.add_state_to_agent(self.substrate_node, state)
+        self.add_state_to_agent(self.substrate, state)
         return
 
     def add_enzyme_is_bnd(self, partner_agent):
         """Add binding mod conditions to enzyme."""
-        self.add_is_bnd_to_agent(self.enzyme_node, partner_agent)
+        self.add_is_bnd_to_agent(self.enzyme, partner_agent)
         return
 
     def add_enzyme_is_free(self, partner_agent):
         """Add free of binding mod conditions to enzyme."""
-        self.add_is_free_to_agent(self.enzyme_node, partner_agent)
+        self.add_is_free_to_agent(self.enzyme, partner_agent)
         return
 
     def add_substrate_is_bnd(self, partner_agent):
         """Add binding mod conditions to substrate."""
-        self.add_is_bnd_to_agent(self.substrate_node, partner_agent)
+        self.add_is_bnd_to_agent(self.substrate, partner_agent)
         return
 
     def add_substrate_is_free(self, partner_agent):
         """Add free of binding mod conditions to enzyme."""
-        self.add_is_free_to_agent(self.substrate_node, partner_agent)
+        self.add_is_free_to_agent(self.substrate, partner_agent)
 
 
 class AutoModGenerator(ModGenerator):
@@ -473,25 +532,30 @@ class AutoModGenerator(ModGenerator):
 
         self.nugget = nx.DiGraph()
         self.meta_typing = dict()
+        self.template_relation = set()
 
-        enzyme_id = self._generate_agent_group(enzyme_agent)
-        self.enzyme_node = enzyme_id
-        self.substrate_node = enzyme_id
+        self.enzyme = self._generate_agent_group(enzyme_agent)
+
+        self.template_relation.add((self.enzyme, "enzyme"))
+        self.substrate = self.enzyme
+        self.template_relation.add((self.enzyme, "substrate"))
 
         # 2. create enzymatic/substratic regions
-        self.enz_region_id = None
+        self.enzyme_region = None
         if enz_region:
-            self.enz_region_id = self._generate_region_group(
-                enz_region, self.enzyme_node
+            self.enzyme_region = self._generate_region_group(
+                enz_region, self.enzyme
             )
-            add_edge(self.nugget, self.enz_region_id, enzyme_id)
+            add_edge(self.nugget, self.enzyme_region, self.enzyme)
+            self.template_relation.add((self.enzyme_region, "enzyme_region"))
 
-        self.sub_region_id = None
+        self.substrate_region = None
         if sub_region:
-            self.sub_region_id = self._generate_region_group(
-                sub_region, self.enzyme_node
+            self.substrate_region = self._generate_region_group(
+                sub_region, self.enzyme
             )
-            add_edge(self.nugget, self.sub_region_id, enzyme_id)
+            add_edge(self.nugget, self.substrate_region, self.enzyme)
+            self.template_relation.add((self.substrate_region, "substrate_region"))
 
         # 3. create mod node
         mod_attrs = {
@@ -502,13 +566,19 @@ class AutoModGenerator(ModGenerator):
             mod_attrs.update(annotation.to_attrs())
         add_node(self.nugget, "mod", mod_attrs)
         self.meta_typing["mod"] = "mod"
+        self.template_relation.add(("mod", "mod"))
 
-        if self.enz_region_id:
-            add_edge(self.nugget, self.enz_region_id, "mod")
+        if self.enzyme_region:
+            add_edge(self.nugget, self.enzyme_region, "mod")
         else:
-            add_edge(self.nugget, self.enzyme_node, "mod")
+            add_edge(self.nugget, self.enzyme, "mod")
 
         # 4. create state related nodes subject to modification
+        if self.substrate_region:
+            attached_to = self.substrate_region
+        else:
+            attached_to = self.substrate
+
         if isinstance(mod_target, State):
             mod_target.name
             if mod_target.value == mod_value:
@@ -516,11 +586,9 @@ class AutoModGenerator(ModGenerator):
                     "Modification does not change the state's value!",
                     UserWarning
                 )
-            mod_state_id = self._generate_state(mod_target, self.enzyme_node)
-            if self.sub_region_id:
-                add_edge(self.nugget, mod_state_id, self.sub_region_id)
-            else:
-                add_edge(self.nugget, mod_state_id, self.substrate_node)
+            mod_state_id = self._generate_state(mod_target, attached_to)
+            self.template_relation.add((mod_state_id, "mod_state"))
+            add_edge(self.nugget, mod_state_id, attached_to)
 
         elif isinstance(mod_target, Residue):
             if mod_target.state:
@@ -531,12 +599,11 @@ class AutoModGenerator(ModGenerator):
                     )
                 (residue_id, mod_state_id) = self._generate_residue(
                     mod_target,
-                    self.enzyme_node
+                    attached_to
                 )
-                if self.sub_region_id:
-                    add_edge(self.nugget, residue_id, self.sub_region_id)
-                else:
-                    add_edge(self.nugget, residue_id, self.substrate_node)
+                self.template_relation.add((mod_state_id, "mod_state"))
+                self.template_relation.add((residue_id, "mod_residue"))
+                add_edge(self.nugget, residue_id, attached_to)
             else:
                 raise KamiError(
                     "Target of modification is required to be either "
@@ -556,17 +623,114 @@ class AutoModGenerator(ModGenerator):
 class TransModGenerator(ModGenerator):
     """Generator class for transmodification nugget."""
 
-    def __init__(self):
+    def __init__(self, enzyme, substrate, mod_target, mod_value=True,
+                 annotation=None, direct=False):
         """Initialize generator object."""
-        pass
+        ModGenerator.__init__(
+            self, enzyme, substrate, mod_target, mod_value,
+            annotation, direct
+        )
+
+        if self.enzyme_region:
+            enzyme_actor = self.enzyme_region
+        else:
+            enzyme_actor = self.enzyme
+
+        if self.substrate_region:
+            substrate_actor = self.substrate_region
+        else:
+            substrate_actor = self.substrate
+
+        self.add_is_bnd_between(enzyme_actor, substrate_actor)
+        return
 
 
 class AnonymousModGenerator(ModGenerator):
     """Generator class for anonymous modification nugget."""
 
-    def __init__(self):
+    def __init__(self, substrate_agent, mod_target, mod_value,
+                 annotation=None, direct=False):
         """Initialize generator object."""
-        pass
+        self.nugget = nx.DiGraph()
+        self.meta_typing = dict()
+        self.template_relation = set()
+
+        if isinstance(substrate_agent, PhysicalAgent):
+            self.substrate = self._generate_agent_group(substrate_agent)
+            self.substrate_region = None
+            self.template_relation.add((self.substrate, "substrate"))
+
+        elif isinstance(substrate_agent, PhysicalRegionAgent):
+            (self.substrate, self.substrate_region) = self._generate_agent_region_group(
+                substrate_agent
+            )
+            self.template_relation.add((self.substrate, "substrate"))
+            self.template_relation.add((self.substrate_region, "substrate_region"))
+
+        else:
+            raise NuggetGenerationError(
+                "Unkown type of a substrate: '%s'" % type(substrate_agent)
+            )
+
+        self.enzyme = None
+        self.enzyme_region = None
+
+        # 3. create mod node
+        mod_attrs = {
+            "value": mod_value,
+            "direct": direct
+        }
+        if annotation:
+            mod_attrs.update(annotation.to_attrs())
+        add_node(self.nugget, "mod", mod_attrs)
+        self.meta_typing["mod"] = "mod"
+        self.template_relation.add(("mod", "mod"))
+
+        # 4. create state related nodes subject to modification
+        if self.substrate_region:
+            attached_to = self.substrate_region
+        else:
+            attached_to = self.substrate
+
+        if isinstance(mod_target, State):
+            mod_target.name
+            if mod_target.value == mod_value:
+                warnings.warn(
+                    "Modification does not change the state's value!",
+                    UserWarning
+                )
+            mod_state_id = self._generate_state(mod_target, attached_to)
+            self.template_relation.add((mod_state_id, "mod_state"))
+            add_edge(self.nugget, mod_state_id, attached_to)
+
+        elif isinstance(mod_target, Residue):
+            if mod_target.state:
+                if mod_target.state.value == mod_value:
+                    warnings.warn(
+                        "Modification does not change the state's value!",
+                        UserWarning
+                    )
+                (residue_id, mod_state_id) = self._generate_residue(
+                    mod_target,
+                    attached_to
+                )
+                self.template_relation.add((mod_state_id, "mod_state"))
+                self.template_relation.add((residue_id, "mod_residue"))
+                add_edge(self.nugget, residue_id, attached_to)
+            else:
+                raise KamiError(
+                    "Target of modification is required to be either "
+                    "`State` or `Residue` with non-empty state: state "
+                    "of residue is empty"
+                )
+        else:
+            raise KamiError(
+                "Target of modification is required to be either "
+                "`State` or `Residue` with non-empty state: %s "
+                "is provided" % type(mod_target)
+            )
+        add_edge(self.nugget, "mod", mod_state_id)
+        return
 
 
 class BinaryBndGenerator(NuggetGenerator):
@@ -593,7 +757,7 @@ class BinaryBndGenerator(NuggetGenerator):
         # 2. create binding action
         left_ids = "_".join(self.left_nodes)
         right_ids = "_".join(self.right_nodes)
-        bnd_id = get_nugget_bnd_id(left_ids, right_ids)
+        bnd_id = get_nugget_bnd_id(self.nugget, left_ids, right_ids)
 
         bnd_attrs = {
             "direct": direct
@@ -621,4 +785,52 @@ class BinaryBndGenerator(NuggetGenerator):
 
         for member in self.right_nodes:
             add_edge(self.nugget, member, right_locus)
+        return
+
+
+class ComplexGenerator(NuggetGenerator):
+    """."""
+
+    def __init__(self, members, annotation=None):
+        """."""
+        self.nugget = nx.DiGraph()
+        self.meta_typing = dict()
+        self.template_relation = dict()
+
+        self.members = list()
+
+        # create agents
+        for member in members:
+            if isinstance(member, PhysicalAgent):
+                member_id = self._generate_agent_group(member)
+                self.members.append(member_id)
+            elif isinstance(member, PhysicalRegionAgent):
+                (member_id, region_id) = self._generate_agent_region_group(member)
+                self.members.append(region_id)
+
+        visited = set()
+
+        for member in self.members:
+            for partner in self.members:
+                if member != partner and partner not in visited:
+                    bnd_id = get_nugget_bnd_id(self.nugget, member, partner)
+                    add_node(self.nugget, bnd_id, {"direct": False})
+                    self.meta_typing[bnd_id] = "bnd"
+
+                    member_locus_id = get_nugget_locus_id(self.nugget, member, bnd_id)
+                    add_node(self.nugget, member_locus_id)
+                    self.meta_typing[member_locus_id] = "locus"
+
+                    partner_locus_id = get_nugget_locus_id(self.nugget, partner, bnd_id)
+                    add_node(self.nugget, partner_locus_id)
+                    self.meta_typing[partner_locus_id] = "locus"
+
+                    add_edge(self.nugget, member_locus_id, bnd_id)
+                    add_edge(self.nugget, partner_locus_id, bnd_id)
+
+                    add_edge(self.nugget, member, member_locus_id)
+                    add_edge(self.nugget, partner, partner_locus_id)
+
+            visited.add(member)
+
         return

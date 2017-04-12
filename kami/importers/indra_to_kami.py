@@ -1,4 +1,5 @@
 """Importers from INDRA."""
+import copy
 import warnings
 
 import indra.statements
@@ -9,8 +10,9 @@ from kami.data_structures.entities import (Agent, Residue, State,
 from kami.exceptions import IndraImportError, IndraImportWarning
 from kami.nugget_generators import (ModGenerator,
                                     AutoModGenerator,
-                                    # TransModGenerator,
-                                    BndGenerator)
+                                    TransModGenerator,
+                                    AnonymousModGenerator,
+                                    ComplexGenerator)
 from kami.utils.xrefs import (uniprot_from_xrefs,
                               names_from_uniprot,
                               uniprot_from_names
@@ -285,23 +287,51 @@ class IndraImporter(object):
 
             return nugget_gen.nugget
         elif isinstance(statement, indra.statements.Transphosphorylation):
-            pass
+            no_bound_enzyme = copy.deepcopy(statement.enz)
+            no_bound_enzyme.bound_conditions = None
+            enzyme_agent = self._physical_agent_to_kami(no_bound_enzyme)
+            substrate_agent = self._physical_agent_to_kami(
+                statement.enz.bound_conditions[0]
+            )
+
+            mod_state = State("phosphorylation", False)
+
+            mod_residue = None
+            if statement.residue:
+                mod_residue = Residue(
+                    statement.residue,
+                    position=statement.position,
+                    state=mod_state
+                )
+            value = True
+            annotation = self._annotation_to_kami(statement)
+
+            if mod_residue:
+                nugget_gen = TransModGenerator(
+                    enzyme_agent, substrate_agent, mod_state, value,
+                    annotation=annotation, direct=True
+                )
+            else:
+                nugget_gen = TransModGenerator(
+                    enzyme_agent, substrate_agent, mod_residue, value,
+                    annotation=annotation, direct=True
+                )
         else:
             pass
-            # raise IndraImportError(
-            #     "Unknown type of self-modification: %s!" % str(statement)
-            # )
+            raise IndraImportError(
+                "Unknown type of self-modification: '%s'!" % str(statement)
+            )
 
     def _handle_complex(self, statement):
         """Handle INDRA complex classes."""
-        # physical_agents = []
-        # for member in statement.members:
-        #     physical_agents.append(self._physical_agent_to_kami(member))
+        physical_agents = []
+        for member in statement.members:
+            physical_agents.append(self._physical_agent_to_kami(member))
 
-        # nugget_gen = BndGenerator(physical_agents, direct=False)
+        annotation = self._annotation_to_kami(statement)
+        nugget_gen = ComplexGenerator(physical_agents, annotation=annotation)
 
-        # return nugget_gen.nugget
-        pass
+        return nugget_gen.nugget
 
     def _handle_regulate_activity(self, statement):
 
@@ -335,8 +365,17 @@ class IndraImporter(object):
 
     def _handle_active_form(self, statement):
         """Handle INDRA active form classes."""
-        # TODO find evidence/annotations field and
-        pass
+        agent = self._physical_agent_to_kami(statement.agent)
+        mod_state = State(statement.activity, not statement.is_active)
+        mod_value = statement.is_active
+
+        annotation = self._annotation_to_kami(statement)
+
+        nugget_gen = AnonymousModGenerator(
+            agent, mod_state, mod_value,
+            annotation=annotation, direct=True
+        )
+        return nugget_gen.nugget
 
     def process_statement(self, statement):
         """Process individual INDRA statement."""

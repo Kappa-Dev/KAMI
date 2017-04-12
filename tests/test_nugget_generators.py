@@ -13,7 +13,34 @@ from kami.data_structures.entities import (PhysicalAgent, Agent,
 class TestNuggetGenerators(object):
     """Collection of tests for nugget generators."""
 
-    def test_mod_nugget(self):
+    def test_simple_mod_nugget(self):
+        enz_res = Residue("S", 100, State("phospho", True))
+        enzyme_entity = PhysicalAgent(Agent("4334778", ["EGFR"]), residues=[enz_res])
+
+        sub_bound_1 = PhysicalAgent(
+            Agent("232324", ["Agent 2"]),
+            states=[State("activity", True)]
+        )
+        sub_bound_2 = PhysicalAgent(
+            Agent("232324", ["Agent 2"]),
+            states=[State("activity", True)]
+        )
+
+        substrate_entity = PhysicalAgent(
+            Agent("34343434", ["Agent1"]),
+            bounds=[[sub_bound_1], [sub_bound_2]]
+        )
+
+        mod_state = State("activity", False)
+        value = True
+
+        mod_generator = ModGenerator(enzyme_entity, substrate_entity, mod_state, value)
+
+        print_graph(mod_generator.nugget)
+        print(mod_generator.meta_typing)
+        print(mod_generator.template_relation)
+
+    def test_complex_mod_nugget(self):
 
         enzyme_agent = Agent("B123232", ["BRAF"], {"GO": "121313"})
         enzyme_ph_agent = PhysicalAgent(enzyme_agent)
@@ -65,6 +92,7 @@ class TestNuggetGenerators(object):
 
         print_graph(gen.nugget)
         print(gen.meta_typing)
+        print(gen.template_relation)
 
     def test_auto_mod_nugget(self):
         agent = Agent("R344353", ["RAF"])
@@ -94,3 +122,7 @@ class TestNuggetGenerators(object):
 
         print_graph(gen.nugget)
         print(gen.meta_typing)
+        print(gen.template_relation)
+
+    def test_trans_mod_nugget(self):
+        pass

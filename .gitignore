@@ -13,4 +13,7 @@ node_modules/*
 package.json
 .pylintrc
 *.egg-info
-__pycache__/
+kami/utils/__pycache__/*
+kami/__pycache__/*
+tests/__pycache__/*
+*.pyc
