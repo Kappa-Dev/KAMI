@@ -15,6 +15,7 @@ setup(name='kami',
                 'kami.resources',
                 'kami.server',
                 'kami.utils',
-                'kami.server.kami'
+                'kami.server.kami',
+                'anatomizer'
                 ],
       zip_safe=False)
