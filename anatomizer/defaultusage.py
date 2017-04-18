@@ -3,10 +3,10 @@
 # Default usage of the "agent anatomizer".
 
 from anatomizer2 import AgentAnatomy
-import json
+#import json
 
 
-agent = AgentAnatomy('stat6')
+agent = AgentAnatomy('egfr')
 
 agent.get_proteins()
 agent.proteins()

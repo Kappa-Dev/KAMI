@@ -120,11 +120,19 @@ class AgentAnatomy(object):
             ensemblext = '/xrefs/id/%s?' % ensp
             protxreflist = self._fetch_ensembl(ensemblext)
             #self.print_json(protxreflist)
+            nunip = 0
             for pxref in protxreflist:
                 if pxref['db_display_name'][:9] == 'UniProtKB':
                     self.ptnlist[i]['UniProt_accession'] = pxref['primary_id']
                     ## Optionally show if from Swiss-prot or TrEMBL
-                    #self.ptnlist[i]['UniProt_db'] = pxref['db_display_name'][10:]
+                    #self.ptnlist[i]['UniProt_db'] = pxref['db_display_name'][i10:]
+                    nunip += 1
+            if nunip == 0:
+                self.ptnlist[i]['UniProt_accession'] = 'None'
+            if nunip > 1:
+                print('More than one UniProt Accession Number found for %s.\n' % ensp)
+                exit()
+        #print(self.ptnlist)
 
 
     def _fetch_uniprotxml(self,uniprotac):
@@ -507,64 +515,8 @@ class AgentAnatomy(object):
         outfile.write(json.dumps(self.kami, indent=4))
         #self.print_json(self.kami)
         print('Wrote Kami agent representation '
-              'to file %s\n' % self.hgncsymbol.lower() )
+              'to file %s.json\n' % self.hgncsymbol.lower() )
  
-         
-
-#    def old_apply_nesting(self):
-#        self.nestedfeaturelist = self.mergedfeaturelist
-#        # Find the largest number of features contained inside one.
-#        largestnum = 0
-#        for subfeatlist in self.nestlist:
-#            l = len(subfeatlist)
-#            if l > largestnum:
-#                largestnum = l
-#        # From the feature that contains the least subfeatures to
-#        # the one that contains the most.
-#        print(self.nestlist)
-#        for num in range(1, largestnum+1):
-#            i = 0
-#            while i < len(self.nestlist):
-#            #for i in range(len(self.nestlist)):
-#                subfeatlist = self.nestlist[i]
-#                if len(subfeatlist) == num: # Found a set of features to nest
-#                    #print(subfeatlist,num)
-#                    contained = []
-#                    # Get the subfeatures and put them inside the proper feature
-#                    for k in subfeatlist:
-#                        # I have to create a new object from scratch.
-#                        # Just doing contained.append(self.mergedfeaturelist[k-1])
-#                        # brings a circular reference error.
-#                        newobject = OrderedDict([])
-#                        newobject['name'] = self.nestedfeaturelist[k-1]['name']
-#                        newobject['start'] = self.nestedfeaturelist[k-1]['start']
-#                        newobject['end'] = self.nestedfeaturelist[k-1]['end']
-#                        newobject['length'] = self.nestedfeaturelist[k-1]['length']
-#                        newobject['merged_id'] = self.nestedfeaturelist[k-1]['merged_id']
-#                        contained.append(newobject)
-#                    self.nestedfeaturelist[i]['contains'] = contained
-#                    #self.nestedfeaturelist[i]['contains'] = contained
-#                    #print(self.nestedfeaturelist[i])
-#                    # Remove the subfeatures from the feature list 
-#                    # (they now appear inside an other feature)
-#                    for k in subfeatlist:
-#                        self.nestedfeaturelist.pop(k-1)
-#                    # Remove elements that take value k and
-#                    # the kth value from nestlist.
-#                    for k in subfeatlist:
-#                        for j in range(len(self.nestlist)):
-#                            if k in self.nestlist[j]:
-#                                self.nestlist[j].remove(k)
-#                        self.nestlist.pop(k-1)
-#                    print(json.dumps(self.nestedfeaturelist, indent=4))
-#                    print(self.nestlist)
-#                    i = 0 # restart reading self.nestlist at the beginning after 
-#                          # items were removed
-#                print(len(self.nestlist), num, largestnum)
-#                i += 1
-#                    #break # restart the loop on self.nestlist because it changed.
-#        #self.print_json(self.nestedfeaturelist)
-
 
     # ====== End of methods to get protein features ======
 
