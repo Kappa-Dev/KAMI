@@ -2,7 +2,11 @@
 from regraph.library.primitives import print_graph
 
 from kami.nugget_generators import (ModGenerator,
-                                    AutoModGenerator,)
+                                    AutoModGenerator,
+                                    TransModGenerator,
+                                    BinaryBndGenerator,
+                                    AnonymousModGenerator,
+                                    ComplexGenerator)
 from kami.data_structures.entities import (PhysicalAgent, Agent,
                                            PhysicalRegion, Region,
                                            PhysicalRegionAgent,
@@ -13,21 +17,24 @@ from kami.data_structures.entities import (PhysicalAgent, Agent,
 class TestNuggetGenerators(object):
     """Collection of tests for nugget generators."""
 
-    def test_simple_mod_nugget(self):
+    def __init__(self):
+        self.generators = []
+
+        # 1a. Simple modification generator
         enz_res = Residue("S", 100, State("phospho", True))
-        enzyme_entity = PhysicalAgent(Agent("4334778", ["EGFR"]), residues=[enz_res])
+        enzyme_entity = PhysicalAgent(Agent("E"), residues=[enz_res])
 
         sub_bound_1 = PhysicalAgent(
-            Agent("232324", ["Agent 2"]),
+            Agent("A"),
             states=[State("activity", True)]
         )
         sub_bound_2 = PhysicalAgent(
-            Agent("232324", ["Agent 2"]),
+            Agent("A"),
             states=[State("activity", True)]
         )
 
         substrate_entity = PhysicalAgent(
-            Agent("34343434", ["Agent1"]),
+            Agent("S"),
             bounds=[[sub_bound_1], [sub_bound_2]]
         )
 
@@ -40,14 +47,16 @@ class TestNuggetGenerators(object):
         print(mod_generator.meta_typing)
         print(mod_generator.template_relation)
 
-    def test_complex_mod_nugget(self):
+        self.generators.append(mod_generator)
 
-        enzyme_agent = Agent("B123232", ["BRAF"], {"GO": "121313"})
+        # 1b. Complex modification generator
+
+        enzyme_agent = Agent("Enzyme")
         enzyme_ph_agent = PhysicalAgent(enzyme_agent)
         enzyme_region = PhysicalRegion(Region(100, 200, "sh2"))
         enzyme = PhysicalRegionAgent(enzyme_region, enzyme_ph_agent)
 
-        substrate_agent = Agent("M344343", ["MAPK1"])
+        substrate_agent = Agent("Substrate")
         state = State("phosphorylation", True)
         reg_residue = Residue("S", 102, state)
 
@@ -68,12 +77,12 @@ class TestNuggetGenerators(object):
                 Region(224, 234)
             ),
             PhysicalAgent(
-                Agent("R3344", ["RAF"])
+                Agent("A")
             )
         )
 
         substrate_bound = PhysicalAgent(
-            Agent("E237378", ["EGFR"]),
+            Agent("B"),
             bounds=[next_level_bound]
         )
 
@@ -94,11 +103,13 @@ class TestNuggetGenerators(object):
         print(gen.meta_typing)
         print(gen.template_relation)
 
-    def test_auto_mod_nugget(self):
-        agent = Agent("R344353", ["RAF"])
+        self.generators.append(gen)
 
-        a1 = PhysicalAgent(Agent("E343434", ["EGFR"]))
-        a2 = PhysicalAgent(Agent("M345777", ["MEK"]))
+        # 2. Automodification
+        agent = Agent("A")
+
+        a1 = PhysicalAgent(Agent("B"))
+        a2 = PhysicalAgent(Agent("C"))
 
         ph_agent = PhysicalAgent(agent, bounds=[[a1, a2]])
 
@@ -124,5 +135,104 @@ class TestNuggetGenerators(object):
         print(gen.meta_typing)
         print(gen.template_relation)
 
-    def test_trans_mod_nugget(self):
+        self.generators.append(gen)
+
+        # 3. Transmodification
+        enzyme_ph_agent = PhysicalAgent(Agent("A"))
+
+        substrate_ph_agent = PhysicalRegionAgent(
+            PhysicalRegion(Region(10, 20, "aa")),
+            PhysicalAgent(Agent("A"))
+        )
+
+        gen = TransModGenerator(
+            enzyme_ph_agent,
+            substrate_ph_agent,
+            State("activity", False),
+            True
+        )
+        assert(len(gen.nugget.nodes()) == len(gen.meta_typing.keys()))
+
+        print_graph(gen.nugget)
+        print(gen.meta_typing)
+        print(gen.template_relation)
+
+    def test_anonymous_mod_nugget(self):
+        substrate_ph_agent = PhysicalAgent(
+            Agent("A"),
+            residues=[
+                Residue("S", 100, State("phospho", True)),
+                Residue("T", 205, State("phospho", True))
+            ]
+        )
+
+        gen = AnonymousModGenerator(
+            substrate_ph_agent,
+            State("activity", False),
+            True
+        )
+        assert(len(gen.nugget.nodes()) == len(gen.meta_typing.keys()))
+
+        print_graph(gen.nugget)
+        print(gen.meta_typing)
+        print(gen.template_relation)
+
+    def test_binary_bnd_nugget(self):
+        left_members = [
+            PhysicalAgent(
+                Agent("A1"), states=[State('activity', True)]
+            ),
+            PhysicalRegionAgent(
+                PhysicalRegion(Region(100, 200, "a2"), residues=[Residue("S", 100)]),
+                PhysicalAgent(Agent("A2"))
+            )
+        ]
+
+        right_members = [
+            PhysicalRegionAgent(
+                PhysicalRegion(Region(1, 500, "b")),
+                PhysicalAgent(Agent("B"), bounds=[
+                    [PhysicalAgent(Agent("C")), PhysicalAgent(Agent("D"))]
+                ])
+            )
+        ]
+
+        gen = BinaryBndGenerator(left_members, right_members)
+        print_graph(gen.nugget)
+        print(gen.meta_typing)
+        # print(gen.template_relation)
+
+    def test_complex_nugget(self):
+        members = [
+            PhysicalAgent(Agent("A")),
+            PhysicalAgent(Agent("B")),
+            PhysicalRegionAgent(
+                PhysicalRegion(Region(1, 2)),
+                PhysicalAgent(Agent("C"))
+            )
+        ]
+
+        gen = ComplexGenerator(members)
+        print_graph(gen.nugget)
+        print(gen.meta_typing)
+
+    def add_residue_to_agent(self):
+        pass
+
+    def add_state_to_agent(self):
+        pass
+
+    def add_is_bnd_to_agent(self):
+        pass
+
+    def add_is_free_to_agent(self):
+        pass
+
+    def add_region_to_agent(self):
+        pass
+
+    def insert_region(self):
+        pass
+
+    def add_is_bnd_between(self):
         pass

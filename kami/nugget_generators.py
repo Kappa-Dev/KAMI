@@ -5,7 +5,8 @@ import networkx as nx
 
 from regraph.library.primitives import (add_node,
                                         add_edge,
-                                        remove_edge)
+                                        remove_edge,
+                                        print_graph)
 
 from kami.data_structures.entities import (State, Residue,
                                            PhysicalRegion,
@@ -366,6 +367,7 @@ class NuggetGenerator(object):
         self.meta_typing[is_bnd_id] = "is_bnd"
         add_node(self.nugget, agent_1_locus)
         self.meta_typing[agent_1_locus] = "locus"
+        add_node(self.nugget, agent_2_locus)
         self.meta_typing[agent_2_locus] = "locus"
 
         add_edge(self.nugget, agent_1_locus, is_bnd_id)
@@ -747,11 +749,25 @@ class BinaryBndGenerator(NuggetGenerator):
 
         # 1. create physical agent nodes and conditions
         for member in left_members:
-            member_id = self._generate_agent_group(member)
+            if isinstance(member, PhysicalAgent):
+                member_id = self._generate_agent_group(member)
+            elif isinstance(member, PhysicalRegionAgent):
+                (_, member_id) = self._generate_agent_region_group(member)
+            else:
+                raise NuggetGenerationError(
+                    "Unkown type of an agent: '%s'" % type(member)
+                )
             self.left_nodes.append(member_id)
 
         for member in right_members:
-            member_id = self._generate_agent_group(member)
+            if isinstance(member, PhysicalAgent):
+                member_id = self._generate_agent_group(member)
+            elif isinstance(member, PhysicalRegionAgent):
+                (_, member_id) = self._generate_agent_region_group(member)
+            else:
+                raise NuggetGenerationError(
+                    "Unkown type of an agent: '%s'" % type(member)
+                )
             self.right_nodes.append(member_id)
 
         # 2. create binding action
@@ -769,12 +785,12 @@ class BinaryBndGenerator(NuggetGenerator):
         self.meta_typing[bnd_id] = "bnd"
 
         # 3. create loci
-        left_locus = get_nugget_locus_id(left_ids, bnd_id)
+        left_locus = get_nugget_locus_id(self.nugget, left_ids, bnd_id)
         add_node(self.nugget, left_locus)
         self.meta_typing[left_locus] = "locus"
         add_edge(self.nugget, left_locus, bnd_id)
 
-        right_locus = get_nugget_locus_id(right_ids, bnd_id)
+        right_locus = get_nugget_locus_id(self.nugget, right_ids, bnd_id)
         add_node(self.nugget, right_locus)
         self.meta_typing[right_locus] = "locus"
         add_edge(self.nugget, right_locus, bnd_id)

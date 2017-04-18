@@ -5,8 +5,8 @@ import json
 # from metamodels import (kami, base_kami)
 from base.webserver_utils import (apply_on_node_with_parent,
                                   apply_on_node)
-import kami.kappa as kappa
-from kami.algebra import concat_test, create_compositions
+import kami.server.kami.kappa as kappa
+from kami.server.kami.algebra import concat_test, create_compositions
 import regraph.library.tree as tree
 import flex
 import os

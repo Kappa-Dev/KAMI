@@ -14,6 +14,7 @@ setup(name='kami',
                 'kami.resolvers',
                 'kami.resources',
                 'kami.server',
-                'kami.utils'
+                'kami.utils',
+                'kami.server.kami'
                 ],
       zip_safe=False)

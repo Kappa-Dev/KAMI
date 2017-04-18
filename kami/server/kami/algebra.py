@@ -78,7 +78,7 @@ def concat(p1, p2):
                     new_typings[typ_id][p2_p12[node]] = typ_map[node]
         (new_in, _, _, newin_p12) = pullback_pushout(p1.in_pat, p2.in_pat,
                                                      p12, in1_p12, in2_p12)
-        new_pattern = Pattern(f"{p1.name}_{p2.name}_{i}",
+        new_pattern = Pattern("%s_%s_%s" % (p1.name, p2.name, i),
                               p12, new_in, newin_p12, p2.out_morph, out2_p12,
                               new_typings,
                               p1.typing_graphs.update(p2.typing_graphs))
@@ -89,8 +89,6 @@ def concat(p1, p2):
 def concat_sets(s1, s2):
     sets = [concat(p1, p2) for p1 in s1 for p2 in s2]
     return [pat for pat_list in sets for pat in pat_list]
-
-
 
 
 def concat_test(g1, g2):
@@ -123,7 +121,7 @@ def id_to_pattern(hie, g_id):
 
 def create_compositions(hie, compositions, g_id):
     if "compositions" not in hie.node[g_id].attrs.keys():
-        raise ValueError(f"no compositions field in graph {g_id}")
+        raise ValueError("No compositions field in graph %s" % g_id)
     known_comps_list = hie.node[g_id].attrs["compositions"]
     known_comps = {c["id"]: c["formula"] for c in known_comps_list}
 

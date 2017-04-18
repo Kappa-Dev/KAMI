@@ -6,12 +6,12 @@ import networkx as nx
 from flask import Flask, request
 # from server_hierarchy import ServerHierarchy
 from base.base_blueprint import app
-from kami.kami_blueprint import kami_blueprint
-from mu_calculus.mu_blueprint import mu_blueprint
+from kami.server.kami.kami_blueprint import kami_blueprint
+from kami.server.mu_calculus.mu_blueprint import mu_blueprint
 from regraph.library.tree import from_json_tree, to_json_tree, new_action_graph
 from regraph.library.primitives import graph_to_json, add_edge
 from regraph.library.hierarchy import MuHierarchy
-from kami.metamodels import untypedkami, untyped_base_kami, kami_basekami
+from kami.server.kami.metamodels import untypedkami, untyped_base_kami, kami_basekami
 
 from flask_cors import CORS
 
