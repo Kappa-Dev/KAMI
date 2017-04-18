@@ -4,378 +4,542 @@ Provide the structural features of a protein based on information from
 biological knowledge databases.
 """
 
-import urllib.request
-import json
+import os
 import re
+import requests
+import xml.etree.ElementTree as ET
+import xml.dom.minidom
+import json
 from collections import OrderedDict
 
 class AgentAnatomy(object):
     """ 
-    Gather structural information about protein with given UniProt 
-    Accession Number or HGNC Gene Symbol.
+    Gather structural features about a protein with given
+    HGNC Gene Symbol or UniProt Accession Number
     """
-    # Feature Types: 1.topo 2.domain 3.repeat 4.motif 5.ptnbind 6.orgbind 
-    # 7.activesite 8.phospho 9.mutation 10.glyco 11.other
-    features = OrderedDict([ ('topology', []), ('domains', []) ])
-    
+
+    workdir = 'anatomyfiles'
+
+    species = 'homo_sapiens'
+
+    ensemblserv = 'http://rest.ensembl.org'
+
+    interprofile = 'interpro.xml'
+
     def __init__(self, query):
+        """
+        Look if query matches a unique Ensembl gene.
+        If so, initialize an AngentAnatomy instance. Otherwise, abort.
+        """
+
         self.query = query
-        pass
-
-
-    # /////////// Gene Symbols /////////////
-
-    # This section deals with entries that are
-    # HGNC Gene Symbols rather that UniProt ACs.
-    def possible_acs(self, gene, organism, reviewed):
-        """ 
-        Obtain UniProt accessions associated with a gene symbol for 
-        given organism. 
-        """
-        # Format a UniProt query with input gene name.
-        queryline = '?query=gene:%s&sort=score&format=txt&fil=' % gene
-        if organism != 0:
-            queryline = queryline + 'organism%%3A\"%s\"' % organism
-            if reviewed != 0:
-                queryline = queryline + '+AND+'
-        if reviewed != 0:
-            queryline = queryline + 'reviewed%%3A%s' % reviewed    
-        # Fetch from UniProt.
-        try:
-            queryfile = urllib.request.urlopen('http://www.uniprot.org/uniprot/'
-                                               '%s' % queryline)
-        except:
-            print('\nCannot connect to UniProt. Network may be down.\n')
-            exit()
-        readquery = queryfile.read().decode("utf-8")
-        entries = readquery.splitlines()
-        # Search output for UniProt entries with GN Name or Synonyms that
-        # exactly match the searched gene (case insensitive).
-        nentries = 0 # Number of entries before filtering for exact gene name.
-        aclist = []
-        for i in range(len(entries)):
-            line = entries[i]
-            # Get UniProt ID and Accession number.
-            if line[0:5] == 'ID   ':
-                nentries += 1
-                tokens = line.split()
-                uniprotid = tokens[1]
-                nextline = entries[i+1]
-                nexttokens = nextline.split()
-                uniprotac = nexttokens[1][:-1]
-                entry = [uniprotid, uniprotac]
-            # Check if the gene name really matches.
-            if line[0:5] == 'GN   ':
-                names = line[5:]
-                if re.search('[= /]%s[,;/ ]' % gene.lower(), names.lower()):
-                    entry.append(names)
-                    aclist.append(entry)
-        return aclist
-    
-    def getac_from_gene(self, genesymbol):
-        """ Obtain UniProt AD assuming the user searches human genes. """
-        organism = 'human'
-        # Get UniProt accession numbers matching with input gene name (all species).
-        allspecies = self.possible_acs(genesymbol, 0, 'yes')
-        nall = len(allspecies)
-        # Get UniProt accession numbers matching with input gene name (defined species).
-        defspecies = self.possible_acs(genesymbol, organism, 'yes')
-        ndef = len(defspecies)
-        # Print results and suggestions to the user.
-        print('\nQuery does not match any UniProt entry.\n')
-        print('Treating query as a HGNC Gene Symbol. ' 
-              'Trying to get UniProt AC for gene "%s"\n' %genesymbol)
-        print('%i reviewed (SwissProt) UniProt ACs correspond to gene ' 
-              'symbol or synonym "%s".' % (nall, genesymbol) )
-        if nall > 0:
-            print('List1 =', end="")
-            for entry in allspecies:
-                print(' %s' % entry[1], end="")
-            print('')
-        print('')
-        if nall > 0:
-            print('%i reviewed (SwissProt) UniProt ACs '
-                  'from organism "%s".' % (ndef, organism) )
-            if ndef > 0:
-                print('List2 =', end="")
-                for entry in defspecies:
-                    print(' %s' % entry[1], end="")
-                print('')
-            print('')
-        if nall == 0:
-            print('No match found. Please check if gene symbol or '
-                  'UniProt AC as correctly entered.\n')
-        if nall > 0 and ndef == 0:
-            print('No match found for organism "%s". You may '
-                  'want to check ACs from List1, if any.\n' % org)
-        if ndef == 1:
-            print('Running AgentAnatomy with UniProt AC : %s \n' % defspecies[0][1] )
-            return defspecies[0][1]
-        if ndef > 1:
-            print('Many possible choices. The AC you are looking '
-                  'for is most likely in List2.')
-            print('Please review ACs from List2 on UniProt '
-                  'to choose the proper AC and rerun')
-            print('AgentAnatomy with the chosen AC.\n')
-        if nall == 0 or ndef != 1:
-            print('Aborting. No instance of AgentAnatomy was created.\n')
-            exit()
-
-    # //////////////////////////////////////
-
-
-    # +++++++++++++ UniProt ++++++++++++++++
-
-    def get_uniprot(self):
-        """ Retrieve UniProt entry from the web. """
-        try:
-            fetchfile = urllib.request.urlopen('http://www.uniprot.org/'
-                                               'uniprot/%s.txt' % self.query)
-            self.uniprotac = self.query
-            print('\nUniProt entry found. Creating instance of AgentAnatomy.\n')
-        except:
-            self.uniprotac = self.getac_from_gene(self.query)
-            fetchfile = urllib.request.urlopen('http://www.uniprot.org/'
-                                               'uniprot/%s.txt' % self.uniprotac)
-        readfile = fetchfile.read().decode("utf-8")
-        self.entry = readfile.splitlines()
-        #print(readfile)  # Print web page for debugging
-
-  
-    def find_uniprot(self):
-        """ Alternatively, find UniProt entry in provided uniprot file. """
-        uniprotfile = open('../uniprot_sprot_human.dat','r').read()
-        uniprotlines = uniprotfile.splitlines()
-        #print(uniprotfile)  # Print web page for debugging
-  
-        l = len(uniprotlines)
-        for i in range(l):
-            linei = uniprotlines[i]
-            if linei[0:2] == 'AC' and self.uniprotac in linei:
-                # Move upward to find beginning of entry.
-                for j in range(i, 0, -1):
-                    linej = uniprotlines[j]
-                    if linej[0:2] == '//':
-                        start = j+1
-                        break 
-                # Move downward to find end of entry.
-                for j in range(i, l):
-                    linej = uniprotlines[j]
-                    if linej[0:2] == '//':
-                        end = j
-                        break
-                break
-        self.entry = uniprotlines[start:end]
-  
-
-    def format_uniprot(self):
-        """ Extract and format feature lines from UniProt entry. """
-        ftlist = []
-        counter = 1
-        for line in self.entry:
-            #print(line[2:6])
-            if line[0:2] == 'FT' and line[5] != " ":
-                feature = line[5:]
-                # Put a carriage return at then end of previous feature.
-                if counter > 1:
-                    ftlist[-1] = ftlist[-1]+'\n'
-                # Add feature to list.
-                ftlist.append("%3i  %s" % (counter, feature))
-                counter += 1        
-                # Keep track of whether the line ends with a dash. If so, do 
-                # not put a space while adding info during next if statement.
-                prevdash = 0
-                if feature[-1] == '-':
-                    prevdash = 1
-            if line[0:2] == 'FT' and line[5] == " ":
-                addedinfo = line[34:]
-                # Add a space if previous line ended with a period or coma.
-                if prevdash == 0:
-                    ftlist[-1] = ftlist[-1] + ' ' + addedinfo
-                else:
-                    ftlist[-1] = ftlist[-1] + addedinfo
-                # Keep track of dashes here too.
-                prevdash = 0
-                if addedinfo[-1] == '-':
-                    prevdash = 1
-        ftlist[-1] = ftlist[-1]+'\n'
-        self.ftlines = ftlist
-  
-
-    def fill_uniprot(self):
-        """ 
-        Fill the data structure (the ordered dictionary) with 
-        data from UniProt. 
-        """
-        for line in self.ftlines:
-            tokens = line.split()
-            # Topological domains
-            if 'TOPO_DOM' in tokens[1] and 'Extracellular' in tokens[4]:
-                start, end = int(tokens[2]), int(tokens[3])
-                newentry = OrderedDict([ ('name', 'extracellular'), 
-                                         ('beg', start), ('end', end), 
-                                         ('database', 'UniProt') ]) 
-                self.features['topology'].append(newentry)
-            if 'TOPO_DOM' in tokens[1] and 'Cytoplasmic' in tokens[4]:
-                start, end = int(tokens[2]), int(tokens[3])
-                newentry = OrderedDict([ ('name', 'cytoplasmic'), 
-                                         ('beg', start), ('end', end), 
-                                         ('database', 'UniProt') ])
-                self.features['topology'].append(newentry)
-            if 'TRANSMEM' in tokens[1]:
-                start, end = int(tokens[2]), int(tokens[3])
-                start, end = int(tokens[2]), int(tokens[3])
-                newentry = OrderedDict([ ('name', 'transmembrane'),  
-                                         ('beg', start), ('end', end),
-                                         ('database', 'UniProt') ])
-                self.features['topology'].append(newentry)
-            # Domains
-            if 'DOMAIN' in tokens[1]:
-                # Find the first '.' in domain description
-                for i in range(34,len(line)):
-                  if line[i] == '.':
-                    break
-                name = line[34:i]
-                start, end = int(tokens[2]), int(tokens[3])
-                newentry = OrderedDict([ ('name', name), 
-                                         ('beg', start), ('end', end), 
-                                         ('database', 'UniProt') ])
-                self.features['domains'].append(newentry)
-
-    # ++++++++++++++++++++++++++++++++++++++++++++++
-    
-
-    # ~~~~~~~~~~~~~~ Pfam ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    def get_pfam(self):
-        """ Retrieve Pfam entry from the web. """
-        fetchfile = urllib.request.urlopen('http://pfam.xfam.org/protein/'
-                                           '%s' % self.uniprotac)
-        readfile = fetchfile.read().decode("utf-8")
-        self.pfam = readfile.splitlines()
-        #print(readfile)  # Print web page for debugging
-    
-
-    def fill_pfam(self):
-        """ 
-        Fill the data structure (the ordered dictionary) with 
-        data from Pfam.
-        """
-        ndom = len(self.features['domains'])
-        self.pfamidlist = []
-        l = len(self.pfam)
-        for i in range(l):
-            line = self.pfam[i].lstrip()
-            # Domains with a definite family
-            if 'class="pfama' in line:
-                pfam = line[17:24]
-                linename = self.pfam[i+1].lstrip()
-                # The name is located after the "greater than" symbol
-                gt = linename[7:].index('>') + 7
-                name = linename[gt+1:-9]
-                linestart = self.pfam[i+2].lstrip()
-                lineend = self.pfam[i+3].lstrip()
-                start, end = int(linestart[4:-5]), int(lineend[4:-5])
-                newentry = OrderedDict([ ('name', name), 
-                                         ('beg', start), ('end', end), 
-                                         ('database', 'Pfam'), 
-                                         ('family', pfam) ])
-                self.features['domains'].append(newentry)
-                # Keep a separate list of the Pfam families that were found.
-                # Used in method fill_ipfam
-                self.pfamidlist.append([pfam, ndom])
-                ndom += 1
-            # Transmembrane topological domain
-            if 'class="domain"' in line and 'transmembrane' in line:
-                linestart = self.pfam[i+2].lstrip()
-                lineend = self.pfam[i+3].lstrip()
-                start, end = int(linestart[4:-5]), int(lineend[4:-5])
-                newentry = OrderedDict([ ('name', 'transmembrane'), 
-                                         ('beg', start), ('end', end), 
-                                         ('database', 'Pfam') ])
-                self.features['topology'].append(newentry)
-#            # Domains without a Pfam family (Ignore?)
-#            if 'class="domain"' in line and 'transmembrane' not in line:
-#                name = line[19:-5]
-#                linestart = self.pfam[i+2].lstrip()
-#                lineend = self.pfam[i+3].lstrip()
-#                start, end = int(linestart[4:-5]), int(lineend[4:-5])
-#                newentry = OrderedDict([ ('name', name), 
-#                                         ('beg', start), ('end', end), 
-#                                         ('database', 'Pfam') ])
-#                self.features['domains'].append(newentry) 
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-    # ////////////// iPfam /////////////////////////
-
-    def get_ipfam(self, pfamdomain):
-        """ Retrieve Pfam entry from the web. """
-        fetchfile = urllib.request.urlopen('http://ipfam.org/family/'
-                                           '%s/fam_int' % pfamdomain[0])
-        readfile = fetchfile.read().decode("utf-8")
-        self.ipfam = readfile.splitlines()
-        #print(readfile)  # Print web page for debugging
-  
-
-    def fill_ipfam(self, pfamdomain):
-        """ 
-        Fill the data structure (the ordered dictionary) with 
-        data from iPfam. 
-        """
-        # First, find which domain entry of self.features corresponds
-        # to the member of self.pfamidlist.
-        d = pfamdomain[1]
-        self.features['domains'][d]['iPfam interaction'] = []    
-        # Then, add the interacting Pfam IDs to the domain entry.
-        l = len(self.ipfam)
-        for i in range(l):
-            line = self.ipfam[i].lstrip()
-            if "<td><a href='/family/" in line:
-                inter = line[21:28]
-                self.features['domains'][d]['iPfam interaction'].append(inter)
-
-  
-    def add_ipfam(self):
-        """ 
-        Add all the Pfam interaction by looping 
-        methods get_ipfam and fill_ipfam.
-        """
-        for dom in self.pfamidlist:
-            self.get_ipfam(dom)
-            self.fill_ipfam(dom)
-
-    # //////////////////////////////////////////////
-
-  
-    # ------------- Display methods ----------------
-
-    def displayfeatures(self):
-        """ Print FT lines from UniProt entry. """
-        for element in self.ftlines:
-            print(element, end='')
-
-  
-    def featuresjson(self):
-        """ Print the agent's features in JSON format. """
-        return json.dumps(self.features, indent=4)
-
-    # ----------------------------------------------
-  
-
-    # Default usage
-
-    def getfeatures(self):
-        """ Query information from the web and outputs to JSON. """
-        # UniProt
-        self.get_uniprot()
-        self.format_uniprot()
-        self.fill_uniprot()
-        # Pfam
-        self.get_pfam()
-        self.fill_pfam()
-        # iPfam
-        self.add_ipfam()
+        os.makedirs(self.workdir, exist_ok=True)
         
-        return json.dumps(self.features, indent=4)
+        ensemblext = '/xrefs/symbol/%s/%s?' % (self.species, self.query)
+        decoded = self._fetch_ensembl(ensemblext)
+        genes = []
+        for entry in decoded:
+            ensid = entry['id']
+            if ensid[0:4] == 'ENSG':
+                genes.append(ensid)
+        if len(genes) == 1:
+            self.ensemblgene = genes[0]
+            print('Creating instance of AgentAnatomy with Ensembl Gene ID %s.'
+                  % self.ensemblgene)
+        else:
+            print('Could not find unique Ensembl Gene ID. Aborting.')
+            exit()
+
+
+    def get_proteins(self):
+        self._get_hgncsymbol()
+        self._get_strand()
+        self._get_transcripts()
+        self._get_hgnctranscr()
+        self._get_uniprotids()
+        self._get_uniprotdupl()
+        self._get_length()
+        self._get_canon()
+        self._sort_ptnlist()
+        #self.print_json(self.thing)
+
+    # ------ Methods to get protein definitions -----
+
+    def _fetch_ensembl(self,ext):
+        r = requests.get(self.ensemblserv+ext,
+                         headers={ "Content-Type" : "application/json"})
+        if not r.ok:
+            r.raise_for_status()
+            sys.exit()
+        return r.json()
+
+
+    def _get_hgncsymbol(self):
+        ensemblext = '/xrefs/id/%s?' % self.ensemblgene
+        xreflist = self._fetch_ensembl(ensemblext)
+        for xref in xreflist:
+            if xref['db_display_name'] == 'HGNC Symbol':
+                self.hgncsymbol = xref['display_id']
+
+
+    def _get_strand(self):
+        ensemblext = '/lookup/id/%s?' % self.ensemblgene
+        lookgene = self._fetch_ensembl(ensemblext)
+        self.strand = lookgene['strand']
+
+
+    def _get_transcripts(self):
+        ensemblext = '/overlap/id/%s?feature=cds' % self.ensemblgene
+        cdslist = self._fetch_ensembl(ensemblext)
+        deflist = []
+        for cds in cdslist:
+            if cds['strand'] == self.strand:
+                deflist.append( OrderedDict([ 
+                                ('Ensembl_transcr', cds['Parent']), 
+                                ('Ensembl_protein', cds['protein_id']) ]) )
+        # Remove duplicates (set does not work with dictionaries)
+        self.ptnlist = []
+        for item in deflist:
+            if item not in self.ptnlist:
+                self.ptnlist.append(item)
+
+
+    def _get_hgnctranscr(self):
+        for i in range(len(self.ptnlist)):
+            enst = self.ptnlist[i]['Ensembl_transcr']
+            ensemblext = '/xrefs/id/%s?' % enst
+            transcrxreflist = self._fetch_ensembl(ensemblext)
+            for txref in transcrxreflist:
+                if txref['dbname'] == 'HGNC_trans_name':
+                    self.ptnlist[i]['Transcript_name'] = txref['primary_id']
+
+
+    def _get_uniprotids(self):
+        for i in range(len(self.ptnlist)):
+            ensp = self.ptnlist[i]['Ensembl_protein']
+            ensemblext = '/xrefs/id/%s?' % ensp
+            protxreflist = self._fetch_ensembl(ensemblext)
+            #self.print_json(protxreflist)
+            nunip = 0
+            for pxref in protxreflist:
+                if pxref['db_display_name'][:9] == 'UniProtKB':
+                    self.ptnlist[i]['UniProt_accession'] = pxref['primary_id']
+                    ## Optionally show if from Swiss-prot or TrEMBL
+                    #self.ptnlist[i]['UniProt_db'] = pxref['db_display_name'][i10:]
+                    nunip += 1
+            if nunip == 0:
+                self.ptnlist[i]['UniProt_accession'] = 'None'
+            if nunip > 1:
+                print('More than one UniProt Accession Number found for %s.\n' % ensp)
+                exit()
+        #print(self.ptnlist)
+
+
+    def _fetch_uniprotxml(self,uniprotac):
+        """ Retrieve UniProt entry from the web in xml format. """
+        if ('uniprot%s.xml' % uniprotac) in os.listdir(self.workdir):
+            xmlfile = open('%s/uniprot%s.xml' 
+                           % (self.workdir, uniprotac),'r')
+            uniprot = xmlfile.read()
+            print('Using UniProt entry from file %s/uniprot%s.xml.\n' 
+                  % (self.workdir, uniprotac))
+        else:
+            r = requests.get('http://www.uniprot.org/uniprot/%s.xml' 
+                             % uniprotac)
+            xmlparse = xml.dom.minidom.parseString(r.text) 
+            uniprot = xmlparse.toprettyxml(indent="   ",newl='')
+            # Write xml to file to avoid download on future uses
+            savefile = open('%s/uniprot%s.xml'
+                            % (self.workdir, uniprotac),'w')
+            savefile.write(uniprot)
+            print('Fetched file from http://www.uniprot.org/uniprot/%s.xml.\n'
+                  % uniprotac)
+        # Removing default namespace to simplify parsing.
+        xmlnonamespace = re.sub(r'\sxmlns="[^"]+"', '', uniprot, count=1)
+        root = ET.fromstring(xmlnonamespace)
+        return root
+
+
+    def _get_uniprotdupl(self):
+        seen = []
+        duplicates = set()
+        for ptn in self.ptnlist:
+            ac = ptn['UniProt_accession']
+            if ac in seen:
+                duplicates.add(ac)
+            else:
+                seen.append(ac)
+        # Check UniProt to distinguish ENSPs that have a same UniProt AC.
+        for unip in list(duplicates):
+            uniprotxml = self._fetch_uniprotxml(unip)
+            # Check all the ENSTs from ptnlist that have AC "unip".
+            for i in range(len(self.ptnlist)):
+                if self.ptnlist[i]['UniProt_accession'] == unip:
+                    enst = self.ptnlist[i]['Ensembl_transcr']
+                    # Sometimes, the different ENSPs are actually the same
+                    # sequence, so there is no 'molecule' entry in the UniProt
+                    # file. I should implement something to compare the sequences
+                    # to be sure they are the same.
+                    try:
+                        molecule = uniprotxml.find(".//dbReference[@id='%s']/"
+                                                   "molecule" % enst)
+                        self.ptnlist[i]['UniProt_'
+                                        'accession'] = molecule.get('id')
+                    except:
+                        pass
+
+
+    def _get_length(self):
+        for i in range(len(self.ptnlist)):
+            ensp = self.ptnlist[i]['Ensembl_protein']
+            ensemblext = '/lookup/id/%s?' % ensp
+            lookptn = self._fetch_ensembl(ensemblext)
+            self.ptnlist[i]['Length'] = lookptn['length']
+
+
+    # I will have to improve detection of the principal isoform
+    # by taking into account the UniProt canonical, Appris Plevel and TSL.
+    # The canonical in a Uniprot file is the <isoform> with
+    # <sequence type="displayed"/>
+    def _get_canon(self):
+        """ Get canonical (primary) transcript from APPRIS """
+        r = requests.get('http://apprisws.bioinfo.cnio.es:80/rest/exporter/'
+                         'id/%s/%s?methods=appris&format=json' 
+                          % (self.species, self.ensemblgene) )
+        appris = r.json()
+        canontrancripts = []
+        for isoform in appris:
+            try:
+                an = isoform['annotation']
+                rel = isoform['reliability']
+                if 'Principal Iso' or 'Possible Principal Isoform' in an:
+                    if 'PRINCIPAL' in rel:
+                        canontrancripts.append(isoform['transcript_id'])
+            except:
+                pass
+        canonset = set(canontrancripts)
+        if len(canonset) == 1:
+            self.canontrancript = canontrancripts[0]
+        else:
+            #self.print_json(appris)
+            print('Cannot find unique canonical (primary) transcript')
+            #exit()
+            # For the moment, just take the first ENST as canonical.
+            self.canontrancript = self.ptnlist[0]['Ensembl_transcr']
+        for i in range(len(self.ptnlist)):
+            if self.ptnlist[i]['Ensembl_transcr'] == self.canontrancript:
+                self.ptnlist[i]['Primary'] = 'Yes'
+                self.canon = self.ptnlist[i]['Ensembl_protein']
+
+
+    def _sort_ptnlist(self):
+         self.sortedptns = sorted(self.ptnlist, key=lambda t: t['Transcript_name'])
+         self.thing = OrderedDict([ ('HGNC_symbol', self.hgncsymbol), 
+                                    ('Ensembl_gene_id', self.ensemblgene),
+         #                           ('Strand', self.strand),
+                                    ('Proteins', self.sortedptns) ])
+
+    # ------ End of methods to get protein definitions -----
+
+    # ====== Methods to get protein features ===============
+
+    def get_features(self): 
+        ensemblext = '/overlap/translation/%s?' % self.canon
+        tmplist = self._fetch_ensembl(ensemblext)
+        # Gene3D
+        ignorelist = ['PIRSF', 'PANTHER', 'SignalP', 'Seg', 'Tmhmm', 'PRINTS']
+        self.featurelist = []
+        counter = 1
+        for feature in tmplist:
+            if feature['type'] not in ignorelist:
+                self.featurelist.append({})
+                self.featurelist[-1]['description'] = feature['description']
+                self.featurelist[-1]['type'] = feature['type']
+                self.featurelist[-1]['id'] = feature['id']
+                self.featurelist[-1]['start'] = feature['start']
+                self.featurelist[-1]['end'] = feature['end']
+                self.featurelist[-1]['length'] = feature['end'] - feature['start']
+                try:
+                    self.featurelist[-1]['interpro'] = feature['interpro']
+                except:
+                    pass
+                self.featurelist[-1]['internal_id'] = counter
+                counter += 1
+        #self.print_json(self.featurelist)
+
+
+    def merge_features(self):
+        self._find_groups()
+        self._merge_groups() # Creates self.mergedfeaturelist.
+        self._numerate_samename()
+        #self.print_json(self.mergedfeaturelist)
+
+
+    def _calc_overlap(self, f1, f2):
+        """    
+        Simple overlap ratio: number of overlapping residues / 
+                              total span of the two features
+
+                    -----------               -----------
+        overlap     |||||||||        span  ||||||||||||||
+                 ------------              ------------
+        """
+        starts = [ f1['start'], f2['start'] ]
+        ends = [ f1['end'], f2['end'] ]
+        ratio = 0
+        # First, check if there is an overlap at all.
+        highstart = max(starts)
+        lowend = min(ends)
+        if highstart < lowend:
+            # Compute number of overlapping residues
+            overlap = lowend - highstart
+            # Compute the total span
+            lowstart = min(starts)
+            highend = max(ends)
+            span = highend - lowstart
+            # Compute ratio
+            ratio = float(overlap) / float(span)
+        return ratio
+
+
+    def _find_groups(self):
+        """ Find groups of features to be merged based on overlap. """
+        overlapthreshold = 0.7
+        # Get all the pairs of features that have 50% or more overlap between them.
+        pairlist = []
+        nfeatures = len(self.featurelist)
+        for i in range(nfeatures):
+            feature1 = self.featurelist[i]
+            for j in range(i+1, nfeatures):
+                feature2 = self.featurelist[j]
+                overlap = self._calc_overlap(feature1, feature2)
+                if overlap >= overlapthreshold:
+                    pairlist.append([i+1,j+1])
+        # Get the features that do not overlap with any other.
+        paired = [item for pair in pairlist for item in pair]
+        self.featuregroups = []
+        for i in range(nfeatures):
+            if i+1 not in paired:
+                self.featuregroups.append([i+1])
+        # Regroup pairs into groups.
+        usedpairs = []
+        for i in range(len(pairlist)):
+            if i not in usedpairs:
+                ref = pairlist[i]
+                for j in range(i+1, len(pairlist)):
+                    if pairlist[j][1] in ref:
+                        ref.append(pairlist[j][0])
+                        usedpairs.append(j)
+                    if pairlist[j][0] in ref:
+                        ref.append(pairlist[j][1])
+                        usedpairs.append(j)
+                group = sorted(set(ref))
+                self.featuregroups.append(group)
+        #print(self.featuregroups)
+
+
+    def _merge_groups(self):
+        """ 
+        Create merged features based on the information from 
+        the features in a group.
+        """
+        self.unsortedfeatures = []
+        for group in self.featuregroups:
+            # Name merged feature from the shortest 'description' in all 
+            # the features regrouped under it. Also take the fewer number
+            # of residues for length.
+            nameslen = []
+            lenghts = []
+            for featid in group:
+                desc = self.featurelist[featid-1]['description']
+                nameslen.append( len(desc) )
+                lenghts.append( int(self.featurelist[featid-1]['length']) )    
+            # Find shortest 'description' and length.
+            nindex = nameslen.index( min(nameslen) ) # indexes inside group.
+            lindex = lenghts.index( min(lenghts) )   #
+            nameindex = group[nindex] - 1
+            lengthindex = group[lindex] - 1
+            # Retrieve shortest 'description' and length from self.featurelist.
+            name = self.featurelist[nameindex]['description']
+            length = self.featurelist[lengthindex]['length']
+            start = self.featurelist[lengthindex]['start']
+            end = self.featurelist[lengthindex]['end']
+            # Add selected information to merged feature.
+            self.unsortedfeatures.append( OrderedDict([]) )
+            self.unsortedfeatures[-1]['name'] = name
+            self.unsortedfeatures[-1]['start'] = start
+            self.unsortedfeatures[-1]['end'] = end
+            self.unsortedfeatures[-1]['length'] = length
+        # Sort by position on sequence
+        self.mergedfeaturelist = sorted(self.unsortedfeatures, key=lambda t: t['start'])
+        for i in range(len(self.mergedfeaturelist)):
+            self.mergedfeaturelist[i]['merged_id'] = i+1
+
+
+    def _numerate_samename(self):
+        n = len(self.mergedfeaturelist)
+        firstpass = {}
+        for i in range(n):
+            name = self.mergedfeaturelist[i]['name']
+            if name not in firstpass:
+                firstpass[name] = 1
+            else:
+                firstpass[name] = firstpass[name] + 1
+        secondpass = {}
+        for i in range(n):
+            name = self.mergedfeaturelist[i]['name']
+            if name not in secondpass:
+                secondpass[name] = 1
+                if firstpass[name] > 1:
+                    self.mergedfeaturelist[i]['name'] = name+' #1'
+            else:
+                secondpass[name] = secondpass[name] + 1
+                self.mergedfeaturelist[i]['name'] = name+' #%i' % secondpass[name]
+
+
+    def nest_features(self):
+        self._find_nesting()
+        self._apply_nesting()
+
+
+
+    def _nest_overlap(self, f1, f2):
+        """    
+        Nest overlap ratio: number of overlapping residues / 
+                              span of the smallest feature
+
+                       --------                  --------
+        overlap        ||||||        span        ||||||||
+                 ------------              ------------
+        """
+        ratio = 0
+        # f1 is expected to be the largest feature
+        if f1['length'] > f2['length']:
+            starts = [ f1['start'], f2['start'] ]
+            ends = [ f1['end'], f2['end'] ]
+            # First, check if there is an overlap at all.
+            highstart = max(starts)
+            lowend = min(ends)
+            if highstart < lowend:
+                # Compute number of overlapping residues.
+                overlap = lowend - highstart
+                # Find smallest feature span.
+                span = f2['length']
+                # Compute ratio.
+                ratio = float(overlap) / float(span)
+        return ratio
+
+
+    def _find_nesting(self):
+        nestthreshold = 0.7
+        # Sort features from smallest to largest.
+        n = len(self.mergedfeaturelist)
+        self.nestlist = []
+        for x in range(n):
+            self.nestlist.append([])
+        for i in range(n):
+            feature1 = self.mergedfeaturelist[i]
+            for j in range(n):
+                if i != j:
+                    feature2 = self.mergedfeaturelist[j]
+                    overlap = self._nest_overlap(feature1, feature2)
+                    if overlap >= nestthreshold:
+                        self.nestlist[i].append(j+1)
+        #print(self.nestlist)
+
+
+    def _apply_nesting(self):
+        self.nestedfeaturelist = []
+        donelist = []
+        for i in range(len(self.nestlist)):
+            if i not in donelist:
+                self.nestedfeaturelist.append(self.mergedfeaturelist[i])
+                subfeatlist = self.nestlist[i]
+                if len(subfeatlist) > 0:
+                    contained = []
+                    for j in subfeatlist:
+                        contained.append(self.mergedfeaturelist[j-1])
+                        donelist.append(j-1)
+                    self.nestedfeaturelist[-1]['contains'] = contained
+        #self.print_json(self.nestedfeaturelist)
+
+
+    def kami(self):
+        outfile = open('%s.json' % self.hgncsymbol.lower(),'w')
+        gap = 100
+        n = len(self.mergedfeaturelist)
+        initxpos = 400 - ( (n-1) * gap/2 )
+        self.kami = OrderedDict([])
+        self.kami['children'] = []
+        self.kami['name'] = self.hgncsymbol
+
+        nodes = []
+        nodes.append( OrderedDict([]) )
+        nodes[-1]['id'] = self.hgncsymbol
+        nodes[-1]['input_constraints'] = []
+        nodes[-1]['output_constraints'] = []
+        nodes[-1]['type'] = 'agent'
+        for feature in self.mergedfeaturelist:
+            nodes.append( OrderedDict([]) )
+            nodes[-1]['id'] = feature['name']
+            nodes[-1]['input_constraints'] = []
+            nodes[-1]['output_constraints'] = []
+            nodes[-1]['type'] = 'region'
+
+        edges = []
+        for feature in self.mergedfeaturelist:
+            edges.append( OrderedDict([]) )
+            edges[-1]['attrs'] = {}
+            edges[-1]['from'] = feature['name']
+            edges[-1]['to'] = self.hgncsymbol
+
+        positions = OrderedDict([])
+        positions[self.hgncsymbol] = OrderedDict([])
+        positions[self.hgncsymbol]['x'] = 400
+        positions[self.hgncsymbol]['y'] = 350
+        for i in range(n):
+            feature = self.mergedfeaturelist[i]
+            xpos = int(initxpos + gap*i+1)
+            positions[feature['name']] = OrderedDict([])
+            positions[feature['name']]['x'] = xpos
+            positions[feature['name']]['y'] = 500
+
+        attributes = OrderedDict([ ('positions', positions) ])
+        top_graph = OrderedDict([])
+        top_graph['attributes'] = attributes
+        top_graph['edges'] = edges
+        top_graph['nodes'] = nodes
+        self.kami['top_graph'] = top_graph
+
+        #outfile.write(self.print_json(self.kami))
+        outfile.write(json.dumps(self.kami, indent=4))
+        #self.print_json(self.kami)
+        print('Wrote Kami agent representation '
+              'to file %s.json\n' % self.hgncsymbol.lower() )
  
+
+    # ====== End of methods to get protein features ======
+
+    def proteins(self):
+        print('-----')
+        print(json.dumps(self.thing, indent=4))
+        print('-----')
+
+    def features(self):
+        print('-----')
+        print(json.dumps(self.featurelist, indent=4))
+        print('-----')
+
+    def mergedfeatures(self):
+        print('-----')
+        print(json.dumps(self.mergedfeaturelist, indent=4))
+        print('-----')
+
+    def nestedfeatures(self):
+        print('-----')
+        print(json.dumps(self.nestedfeaturelist, indent=4))
+        print('-----')
+
+
+    def print_json(self,data):
+        print(json.dumps(data, indent=4))
