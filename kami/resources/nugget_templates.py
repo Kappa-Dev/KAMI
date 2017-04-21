@@ -2,8 +2,8 @@
 import networkx as nx
 
 
-MOD_NUGGET = nx.DiGraph()
-MOD_NUGGET.add_nodes_from([
+mod_nugget = nx.DiGraph()
+mod_nugget.add_nodes_from([
     "enzyme",
     "enzyme_region",
     "substrate",
@@ -12,7 +12,7 @@ MOD_NUGGET.add_nodes_from([
     "mod_state",
     "mod"
 ])
-MOD_NUGGET.add_edges_from([
+mod_nugget.add_edges_from([
     ("enzyme_region", "enzyme"),
     ("enzyme", "mod"),
     ("enzyme_region", "mod"),
@@ -25,7 +25,7 @@ MOD_NUGGET.add_edges_from([
     ("substrate_residue", "substrate_region")
 ])
 
-MOD_KAMI_TYPING = {
+mod_kami_typing = {
     "enzyme": "agent",
     "enzyme_region": "region",
     "substrate": "agent",
@@ -35,21 +35,21 @@ MOD_KAMI_TYPING = {
     "mod": "mod"
 }
 
-BND_NUGGET = nx.DiGraph()
-BND_NUGGET.add_nodes_from([
+bnd_nugget = nx.DiGraph()
+bnd_nugget.add_nodes_from([
     "partner",
     "partner_region",
     "partner_locus",
     "bnd"
 ])
-BND_NUGGET.add_edges_from([
+bnd_nugget.add_edges_from([
     ("partner_region", "partner"),
     ("partner_region", "partner_locus"),
     ("partner", "partner_locus"),
     ("partner_locus", "bnd")
 ])
 
-BND_KAMI_TYPING = {
+bnd_kami_typing = {
     "partner": "agent",
     "partner_region": "region",
     "partner_locus": "locus",

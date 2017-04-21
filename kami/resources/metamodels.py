@@ -1,8 +1,6 @@
 """Collection of metamodels used in Kami."""
 import networkx as nx
 
-from regraph.library.hierarchy import Hierarchy
-
 
 base_kami = nx.DiGraph()
 base_kami.add_nodes_from(
@@ -54,14 +52,15 @@ kami.add_edges_from(
         ("deg", "agent"),
         ("state", "region"),
         ("state", "residue"),
-        ("locus", "agent"),
-        ("locus", "region"),
+        ("agent", "locus"),
+        ("region", "locus"),
         ("mod", "state"),
         ("locus", "bnd"),
         ("locus", "brk"),
         ("locus", "is_bnd"),
         ("locus", "is_free"),
-        ("agent", "mod")
+        ("agent", "mod"),
+        ("region", "mod")
     ]
 )
 
