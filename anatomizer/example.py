@@ -1,4 +1,4 @@
-"""Example of usage of new version of gene anatomizer."""
+"""Example of usage of a new version of gene anatomizer."""
 
 from new_anatomizer import GeneAnatomy
 

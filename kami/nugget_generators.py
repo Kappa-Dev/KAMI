@@ -1,12 +1,11 @@
 """Collection of nugget generators."""
-import copy
 import warnings
 import networkx as nx
 
-from regraph.library.primitives import (add_node,
-                                        add_edge,
-                                        remove_edge,
-                                        print_graph)
+from regraph.primitives import (add_node,
+                                add_edge,
+                                remove_edge,
+                                print_graph)
 
 from kami.data_structures.entities import (State, Residue,
                                            PhysicalRegion,

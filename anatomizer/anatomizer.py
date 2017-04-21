@@ -13,7 +13,7 @@ import json
 from collections import OrderedDict
 
 class AgentAnatomy(object):
-    """ 
+    """
     Gather structural features about a protein with given
     HGNC Gene Symbol or UniProt Accession Number
     """
@@ -48,7 +48,7 @@ class AgentAnatomy(object):
                   % self.ensemblgene)
         else:
             print('Could not find unique Ensembl Gene ID. Aborting.')
-            exit()
+            # exit()
 
 
     def get_proteins(self):
@@ -70,7 +70,7 @@ class AgentAnatomy(object):
                          headers={ "Content-Type" : "application/json"})
         if not r.ok:
             r.raise_for_status()
-            sys.exit()
+            # sys.exit()
         return r.json()
 
 
@@ -131,7 +131,7 @@ class AgentAnatomy(object):
                 self.ptnlist[i]['UniProt_accession'] = 'None'
             if nunip > 1:
                 print('More than one UniProt Accession Number found for %s.\n' % ensp)
-                exit()
+                # exit()
         #print(self.ptnlist)
 
 

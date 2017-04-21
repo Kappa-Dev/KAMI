@@ -1,5 +1,5 @@
 """."""
-from regraph.library.primitives import print_graph
+from regraph.primitives import print_graph
 
 from kami.nugget_generators import (ModGenerator,
                                     AutoModGenerator,
