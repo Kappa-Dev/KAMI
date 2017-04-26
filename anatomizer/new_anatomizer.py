@@ -59,7 +59,13 @@ def get_ensembl_gene(query, species=None, workdir=None):
     if len(genes) == 1:
         ensemblgene = genes[0]
         return ensemblgene
+    elif len(genes) == 0:
+        raise AnatomizerError(
+            "Could not find Ensembl Gene ID for query '%s'" %
+            query
+        )
     else:
+        print(genes)
         raise AnatomizerError(
             "Could not find unique Ensembl Gene ID for query '%s'" %
             query
@@ -199,7 +205,11 @@ def get_canon(ensemblgene, species="homo_sapiens"):
     r = requests.get('http://apprisws.bioinfo.cnio.es:80/rest/exporter/'
                      'id/%s/%s?methods=appris&format=json'
                      % (species, ensemblgene))
-    appris = r.json()
+    try:
+        appris = r.json()
+    except:
+        raise AnatomizerError("Some trouble finding canonical transcript!")
+
     canontrancripts = []
     for isoform in appris:
         try:
@@ -500,6 +510,120 @@ class ProteinAnatomy:
 class GeneAnatomy:
     """Implements gene anatomy."""
 
+    def _merge_fragments(self, fragments, overlap_threshold=0.7, shortest=True):
+        nfeatures = len(fragments)
+
+        visited = set()
+        groups = []
+
+        for i in range(nfeatures):
+            feature1 = fragments[i]
+            if i not in visited:
+                group = [feature1]
+                visited.add(i)
+                for j in range(i + 1, nfeatures):
+                    if j not in visited:
+                        feature2 = fragments[j]
+                        for member in group:
+                            overlap = _merge_overlap(member, feature2)
+                            if overlap >= overlap_threshold:
+                                group.append(feature2)
+                                visited.add(j)
+                                break
+                groups.append(group)
+        domains = []
+        # create domains from groups
+        for group in groups:
+            # 1. find shortest non-empty description for a group
+            domain_desc = None
+            descs = dict([
+                (
+                    len(member.description),
+                    member.description
+                ) for member in group if member.description
+            ])
+            if len(descs) > 0:
+                min_desc = min(descs.keys())
+                domain_desc = descs[min_desc]
+
+            # 2. find start/end depending on the value of parameter `shortest`
+            lengths = dict([
+                (member.length, i) for i, member in enumerate(group)
+            ])
+            # 2.a. create domain from the shortest fragment
+            if shortest:
+                min_length = min(lengths.keys())
+                domain_start = group[lengths[min_length]].start
+                domain_end = group[lengths[min_length]].end
+            # 2.b. create domain from the longest fragment
+            else:
+                max_length = max(lengths.keys())
+                domain_start = group[lengths[max_length]].start
+                domain_end = group[lengths[max_length]].end
+
+            # 3. find domain names from concatenation of all fragment names
+            domain_names = set([member.description for member in group if member.description])
+
+            # 4. create domain object
+            domain = DomainAnatomy(
+                domain_start,
+                domain_end,
+                subdomains=[],
+                fragments=group,
+                names=domain_names,
+                desc=domain_desc,
+            )
+
+            domains.append(domain)
+        return domains
+
+    def _nest_domains(self, nest_threshold=0.7, max_level=1):
+
+        def _find_nests(elements, domains):
+            visited = set()
+            result_nest = dict()
+            for i in elements:
+                if i not in visited:
+                    result_nest[i] = dict()
+                    visited.add(i)
+                    for j in elements:
+                        if j not in visited:
+                            overlap = _nest_overlap(
+                                domains[i],
+                                domains[j]
+                            )
+                            if overlap >= nest_threshold:
+                                result_nest[i][j] = dict()
+                                visited.add(j)
+            return result_nest
+
+        # Recursive auxiliary function to nest domains
+        def _nest(domains, current_level):
+            if current_level == max_level:
+                return domains
+            else:
+                # sort_domains by size
+                sorted_domains = sorted(domains, key=lambda x: x.length, reverse=True)
+
+                nestsing_indices = _find_nests(
+                    list(range(len(sorted_domains))), sorted_domains
+                )
+                result_domains = []
+                for domain_index, indices in nestsing_indices.items():
+                    next_level_domains = [sorted_domains[i] for i in indices]
+                    nested_domains = _nest(next_level_domains, current_level + 1)
+                    for domain in nested_domains:
+                        sorted_domains[domain_index].subdomains.append(
+                            domain
+                        )
+                    result_domains.append(sorted_domains[domain_index])
+                return result_domains
+
+        # 1. nest domains
+        result_domains = _nest(self.domains, 0)
+
+        return result_domains
+
     def __init__(self, query, features=True, merge_features=True,
                  nest_features=True, merge_overlap=0.7, nest_overlap=0.7,
                  nest_level=1):
@@ -570,7 +694,7 @@ class GeneAnatomy:
                     "Cannot merge features: parameter 'features' was set to False, "
                     "no features were collected.'"
                 )
-            domains = self._merge_fragments(fragments, nest_overlap)
+            domains = self._merge_fragments(fragments, overlap_threshold=merge_overlap)
             self.domains = domains
         else:
             for fr in fragments:
@@ -578,9 +702,6 @@ class GeneAnatomy:
                     DomainAnatomy.from_fragment(fr)
                 )
             return
-        self.domains.append(DomainAnatomy(1095, 1200))
-        self.domains.append(DomainAnatomy(1100, 1400))
-        self.domains.append(DomainAnatomy(1110, 1180))
 
         # 4. (optional) Nest features
         if nest_features:
@@ -597,120 +718,6 @@ class GeneAnatomy:
             self.domains = self._nest_domains(merge_overlap, max_level=nest_level)
 
         return
-
-    def _merge_fragments(self, fragments, overlap_threshold=0.7, shortest=True):
-        nfeatures = len(fragments)
-
-        visited = set()
-        groups = []
-
-        for i in range(nfeatures):
-            feature1 = fragments[i]
-            if i not in visited:
-                group = [feature1]
-                visited.add(i)
-                for j in range(i + 1, nfeatures):
-                    if j not in visited:
-                        feature2 = fragments[j]
-                        for member in group:
-                            overlap = _merge_overlap(member, feature2)
-                            if overlap >= overlap_threshold:
-                                group.append(feature2)
-                                visited.add(j)
-                                break
-                groups.append(group)
-        domains = []
-        # create domains from groups
-        for group in groups:
-            # 1. find shortest non-empty description for a group
-            domain_desc = None
-            descs = dict([
-                (
-                    len(member.description),
-                    member.description
-                ) for member in group if member.description
-            ])
-            if len(descs) > 0:
-                min_desc = min(descs.keys())
-                domain_desc = descs[min_desc]
-
-            # 2. find start/end depending on the value of parameter `shortest`
-            lengths = dict([
-                (member.length, i) for i, member in enumerate(group)
-            ])
-            # 2.a. create domain from the shortest fragment
-            if shortest:
-                min_length = min(lengths.keys())
-                domain_start = group[lengths[min_length]].start
-                domain_end = group[lengths[min_length]].end
-            # 2.b. create domain from the longest fragment
-            else:
-                max_length = max(lengths.keys())
-                domain_start = group[lengths[max_length]].start
-                domain_end = group[lengths[max_length]].end
-
-            # 3. find domain names from concatenation of all fragment names
-            domain_names = [member.name for member in group if member.name]
-
-            # 4. create domain object
-            domain = DomainAnatomy(
-                domain_start,
-                domain_end,
-                subdomains=[],
-                fragments=group,
-                names=domain_names,
-                desc=domain_desc,
-            )
-
-            domains.append(domain)
-        return domains
-
-    def _nest_domains(self, nest_threshold=0.7, max_level=1):
-
-        def _find_nests(elements, domains):
-            visited = set()
-            result_nest = dict()
-            for i in elements:
-                if i not in visited:
-                    result_nest[i] = dict()
-                    visited.add(i)
-                    for j in elements:
-                        if j not in visited:
-                            overlap = _nest_overlap(
-                                domains[i],
-                                domains[j]
-                            )
-                            if overlap >= nest_threshold:
-                                result_nest[i][j] = dict()
-                                visited.add(j)
-            return result_nest
-
-        # Recursive auxiliary function to nest domains
-        def _nest(domains, current_level):
-            if current_level == max_level:
-                return domains
-            else:
-                # sort_domains by size
-                sorted_domains = sorted(domains, key=lambda x: x.length, reverse=True)
-
-                nestsing_indices = _find_nests(
-                    list(range(len(sorted_domains))), sorted_domains
-                )
-                result_domains = []
-                for domain_index, indices in nestsing_indices.items():
-                    next_level_domains = [sorted_domains[i] for i in indices]
-                    nested_domains = _nest(next_level_domains, current_level + 1)
-                    for domain in nested_domains:
-                        sorted_domains[domain_index].subdomains.append(
-                            domain
-                        )
-                    result_domains.append(sorted_domains[domain_index])
-                return result_domains
-
-        # 1. nest domains
-        result_domains = _nest(self.domains, 0)
-
-        return result_domains
 
     def to_dict(self):
         anatomy = dict()

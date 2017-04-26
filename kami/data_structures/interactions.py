@@ -5,7 +5,7 @@ class Interaction:
     """Base class for Kami interaction."""
 
 
-class Modification:
+class Modification(Interaction):
     """Class for Kami mod interaction."""
 
     def __init__(self, enzyme, substrate, mod_target,
@@ -18,6 +18,14 @@ class Modification:
         self.annotation = annotation
         self.direct = direct
         return
+
+    def __str__(self):
+        res = "Modifications:\n"
+        res += "Enzyme: " + str(self.enzyme)
+        res += "Substrate: " + str(self.substrate)
+        res += "Mod target: " + str(self.mod_target)
+        res += "Value: " + str(self.value)
+        res += "Direct? " + str(self.direct)
 
 
 class AutoModification:

@@ -76,6 +76,9 @@ class PhysicalAgent(PhysicalEntity):
             self.bounds = []
         return
 
+    def __str__(self):
+        return str(self.agent)
+
 
 class Region(object):
     """Class implementing kami region."""
@@ -124,6 +127,9 @@ class PhysicalRegion(PhysicalEntity):
         else:
             self.bounds = []
         return
+
+    def __str__(self):
+        return str(self.region)
 
 
 class PhysicalRegionAgent(PhysicalEntity):
