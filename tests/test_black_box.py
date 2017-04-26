@@ -21,26 +21,26 @@ class TestBlackBox:
     def __init__(self):
 
         self.interactions = []
-        
+
         # 1a. Simple modification example
         enz_res = Residue("S", 100, State("phospho", True))
         enz_reg = PhysicalRegion(
-            Region(100, 200),
+            Region(150, 170),
             states=[State("activity", True)]
         )
-        enzyme_entity = PhysicalAgent(Agent("E"), regions=[enz_reg], residues=[enz_res])
+        enzyme_entity = PhysicalAgent(Agent("P00533"), regions=[enz_reg], residues=[enz_res])
 
         sub_bound_1 = PhysicalAgent(
-            Agent("A"),
+            Agent("P28482"),
             states=[State("activity", True)]
         )
         sub_bound_2 = PhysicalAgent(
-            Agent("A"),
+            Agent("P28482"),
             states=[State("activity", True)]
         )
 
         substrate_entity = PhysicalAgent(
-            Agent("S"),
+            Agent("P04049"),
             bounds=[[sub_bound_1], [sub_bound_2]]
         )
 
@@ -54,23 +54,23 @@ class TestBlackBox:
         self.interactions.append(mod1)
 
         # 1b. Complex modification example
-        enzyme_agent = Agent("Enzyme")
+        enzyme_agent = Agent("P04049")
         enzyme_ph_agent = PhysicalAgent(enzyme_agent)
-        enzyme_region = PhysicalRegion(Region(100, 200, "sh2"))
+        enzyme_region = PhysicalRegion(Region(100, 200, "lala"))
         enzyme = PhysicalRegionAgent(enzyme_region, enzyme_ph_agent)
 
-        substrate_agent = Agent("Substrate")
-        state = State("phosphorylation", True)
-        reg_residue = Residue("S", 102, state)
+        substrate_agent = Agent("P00533")
 
+        state = State("phosphorylation", True)
+        reg_residue = Residue("S", 550, state)
         substrate_region = PhysicalRegion(
-            Region(222, 333),
+            Region(500, 600),
             residues=[reg_residue]
         )
 
         substrate_residues = [
-            Residue("T", "222"),
-            Residue("S", "56", State("phosphorylation", True))
+            Residue("T", 100),
+            Residue("S", 56, State("phosphorylation", True))
         ]
 
         substrate_state = State("activity", True)
@@ -80,12 +80,12 @@ class TestBlackBox:
                 Region(224, 234)
             ),
             PhysicalAgent(
-                Agent("A")
+                Agent("P04637")
             )
         )
 
         substrate_bound = PhysicalAgent(
-            Agent("B"),
+            Agent("P12931"),
             bounds=[next_level_bound]
         )
 
@@ -103,4 +103,4 @@ class TestBlackBox:
         self.interactions.append(mod2)
 
     def test_create_nuggets(self):
-        create_nuggets(self.interactions)
+        create_nuggets(self.interactions, add_agents=True, anatomize=True)
