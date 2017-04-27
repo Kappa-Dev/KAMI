@@ -8,6 +8,7 @@ from regraph.library.rules import Rule
 from regraph.library.primitives import (unique_node_id, add_node, add_edge)
 from math import sqrt
 import networkx as nx
+from itertools import product
 """ represent a kappa model as python """
 
 
@@ -437,8 +438,36 @@ def link_components(hie, g_id, comp1, comp2):
                                          vect[0]*60)}
 
 
-def unfold_nugget(hie, nug_id, ag_id, mm_id):
-    nug_gr = hie.node[nug_id].graph
-    mm_typing = hie.get_typing(nug_id, mm_id)
-    conected_components = nx.weakly_connected_components_subgraphs()
+# def unfold_nugget(hie, nug_id, ag_id, mm_id):
+#     nug_gr = copy.deepcopy(hie.node[nug_id].graph)
+#     mm_typing = hie.get_typing(nug_id, mm_id)
+#     conflict_graph = nx.DiGraph()
+#     to_delete = []
+#     for node in nug_gr.nodes():
+#         if mm_typing[node] == "locus":
+#             neighbors = nug_gr.successors(node)
+#             component_ports = []
+#             action_ports = []
+#             for neighbor in neighbors:
+#                 id_prefix = "{}_{}".format(node, neighbor)
+#                 port_id = unique_node_id(nug_gr, id_prefix)
+#                 add_node(nug_gr, port_id, {"type": "locus_port",
+#                                            "parent": neighbor})
+#                 add_node(conflict_graph, port_id, {"type": "locus_port",
+#                                                    "parent": neighbor})
+#                 if mm_typing[neighbor] in ["bnd", "brk", "is_free", "is_bnd"]:
+#                     action_ports.append(neighbor)
+#                 else:
+#                     component_ports.append(neighbor)
+#             for (c_port, a_port) in product(component_ports, action_ports):
+#                 add_edge(nug_gr, c_port, a_port)
+#                 add_edge(conflict_graph, c_port, a_port)
+#         to_delete.append(node)
+#         elif mm_typing[node] == "state":
+#             neighbors = nug_gr.successors(node)
+#             component_ports = []
+#             action_ports = []
+
+
+
 

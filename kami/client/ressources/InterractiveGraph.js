@@ -55,6 +55,10 @@ define([
 		var saveX, saveY;//remember position of node before drag event
 		var beginX, beginY;//remember position of node at start of drag
 		var startOfLinkNode;//id of node that started the link
+		var edgesList;//the edges of the graph
+		let existsEdge = function (source, target){
+			return edgesList.some(d => d.source.id == source && d.target.id == target)
+		}
 
 
         let buttonsDiv = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
@@ -97,18 +101,20 @@ define([
 
 
 		function initForceKami(path, graph, config) {
+			//simulation = d3.forceSimulation();
 			simulation.stop();
 			simulation.force("link", null);
 			simulation.force("charge", null);
-			// simulation.force("center", null);
+			simulation.force("center", null);
 			//simulation.force("center", d3.forceCenter(width / 2, height / 2));
 			simulation.force("chargeAgent", null);
 			simulation.force("chargeBnd", null);
 			simulation.force("chargeBrk", null);
 			simulation.force("collision", d3.forceCollide(radius + radius / 4));
+			simulation.force("collision").strength(0.3);
 			let ancestorArray = config.ancestor_mapping;
 			var distanceOfLink = function (l) {
-				var edge_length =
+				let edge_length =
 					{
 						"mod": { "state": 150 },
 						"state": { "region": 50, "agent": 50, "residue": 50 },
@@ -118,35 +124,33 @@ define([
 						"deg": { "agent": 400 },
 						"region": { "agent": 20 },
 						"locus": { "agent": 150, "region": 150, "is_bnd": 150, "is_free": 150, "bnd": 150, "brk": 150 }
-					}
+					};
 				let source_type = ancestorArray[l.source["id"]];
 				let target_type = ancestorArray[l.target["id"]];
 				return (edge_length[source_type][target_type] * width / 2000);
 			}
 			simulation.force("link", d3.forceLink().id(function (d) { return d.id }));
 			simulation.force("link").distance(distanceOfLink);
-			simulation.force("link").iterations(2);
+			//simulation.force("link").iterations(2);
 
-			var chargeAgent = d3.forceManyBody();
-			//chargeAgent.theta(0.2);
-			chargeAgent.strength(-500);
-			chargeAgent.distanceMax(radius * 10);
-			// chargeAgent.distanceMin(0);
-			var initAgent = chargeAgent.initialize;
+			// var chargeAgent = d3.forceManyBody();
+			// //chargeAgent.theta(0.2);
+			// chargeAgent.strength(-500);
+			// chargeAgent.distanceMax(radius * 10);
+			// // chargeAgent.distanceMin(0);
+			// var initAgent = chargeAgent.initialize;
 
-			chargeAgent.initialize = (function () {
-				return function (nodes) {
-					var agent_nodes = nodes.filter(function (n, _i) {
-						return (
-							ancestorArray[n.id] == "agent")
-					});
-					initAgent(agent_nodes);
-				};
-			})();
+			// chargeAgent.initialize = (function () {
+			// 	return function (nodes) {
+			// 		var agent_nodes = nodes.filter(function (n, _i) {
+			// 			return (
+			// 				ancestorArray[n.id] == "agent")
+			// 		});
+			// 		initAgent(agent_nodes);
+			// 	};
+			// })();
 
-
-
-			simulation.force("chargeAgent", chargeAgent);
+			// // simulation.force("chargeAgent", chargeAgent);
 
 			// var chargeBnd = d3.forceManyBody();
 			// chargeBnd.strength(-1000);
@@ -451,6 +455,8 @@ define([
 			if (path != "/") {
 				svg_content.selectAll("*").remove();
 				if (path.search("/kami_base/kami/") == 0) {
+					console.log(path, graph)
+					console.log(path, config)
 					initForceKami(path, graph, config);
 				}
 				else {
@@ -552,6 +558,8 @@ define([
 			var links = response.edges.map(function (d) {
 				return { source: findNode(d.from, response.nodes), target: findNode(d.to, response.nodes) }
 			});
+			edgesList = links;
+
 
 
 
@@ -737,6 +745,12 @@ define([
 				});
 			});
 			simulation.restart();
+			// console.log("sim",simulation.force("link"));
+			// console.log("sim",simulation.force("center"));
+			// console.log("sim",simulation.force("charge"));
+			// console.log("sim",simulation.force("chargeAgent"));
+			// console.log("sim",simulation.force("chargeBnd"));
+			// console.log("sim",simulation.force("chargeBrk"));
 		};
 
 		function getBounds() {
@@ -1185,7 +1199,6 @@ define([
 			}
 		}
 
-
 		/* handling dragend event on nodes
 		 * @input : d : the node datas
 		*/
@@ -1224,13 +1237,23 @@ define([
 						targetElement.each(function (d2) {
 							if (d2.id !== d.id && d3.event.sourceEvent.button == 2 && !readOnly) {
 								if (!d3.event.sourceEvent.shiftKey) {
-									request.addEdge(g_id, d.id, d2.id, function (e, r) {
-										if (!e) {
-											console.log(r);
-											disp.call("graphUpdate", this, g_id, true)
-										}
-										else { console.error(e) }
-									});
+									console.log("edges", edgesList);
+									if (!existsEdge(d.id, d2.id)) {
+										request.addEdge(g_id, d.id, d2.id, function (e, r) {
+											if (!e) {
+												disp.call("graphUpdate", this, g_id, true)
+											}
+											else { console.error(e) }
+										});
+									}
+									else {
+										request.rmEdge(g_id, d.id, d2.id, true, function (e, r) {
+											if (!e) {
+												disp.call("graphUpdate", this, g_id, true)
+											}
+											else { console.error(e) }
+										});
+									 }
 								}
 								else {
 									if (config.shiftLeftDragEndHandler) {
@@ -1327,7 +1350,7 @@ define([
 			request.rmNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
 		};
 
-        function nodeTypesEditor(_elm, d, _i){
+		function nodeTypesEditor(_elm, d, _i) {
 			disp.call("loadTypeEditor", this, g_id, d.id)
 		};
 
@@ -1497,6 +1520,7 @@ define([
 				return buttons.node();
 			}
 		}
+
 
 		this.buttons = function () { return buttonsDiv };
 

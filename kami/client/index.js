@@ -6,6 +6,7 @@
 */
 define([
 	'ressources/d3/d3.js',
+	'ressources/q.js',
 	'ressources/simpleTree.js',
 	'ressources/Hierarchy.js',
 	'ressources/converter.js',
@@ -19,9 +20,9 @@ define([
 	'ressources/formulaEditor.js',
 	'ressources/formulaResult.js',
 	'ressources/kappaExporter.js',
-	'ressources/typeEditor.js',
+	'ressources/typeEditor.js'
 ],
-	function (d3, Tree, Hierarchy, converter, InputFileReader,
+	function (d3, Q, Tree, Hierarchy, converter, InputFileReader,
 		RFactory, InterractiveGraph, SideMenu, RuleViewer,
 		Kami, graphMerger, formulaEditor, formulaResult,
 		kappaExporter, typeEditor) {
@@ -248,26 +249,60 @@ define([
 			}
 
 			function update_merger(abs_path1, abs_path2, noTranslate) {
-				factory.getGraph(
-					abs_path1,
-					function (err, ret1) {
-						if (!err) {
-							factory.getGraph(
-								abs_path2,
-								function (err, ret2) {
-									if (!err) {
-										merger_pan.update(ret1, ret2, abs_path1, abs_path2, { noTranslate: noTranslate });
-										tab_frame.append(merger_pan.svg_result)
-											.attr("x", 0)
-											.attr("y", 0);
-										//d3.select("#top_chart").append(merger_pan.buttons);"
-										d3.select("#top_chart").insert(merger_pan.buttons, ":first-child");
-									}
 
-								});
-						}
-					});
+				if (abs_path1.search("/kami_base/kami/") == 0) {
+					Q.all([factory.promGetGraph(abs_path1),
+					factory.promGetGraph(abs_path2),
+					factory.promGraphTyping(abs_path1, "/kami_base/kami/"),
+					factory.promGraphTyping(abs_path2, "/kami_base/kami/")
+					])
+						.spread((graph1, graph2, typing1, typing2) => {
+							merger_pan.update(graph1, graph2, abs_path1, abs_path2,
+								{ noTranslate: noTranslate, ancestor_mapping: typing1 },
+								{ noTranslate: noTranslate, ancestor_mapping: typing2 });
+							tab_frame.append(merger_pan.svg_result)
+								.attr("x", 0)
+								.attr("y", 0);
+							d3.select("#top_chart").insert(merger_pan.buttons, ":first-child");
+						})
+				}
+				else {
+					Q.all([factory.promGetGraph(abs_path1),
+					factory.promGetGraph(abs_path2)
+					])
+						.spread((graph1, graph2) => {
+							merger_pan.update(graph1, graph2, abs_path1, abs_path2,
+								{ noTranslate: noTranslate },
+								{ noTranslate: noTranslate });
+							tab_frame.append(merger_pan.svg_result)
+								.attr("x", 0)
+								.attr("y", 0);
+							//d3.select("#top_chart").append(merger_pan.buttons);"
+							d3.select("#top_chart").insert(merger_pan.buttons, ":first-child");
+						})
+				}
 			}
+			// function update_merger(abs_path1, abs_path2, noTranslate) {
+			// 	factory.getGraph(
+			// 		abs_path1,
+			// 		function (err, ret1) {
+			// 			if (!err) {
+			// 				factory.getGraph(
+			// 					abs_path2,
+			// 					function (err, ret2) {
+			// 						if (!err) {
+			// 							merger_pan.update(ret1, ret2, abs_path1, abs_path2, { noTranslate: noTranslate });
+			// 							tab_frame.append(merger_pan.svg_result)
+			// 								.attr("x", 0)
+			// 								.attr("y", 0);
+			// 							//d3.select("#top_chart").append(merger_pan.buttons);"
+			// 							d3.select("#top_chart").insert(merger_pan.buttons, ":first-child");
+			// 						}
+
+			// 					});
+			// 			}
+			// 		});
+			// }
 
 			function clean() {
 				tab_frame.selectAll('svg')

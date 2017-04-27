@@ -168,7 +168,9 @@ define([
                 moveMappingEdges();
             }
 
-            this.update = function update(g1, g2, path1, path2, config) {
+            this.update = function update(g1, g2, path1, path2, config1, config2) {
+                console.log(g1)
+                console.log(g2)
                 relation = [];
                 parentPath = path1.substring(0, path1.lastIndexOf("/"));
                 leftGraphName = path1.substring(path1.lastIndexOf("/")+1);
@@ -186,8 +188,16 @@ define([
                     drawRelation();
                     localDispatch.on("move", moveMappingEdges);
                 }));
-                leftGraph.update(g1, path1, { noTranslate: config.noTranslate, repDispatch: repDispatch });
-                rightGraph.update(g2, path2, { noTranslate: config.noTranslate, repDispatch: repDispatch });
+                let graphConfigL = {noTranslate:config1.noTranslate, repDispatch:repDispatch}
+                let graphConfigR = {noTranslate:config2.noTranslate, repDispatch:repDispatch}
+                if (config1["ancestor_mapping"] !== undefined){
+                    graphConfigL["ancestor_mapping"] = config1["ancestor_mapping"]["typing"];
+                }
+                if (config2["ancestor_mapping"] !== undefined){
+                    graphConfigR["ancestor_mapping"] = config2["ancestor_mapping"]["typing"];
+                }
+                leftGraph.update(g1, path1, graphConfigL);
+                rightGraph.update(g2, path2, graphConfigR);
                 main_svg.append("line")
                     .classed("separation_line", true)
                     .attr("x1", size.width / 2)

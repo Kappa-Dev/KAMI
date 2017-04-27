@@ -812,35 +812,27 @@ def get_children(path_to_graph=""):
     return apply_on_node(app.hie(), app.top, path_to_graph, get_children_aux)
 
 
-# @app.route("/graph/merge_graphs/", methods=["POST"])
-# @app.route("/graph/merge_graphs/<path:path_to_graph>", methods=["POST"])
-# def merge_graphs(path_to_graph=""):
-#     """create a graph typed by the selected nodes"""
-#     try:
-#         (parent_cmd, graph_name) = parse_path(app.cmd, path_to_graph)
-#     except KeyError as e:
-#         return ("the path is not valid", 404)
-#     if graph_name is None:
-#         return ("the empty path is not valid", 404)
-#     graph1 = request.args.get("graph1")
-#     if not graph1:
-#         return "argument graph1 is required"
-#     graph2 = request.args.get("graph2")
-#     if not graph2:
-#         return "argument graph2 is required"
-#     relation = request.json
-#     try:
-#         schema = schema_validator({'$ref': '#/definitions/Matching'},
-#                                   context=json_schema_context)
-#         flex.core.validate(schema, relation, context=json_schema_context)
-#         rel = [(c["left"], c["right"]) for c in relation]
-#     except ValueError as e:
-#         return(str(e), 404)
-#     try:
-#         parent_cmd.merge_graphs(graph1, graph2, rel, graph_name)
-#         return("graphs merged successfully", 200)
-#     except (ValueError, KeyError) as e:
-#         return (str(e), 404)
+@app.route("/graph/merge_graphs/", methods=["POST"])
+@app.route("/graph/merge_graphs/<path:path_to_graph>", methods=["POST"])
+def merge_graphs(path_to_graph=""):
+    def merge_graphs_aux(parent_id, graph_name):
+        graph1 = request.args.get("graph1")
+        if not graph1:
+            return "argument graph1 is required"
+        graph2 = request.args.get("graph2")
+        if not graph2:
+            return "argument graph2 is required"
+        relation = request.json
+        try:
+            schema = schema_validator({'$ref': '#/definitions/Matching'},
+                                      context=json_schema_context)
+            flex.core.validate(schema, relation, context=json_schema_context)
+            rel = [(c["left"], c["right"]) for c in relation]
+        except ValueError as e:
+            return(str(e), 404)
+        tree.merge_graphs(app.hie(), parent_id, graph1, graph2, rel, graph_name)
+        return("graphs merged successfully", 200)
+    return apply_on_parent(app.hie(), app.top, path_to_graph, merge_graphs_aux)
 
 
 @app.route("/graph/graph_from_nodes/", methods=["POST"])
@@ -913,6 +905,23 @@ def get_rule_typing(path_to_rule=""):
     return apply_on_node(app.hie(), app.top, path_to_rule, get_rule_typing_aux)
 
 
+@app.route("/graph/get_typing/", methods=["GET"])
+@app.route("/graph/get_typing/<path:path_to_rule>", methods=["GET"])
+def get_graph_typing(path_to_rule=""):
+    def get_graph_typing_aux(graph_id):
+        parent_path = request.args.get("parent")
+        if not parent_path:
+            return("the query parameter parent is necessary", 404)
+        mapping = tree.ancestors_graph_mapping(app.hie(), app.top, graph_id,
+                                               parent_path)
+        resp = Response(response=json.dumps(mapping),
+                        status=200,
+                        mimetype="application/json")
+        return resp
+    return apply_on_node(app.hie(), app.top, path_to_rule, get_graph_typing_aux)
+
+
+# depreciated, use get_typing that uses parent id instead of ancestor degree
 @app.route("/graph/get_ancestors/", methods=["GET"])
 @app.route("/graph/get_ancestors/<path:path_to_graph>", methods=["GET"])
 def get_ancestors(path_to_graph=""):

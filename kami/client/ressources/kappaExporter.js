@@ -30,7 +30,7 @@ define([
                                         <div id="expNugList" class="partList"></div>
                                     </div>
                                     <div class="col col-sm-6">
-                                        <h4>Compositions</h4>
+                                        <h4>Hypotheses</h4>
                                         <div id="expCompList" class="partList"></div>
                                     </div>
                                 </div>

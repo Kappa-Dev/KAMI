@@ -116,6 +116,18 @@ define(["ressources/d3/d3.js"], function (d3) {
 				JSON.parse);
 		};
 
+		this.promGetGraph = function (g_path) {
+			return new Promise(function (resolve, reject) {
+				let myCallback = function (err, rep) {
+					if (err) { reject(err) }
+					else {
+						resolve(JSON.parse(rep.response));
+					}
+				}
+				d3.request(srv + "/graph" + g_path + "/").get(myCallback);
+			});
+		}
+
 		/* get a graph in json format, without callback override for fail case
 		 * @input : gr_path : the graph path
 		 * @input : callback : the return callback function
@@ -778,6 +790,19 @@ define(["ressources/d3/d3.js"], function (d3) {
 			});
 		}
 
+		this.promGraphTyping = function (graph_path, parent_path) {
+			return new Promise(function (resolve, reject) {
+				let callback = function (err, rep) {
+					if (err) { reject(err) }
+					else {
+						let mappings = JSON.parse(rep.response)
+						Object.keys(mappings).forEach(k => mappings[k] = rel_to_object(mappings[k]));
+						resolve(mappings);
+					}
+				}
+				d3.request(srv + "/graph/get_typing" + graph_path + "/" + "?parent=" + encodeURIComponent(parent_path)).get(callback);
+			})
+		}
 		this.promRuleTyping = function (rule_path, parent_path) {
 			return new Promise(function (resolve, reject) {
 				let callback = function (err, rep) {

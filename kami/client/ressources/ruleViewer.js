@@ -39,28 +39,42 @@ define([
 
             function draw_mappings(pl_mapping, pr_mapping) {
                 let pl = [];
+                let phs_nodes = main_svg.selectAll("#phs .node");
+                let lhs_nodes = main_svg.selectAll("#lhs .node");
+                let rhs_nodes = main_svg.selectAll("#rhs .node");
                 for (let key in pl_mapping) {
-                    let source_node = main_svg.selectAll("#phs .node")
+                    let source_node = phs_nodes 
                         .filter(function (d) {
                             return d.id == key
                         });
-                    let target_node = main_svg.selectAll("#lhs .node")
+                    //only draw morphism if another node has the same type
+                    let target_node = lhs_nodes
                         .filter(function (d) {
                             return d.id == pl_mapping[key]
                         });
-                    pl.push({ source: source_node.data()[0], target: target_node.data()[0] });
+                    let source_d = source_node.data()[0];
+                    let target_d = target_node.data()[0];
+                    if (!lhs_nodes.data().some(d => d.type === target_d.type && d.id !== target_d.id)){
+                        continue
+                    }    
+                    pl.push({ source: source_d, target: target_d });
                 }
                 let pr = [];
                 for (let key in pr_mapping) {
-                    let source_node = main_svg.selectAll("#phs .node")
+                    let source_node = phs_nodes
                         .filter(function (d) {
                             return d.id == key
                         });
-                    let target_node = main_svg.selectAll("#rhs .node")
+                    let target_node = rhs_nodes
                         .filter(function (d) {
                             return d.id == pr_mapping[key]
                         });
-                    pr.push({ source: source_node.data()[0], target: target_node.data()[0] });
+                    let source_d = source_node.data()[0];
+                    let target_d = target_node.data()[0];
+                    if (!rhs_nodes.data().some(d => d.type === target_d.type && d.id !== target_d.id)){
+                        continue
+                    }    
+                    pr.push({ source: source_d, target: target_d });
                 }
                 let links = main_svg.selectAll(".plMapping")
                     //.data(pl, function (d) { return d.source + "-" + d.target; });
