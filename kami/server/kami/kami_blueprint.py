@@ -7,7 +7,7 @@ from base.webserver_utils import (apply_on_node_with_parent,
                                   apply_on_node)
 import kami.server.kami.kappa as kappa
 from kami.server.kami.algebra import concat_test, create_compositions
-import regraph.library.tree as tree
+import regraph.tree as tree
 import flex
 import os
 from flex.loading.schema.paths.path_item.operation.responses.single.schema\
@@ -175,8 +175,25 @@ def link_components(path_to_graph=""):
         try:
             kappa.link_components(kami_blueprint.hie(), graph_id, component1,
                                   component2)
-            return("component linked", 200)
+            return ("component linked", 200)
         except (ValueError, KeyError) as e:
-            return(str(e), 412)
+            return (str(e), 412)
     return apply_on_node(kami_blueprint.hie(), kami_blueprint.top,
                          path_to_graph, link_components_aux)
+
+
+@kami_blueprint.route("/graph/test_unfold/", methods=["PUT"])
+@kami_blueprint.route("/graph/test_unfold/<path:path_to_graph>",
+                      methods=["PUT"])
+def test_unfold(path_to_graph=""):
+    hie = kami_blueprint.hie()
+
+    def test_unfold_aux(graph_id, parent_id):
+        nug_name = hie.node[graph_id].attrs["name"]
+        for (new_nugg, _, typing_by_old) in\
+                kappa.unfold_nugget(hie, graph_id, parent_id, "kami"):
+            tree.add_graph(hie, new_nugg, nug_name, graph_id, typing_by_old)
+        return ("nugget unfolded", 200)    
+
+    return apply_on_node_with_parent(hie, kami_blueprint.top,
+                                     path_to_graph, test_unfold_aux)

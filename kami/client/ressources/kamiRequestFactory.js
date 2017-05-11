@@ -62,5 +62,16 @@ define(["ressources/d3/d3.js"],function(d3){
 				null);
 		};
 
+        this.unfoldNugget = function(graph_path, callback){
+			request("PUT",
+				"/graph/test_unfold",
+				graph_path,
+				null,
+				"text/html",
+				callback,
+				null,
+				null);
+		};
+
 	}
 });

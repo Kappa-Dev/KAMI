@@ -1,11 +1,11 @@
 """Build graph by composing subgraphs"""
 
-from regraph.library.category_op import (pullback, pushout,
-                                         pullback_complement,
-                                         compose_homomorphisms,
-                                         compose_chain_homomorphisms,
-                                         pullback_pushout)
-from regraph.library.primitives import find_match
+from regraph.category_op import (pullback, pushout,
+                                 pullback_complement,
+                                 compose_homomorphisms,
+                                 compose_chain_homomorphisms,
+                                 pullback_pushout)
+from regraph.primitives import find_match
 from pyparsing import Word, alphas
 import networkx as nx
 

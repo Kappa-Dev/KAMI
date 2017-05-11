@@ -8,9 +8,9 @@ from flask import Flask, request
 from base.base_blueprint import app
 from kami.server.kami.kami_blueprint import kami_blueprint
 from kami.server.mu_calculus.mu_blueprint import mu_blueprint
-from regraph.library.tree import from_json_tree, to_json_tree, new_action_graph
-from regraph.library.primitives import graph_to_json, add_edge
-from regraph.library.hierarchy import MuHierarchy
+from regraph.tree import from_json_tree, to_json_tree, new_action_graph
+from regraph.primitives import graph_to_json, add_edge
+from regraph.hierarchy import MuHierarchy
 from kami.server.kami.metamodels import untypedkami, untyped_base_kami, kami_basekami
 
 from flask_cors import CORS
@@ -66,9 +66,13 @@ SERVER.register_blueprint(kami_blueprint)
 
 # load the exemples.json file to the hierarchy
 # EXAMPLE = os.path.join(os.path.dirname(__file__), 'example.json')
-# with open(EXAMPLE) as data_file:
-#     DATA = json.load(data_file)
-# SERVER.cmd.merge_hierarchy(DATA)
+EXAMPLE = "/home/stan/Downloads/hierarchy (54).json"
+with open(EXAMPLE) as data_file:
+    DATA = json.load(data_file)
+    new_hie = SERVER._hie.__class__()
+    new_hie.remove_graph("/")
+    from_json_tree(new_hie, DATA, None)
+    SERVER._hie = new_hie
 
 
 # import and replace hierarchy

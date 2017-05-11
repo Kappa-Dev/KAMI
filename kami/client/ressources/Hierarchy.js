@@ -9,16 +9,17 @@ define([
 	"ressources/d3/d3.js",
 	"ressources/simpleTree.js",
 	"ressources/requestFactory.js",
+	"ressources/kamiRequestFactory.js",
 	"ressources/d3/d3-context-menu.js"
 	],
-	function(d3,Tree,RFactory,d3ContextMenu){
+	function(d3,Tree,RFactory,KamiRFactory,d3ContextMenu){
 	/* Create a new hierarchy module
 	 * @input : container_id : the container to bind this hierarchy
 	 * @input : dispatch : the dispatch event object
 	 * @input : server_url : the regraph server url
 	 * @return : a new Hierarchy object
 	 */
-	return function Hierarchy(container_id,dispatch,server_url){
+	return function Hierarchy(container_id, dispatch, server_url){
 		if(!server_url) throw new Error("server url undefined");
 		var srv_url = server_url;//the current url of the server
 		var disp = dispatch;//global dispatcher for events
@@ -40,6 +41,7 @@ define([
 
 		var current_node = null;//the current node
 		var factory = new RFactory(srv_url);
+		var kamiFactory = new KamiRFactory(srv_url);
 
 		var selfHierarchy = this;
 		var right_click_menu = [
@@ -99,6 +101,10 @@ define([
 			{
 				title: "check",
 				action: checkFormulae
+			},
+			{
+				title: "unfold nugget",
+				action: unfoldNugget
 			}
 		];
 		var only_rules_menu = [
@@ -411,6 +417,18 @@ define([
 			}
 			factory.checkFormulae(hierarchy.getAbsPath(d), callback);
 		}
+
+        function unfoldNugget(_elm, d, _i) {
+            let callback = function (err, _ret) {
+                if (err) {
+                    console.log(err);
+                }
+                else {
+                    dispatch.call("hieUpdate", this);
+                }
+            }
+            kamiFactory.unfoldNugget(hierarchy.getAbsPath(d), callback);
+        }
 
 		this.addGraph = function () {
 			//var name=prompt("Give it a name !", "model_"+(Math.random()).toString());

@@ -5,7 +5,7 @@ from flask import (Blueprint, Response, request, send_from_directory,
 from flex.loading.schema.paths.path_item.operation.responses.single.schema\
     import schema_validator
 from base.webserver_utils import (apply_on_node, apply_on_parent, empty_path,
-                             apply_on_node_with_parent)
+                                  apply_on_node_with_parent)
 import json
 import flex
 # from metamodels import (base_metamodel, metamodel_kappa, kami, base_kami)
@@ -13,8 +13,8 @@ import flex
 import os
 import subprocess
 
-import regraph.library.tree as tree
-from regraph.library.primitives import graph_to_json, relabel_node
+import regraph.tree as tree
+from regraph.primitives import graph_to_json, relabel_node
 
 GUI_FOLDER = os.path.join(os.path.dirname(__file__), '../../client/')
 YAML = os.path.join(os.path.dirname(__file__), '../iRegraph_api.yaml')

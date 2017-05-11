@@ -117,6 +117,7 @@ define([
 				let edge_length =
 					{
 						"mod": { "state": 150 },
+						"is_equal": { "state": 150 },
 						"state": { "region": 50, "agent": 50, "residue": 50 },
 						"residue": { "agent": 30, "region": 25 },
 						"syn": { "agent": 150 },
@@ -243,6 +244,7 @@ define([
 				}
 				else if (
 					ancestor == "is_bnd" ||
+					ancestor == "is_equal" ||
 					ancestor == "is_free") {
 					return d3.symbolDiamond;
 				}
@@ -260,6 +262,7 @@ define([
 				) { return 4000; }
 				else if (
 					ancestor == "is_bnd" ||
+					ancestor == "is_equal" ||
 					ancestor == "is_free"
 				) { return 3000; }
 				else if (
@@ -281,6 +284,7 @@ define([
 				let ancestor = ancestorArray[n.id];
 				return ({
 					"mod": "#77855C",
+					"is_equal": "#77855C",
 					"syn": "#55A485",
 					"deg": "#A47066",
 					"brk": "#B83319",
@@ -455,8 +459,6 @@ define([
 			if (path != "/") {
 				svg_content.selectAll("*").remove();
 				if (path.search("/kami_base/kami/") == 0) {
-					console.log(path, graph)
-					console.log(path, config)
 					initForceKami(path, graph, config);
 				}
 				else {

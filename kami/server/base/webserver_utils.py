@@ -1,4 +1,4 @@
-from regraph.library.tree import child_from_path
+from regraph.tree import child_from_path
 
 
 def _get_father_id(hie, top, path_to_graph):

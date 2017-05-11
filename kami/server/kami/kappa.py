@@ -1,13 +1,16 @@
-import regraph.library.tree as tree
+import regraph.tree as tree
 
-from regraph.library.category_op import (pullback, pushout,
-                                         compose_homomorphisms,
-                                         pullback_pushout)
-from regraph.library.utils import keys_by_value
-from regraph.library.rules import Rule
-from regraph.library.primitives import (unique_node_id, add_node, add_edge)
+from regraph.category_op import (pullback, pushout,
+                                 compose_homomorphisms,
+                                 multi_pullback_pushout,
+                                 subgraph,
+                                 pullback_pushout)
+from regraph.utils import keys_by_value, restrict_mapping
+from regraph.rules import Rule
+from regraph.primitives import (unique_node_id, add_node, add_edge, remove_node)
 from math import sqrt
 import networkx as nx
+import copy
 from itertools import product
 """ represent a kappa model as python """
 
@@ -139,6 +142,27 @@ def _components_of_agent(graph, mm_typing, agent):
     return components
 
 
+def _agents_of_components(graph, mm_typing, component):
+    components = {component}
+
+    def _step(components):
+        to_add = set()
+        for source in components:
+            for (_, target) in graph.out_edges(source):
+                if mm_typing[target] in ["region", "agent", "residue",
+                                         "locus", "state"]:
+                    to_add.add(target)
+        return to_add | components
+
+    while True:
+        new_components = _step(components)
+        if new_components == components:
+            break
+        else:
+            components = new_components
+    return components
+
+
 def _agent_decl(action_graph, typing, agent):
     components = _components_of_agent(action_graph, typing, agent)
     sites_decl = []
@@ -162,9 +186,6 @@ def _agents_decl(hie, ag_id, ag_nodes, metamodel_id):
 
 
 def _rule_decl(ag_typing, mm_typing, nug, name, rate):
-    print("name", name)
-    print("nodes", nug.nodes())
-    print("mm_typing", mm_typing)
 
     def _binding_index(node):
         bindings = [node for node in nug.nodes()
@@ -211,10 +232,22 @@ def _rule_decl(ag_typing, mm_typing, nug, name, rate):
     state_defs = {}
     for state in nug.nodes():
         if mm_typing[state] == "state":
-            if len(nug.node[state]["val"]) != 1:
-                raise ValueError("states should have exactly one value"
-                                 " before exporting to kappa")
-            before = list(nug.node[state]["val"])[0]
+            # if len(nug.node[state]["val"]) != 1:
+            #     raise ValueError("states should have exactly one value"
+            #                      " before exporting to kappa")
+            # before = list(nug.node[state]["val"])[0]
+            before = None
+            tests = [node for (node, state) in nug.in_edges(state)
+                     if mm_typing[node] == "state"]
+            for test in tests:
+                if before is None:
+                    if len(nug.node[test]["val"]) != 1:
+                        raise ValueError("is_equal nodes should have"
+                                         "exactly one value")
+                    before = list(nug.node[test]["val"])[0]
+                else:
+                    raise ValueError("too many tests on same state")
+
             after = None
             mods = [node for (node, state) in nug.in_edges(state)
                     if mm_typing[node] == "mod"]
@@ -225,6 +258,8 @@ def _rule_decl(ag_typing, mm_typing, nug, name, rate):
                     after = list(nug.node[mod]["val"])[0]
                 else:
                     raise ValueError("too many mods on same state")
+            if before is None:
+                before = "_"
             state_defs[state] = StateSite(ag_typing[state], before, after)
 
     agent_defs = {}
@@ -438,36 +473,226 @@ def link_components(hie, g_id, comp1, comp2):
                                          vect[0]*60)}
 
 
+# def _max_ncs2(graph, actions, mm_typing):
+#     """ return the maximal non conflicting sets of actions"""
+#     tests = [{test} for test in actions
+#              if mm_typing[test] in ["is_bnd", "is_free"]]
+#     bnds = [{bnd} for bnd in actions if mm_typing[bnd] == "bnd"]
+#     brks = [{brk} for brk in actions if mm_typing[brk] == "brk"]
+#     mods = [{mod} for mod in actions if mm_typing[mod] == "mod"]
+#     equs = [{equ} for equ in actions if mm_typing[equ] == "is_equal"]
+
+#     ncss = tests + bnds + brks + mods + equs
+#     if ncss == []:
+#         return [set()]
+#         # raise ValueError("no non conflicting sets for actions: {}"
+#         #                  .format(actions))
+#     return ncss
+
+
+# def _max_ncs(graph, actions, mm_typing):
+#     """ return the maximal non conflicting sets of actions"""
+#     tests = [{test} for test in actions
+#              if mm_typing[test] in ["is_bnd", "is_free"]]
+#     bnds = [bnd for bnd in actions if mm_typing[bnd] == "bnd"]
+#     brks = [brk for brk in actions if mm_typing[brk] == "brk"]
+#     mods = [mod for mod in actions if mm_typing[mod] == "mod"]
+#     equs = [equ for equ in actions if mm_typing[equ] == "is_equal"]
+
+#     def _same_loci(bnd, brk):
+#         return set(graph.predecessors(bnd)) ==\
+#                set(graph.predecessors(brk))
+#     lone_bnds = [{bnd} for bnd in bnds
+#                  if all([_same_loci(bnd, brk) for brk in brks])]
+#     lone_brks = [{brk} for brk in brks
+#                  if all([_same_loci(bnd, brk) for bnd in bnds])]
+#     bnds_brks = [{bnd, brk} for bnd in bnds for brk in brks
+#                  if not _same_loci(bnd, brk)]
+#     if mods == []:
+#         mods_equs = [{equ} for equ in equs]
+#     elif equs == []:
+#         mods_equs = [{mod} for mod in mods]
+#     else:
+#         mods_equs = [{mod, equ} for mod in mods for equ in equs]
+#     ncss = tests + bnds_brks + lone_bnds + lone_brks + mods_equs
+#     if ncss == []:
+#         return [set()]
+#         # raise ValueError("no non conflicting sets for actions: {}"
+#         #                  .format(actions))
+#     return ncss
+
+
+# Hypothesis : only one agent per region
 def unfold_nugget(hie, nug_id, ag_id, mm_id):
+    """unfold a nugget with conflicts to create multiple nuggets"""
     nug_gr = copy.deepcopy(hie.node[nug_id].graph)
-    mm_typing = hie.get_typing(nug_id, mm_id)
-    conflict_graph = nx.DiGraph()
-    to_delete = []
+    mm_typing = copy.deepcopy(hie.get_typing(nug_id, mm_id))
+    ag_typing = copy.deepcopy(hie.get_typing(nug_id, ag_id))
+
+    # create one new locus for each linked agent, region or residue linked to
+    #  a locus
+    new_ports = {}  # new_port remember the loci/state it is created from
+    old_ports = []
+    non_comp_neighbors = {}
     for node in nug_gr.nodes():
-        if mm_typing[node] == "locus":
-            neighbors = nug_gr.successors(node)
-            component_ports = []
-            action_ports = []
-            for neighbor in neighbors:
-                id_prefix = "{}_{}".format(node, neighbor)
+
+        # move the state test to explicit "is_equal" nodes
+        if mm_typing[node] == "state" and "val" in nug_gr.node[node]:
+            for val in nug_gr.node[node]["val"]:
+                id_prefix = "{}_{}".format(val, node)
+                test_id = unique_node_id(nug_gr, id_prefix)
+                add_node(nug_gr, test_id, {"val": val})
+                mm_typing[test_id] = "is_equal"
+                add_edge(nug_gr, test_id, node)
+
+                # for testing
+                ag = hie.node[ag_id].graph
+                ag_test_id = unique_node_id(ag, id_prefix)
+                add_node(ag, ag_test_id, {"val": val})
+                add_edge(ag, ag_test_id, ag_typing[node])
+                hie.edge[ag_id][mm_id].mapping[ag_test_id] = "is_equal"
+
+                real_nugget = hie.node[nug_id].graph
+                old_test_id = unique_node_id(real_nugget, id_prefix)
+                add_node(real_nugget, old_test_id, {"val": val})
+                add_edge(real_nugget, old_test_id, node)
+                hie.edge[nug_id][ag_id].mapping[old_test_id] = ag_test_id
+
+        if mm_typing[node] in ["locus", "state"]:
+            comp_neighbors = [comp for comp in nug_gr.successors(node)
+                              if mm_typing[comp] in ["agent", "region",
+                                                     "residue"]]
+            other_neighbors = [other for other in (nug_gr.successors(node) +
+                                                   nug_gr.predecessors(node))
+                               if other not in comp_neighbors]
+            old_ports.append(node)
+            for comp in comp_neighbors:
+                id_prefix = "{}_{}".format(node, comp)
                 port_id = unique_node_id(nug_gr, id_prefix)
-                add_node(nug_gr, port_id, {"type": "locus_port",
-                                           "parent": neighbor})
-                add_node(conflict_graph, port_id, {"type": "locus_port",
-                                                   "parent": neighbor})
-                if mm_typing[neighbor] in ["bnd", "brk", "is_free", "is_bnd"]:
-                    action_ports.append(neighbor)
-                else:
-                    component_ports.append(neighbor)
-            for (c_port, a_port) in product(component_ports, action_ports):
-                add_edge(nug_gr, c_port, a_port)
-                add_edge(conflict_graph, c_port, a_port)
-            to_delete.append(node)
-        elif mm_typing[node] == "state":
-            neighbors = nug_gr.successors(node)
-            component_ports = []
-            action_ports = []
+                add_node(nug_gr, port_id)
+                mm_typing[port_id] = mm_typing[node]
+                ag_typing[port_id] = ag_typing[node]
+                new_ports[port_id] = node
+                add_edge(nug_gr, port_id, comp)
+                for other in other_neighbors:
+                    if mm_typing[other] in ["mod", "is_equal"]:
+                        add_edge(nug_gr, other, port_id)
+                    else:
+                        add_edge(nug_gr, port_id, other)
+                non_comp_neighbors[port_id] = set(other_neighbors)
 
+    # remove the old potentially shared between agents/region/residues loci
+    for port in old_ports:
+        remove_node(nug_gr, port)
+        del mm_typing[port]
+        del ag_typing[port]
 
+    # associate the components nodes (agent,region, residue) to the ports
+    components = {}
+    for port in new_ports:
+        components[port] = _agents_of_components(nug_gr, mm_typing, port)
 
+    def _nonconflicting(port1, action_node1, port2, action_node2):
+        typ1 = mm_typing[action_node1]
+        typ2 = mm_typing[action_node2]
+        if port1 == port2:
+            if typ1 == typ2:
+                return False
+            if mm_typing[port1] == "state":
+                return True
+            if {typ1, typ2} & {"is_free", "is_bnd"}:
+                return False
+            different_loci = set(nug_gr.predecessors(action_node1)) !=\
+                set(nug_gr.predecessors(action_node2))
+            return different_loci
 
+        elif action_node1 != action_node2:
+            return True
+        elif typ1 in ["mod", "is_equal", "is_free"]:
+            return False
+        else:
+            return new_ports[port1] != new_ports[port2]
+
+    def _valid_subsets(set_list):
+        """build the globally non conflicting sets of
+         (locally non conflicting sets) """
+        if set_list == []:
+            return [[]]
+        else:
+            (port, a_node) = set_list[0]
+            nonconflicting_sets =\
+                [(port2, a_node2) for (port2, a_node2) in set_list[1:]
+                 if _nonconflicting(port, a_node, port2, a_node2)]
+            if nonconflicting_sets == set_list[1:]:
+                return [sub + [components[port] | {a_node}]
+                        for sub in _valid_subsets(nonconflicting_sets)]
+            else:
+                return (_valid_subsets(set_list[1:]) +
+                        [sub + [components[port] | {a_node}]
+                         for sub in _valid_subsets(nonconflicting_sets)])
+
+    def _remove_uncomplete_actions(set_list):
+        """remove actions and test which are not connected to enough
+         components"""
+        labels = {node: 0 for node in nug_gr.nodes()}
+        for nodes in set_list:
+            for node in nodes:
+                labels[node] += 1
+
+        to_remove = set()
+        for node in nug_gr.nodes():
+            if (mm_typing[node] in ["bnd", "brk", "is_bnd"] and
+                    labels[node] < 2):
+                to_remove.add(node)
+            if (mm_typing[node] in ["is_free", "mod", "is_equal"] and
+                    labels[node] < 1):
+                to_remove.add(node)
+
+        return [nodes for nodes in set_list
+                if not nodes & to_remove]
+
+    port_action_list = [(port, a_node)
+                        for (port, a_nodes) in non_comp_neighbors.items()
+                        for a_node in a_nodes]
+
+    # build globally non conflicting subsets and remove the uncomplete actions
+    valid_ncss = {frozenset(map(frozenset,
+                                _remove_uncomplete_actions(set_list)))
+                  for set_list in _valid_subsets(port_action_list)}
+
+    # remove the nuggets that are included in another one
+    maximal_valid_ncss = {ncss for ncss in valid_ncss
+                          if all(ncss == other_ncss or
+                                 not ncss.issubset(other_ncss)
+                                 for other_ncss in valid_ncss)}
+
+    # add the nodes that where not considered at all
+    # because they are not connected to a locus or state
+    nodes_with_ports = set.union(
+        set.union(*non_comp_neighbors.values()),
+        set.union(*components.values()))
+
+    nodes_without_ports = set(nug_gr.nodes()) - nodes_with_ports
+
+    # build the nuggets and add them to the hierarchy
+    # as children of the old one for testing
+    def _graph_of_ncs(ncs):
+        sub_graphs = [(subgraph(nug_gr, nodes), {node: node for node in nodes})
+                      for nodes in ncs]
+        sub_graphs.append((subgraph(nug_gr, nodes_without_ports),
+                           {node: node for node in nodes_without_ports}))
+        return multi_pullback_pushout(nug_gr, sub_graphs)
+
+    valid_graphs = map(_graph_of_ncs, maximal_valid_ncss)
+    new_nuggets = []
+    for (new_nugget, new_typing) in valid_graphs:
+        new_ag_typing = compose_homomorphisms(ag_typing, new_typing)
+        typing_by_old_nugget = {}
+        for node in new_nugget.nodes():
+            if new_typing[node] in hie.node[nug_id].graph.nodes():
+                typing_by_old_nugget[node] = new_typing[node]
+            else:
+                typing_by_old_nugget[node] = new_ports[new_typing[node]]
+        new_nuggets.append((new_nugget, new_ag_typing, typing_by_old_nugget))
+
+    return new_nuggets
