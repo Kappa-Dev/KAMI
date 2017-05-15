@@ -190,10 +190,10 @@ def test_unfold(path_to_graph=""):
 
     def test_unfold_aux(graph_id, parent_id):
         nug_name = hie.node[graph_id].attrs["name"]
-        for (new_nugg, _, typing_by_old) in\
-                kappa.unfold_nugget(hie, graph_id, parent_id, "kami"):
+        for (new_nugg, typing_by_old) in\
+                kappa.unfold_nugget(hie, graph_id, parent_id, "kami", test=True):
             tree.add_graph(hie, new_nugg, nug_name, graph_id, typing_by_old)
-        return ("nugget unfolded", 200)    
+        return ("nugget unfolded", 200)
 
     return apply_on_node_with_parent(hie, kami_blueprint.top,
                                      path_to_graph, test_unfold_aux)

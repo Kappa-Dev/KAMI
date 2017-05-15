@@ -193,12 +193,12 @@ body{
 #scrolling_list{
 	/*float:left;
 	max-width:600px;*/
-	/*height:100%;*/
 	width:100%;
 	display:flex;
 	flex-direction: column;
-	flex-wrap: nowrap;
-	/*overflow: scroll;*/
+	/*flex-wrap: nowrap;*/
+	overflow: auto;
+	align-items: flex-start;
 
 	/*overflow-x: auto;
 	overflow-y:hidden;
@@ -242,6 +242,7 @@ body{
 	width:100%;
 	/*height:2vh;*/
 	height:20px;
+	min-height:20px;
 	font-size:1em;
 	/*border-top-right-radius:5px;
 	border-top-left-radius:5px;*/
@@ -287,13 +288,14 @@ body{
 }
 .tab_menu_el .icon{
   display: block;
-  width: 2vw;
-  height: 2vh;
+  width: 1.5em;
+  height: 1.4em;
   /*background: url(ico_graph.svg);
   background-size: 2vw  2vh;   
   background-repeat: no-repeat ;*/
   -webkit-mask-image: url(ico_graph.svg);
-  -webkit-mask-size: 2vw  2vh;   
+  /*-webkit-mask-size: 2vw  2vh;   */
+  -webkit-mask-size: 1.5em  1.4em;   
   background: rgb(251, 249, 200);
 
 }

@@ -104,6 +104,9 @@ class StateSite(object):
         self.new_state = new_state
 
     def __str__(self):
+        # new and old should not both be None at the same time
+        if self.old_state is None:
+            return "{}/~{}".format(self.name, self.new_state)
         if self.new_state is None:
             return "{}~{}".format(self.name, self.old_state)
         else:
@@ -163,14 +166,24 @@ def _agents_of_components(graph, mm_typing, component):
     return components
 
 
+def _site_names(action_graph, node, parent_components):
+    """ kappa site name from locus or state of the actiongraph """
+    return ["{}_{}".format(node, parent)
+            for parent in action_graph[node]
+            if parent in parent_components]
+
+
 def _agent_decl(action_graph, typing, agent):
     components = _components_of_agent(action_graph, typing, agent)
     sites_decl = []
     for comp in components:
         if typing[comp] == "locus":
-            sites_decl.append(SiteDecl(comp))
+            for site_name in _site_names(action_graph, comp, components):
+                sites_decl.append(SiteDecl(site_name))
         if typing[comp] == "state":
-            sites_decl.append(SiteDecl(comp, action_graph.node[comp]["val"]))
+            for site_name in _site_names(action_graph, comp, components):
+                sites_decl.append(SiteDecl(site_name,
+                                           action_graph.node[comp]["val"]))
 
     return AgentDecl(agent, sites_decl)
 
@@ -227,7 +240,14 @@ def _rule_decl(ag_typing, mm_typing, nug, name, rate):
                 after = None
             if before is None:
                 before = "."
-            loci_defs[loc] = BindingSite(ag_typing[loc], before, after)
+            parent_components = [comp for comp in nug[loc]
+                                 if mm_typing[comp] in ["region", "residue",
+                                                        "agent"]]
+            if len(parent_components) != 1:
+                raise ValueError("locus should have one parent after unfold")
+            site_name = "{}_{}".format(ag_typing[loc],
+                                       ag_typing[parent_components[0]])
+            loci_defs[loc] = BindingSite(site_name, before, after)
 
     state_defs = {}
     for state in nug.nodes():
@@ -238,7 +258,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, rate):
             # before = list(nug.node[state]["val"])[0]
             before = None
             tests = [node for (node, state) in nug.in_edges(state)
-                     if mm_typing[node] == "state"]
+                     if mm_typing[node] == "is_equal"]
             for test in tests:
                 if before is None:
                     if len(nug.node[test]["val"]) != 1:
@@ -258,9 +278,15 @@ def _rule_decl(ag_typing, mm_typing, nug, name, rate):
                     after = list(nug.node[mod]["val"])[0]
                 else:
                     raise ValueError("too many mods on same state")
-            if before is None:
-                before = "_"
-            state_defs[state] = StateSite(ag_typing[state], before, after)
+
+            parent_components = [comp for comp in nug[state]
+                                 if mm_typing[comp] in ["region", "residue",
+                                                        "agent"]]
+            if len(parent_components) != 1:
+                raise ValueError("states should have one parent after unfold")
+            site_name = "{}_{}".format(ag_typing[state],
+                                       ag_typing[parent_components[0]])
+            state_defs[state] = StateSite(site_name, before, after)
 
     agent_defs = {}
     for agent in nug.nodes():
@@ -304,17 +330,24 @@ def to_kappa(hie, ag_id, mm_id, nug_list=None):
     rules_list = []
     variables = []
     for nug in nug_list:
-        ag_typing = hie.get_typing(nug, ag_id)
-        mm_typing = hie.get_typing(nug, mm_id)
-        graph = hie.node[nug].graph
-        name = hie.node[nug].attrs["name"]
-        rules_list.append(_rule_decl(ag_typing, mm_typing, graph, name,
-                                     "rate:"+name))
-        if "rate" in hie.node[nug].attrs.keys():
-            value = hie.node[nug].attrs["rate"]
-        else:
-            value = "undefined"
-        variables.append(Variable("rate:"+name, value))
+        unfolded_nuggets = unfold_nugget(hie, nug, ag_id, mm_id)
+        for i, (graph, ag_typing, mm_typing) in enumerate(unfolded_nuggets):
+            # ag_typing = hie.get_typing(nug, ag_id)
+            # mm_typing = hie.get_typing(nug, mm_id)
+            # graph = hie.node[nug].graph
+
+            if i > 0:
+                name = "{}_{}".format(hie.node[nug].attrs["name"], i)
+            else:
+                name = hie.node[nug].attrs["name"]
+
+            rules_list.append(_rule_decl(ag_typing, mm_typing, graph, name,
+                                         "rate:"+name))
+            if "rate" in hie.node[nug].attrs.keys():
+                value = hie.node[nug].attrs["rate"]
+            else:
+                value = "undefined"
+            variables.append(Variable("rate:"+name, value))
 
     return str(KappaModel(agents_list, rules_list, variables))
 
@@ -523,7 +556,7 @@ def link_components(hie, g_id, comp1, comp2):
 
 
 # Hypothesis : only one agent per region
-def unfold_nugget(hie, nug_id, ag_id, mm_id):
+def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     """unfold a nugget with conflicts to create multiple nuggets"""
     nug_gr = copy.deepcopy(hie.node[nug_id].graph)
     mm_typing = copy.deepcopy(hie.get_typing(nug_id, mm_id))
@@ -546,17 +579,18 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id):
                 add_edge(nug_gr, test_id, node)
 
                 # for testing
-                ag = hie.node[ag_id].graph
-                ag_test_id = unique_node_id(ag, id_prefix)
-                add_node(ag, ag_test_id, {"val": val})
-                add_edge(ag, ag_test_id, ag_typing[node])
-                hie.edge[ag_id][mm_id].mapping[ag_test_id] = "is_equal"
+                if test:
+                    ag = hie.node[ag_id].graph
+                    ag_test_id = unique_node_id(ag, id_prefix)
+                    add_node(ag, ag_test_id, {"val": val})
+                    add_edge(ag, ag_test_id, ag_typing[node])
+                    hie.edge[ag_id][mm_id].mapping[ag_test_id] = "is_equal"
 
-                real_nugget = hie.node[nug_id].graph
-                old_test_id = unique_node_id(real_nugget, id_prefix)
-                add_node(real_nugget, old_test_id, {"val": val})
-                add_edge(real_nugget, old_test_id, node)
-                hie.edge[nug_id][ag_id].mapping[old_test_id] = ag_test_id
+                    real_nugget = hie.node[nug_id].graph
+                    old_test_id = unique_node_id(real_nugget, id_prefix)
+                    add_node(real_nugget, old_test_id, {"val": val})
+                    add_edge(real_nugget, old_test_id, node)
+                    hie.edge[nug_id][ag_id].mapping[old_test_id] = ag_test_id
 
         if mm_typing[node] in ["locus", "state"]:
             comp_neighbors = [comp for comp in nug_gr.successors(node)
@@ -686,13 +720,16 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id):
     valid_graphs = map(_graph_of_ncs, maximal_valid_ncss)
     new_nuggets = []
     for (new_nugget, new_typing) in valid_graphs:
-        new_ag_typing = compose_homomorphisms(ag_typing, new_typing)
-        typing_by_old_nugget = {}
-        for node in new_nugget.nodes():
-            if new_typing[node] in hie.node[nug_id].graph.nodes():
-                typing_by_old_nugget[node] = new_typing[node]
-            else:
-                typing_by_old_nugget[node] = new_ports[new_typing[node]]
-        new_nuggets.append((new_nugget, new_ag_typing, typing_by_old_nugget))
-
+        if test:
+            typing_by_old_nugget = {}
+            for node in new_nugget.nodes():
+                if new_typing[node] in hie.node[nug_id].graph.nodes():
+                    typing_by_old_nugget[node] = new_typing[node]
+                else:
+                    typing_by_old_nugget[node] = new_ports[new_typing[node]]
+            new_nuggets.append((new_nugget, typing_by_old_nugget))
+        else:
+            new_ag_typing = compose_homomorphisms(ag_typing, new_typing)
+            new_mm_typing = compose_homomorphisms(mm_typing, new_typing)
+            new_nuggets.append((new_nugget, new_ag_typing, new_mm_typing))
     return new_nuggets
