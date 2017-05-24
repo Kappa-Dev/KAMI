@@ -1,4 +1,6 @@
 """."""
+import networkx as nx
+
 from regraph.primitives import print_graph
 
 from kami.resolvers.black_box import create_nuggets
@@ -11,8 +13,10 @@ from kami.data_structures.interactions import (Modification,
 from kami.data_structures.entities import (PhysicalAgent, Agent,
                                            PhysicalRegion, Region,
                                            PhysicalRegionAgent,
-                                           Residue, State, NuggetAnnotation,
-                                           )
+                                           Residue, State, NuggetAnnotation,)
+from kami.data_structures.kami_hierarchy import KamiHierarchy
+from kami.resolvers.generators import NuggetContrainer
+from kami.resolvers.identifiers import KamiIdentifier
 
 
 class TestBlackBox:
@@ -103,4 +107,54 @@ class TestBlackBox:
         self.interactions.append(mod2)
 
     def test_create_nuggets(self):
-        create_nuggets(self.interactions, add_agents=True, anatomize=True)
+        create_nuggets(self.interactions, add_agents=True, anatomize=False)
+
+    def test_add_nugget_graph(self):
+
+        h = KamiHierarchy()
+
+        n = nx.DiGraph()
+        n.add_nodes_from([
+            ("Q9UN19", {"uniprotid": {"Q9UN19"}}),
+            ("Q9UN19_Y139", {"aa": {"Y"}, "loc": {139}}),
+            ("Q9UN19_Y139_phosphorylation", {"phosphorylation": {True}}),
+            ("Q9UN19_region_100_200", {"start": {100}, "end": {200}}),
+            ("mod", {"value": {True}}),
+            ("Q16539", {"uniprotid": {"Q16539"}}),
+            ("Q16539_activity", {"active": {True}}),
+            ("P16333", {"uniprotid": {"P16333"}})
+        ])
+        n.add_edges_from([
+            ("Q9UN19_Y139", "Q9UN19"),
+            ("Q9UN19_Y139_phosphorylation", "Q9UN19_Y139"),
+            ("Q9UN19_region_100_200", "Q9UN19"),
+            ("Q9UN19_region_100_200", "mod"),
+            ("mod", "Q16539_activity"),
+            ("Q16539_activity", "Q16539"),
+            ("Q9UN19_region_100_200", "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333"),
+            ("Q9UN19_region_100_200_is_bnd_P16333", "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333"),
+            ("Q9UN19_region_100_200_is_bnd_P16333", "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333"),
+            ("P16333", "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333")
+        ])
+
+        nugget = NuggetContrainer(
+            n,
+            meta_typing={
+                "Q9UN19": "agent",
+                "Q16539": "agent",
+                "Q9UN19_Y139": "residue",
+                "Q9UN19_Y139_phosphorylation": "state",
+                "mod": "mod",
+                "Q16539_activity": "state",
+                "Q9UN19_region_100_200": "region",
+                "P16333": "agent",
+                "Q9UN19_region_100_200_is_bnd_P16333": "is_bnd",
+                "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333": "locus",
+                "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333": "locus"
+            }
+        )
+
+        h.add_nugget_magical(
+            nugget,
+            KamiIdentifier
+        )
