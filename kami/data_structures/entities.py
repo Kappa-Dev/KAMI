@@ -26,7 +26,8 @@ class PhysicalEntity(object):
 class Agent(object):
     """Class implementing kami agent."""
 
-    def __init__(self, uniprotid, names=None, xrefs=None, location=None):
+    def __init__(self, uniprotid, names=None,
+                 xrefs=None, location=None):
         """Initialize kami agent object."""
         self.uniprotid = uniprotid
         if names:
@@ -84,7 +85,8 @@ class Region(object):
     """Class implementing kami region."""
 
     def __init__(self, start=None, end=None, name=None):
-        """Initialize kami region object."""
+        """Initialize kami region object.
+        """
         self.start = start
         self.end = end
         self.name = name
@@ -180,7 +182,7 @@ class State(object):
 
     def __str__(self):
         """Str representation of state."""
-        res = "%s_%s" % (self.name, self.value)
+        res = "%s" % (self.name)
         return res
 
     def to_attrs(self):

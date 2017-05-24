@@ -21,12 +21,13 @@ class Modification(Interaction):
 
     def __str__(self):
         """String representation of Modification class."""
-        res = "Modifications:\n"
-        res += "Enzyme: " + str(self.enzyme)
-        res += "Substrate: " + str(self.substrate)
-        res += "Mod target: " + str(self.mod_target)
-        res += "Value: " + str(self.value)
-        res += "Direct? " + str(self.direct)
+        res = "Modification:\n"
+        res += "\tEnzyme: %s\n" % self.enzyme
+        res += "\tSubstrate: %s\n" % self.substrate
+        res += "\tMod target: %s\n" % self.target
+        res += "\tValue: %s\n" % self.value
+        res += "\tDirect? %s\n" % self.direct
+        return res
 
 
 class AutoModification(Modification):
