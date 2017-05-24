@@ -265,7 +265,24 @@ def get_features(ensemblegene):
     ignorelist = ['PIRSF', 'PANTHER', 'SignalP', 'Seg', 'Tmhmm', 'PRINTS']
     featurelist = []
     for feature in tmplist:
-        if feature['type'] not in ignorelist:
+        # if feature['type'] not in ignorelist:
+        #     feature_dict = {}
+        #     feature_dict['description'] = feature['description']
+        #     feature_dict['start'] = feature['start']
+        #     feature_dict['end'] = feature['end']
+        #     feature_dict['xrefs'] = {
+        #         feature['type']: feature['id']
+        #     }
+        #     if 'interpro' in feature.keys():
+        #         feature_dict['xrefs'].update({
+        #             'interpro': feature['interpro']
+        #         })
+        #     # add here smth that tries to find a name
+        #     feature_dict['name'] = None
+        #     featurelist.append(feature_dict)
+
+        # Temporarily take domains only from Pfam
+        if feature['type'] == 'Pfam':
             feature_dict = {}
             feature_dict['description'] = feature['description']
             feature_dict['start'] = feature['start']
@@ -426,6 +443,32 @@ class DomainAnatomy:
             desc=fragment.description
         )
         return domain
+
+    def is_protein_kinase(self):
+        """Dummy is_kinase function.
+
+        If name or description of domain mentions
+        one of the key words, return True.
+        """
+        key_words = ["protein kinase"]
+        stop_words = ["phorbol ester"]
+        for key_word in key_words:
+            for name in self.names:
+                if name and key_word in name.lower():
+                    # check for stop words
+                    for stop_word in stop_words:
+                        if stop_word in name.lower():
+                            return False
+                    # no stop words were found
+                    return True
+            if self.description and key_word in self.description.lower():
+                # check for stop words
+                for stop_word in stop_words:
+                    if stop_word in name.lower():
+                        return False
+                # no stop words were found
+                return True
+        return False
 
     def to_dict(self):
         anatomy = dict()
