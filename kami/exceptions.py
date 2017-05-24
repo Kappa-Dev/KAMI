@@ -25,5 +25,9 @@ class KamiHierarchyError(KamiException):
     """Class for errors in Kami hierarchy."""
 
 
+class KamiIndentifierError(KamiException):
+    """Class for errors in Kami identification."""
+
+
 class IndraImportWarning(KamiWarning):
     """Class for INDRA import warnings."""
