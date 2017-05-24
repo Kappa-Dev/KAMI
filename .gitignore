@@ -19,3 +19,4 @@ kami/exporters/__pycache__/*
 kami/__pycache__/*
 tests/__pycache__/*
 *.pyc
+kami/data_structures/__pycache__/*
