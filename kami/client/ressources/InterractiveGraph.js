@@ -1070,19 +1070,19 @@ define([
 			div_ct += "</p>";
 			d3.select("#n_tooltip")
 				.style("visibility", "visible")
-				.style("background-color", "#fffeec")
-				.style("position", "absolute")
-				.style("bottom", "20px")
-				.style("left", "10px")
-				.style("border", "4px solid #0f71ba")
-				.style("border-radius", "10px")
-				.style("box-shadow", " 3px 3px 3px #888888")
-				.style("z-index", " 100")
-				.style("display", " block")
-				.style("text-align", " left")
-				.style("vertical-align", " top")
-				.style("width", " 150px")
-				.style("overflow ", " hidden")
+				// .style("background-color", "#fffeec")
+				// .style("position", "absolute")
+				// .style("bottom", "20px")
+				// .style("left", "10px")
+				// .style("border", "4px solid #0f71ba")
+				// .style("border-radius", "10px")
+				// .style("box-shadow", " 3px 3px 3px #888888")
+				// .style("z-index", " 100")
+				// .style("display", " block")
+				// .style("text-align", " left")
+				// .style("vertical-align", " top")
+				// .style("width", " 150px")
+				// .style("overflow ", " hidden")
 				.html(div_ct);
 		};
 		/* handling mouse out of nodes
@@ -1444,7 +1444,12 @@ define([
 			svg.selectAll(".link")
 				.classed("lowlighted", true);
 		}
+        function newChild(){
+			var selected = svg_content.selectAll("g.selected")
+			let node_ids = selected.data().map(d => d.id);
+			disp.call("addGraphIGraph", this, g_id, node_ids);
 
+		}
 		function newGraph(_elm, _d, _i) {
 			var selected = svg_content.selectAll("g.selected")
 			let val = prompt("New name:", "");
@@ -1497,17 +1502,20 @@ define([
 			if (!readOnly) {
 				let buttons = d3.select(buttonsDiv);
 				buttons.attr("id", "GraphButtons")
+					// .append("button")
+					// .text("New child graph")
+					// .on("click", newGraph);
 					.append("button")
-					.text("New child graph")
-					.on("click", newGraph);
+					.text("New child")
+					.on("click", newChild);
 
 				// buttons .append("button")
 				// 	.text("New sigbling graph")
 				// 	.on("click", function () { alert("sibling graph") });
 
-				buttons.append("button")
-					.text("New child rule")
-					.on("click", newChildRule);
+				// buttons.append("button")
+				// 	.text("New child rule")
+				// 	.on("click", newChildRule);
 
 				// buttons.append("button")
 				// 	.text("New sibling rule")

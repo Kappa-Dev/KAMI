@@ -8,7 +8,7 @@ from flask import Flask, request
 from base.base_blueprint import app
 from kami.server.kami.kami_blueprint import kami_blueprint
 from kami.server.mu_calculus.mu_blueprint import mu_blueprint
-from regraph.tree import from_json_tree, to_json_tree, new_action_graph
+from regraph.tree import from_json_tree, to_json_tree, new_action_graph, add_types
 from regraph.primitives import graph_to_json, add_edge
 from regraph.hierarchy import MuHierarchy
 from kami.server.kami.metamodels import untypedkami, untyped_base_kami, kami_basekami
@@ -66,12 +66,14 @@ SERVER.register_blueprint(kami_blueprint)
 
 # load the exemples.json file to the hierarchy
 # EXAMPLE = os.path.join(os.path.dirname(__file__), 'example.json')
-EXAMPLE = "/home/stan/Downloads/hierarchy (56).json"
+# EXAMPLE = "/home/stan/Downloads/hierarchy (52).json"
+EXAMPLE = "/home/stan/Downloads/bigwnt.json"
 with open(EXAMPLE) as data_file:
     DATA = json.load(data_file)
     new_hie = SERVER._hie.__class__()
     new_hie.remove_graph("/")
     from_json_tree(new_hie, DATA, None)
+    add_types(new_hie)
     SERVER._hie = new_hie
 
 
@@ -85,6 +87,7 @@ def replace_hierachy(path_to_graph=""):
     new_hie = SERVER._hie.__class__()
     new_hie.remove_graph("/")
     from_json_tree(new_hie, hierarchy, None)
+    add_types(new_hie)
     SERVER._hie = new_hie
     return("hierarchy replaced", 200)
 
@@ -114,9 +117,8 @@ def replace_hierachy2(path_to_graph=""):
 
     new_hie = ServerHierarchy.from_json(SERVER._hie.__class__, hierarchy)
     new_hie.add_graph("kami_base", untyped_base_kami, {"name": "kami_base"})
-    new_hie.add_typing("kami_base", "/", {}, total=False, ignore_attrs=True)
-    new_hie.add_typing("kami", "kami_base", kami_basekami, total=True,
-                       ignore_attrs=True)
+    new_hie.add_typing("kami_base", "/", {}, total=False)
+    new_hie.add_typing("kami", "kami_base", kami_basekami, total=True)
     new_action_graph(new_hie, to_ag_functions)
     SERVER._hie = new_hie
     return("hierarchy replaced", 200)

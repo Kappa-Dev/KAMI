@@ -371,26 +371,31 @@ def compose_splices(hie, ag_id, mm_id, splices_list):
         mm_typing = hie.get_typing(spl, mm_id)
         ag_typing = hie.get_typing(spl, ag_id)
         splg = hie.node[spl].graph
-        agents = [ag_typing[node] for node in splg.nodes()
+        agents = [ag_typing[node] for node in splg
                   if mm_typing[node] == "agent"]
         if len(agents) != 1:
             raise ValueError("there must be exactly one agent in a splice")
+
+        components = _components_of_agent(action_graph,
+                                          hie.edge[ag_id][mm_id].mapping,
+                                          agents[0])
+        new_agent = action_graph.subgraph(components)
+        newagent_ag = {n: n for n in new_agent.nodes()}
+
+        # If no locus at all is present, we add them all to the variant
+        if all(mm_typing[node] != "locus" for node in splg):
+            ag_mm = hie.edge[ag_id][mm_id].mapping
+            new_splg = copy.deepcopy(new_agent)
+            for node in new_agent:
+                if (ag_mm[node] != "locus" and
+                        node not in [ag_typing[n] for n in splg]):
+                    remove_node(new_splg, node)
+            splg = new_splg
+            ag_typing = {node: node for node in new_splg}
+            mm_typing = compose_homomorphisms(ag_mm, ag_typing)
+
         if agents[0] not in known_agents:
             known_agents.append(agents[0])
-            components = _components_of_agent(action_graph,
-                                              hie.edge[ag_id][mm_id].mapping,
-                                              agents[0])
-            new_agent = action_graph.subgraph(components)
-            newagent_ag = {n: n for n in new_agent.nodes()}
-            # (tmp, tmp_lhs, tmp_newagent) =\
-            #     pullback(lhs, new_agent, action_graph, lhs_ag, newagent_ag)
-            # (new_lhs, lhs_newlhs, newagent_newlhs) =\
-            #     pushout(tmp, lhs, new_agent, tmp_lhs, tmp_newagent)
-            # newlhs_ag = {}
-            # for node in lhs.nodes():
-            #     newlhs_ag[lhs_newlhs[node]] = lhs_ag[node]
-            # for node in new_agent.nodes():
-            #     newlhs_ag[newagent_newlhs[node]] = newagent_ag[node]
             (new_lhs, lhs_newlhs, newagent_newlhs, newlhs_ag) =\
                 pullback_pushout(lhs, new_agent, action_graph, lhs_ag,
                                  newagent_ag)
@@ -406,7 +411,7 @@ def compose_splices(hie, ag_id, mm_id, splices_list):
             imgs = keys_by_value(newlhs_ag, ag_typing[node])
             if len(imgs) != 1:
                 raise ValueError("node {} should have exactly one"
-                                 " image in new_agent".format(node))
+                                 " image in new_agent ({})".format(node, imgs))
             splg_newlhs[node] = imgs[0]
         (tmp, tmp_ppp, tmp_splg) = pullback(ppp, splg, new_lhs, ppp_newlhs,
                                             splg_newlhs)
@@ -443,8 +448,7 @@ def compose_splices(hie, ag_id, mm_id, splices_list):
     rule_name = tree.get_valid_name(hie, ag_id, "big_rule")
     hie.add_rule(rule_id, rule, {"name": rule_name})
     hie.add_rule_typing(rule_id, ag_id, lhs_ag,
-                        compose_homomorphisms(lhs_ag, finalppp_lhs),
-                        ignore_attrs=True)
+                        compose_homomorphisms(lhs_ag, finalppp_lhs))
 
 
 # must be an action graph
@@ -703,8 +707,8 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     # add the nodes that where not considered at all
     # because they are not connected to a locus or state
     nodes_with_ports = set.union(
-        set.union(*non_comp_neighbors.values()),
-        set.union(*components.values()))
+        set.union(*(list(non_comp_neighbors.values())+[set()])),
+        set.union(*(list(components.values())+[set()])))
 
     nodes_without_ports = set(nug_gr.nodes()) - nodes_with_ports
 

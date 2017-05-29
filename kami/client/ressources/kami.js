@@ -32,6 +32,20 @@ define([
             return factory.promAncestors(path, degree);
 		};
 
+        this.kamiTypes = {
+            "nugget":{
+                type: "nugget"
+            },
+            "rule":{
+                type: "rule"
+            },
+            "variant_graph":{
+                type: "variant_graph"
+            },
+            "variant_rule":{
+                type: "variant_rule"
+            }
+        }
 
 
 

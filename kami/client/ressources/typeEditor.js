@@ -82,9 +82,9 @@ define([
                     .text(d => d.typing_graph);
                 fieldList.append("input")
                     .classed("form-control", true)
-                    .attr("id", d => d.typing_graph)
+                    .attr("id", d => d.type)
                     .attr("type", "text")
-                    .property("value", d => d.typing_graph);
+                    .property("value", d => d.type);
             }
 
             this.update = function update(path, nodeId, types) {

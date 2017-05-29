@@ -4,7 +4,8 @@
 	 --link-color: #aaaaaa;
 	 --node-default-fill:#000000;
 	 --node-default-select:red;
-	 --menu-color:rgb(251, 249, 200);
+	 /*--menu-color:rgb(251, 249, 200);*/
+	 --menu-color:#FBF9C8;
 	 --link-line-color: #999999;
      --separation-line-color: #7B7162;
 	 --node-label-color: #282828;

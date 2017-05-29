@@ -676,6 +676,24 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.on("load", function (xhr) { callback(null, xhr); });
 			rq.send("PUT", data);
 		};
+		
+        this.promAddAttr = callbackToPromise(self.addAttr);
+
+		function callbackToPromise(f) {
+			return function () {
+				let args = arguments;
+				return new Promise(function (resolve, reject) {
+					let myCallback = function (err, _rep) {
+						if (err) { reject(err) }
+						else {
+							resolve();
+						}
+					}
+					f(...args, myCallback);
+				})
+			}
+		}
+
 		// 	request("PUT",
 		// 		"/graph/update_graph_attr",
 		// 		g_path,
@@ -830,20 +848,22 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.post(JSON.stringify({ "names": node_list }), callback);
 		};
 
-		this.promNewGraphFromNodes = function (g_path, new_name, node_ids) {
-			return new Promise(function (resolve, reject) {
-				let myCallback = function (err, _rep) {
-					if (err) { reject(err) }
-					else {
-						resolve();
-					}
-			d3.request(srv + "/graph/graph_from_nodes" + g_path + "/" + new_name + "/")
-				.header("X-Requested-With", "XMLHttpRequest")
-				.header("Content-Type", "application/json")
-				.post(JSON.stringify({ "names": node_ids }), myCallback);
-				}
-			});
-		}
+		this.promNewGraphFromNodes = callbackToPromise(self.newGraphFromNodes);
+
+		// this.promNewGraphFromNodes = function (g_path, new_name, node_ids) {
+		// 	return new Promise(function (resolve, reject) {
+		// 		let myCallback = function (err, _rep) {
+		// 			if (err) { reject(err) }
+		// 			else {
+		// 				resolve();
+		// 			}
+		// 			d3.request(srv + "/graph/graph_from_nodes" + g_path + "/" + new_name + "/")
+		// 				.header("X-Requested-With", "XMLHttpRequest")
+		// 				.header("Content-Type", "application/json")
+		// 				.post(JSON.stringify({ "names": node_ids }), myCallback);
+		// 		}
+		// 	});
+		// }
 
 		/* creates a child rule from selected nodes
 				 * @input : g_path : the graph path
@@ -851,14 +871,16 @@ define(["ressources/d3/d3.js"], function (d3) {
 				 * @input : node_list : the selected nodes
 				 */
 
-		this.newChildRuleFromNodes = function (g_path, new_name, node_list, callback){
+		this.newChildRuleFromNodes = function (g_path, new_name, node_list, callback) {
 			d3.request(srv + "/rule/child_rule_from_nodes" + g_path + "/" + new_name + "/")
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.post(JSON.stringify({ "names": node_list }), callback);
 		};
 
-		this.applyRuleOnParent = function (rule_path, suffix, callback){
+		this.promChildRuleFromNodes = callbackToPromise(self.newChildRuleFromNodes);
+
+		this.applyRuleOnParent = function (rule_path, suffix, callback) {
 			d3.request(srv + "/rule/apply_on_parent" + rule_path + "/?suffix=" + encodeURIComponent(suffix))
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
@@ -884,6 +906,18 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.post(null, callback);
 		};
 
+		this.promAddGraph = function (g_path) {
+			return new Promise(function (resolve, reject) {
+				let myCallback = function (err, _rep) {
+					if (err) { reject(err) }
+					else {
+						resolve();
+					}
+				}
+				self.addGraph(g_path, myCallback);
+			})
+		}
+
 		this.getParts = function (g_path, callback) {
 			d3.request(srv + "/getparts" + g_path + "/")
 				.get(callback);
@@ -893,6 +927,11 @@ define(["ressources/d3/d3.js"], function (d3) {
 			d3.request(srv + "/gettypes" + g_path + "/?nodeId=" + nodeId)
 				.get(callback);
 		};
+
+		this.getMetadata = function (g_path, callback) {
+			d3.request(srv + "/graph/get_metadata" + g_path)
+				.get((err, rep)=>{callback(err, JSON.parse(rep.response))});
+		}
 
 	}
 });

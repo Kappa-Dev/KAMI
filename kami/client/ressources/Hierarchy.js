@@ -11,584 +11,596 @@ define([
 	"ressources/requestFactory.js",
 	"ressources/kamiRequestFactory.js",
 	"ressources/d3/d3-context-menu.js"
-	],
-	function(d3,Tree,RFactory,KamiRFactory,d3ContextMenu){
-	/* Create a new hierarchy module
-	 * @input : container_id : the container to bind this hierarchy
-	 * @input : dispatch : the dispatch event object
-	 * @input : server_url : the regraph server url
-	 * @return : a new Hierarchy object
-	 */
-	return function Hierarchy(container_id, dispatch, server_url){
-		if(!server_url) throw new Error("server url undefined");
-		var srv_url = server_url;//the current url of the server
-		var disp = dispatch;//global dispatcher for events
-		var container = d3.select("#"+container_id).append("div").attr("id","tab_menu").classed("top_menu",true);//add all tabl to menu
-		var hierarchy = new Tree();//a tree containing the whole hierarchy
-		var top_h_select = container.append("div").attr("id","top_h_select");
-		container.append("div").classed("tab_menu_el_separator",true);
-		var h_select = top_h_select.append("select").attr("id","h_select").classed("mod_el",true);//the hierarchy selector
-		top_h_select.append("i").attr("id","gotoParent").classed("icon",true);//the hierarchy selector
-		var h_list = container.append("div").attr("id","scrolling_list");//the list of son of the specified node
-		container.append("div").classed("tab_menu_el_separator",true);
-		container.append("input")
-			.attr("type", "text")
-			.attr("id", "nugFilter")
-			.on("input", filterNuggets);
-		var condData = [];
-		var condList = container.append("div")
-			.attr("id", "conditionsList");
+],
+	function (d3, Tree, RFactory, KamiRFactory, d3ContextMenu) {
+		/* Create a new hierarchy module
+		 * @input : container_id : the container to bind this hierarchy
+		 * @input : dispatch : the dispatch event object
+		 * @input : server_url : the regraph server url
+		 * @return : a new Hierarchy object
+		 */
+		return function Hierarchy(container_id, dispatch, server_url) {
+			if (!server_url) throw new Error("server url undefined");
+			var srv_url = server_url;//the current url of the server
+			var disp = dispatch;//global dispatcher for events
 
-		var current_node = null;//the current node
-		var factory = new RFactory(srv_url);
-		var kamiFactory = new KamiRFactory(srv_url);
+			var container = d3.select("#" + container_id).append("div").attr("id", "tab_menu").classed("top_menu", true);//add all tabl to menu
+			var top_h_select = container.append("div").attr("id", "top_h_select");
+			var h_select = top_h_select.append("select").attr("id", "h_select").classed("mod_el", true);//the hierarchy selector
+			top_h_select.append("i").attr("id", "gotoParent").classed("icon", true);//the hierarchy selector
+			let tabs = container.append("ul").attr("id", "tabs").classed("nav nav-pills", true);
+			container.append("div").classed("tab_menu_el_separator", true);
+			let h_lists = container.append("div").attr("id", "scrolling_lists").classed("tab-content", true).classed("scrollbar", true);
+			// var h_list = container.append("div").attr("id","scrolling_list1");//the list of son of the specified node
+			// h_list.classed("scrolling_list", true);
+			container.append("div").classed("tab_menu_el_separator", true);
+			container.append("input")
+				.attr("type", "text")
+				.attr("id", "nugFilter")
+				.on("input", filterNuggets);
+			var condData = [];
+			var condList = container.append("div")
+				.attr("id", "conditionsList");
 
-		var selfHierarchy = this;
-		var right_click_menu = [
-			{
-				title: "get kappa",
-				action: toKappa
-			},
-			{
-				title: "get kappa2",
-				action: showKAppaExporter
-			},
-			{
-				title: "splice rule",
-				action: createSplicesRule
-			},
-			{
-				title: "concat",
-				action: createConcats
-			},
+			let current_metadata = null;
+			let tab_index = null;
+			var factory = new RFactory(srv_url);
+			var kamiFactory = new KamiRFactory(srv_url);
+			var selfHierarchy = this;
+			let graph_context_menu = [
+				{
+					title: "delete",
+					action: function (elm, d, _i) {
+						if (confirm("Confirmation : remove " + d.path + " and all its children ?"))
+							factory.delHierarchy(d.path, function (e, r) {
+								if (e) return console.error(e);
+								console.log(r);
+								dispatch.call("hieUpdate", this);
+							});
+					}
 
-			{
-				title: "set rate",
-				action: setRate
-			}
+				},
+				{
+					title: "create rule",
+					action: createRule
+				},
+				{
+					title: "merge selected graphs",
+					action: mergeGraphs
+				},
+				{
+					title: "formulae",
+					action: editFormulae
+				},
+				{
+					title: "check",
+					action: checkFormulae
+				}
+			];
+			let rule_context_menu = [
+				{
+					title: "delete",
+					action: deleteRule
 
-		];
-		var only_graph_menu = [
-			{
-				title: "delete",
-				action: function (elm, d, _i) {
-					let current_obj = hierarchy.getAbsPath(d)
-					if (confirm("Confirmation : remove " + current_obj + " and all its children ?"))
-						factory.delHierarchy(current_obj, function (e, r) {
-							if (e) return console.error(e);
-							console.log(r);
-							dispatch.call("hieUpdate", this);
-						});
+				},
+				{
+					title: "apply on parent",
+					action: applyOnParent
+				}
+			];
+			let nugget_context_menu = [
+				{
+					title: "unfold nugget",
+					action: unfoldNugget
+				},
+				{
+					title: "get kappa",
+					action: showKAppaExporter
+				},
+				{
+					title: "set rate",
+					action: setRate
 				}
 
-			},
-			{
-				title: "create rule",
-				action: createRule
-			},
-			{
-				title: "merge selected graphs",
-				action: mergeGraphs
-			},
-			{
-				title: "formulae",
-				action: editFormulae
-			},
-			{
-				title: "compositions",
-				action: editCompositions
-			},
-			{
-				title: "check",
-				action: checkFormulae
-			},
-			{
-				title: "unfold nugget",
-				action: unfoldNugget
-			}
-		];
-		var only_rules_menu = [
-			{
-				title: "delete",
-				action: deleteRule
+			];
+			let variant_context_menu = [
+				{
+					title: "splice rule",
+					action: createSplicesRule
+				}
+			];
+			let context_menu = {};
+			context_menu["graph"] = graph_context_menu;
+			context_menu["rule"] = rule_context_menu;
+			context_menu["nugget"] = graph_context_menu.concat(nugget_context_menu);
+			context_menu["variant"] = graph_context_menu.concat(variant_context_menu);
 
-			},
-			{
-				title: "apply on parent",
-				action: applyOnParent
-			}
-		];
-		/* load a new hierarchy from the server
-		 * @input : root_path : the hierarchy root pathname
-		 */
-		this.update = function update(root_path) {
-			factory.getHierarchy(root_path, function (err, req) {
-				console.log(req)
-				hierarchy.load(req);
-				current_node = hierarchy.getRoot();
-				initHlist(hierarchy.getSons(current_node), hierarchy.getRules(current_node));
-				initHselect(hierarchy.getTreePath(current_node));
-			});
-		};
+			/* Update the navigation menu to show the subgraphs of root_path*/
+			this.update = function update(root_path, tab) {
+				if (root_path == undefined) {
+					root_path = current_metadata.path
+				}
+				if (tab != undefined) {
+					tab_index = current_metadata.children_types.indexOf(tab);
+				}
+				else {
+					let pills = tabs.selectAll("li").nodes();
+					// if (pills.length === 0) {
+					// 	tab_index = 0;
+					// }
+					// else {
+						let i = pills.findIndex(elm => d3.select(elm).classed("active"));
+						tab_index = Math.max(0, i);
+					//}
+				}
 
-		/* load a new hierarchy and go to a node
-		 * @input : root_path : the hierarchy root pathname
-		 * @input : node : the node to go to
-		 */
-		this.updateAndMove = function (root_path, node_id) {
-			factory.getHierarchy(root_path, function (err, req) {
-				hierarchy.load(req);
-				current_node = node_id;
-				initHlist(hierarchy.getSons(current_node), hierarchy.getRules(current_node));
-				initHselect(hierarchy.getTreePath(current_node));
-			});
-		};
-
-		this.updateInPlace = function (root_path) {
-			factory.getHierarchy(root_path, function (err, req) {
-				hierarchy.load(req);
-				initHlist(hierarchy.getSons(current_node), hierarchy.getRules(current_node));
-				initHselect(hierarchy.getTreePath(current_node));
-			});
-		};
-		/* update the scrolling tab menu with the current node sons
-		 * @input : data : the list of sons of the current node
-		 */
-		function initHlist(data, rules) {
-			clearCondData();
-			h_list.selectAll("*").remove();
-			var slc = h_list.selectAll(".tab_menu_el")
-				.data(data);
-			slc.exit().remove();
-			slc.enter().append("div")
-				.classed("tab_menu_el", true)
-				.classed("unselectable", true)
-				.classed("selected", false)
-				.attr("id", function (d) { return d })
-				.on("click", function (d, i) { return dispach_click(d, i, this) })
-				.on("contextmenu", d3ContextMenu(right_click_menu.concat(only_graph_menu)))
-				.on("mouseover", function (d) { disp.call("loadPreview", this, hierarchy.getAbsPath(d)) })
-				.on("mouseout", function (_d) { disp.call("closePreview", this) })
-				.on("dblclick", function (d) { return lvlChange(d) });
-
-			var slc = h_list.selectAll(".tab_menu_el");
-			slc.append("i")
-				.classed("icon", true);
-			slc.append("div")
-				.classed("tab_menu_el_name", true)
-				.text(function (d) {
-					// let nm = hierarchy.getName(d);
-					// return nm.length>14?nm.substring(0,12).concat("..."):nm;
-					return hierarchy.getName(d);
+				factory.getMetadata(root_path, function (err, req) {
+					current_metadata = req;
+					drawTabs();
+					drawChildren();
+					drawParents();
 				});
-
-			slc = slc.data(data.concat(rules));
-			ruleSelection = slc.enter().append("div")
-				.classed("tab_menu_el", true)
-				.classed("unselectable", true)
-				.classed("selected", false)
-				.attr("id", function (d) { return d })
-				.on("click", function (d) { return display_rule(d, this) })
-				.on("contextmenu", d3ContextMenu(right_click_menu.concat(only_rules_menu)));
-			ruleSelection.append("i")
-				.classed("icon_rule", true);
-			ruleSelection.append("div")
-				.classed("tab_menu_el_name", true)
-				.text(function (d) {console.log(d); return d.id });
-
-
-			try {
-				if (hierarchy.getName(hierarchy.getFather(hierarchy.getFather(data[0]))) === "kami") {
-					d3.selectAll(".tab_menu_el")
-						.each(function (id) {
-							var elem = d3.select(this)
-							factory.getGraph(hierarchy.getAbsPath(id),
-								function (err, resp) {
-									if (err) { return 0 }
-									let rate = resp.attributes["rate"];
-									rate = rate ? rate : "und";
-									elem.append("div")
-										.style("width", "1vw");
-									elem.append("div")
-										.classed("tab_menu_el_rate", true)
-										.text(rate);
-
-								}
-
-
-							)
-
-						})
-				}
-			}
-			catch (err) { }
-
-		};
-		/* update the selector with the current node parents
-		 * @input : data : the absolute path of the current node
-		 */
-		function initHselect(data) {
-			h_select.selectAll("*").remove();
-			h_select.selectAll("option")
-				.data(data)
-				.enter().append("option")
-				.text(function (d) { return hierarchy.getName(d) })
-				.attr("selected", function (d) { return d == current_node });
-			h_select.on("change", lvlChange);
-			top_h_select.select("i").on("click", function () {
-				disp.call("loadGraph", this, hierarchy.getAbsPath(data[data.length - 1]))
-			});
-		};
-
-		function display_rule(d, elem) {
-			h_list.selectAll(".tab_menu_el")
-				.classed("current", false)
-			d3.select(elem)
-				.classed("current", true)
-			var absPath = (d.path == "/" ? "" : d.path) + "/" + d.id;
-			disp.call("loadRule", this, absPath);
-		};
-
-		function dispach_click(d, i, elem) {
-			d3.event.stopPropagation();
-			if (d3.event.ctrlKey) {
-				if (d3.select(elem).classed("selected"))
-					d3.select(elem).classed("selected", false);
-				else
-					d3.select(elem).classed("selected", true);
-			}
-			else {
-				tabChange(d, elem);
-			}
-
-		};
-		/* color in blue the currently selected node of the scrolling tab menu
-		 * @input : id : the new selected node
-		 * @call : graphUpdate event
-		 */
-		function tabChange(id, elem) {
-			// if(selected_node==id)return;
-			selected_node = id;
-			// h_list.selectAll(".tab_menu_el")
-			// 	.style("color","rgb(251, 249, 200)")//show the correct menu element
-			// 	.style("background",function(d){
-			// 		return d==id?"linear-gradient(to bottom, #3fa4f0 0%, #0f71ba 100%)":"none";
-			// 	});
-
-			h_list.selectAll(".tab_menu_el")
-				.classed("current", false);
-			d3.select(elem)
-				.classed("current", true);
-			disp.call("loadGraph", this, hierarchy.getAbsPath(id));
-			// disp.call(
-			// 	"tabUpdate",
-			// 	this,
-			// 	hierarchy.getAbsPath(id),
-			// 	hierarchy.getSons(current_node).map(function(d){
-			// 		return hierarchy.getName(d);
-			// 	}),
-			// 	hierarchy.getAbsPath(current_node),
-			// 	"hierarchy"
-			// );
-		};
-		/* change the current node in the hierarchy
-		 * this function update the selector and the tab menu
-		 * @input : id : the new current node
-		 */
-		function lvlChange(id) {
-			d3.event.stopPropagation();
-			var data = id;
-			if (!id) {
-				var si = h_select.property('selectedIndex'),
-					s = h_select.selectAll("option").filter(function (d, i) { return i === si });
-				data = s.datum();
-			}
-			// if(hierarchy.getSons(data).length==0)return;
-			current_node = data;
-			initHlist(hierarchy.getSons(data), hierarchy.getRules(data));
-			initHselect(hierarchy.getTreePath(data));
-			//disp.call("loadGraph",this,hierarchy.getAbsPath(data));
-
-		}
-        
-
-		/* triggers the the kappaExporter modal */
-        function showKAppaExporter(){
-			let current_path = hierarchy.getAbsPath(current_node) + "/";
-			dispatch.call("loadKappaExporter", this, current_path)
-		}
-		/* Convert the current graph into kappa : TODO
-		 * Open a new page with the Kappa code 
-		 */
-		function toKappa() {
-			var callback = function (error, response) {
-				d3.select("body")
-					.style("cursor", "default");
-				if (error) {
-					alert(error.currentTarget.response);
-					return false;
-				}
-				d3.select("#json_link")
-					.attr("href",
-					'data:text/json;charset=utf-8,'
-					+ encodeURIComponent(JSON.parse(response.response)["kappa_code"]));
-				document.getElementById('json_link').click();
 			};
-			let nugget_list = []
-			d3.selectAll(".tab_menu_el.selected")
-				.each(function () {
-					nugget_list.push(hierarchy.getName(this.id))
-				})
-			var path = hierarchy.getAbsPath(current_node) + "/"
-			path = (path == "//") ? "/" : path
-			d3.select("body")
-				.style("cursor", "progress");
-			factory.getKappa(path, JSON.stringify({ "names": nugget_list }), callback)
-			return false;
-		}
 
-		function createSplicesRule() {
-			let callback = function (err, _rep) {
-				if (err) {
-					console.log(err);
+			function drawTabs() {
+				tabs.selectAll("li").remove();
+				let tabs_sel = tabs.selectAll("li")
+					.data(current_metadata.children_types);
+				tabs_sel.enter()
+					.append("li")
+					.classed("active", (_d, i) => i === tab_index)
+					.append("a")
+					.classed("hiePill", true)
+					.attr("data-toggle", "pill")
+					.attr("href", d => "#" + d)
+					.text(d => d + "s");
+				h_lists.selectAll("div").remove();
+				let lists_sel = h_lists.selectAll("div")
+					.data(current_metadata.children_types);
+				lists_sel.enter()
+					.append("div")
+					.attr("id", d => d)
+					.classed("tab-pane fade", true)
+					.classed("in active", (_d, i) => i === tab_index)
+					.classed("scrolling_list", true);
+			}
+
+			function drawChildren() {
+				clearCondData();
+				current_metadata.children_types.forEach(function (type) {
+					let data = current_metadata.children.filter(md => md.type == type)
+					let h_list = h_lists.select("#" + type);
+					h_list.selectAll("*").remove();
+					var slc = h_list.selectAll(".tab_menu_el")
+						.data(data);
+					slc.exit().remove();
+					slc.enter().append("div")
+						.classed("tab_menu_el", true)
+						.classed("unselectable", true)
+						.classed("selected", false)
+						.attr("id", function (d) { return d.name })
+						.on("click", function (ltype) {
+							if (ltype === "rule") {
+								return function (d, i) { display_rule(d, i, this) }
+							}
+							else {
+								// return dispach_click
+								return function (d, i) { dispatch_click(d, i, this) }
+							}
+						}(type))
+						// .on("click",function(d,i){dispach_click(d,i,this)})
+						// .on("contextmenu", d3ContextMenu(right_click_menu.concat(only_graph_menu)))
+						.on("contextmenu", d3ContextMenu((() => { return context_menu[type] })()))
+						.on("mouseover", function () {
+							var ltype = type;
+							if (ltype !== "rule") {
+								return (d => {
+									d3.event.stopPropagation();
+									disp.call("loadPreview", this, d.path);
+								})
+							}
+						}())
+						// .on("mouseover", function (d) {
+
+						// 	d3.event.stopPropagation();
+						// 	disp.call("loadPreview", this, d.path);
+						// })
+						.on("mouseout", function (_d) { disp.call("closePreview", this) })
+						.on("dblclick", function () {
+							var ltype = type;
+							if (ltype !== "rule") {
+								return (d => selfHierarchy.update(d.path))
+							}
+						}());
+
+					slc = h_list.selectAll(".tab_menu_el");
+					slc.append("i")
+						.classed("icon", type !== "rule");
+					slc.append("div")
+						.classed("tab_menu_el_name", true)
+						.text(d => d.name);
+				});
+			}
+			/* update the scrolling tab menu with the current node sons
+			 * @input : data : the list of sons of the current node
+			 */
+			// function initHlist(data, rules) {
+			// 	clearCondData();
+			// 	h_list.selectAll("*").remove();
+			// 	var slc = h_list.selectAll(".tab_menu_el")
+			// 		.data(data);
+			// 	slc.exit().remove();
+			// 	slc.enter().append("div")
+			// 		.classed("tab_menu_el", true)
+			// 		.classed("unselectable", true)
+			// 		.classed("selected", false)
+			// 		.attr("id", function (d) { return d })
+			// 		.on("click", function (d, i) { return dispach_click(d, i, this) })
+			// 		.on("contextmenu", d3ContextMenu(right_click_menu.concat(only_graph_menu)))
+			// 		.on("mouseover", function (d) { disp.call("loadPreview", this, hierarchy.getAbsPath(d)) })
+			// 		.on("mouseout", function (_d) { disp.call("closePreview", this) })
+			// 		.on("dblclick", function (d) { return lvlChange(d) });
+
+			// 	var slc = h_list.selectAll(".tab_menu_el");
+			// 	slc.append("i")
+			// 		.classed("icon", true);
+			// 	slc.append("div")
+			// 		.classed("tab_menu_el_name", true)
+			// 		.text(function (d) {
+			// 			// let nm = hierarchy.getName(d);
+			// 			// return nm.length>14?nm.substring(0,12).concat("..."):nm;
+			// 			return hierarchy.getName(d);
+			// 		});
+
+			// 	slc = slc.data(data.concat(rules));
+			// 	ruleSelection = slc.enter().append("div")
+			// 		.classed("tab_menu_el", true)
+			// 		.classed("unselectable", true)
+			// 		.classed("selected", false)
+			// 		.attr("id", function (d) { return d })
+			// 		.on("click", function (d) { return display_rule(d, this) })
+			// 		.on("contextmenu", d3ContextMenu(right_click_menu.concat(only_rules_menu)));
+			// 	ruleSelection.append("i")
+			// 		.classed("icon_rule", true);
+			// 	ruleSelection.append("div")
+			// 		.classed("tab_menu_el_name", true)
+			// 		.text(function (d) { console.log(d); return d.id });
+
+
+			// 	try {
+			// 		if (hierarchy.getName(hierarchy.getFather(hierarchy.getFather(data[0]))) === "kami") {
+			// 			d3.selectAll(".tab_menu_el")
+			// 				.each(function (id) {
+			// 					var elem = d3.select(this)
+			// 					factory.getGraph(hierarchy.getAbsPath(id),
+			// 						function (err, resp) {
+			// 							if (err) { return 0 }
+			// 							let rate = resp.attributes["rate"];
+			// 							rate = rate ? rate : "und";
+			// 							elem.append("div")
+			// 								.style("width", "1vw");
+			// 							elem.append("div")
+			// 								.classed("tab_menu_el_rate", true)
+			// 								.text(rate);
+
+			// 						}
+
+
+			// 					)
+
+			// 				})
+			// 		}
+			// 	}
+			// 	catch (err) { }
+
+			// };
+			/* update the selector with the current node parents
+			 * @input : data : the absolute path of the current node
+			 */
+
+			function drawParents() {
+				let l = current_metadata.path.split("/").filter(s => s);
+				l.unshift("/");
+				h_select.selectAll("*").remove();
+				h_select.selectAll("option")
+					.data(l)
+					.enter().append("option")
+					.text(d => d)
+					.attr("selected", d => d == current_metadata.name);
+				h_select.on("change", function () {
+					let i = this.selectedIndex;
+					let selected_path = "/" + l.splice(1, i).join("/")
+					selfHierarchy.update(selected_path)
+				});
+				top_h_select.select("i").on("click", function () {
+					disp.call("loadGraph", this, current_metadata.path)
+				});
+			}
+
+			function display_rule(d, _i, elem) {
+				d3.event.stopPropagation();
+				h_lists.selectAll(".tab_menu_el")
+					.classed("current", false)
+				d3.select(elem)
+					.classed("current", true)
+				disp.call("loadRule", this, d.path);
+			}
+
+			function dispatch_click(d, _i, elem) {
+				d3.event.stopPropagation();
+				if (d3.event.ctrlKey) {
+					if (d3.select(elem).classed("selected"))
+						d3.select(elem).classed("selected", false);
+					else
+						d3.select(elem).classed("selected", true);
 				}
 				else {
-					dispatch.call("hieUpdate", this, null);
+					tabChange(d, elem);
 				}
+
+			};
+			/* color in blue the currently selected node of the scrolling tab menu
+			 * @input : id : the new selected node
+			 * @call : graphUpdate event
+			 */
+			function tabChange(id, elem) {
+				h_lists.selectAll(".tab_menu_el")
+					.classed("current", false);
+				d3.select(elem)
+					.classed("current", true);
+				disp.call("loadGraph", this, id.path);
 			}
-			let splices = []
-			d3.selectAll(".tab_menu_el.selected")
-				.each(function () {
-					splices.push(hierarchy.getName(this.id))
-				})
-			var path = hierarchy.getAbsPath(current_node) + "/";
-			path = (path == "//") ? "/" : path;
-			console.log("toto");
-			factory.makeSplices(path, JSON.stringify({ "names": splices }), callback)
-		}
 
-		function createConcats() {
-			let callback = function (err, _rep) {
-				if (err) {
-					console.log(err);
-				}
-				else {
-					dispatch.call("hieUpdate", this, null);
-				}
+			/* triggers the the kappaExporter modal */
+			function showKAppaExporter() {
+				dispatch.call("loadKappaExporter", this, current_metadata.path + "/");
 			}
-			let splices = []
-			d3.selectAll(".tab_menu_el.selected")
-				.each(function () {
-					splices.push(hierarchy.getName(this.id))
-				})
-			var path = hierarchy.getAbsPath(current_node) + "/";
-			path = (path == "//") ? "/" : path;
-			factory.makeConcat(path, JSON.stringify({ "names": splices }), callback)
-		}
 
-		function setRate(elm, d, _i) {
-			var path = hierarchy.getAbsPath(d) + "/";
-			var rate = prompt("Enter the rate", "");
-			if (!rate) { return 0 }
-			var callback = function (err, _resp) {
-				if (err) {
-					alert(err.currentTarget.response);
-					return false;
+			function createSplicesRule() {
+				let callback = function (err, _rep) {
+					if (err) {
+						console.log(err);
+					}
+					else {
+						dispatch.call("hieUpdate", this, null);
+					}
 				}
-				selfHierarchy.updateAndMove("/", hierarchy.getFather(d));
+				let splices = []
+				d3.selectAll(".tab_menu_el.selected")
+					.each(function () {
+						splices.push(this.id);
+					})
+				let path = current_metadata.path + "/";
+				path = (path == "//") ? "/" : path;
+				factory.makeSplices(path, JSON.stringify({ "names": splices }), callback)
 			}
-			factory.addAttr(path, JSON.stringify({ "rate": rate }), callback);
 
-		}
+			// function createConcats() {
+			// 	let callback = function (err, _rep) {
+			// 		if (err) {
+			// 			console.log(err);
+			// 		}
+			// 		else {
+			// 			dispatch.call("hieUpdate", this, null);
+			// 		}
+			// 	}
+			// 	let splices = []
+			// 	d3.selectAll(".tab_menu_el.selected")
+			// 		.each(function () {
+			// 			splices.push(hierarchy.getName(this.id))
+			// 		})
+			// 	var path = hierarchy.getAbsPath(current_node) + "/";
+			// 	path = (path == "//") ? "/" : path;
+			// 	factory.makeConcat(path, JSON.stringify({ "names": splices }), callback)
+			// }
 
-		function checkFormulae(_elm, d, _i) {
-			let callback = function (err, ret) {
-				if (err) {
-					console.log(err);
-					alert(err.srcElement.responseText);
+			function setRate(elm, d, _i) {
+				var rate = prompt("Enter the rate", "");
+				if (!rate) { return 0 }
+				var callback = function (err, _resp) {
+					if (err) {
+						alert(err.currentTarget.response);
+						return false;
+					}
+					selfHierarchy.update(current_metadata.path);
 				}
-				else {
-					console.log(ret.response);
-					let log = JSON.parse(ret.response);
-					console.log(log);
-					// alert(JSON.stringify(log));
-					dispatch.call("showFormulaResult", this, log);
-				}
+				factory.addAttr(d.path + "/", JSON.stringify({ "rate": rate }), callback);
+
 			}
-			factory.checkFormulae(hierarchy.getAbsPath(d), callback);
-		}
 
-        function unfoldNugget(_elm, d, _i) {
-            let callback = function (err, _ret) {
-                if (err) {
-                    console.log(err);
-                }
-                else {
-                    dispatch.call("hieUpdate", this);
-                }
-            }
-            kamiFactory.unfoldNugget(hierarchy.getAbsPath(d), callback);
-        }
+			function checkFormulae(_elm, d, _i) {
+				let callback = function (err, ret) {
+					if (err) {
+						console.log(err);
+						alert(err.srcElement.responseText);
+					}
+					else {
+						console.log(ret.response);
+						let log = JSON.parse(ret.response);
+						console.log(log);
+						// alert(JSON.stringify(log));
+						dispatch.call("showFormulaResult", this, log);
+					}
+				}
+				factory.checkFormulae(d.path, callback);
+			}
 
-		this.addGraph = function () {
-			//var name=prompt("Give it a name !", "model_"+(Math.random()).toString());
-			var name = prompt("Name of the new graph?", "");
-			if (!name) { return 0 }
-			var current_path = hierarchy.getAbsPath(current_node) + "/";
-			if (current_path == "//") { current_path = "/" }
-			factory.addGraph(current_path + name + "/",
-				function (err, ret) {
+			function unfoldNugget(_elm, d, _i) {
+				let callback = function (err, _ret) {
+					if (err) {
+						console.log(err);
+					}
+					else {
+						dispatch.call("hieUpdate", this);
+					}
+				}
+				kamiFactory.unfoldNugget(d.path, callback);
+			}
+
+
+			// this.addGraph = function () {
+			// 	var name = prompt("Name of the new graph?", "");
+			// 	if (!name) { return 0 }
+			// 	var current_path = current_metadata.path + "/";
+			// 	if (current_path == "//") { current_path = "/" }
+			// 	factory.addGraph(current_path + name + "/",
+			// 		function (err, _ret) {
+			// 			if (!err) {
+			// 				dispatch.call("hieUpdate", this, null);
+			// 			}
+			// 			else console.error(err);
+			// 		});
+			// };
+
+			// this.addGraph = function () {
+			// 	var name = prompt("Name of the new graph?", "");
+			// 	if (!name) { return 0 }
+			// 	var current_path = current_metadata.path + "/";
+			// 	if (current_path == "//") { current_path = "/" }
+			// 	factory.addGraph(current_path + name + "/",
+			// 		function (err, _ret) {
+			// 			if (!err) {
+			// 				dispatch.call("hieUpdate", this, null);
+			// 			}
+			// 			else console.error(err);
+			// 		});
+			// };
+
+
+			function filterNuggets() {
+				var searchString = d3.select("#nugFilter").property("value");
+				var searchStrings = searchString.split("|");
+				var testTextBox = function (nugName) {
+					return searchStrings.some(function (s) {
+						return (-1) !== nugName.toLowerCase().search(s.toLowerCase())
+					})
+				};
+
+				var testCondList = function (nugName) {
+					return condData.map(d => d.cond)
+						.reduce((acc, f) => acc && f(nugName), true);
+				};
+				var test = function (nugName) {
+					return testCondList(nugName) && testTextBox(nugName);
+				};
+
+				var notTest = function (nugName) {
+					return !test(nugName)
+				};
+				d3.selectAll(".tab_menu_el:not(.selected)")
+					.filter(function () {
+						var nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
+						return notTest(nugName);
+					})
+					.style("display", "none");
+				d3.selectAll(".tab_menu_el:not(.selected)")
+					.filter(function () {
+						var nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
+						return test(nugName);
+					})
+					.style("display", "flex");
+			}
+
+			this.filterNuggets = filterNuggets;
+
+			function createRule(elm, d, _i) {
+				var name = prompt("Name of the new rule?", "");
+				var path = current_metadata.path + "/";
+				if (path == "//") { path = "/" }
+				var patternName = d.name;
+				var callback = function (err, ret) {
 					if (!err) {
 						dispatch.call("hieUpdate", this, null);
 						console.log(ret);
 					}
 					else console.error(err);
-				});
-			// factory.addHierarchy(
-			// 	current_path + name + "/",
-			// 	JSON.stringify({ name: name, top_graph: { edges: [], nodes: [] }, children: [] }, null, "\t"),
-			// 	function (err, ret) {
-			// 		if (!err) {
-			// 			dispatch.call("hieUpdate", this, null);
-			// 			console.log(ret);
-			// 		}
-			// 		else console.error(err);
-			// 	}
-			// );
-		};
-		
-		function filterNuggets() {
-			var searchString = d3.select("#nugFilter").property("value");
-			var searchStrings = searchString.split("|");
-			var testTextBox = function (nugName) {
-				return searchStrings.some(function (s) {
-					return (-1) !== nugName.search(s)
-				})
-			};
-
-			var testCondList = function (nugName) {
-				return condData.map(d => d.cond)
-					.reduce((acc, f) => acc && f(nugName), true);
-			};
-			var test = function (nugName) {
-				return testCondList(nugName) && testTextBox(nugName);
-			};
-
-			var notTest = function (nugName) {
-				return !test(nugName)
-			};
-			d3.selectAll(".tab_menu_el:not(.selected)")
-				.filter(function () {
-					var nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
-					return notTest(nugName);
-				})
-				.style("display", "none");
-			d3.selectAll(".tab_menu_el:not(.selected)")
-				.filter(function () {
-					var nugName = d3.select(this).selectAll(".tab_menu_el_name").text();
-					return test(nugName);
-				})
-				.style("display", "flex");
-		}
-
-		this.filterNuggets = filterNuggets;
-
-		function createRule(elm, d, _i) {
-			var name = prompt("Name of the new rule?", "");
-			var path = hierarchy.getAbsPath(current_node) + "/";
-			if (path == "//") { path = "/" };
-			var patternName = hierarchy.getName(d);
-			var callback = function (err, ret) {
-				if (!err) {
-					dispatch.call("hieUpdate", this, null);
-					console.log(ret);
-				}
-				else console.error(err);
-			};
-			factory.addRule(path + name + "/", patternName, callback);
-		}
-
-		function mergeGraphs(_elm, _d, _i) {
-			let selectedGraphs = [];
-			d3.selectAll(".tab_menu_el.selected")
-				.each(function () {
-					selectedGraphs.push(hierarchy.getName(this.id))
-				});
-			if (selectedGraphs.length != 2) {
-				alert("exactly two graphs must be selected to merge");
+				};
+				factory.addRule(path + name + "/", patternName, callback);
 			}
-			else {
-				let path = hierarchy.getAbsPath(current_node) + "/";
-				if (path == "//") { path = "/" }
-				let [g1, g2] = selectedGraphs.map(s => path + s)
-				dispatch.call("loadMerger", this, g1, g2)
-			}
-		}
 
-        function deleteRule(_elm, d, _i){
-			let callback = function (err, ret) {
-				if (!err) {
-					dispatch.call("hieUpdate", this, null);
-					console.log(ret);
+			function mergeGraphs(_elm, _d, _i) {
+				let selectedGraphs = [];
+				d3.selectAll(".tab_menu_el.selected")
+					.each(function () {
+						selectedGraphs.push(this.id)
+					});
+				if (selectedGraphs.length != 2) {
+					alert("exactly two graphs must be selected to merge");
 				}
-				else console.error(err);
-			};
-			factory.delHierarchy(d.path + "/" + d.id,  callback);
-
-		}
-
-		function applyOnParent(_elm, d, _i) {
-			console.log(d);
-			let suffix = prompt("Name of the new rule?", "");
-			if (!suffix) { return 0 }
-			let callback = function (err, ret) {
-				if (!err) {
-					dispatch.call("hieUpdate", this, null);
-					console.log(ret);
+				else {
+					let path = current_metadata.path + "/";
+					if (path == "//") { path = "/" }
+					let [g1, g2] = selectedGraphs.map(s => path + s)
+					dispatch.call("loadMerger", this, g1, g2)
 				}
-				else console.error(err);
-			};
-			factory.applyRuleOnParent(d.path + "/" + d.id, suffix, callback);
-		}
-
-		function editFormulae(_elm, d, _i) {
-			dispatch.call("loadFormulaEditor", this, hierarchy.getAbsPath(d));
-		}
-
-		function editCompositions(_elm, d, _i) {
-			dispatch.call("loadCompositionsEditor", this, hierarchy.getAbsPath(d));
-		}
-
-		function updateCondList() {
-			var s = condList.selectAll("div")
-				.data(condData);
-			s.exit().remove();
-			s.enter().append("div")
-				.classed("cond", true)
-				.classed("unselectable", true)
-				.on("click", removeFromCondList)
-				.text(function (d) { return d.name + "_filter" });
-			filterNuggets();
-		}
-
-		function removeFromCondList(d) {
-			var index = condData.indexOf(d);
-			if (index > -1) {
-				condData.splice(index, 1);
 			}
-			updateCondList();
-		}
 
-		var clearCondData = function () {
-			condData = [];
-			updateCondList();
-		};
+			function deleteRule(_elm, d, _i) {
+				let callback = function (err, ret) {
+					if (!err) {
+						dispatch.call("hieUpdate", this, null);
+						console.log(ret);
+					}
+					else console.error(err);
+				};
+				factory.delHierarchy(d.path + "/", callback);
 
-		this.clearCondData = clearCondData;
-		this.addToCondData = function (d) {
-			condData.push(d);
-			updateCondList();
-		};
+			}
+
+			function applyOnParent(_elm, d, _i) {
+				console.log(d);
+				let suffix = prompt("Name of the new rule?", "");
+				if (!suffix) { return 0 }
+				let callback = function (err, ret) {
+					if (!err) {
+						dispatch.call("hieUpdate", this, null);
+						console.log(ret);
+					}
+					else console.error(err);
+				};
+				factory.applyRuleOnParent(d.path + "/", suffix, callback);
+			}
+
+			function editFormulae(_elm, d, _i) {
+				dispatch.call("loadFormulaEditor", this, d.path);
+			}
+
+			function editCompositions(_elm, d, _i) {
+				dispatch.call("loadCompositionsEditor", this, d.path);
+			}
+
+			function updateCondList() {
+				var s = condList.selectAll("div")
+					.data(condData);
+				s.exit().remove();
+				s.enter().append("div")
+					.classed("cond", true)
+					.classed("unselectable", true)
+					.on("click", removeFromCondList)
+					.text(function (d) { return d.name + "_filter" });
+				filterNuggets();
+			}
+
+			function removeFromCondList(d) {
+				var index = condData.indexOf(d);
+				if (index > -1) {
+					condData.splice(index, 1);
+				}
+				updateCondList();
+			}
+
+			var clearCondData = function () {
+				condData = [];
+				updateCondList();
+			}
+
+			this.clearCondData = clearCondData;
+			this.addToCondData = function (d) {
+				condData.push(d);
+				updateCondList();
+			}
+
+			this.metadata = function () { return current_metadata }
 
 		};
 

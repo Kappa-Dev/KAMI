@@ -28,7 +28,7 @@ class KamiHierarchy(Hierarchy):
 
         action_graph = nx.DiGraph()
         self.add_graph("action_graph", action_graph)
-        self.add_typing("action_graph", "kami", dict(), ignore_attrs=True)
+        self.add_typing("action_graph", "kami", dict())
         self.action_graph = self.node["action_graph"].graph
         self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
 
@@ -278,11 +278,11 @@ class KamiHierarchy(Hierarchy):
         return nugget_id
 
     def type_nugget_by_ag(self, nugget_id, typing):
-        self.add_typing(nugget_id, "action_graph", typing, ignore_attrs=True)
+        self.add_typing(nugget_id, "action_graph", typing)
         return
 
     def type_nugget_by_meta(self, nugget_id, typing):
-        self.add_typing(nugget_id, "kami", typing, ignore_attrs=True)
+        self.add_typing(nugget_id, "kami", typing)
         return
 
     def add_mod_template_rel(self, nugget_id, rel):

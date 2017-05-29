@@ -938,3 +938,15 @@ def get_ancestors(path_to_graph=""):
                         mimetype="application/json")
         return resp
     return apply_on_node(app.hie(), app.top, path_to_graph, get_ancestors_aux)
+
+
+@app.route("/graph/get_metadata/", methods=["GET"])
+@app.route("/graph/get_metadata/<path:path_to_graph>", methods=["GET"])
+def get_metadata(path_to_graph=""):
+    def get_metadata_aux(graph_id):
+        metadata = tree.get_metadata(app.hie(), graph_id, "/"+path_to_graph)
+        resp = Response(response=json.dumps(metadata),
+                        status=200,
+                        mimetype="application/json")
+        return resp
+    return apply_on_node(app.hie(), app.top, path_to_graph, get_metadata_aux)

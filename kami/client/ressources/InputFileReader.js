@@ -130,7 +130,7 @@ define([
 			  .on("submit",exportFile2);
 
 			d3.select("#newGraphBtn")
-			  .on("click",() => disp.call("addGraph",this));
+			  .on("click",() => disp.call("addGraphFileLoader",this));
 
 
             container.append("a")
@@ -192,16 +192,6 @@ define([
 			// 	.classed("unselectable",true)
 			// 	.on("click",toKappa);
 		}());
-		/* Add a new object to the current hierarchy
-		 * this object depends of the selector : Graph, Rule or hierarchy
-		 * @call : this function trigger addGraph event with the type of the selector
-		 */
-		function addThing(){
-			var si   = selector.property('selectedIndex'),
-				s    = selector.selectAll("option").filter(function (d, i) { return i === si }),
-				type = s.datum();
-			disp.call("addGraph",this,type);
-		}
 
 
 		function afterImport(err, ret) {

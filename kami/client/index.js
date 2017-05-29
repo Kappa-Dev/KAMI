@@ -20,24 +20,26 @@ define([
 	'ressources/formulaEditor.js',
 	'ressources/formulaResult.js',
 	'ressources/kappaExporter.js',
-	'ressources/typeEditor.js'
+	'ressources/typeEditor.js',
+	'ressources/newGraphModal.js'
 ],
 	function (d3, Q, Tree, Hierarchy, converter, InputFileReader,
 		RFactory, InterractiveGraph, SideMenu, RuleViewer,
 		Kami, graphMerger, formulaEditor, formulaResult,
-		kappaExporter, typeEditor) {
+		kappaExporter, typeEditor, newGraphModal) {
 		// Regraph Gui Core
 		(function pageLoad() {
 			// this section must be changed to feet the server/user requirement.
 			// var server_url = "http://0.0.0.0:5000";
 			let server_url = "{{server_url}}";
 			let main_ct_id = "main_container";
-			let root = "/";
-			var current_graph = "/";
+			let root = "";
+			var current_graph = "";
 			//end of config section : Todo : add this section as a config html page.
 			//dispatch event between modules
 			var dispatch = d3.dispatch(
-				"addGraph", //triggered when the add Graph button is clicked
+				"addGraphIGraph", //triggered when the add Graph button is clicked
+				"addGraphFileLoader", //triggered when the add Graph button is clicked
 				"graphExprt", //triggered then the graph export button is clicked
 				"graphFileLoaded",//triggered when the import button is clicked
 				"hieUpdate",//triggered when a module change the hierarchy
@@ -76,6 +78,7 @@ define([
 			var formulaeEditor = new formulaEditor(main_container, "formulaEditor", dispatch, factory, "formulae");
 			var compositionsEditor = new formulaEditor(main_container, "compositionsEditor", dispatch, factory, "compositions");
 			var formulaeResult = new formulaResult(main_container, "formulaResult");
+			var newGraph = new newGraphModal(main_container, "newGraphForm", dispatch, factory);
 			// $('#formulaEditor').modal({ show: false});
 			main_container.append("div")//top menu
 				.attr("id", "top_chart");
@@ -144,11 +147,19 @@ define([
 			 * TODO : change server rule to to allow graph and rule adding
 			 */
 
-			dispatch.on('addGraph', hierarchy.addGraph);
-			// dispatch.on("configUpdate",function(type_graph){
-			// //	config.loadGraphConf(type_graph);
+			// dispatch.on('addGraph', hierarchy.addGraph);
+			dispatch.on('addGraphIGraph', function(path, nodes){
+				factory.getMetadata(path, function (err, rep) {
+					if (err) { console.log(err) }
+					else {newGraph.update(path, rep.children_types, nodes)}
+				})
+			});
 
-			// });
+			dispatch.on('addGraphFileLoader', function () {
+				let current_metadata = hierarchy.metadata();
+				newGraph.update(current_metadata.path, current_metadata.children_types, null);
+			});
+
 
 			function sameSubgraph(hie) {
 				var sameSubgraphAux = function (hie, n_id) {
@@ -348,7 +359,7 @@ define([
 			dispatch.on("graphFileLoaded", function (graph) {
 				function callback(err, _ret) {
 					if (!err) {
-						dispatch.call("hieUpdate", this, null);
+						dispatch.call("hieUpdate", this);
 					}
 					else console.error(err);
 				}
@@ -399,10 +410,8 @@ define([
 			 * if the request succeed, the hierarchy menu is reloaded so is the current graph.
 			 * TODO : also remove the graph
 			 */
-			dispatch.on("hieUpdate", function () {
-				// hierarchy.update(root);
-				hierarchy.updateInPlace(root);
-				//current_graph="/";
+			dispatch.on("hieUpdate", function (path, tab) {
+				hierarchy.update(path, tab);
 			});
 
 			dispatch.on("addNugetsToInput", function (nuggets, name, keepOldConds) {

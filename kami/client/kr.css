@@ -57,6 +57,7 @@ body{
 	flex-direction: column-reverse;
 	justify-content: flex-end;
 	align-items: center;
+	padding-bottom: 2vh;
 }
 .top_chart_elem{
 	margin-top: 2vh;
@@ -186,11 +187,19 @@ body{
 	border-style:solid;
 	border-width:1px;
 	border-color:#DDDDDD;
-	padding: 2vh;
+	padding: 1vh;
 	width: 90%;
 	/*margin-top:2vh;*/
 }
-#scrolling_list{
+
+#scrolling_lists{
+	/*height: 70vh;*/
+	max-height: 70vh;
+	width:100%;
+	overflow: auto;
+}
+
+.scrolling_list{
 	/*float:left;
 	max-width:600px;*/
 	width:100%;
@@ -247,10 +256,10 @@ body{
 	/*border-top-right-radius:5px;
 	border-top-left-radius:5px;*/
 	text-align:center;
-	font-weight: bold;
+	/*font-weight: bold;*/
 	/*color:rgb(251, 249, 200);*/
 	color: var(--menu-color);
-	font-family: Capriola, Helvetica, sans-serif;
+	/*font-family: Capriola, Helvetica, sans-serif;*/
 	display: flex;
 	flex-direction: row-reverse;
 	/*justify-content: space-around;*/
@@ -260,6 +269,8 @@ body{
 .tab_menu_el_name{
 	max-width: 80%;
 	overflow: hidden;
+	white-space: nowrap;
+	/*text-overflow: ellipsis;*/
 
 }
 .tab_menu_el_rate{
@@ -523,7 +534,9 @@ svg{
 	display: block;
 	text-align: left;
 	vertical-align: top;
-	width: 150px;
+	padding-left: 2vw;
+	padding-right: 2vw;
+	/*width: 150px;*/
 	overflow : hidden;
 }
 #selectionRect{
@@ -623,6 +636,7 @@ opacity: 0.1;
     background-color: var(--top-chart-bg-color)!important;
 	border: 0!important;
 	width: 100%;
+	margin-bottom: 1vh;
 
 }
 .navbar-collapse.custom-menu{
@@ -740,9 +754,59 @@ h4{text-align: center}
 
 .typeForm { margin-left: 10px; }
 
+#typesEditor{
+	width:60vw;
+	margin-top: 20vh;
+	margin-right: auto;
+	margin-left: auto;
+}
 #typesForm{
+	padding-left: 2vw;
+	padding-right: 2vw;
 
 }
 .formTypeField{
 
+}
+
+.scrollbar::-webkit-scrollbar-track
+{
+	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+	border-radius: 10px;
+	background-color: var(--top-chart-bg-color);
+}
+
+.scrollbar::-webkit-scrollbar
+{
+	width: 12px;
+	background-color: var(--top-chart-bg-color);
+}
+
+.scrollbar::-webkit-scrollbar-thumb
+{
+	border-radius: 10px;
+	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3);
+	/*background-color: #555;*/
+	/*background-color: var(--menu-color);*/
+	background-color: rgba(251, 249, 200, 0.2);
+}
+
+#tabs{
+	margin-top: 0.5vh;
+	margin-bottom: 0.5vh;
+	font-size:0.7em;
+	text-align:center;
+	font-weight: bold;
+	width: 100%;
+}
+#newGraphForm{
+	width: 50vh;
+	min-width: 600px;
+	margin-top: 20vh;
+	margin-right: auto;
+	margin-left: auto;
+}
+.hiePill{
+    padding-left: 0.5vh !important;
+    padding-right: 0.5vh !important;
 }
