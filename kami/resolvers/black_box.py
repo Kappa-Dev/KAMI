@@ -1,60 +1,77 @@
 """Basic black box functionality."""
-import time
 import sys
 
-from kami.resolvers.generators import ModGenerator
+from kami.resolvers.generators import (ModGenerator,
+                                       AutoModGenerator,
+                                       TransModGenerator,
+                                       AnonymousModGenerator,
+                                       BinaryBndGenerator,
+                                       ComplexGenerator)
 from kami.data_structures.kami_hierarchy import KamiHierarchy
 
 
-def generate_nugget_id():
-    return "nugget_at_%s" % str(round(time.time() * 1000))
-
-
 def add_modification(mod, hierarchy, add_agents=True, anatomize=True,
-                     merge_actions=True, apply_sematics=True):
+                     merge_actions=True, apply_semantics=True):
+    """Add modification nugget to the hierarchy."""
     gen = ModGenerator(hierarchy)
     gen.generate(
-        mod, add_agents=True, anatomize=True,
-        merge_actions=True, apply_sematics=True
+        mod, add_agents, anatomize,
+        merge_actions, apply_semantics
     )
-
-    # # TODO: make it INFO
-    # print("Created nugget '%s'." % nugget_id)
-    # print("Action graph typing: %s." % ag_typing)
-    # print("Template relation: %s." % template_rel)
-    # if negative_id:
-    #     print("Created negative conditions nugget '%s'." % negative_id)
-    #     print("Action graph typing of negative conditions: %s." % negative_ag_typing)
-    #     print("Template relation of negative conditions: %s." % negative_template_rel)
 
 
 def add_automodification(mod, hierarchy, add_agents=True, anatomize=True,
-                         merge_actions=True, apply_sematics=True):
-    pass
+                         merge_actions=True, apply_semantics=True):
+    """Add automodification nugget to the hierarchy."""
+    gen = AutoModGenerator(hierarchy)
+    gen.generate(
+        mod, add_agents, anatomize,
+        merge_actions, apply_semantics
+    )
 
 
 def add_transmodification(mod, hierarchy, add_agents=True, anatomize=True,
-                          merge_actions=True, apply_sematics=True):
-    pass
+                          merge_actions=True, apply_semantics=True):
+    """Add transmodification nugget to the hierarchy."""
+    gen = TransModGenerator(hierarchy)
+    gen.generate(
+        mod, add_agents, anatomize,
+        merge_actions, apply_semantics
+    )
 
 
 def add_anonymousmodification(mod, hierarchy, add_agents=True, anatomize=True,
-                              merge_actions=True, apply_sematics=True):
-    pass
+                              merge_actions=True, apply_semantics=True):
+    """Add anonymous modification nugget to the hierarchy."""
+    gen = AnonymousModGenerator(hierarchy)
+    gen.generate(
+        mod, add_agents, anatomize,
+        merge_actions, apply_semantics
+    )
 
 
 def add_binarybinding(bnd, hierarchy, add_agents=True, anatomize=True,
-                      merge_actions=True, apply_sematics=True):
-    pass
+                      merge_actions=True, apply_semantics=True):
+    """Add binary bnd nugget to the hierarchy."""
+    gen = BinaryBndGenerator(hierarchy)
+    gen.generate(
+        bnd, add_agents, anatomize,
+        merge_actions, apply_semantics
+    )
 
 
 def add_complex(complex, hierarchy, add_agents=True, anatomize=True,
-                merge_actions=True, apply_sematics=True):
-    pass
+                merge_actions=True, apply_semantics=True):
+    """Add complex nugget to the hierarchy."""
+    gen = ComplexGenerator(hierarchy)
+    gen.generate(
+        complex, add_agents, anatomize,
+        merge_actions, apply_semantics
+    )
 
 
-def create_nuggets(interactions, hierarchy=None, add_agents=True, anatomize=True,
-                   merge_actions=True, apply_sematics=True):
+def create_nuggets(interactions, hierarchy=None, add_agents=True,
+                   anatomize=True, merge_actions=True, apply_semantics=True):
     """Create nuggets from a collection of interactions."""
     if not hierarchy:
         hierarchy = KamiHierarchy()
@@ -64,6 +81,11 @@ def create_nuggets(interactions, hierarchy=None, add_agents=True, anatomize=True
 
         # Dynamically call functions corresponding to an interaction type
         getattr(sys.modules[__name__], "add_%s" % interaction_type)(
-            interaction, hierarchy, add_agents,
-            anatomize, merge_actions, apply_sematics
+            interaction,
+            hierarchy=hierarchy,
+            add_agents=add_agents,
+            anatomize=anatomize,
+            merge_actions=merge_actions,
+            apply_semantics=apply_semantics
         )
+    return hierarchy
