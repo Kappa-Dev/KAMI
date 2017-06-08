@@ -44,14 +44,14 @@ define([
                 .style("visibility", "hidden");
 
             function initDragHandlers() {
-                d3.select("#leftGraph")
+                main_svg.select("#leftGraph")
                     .selectAll("g.node")
                     .call(d3.drag().on("drag", dragHandler(leftGraph))
                         .on("end", dragEndHandler(leftGraph))
                         .on("start", dragStartHandler(leftGraph))
                         .filter(function () { return true })
                     );
-                d3.select("#rightGraph")
+                main_svg.select("#rightGraph")
                     .selectAll("g.node")
                     .call(d3.drag().on("drag", dragHandler(rightGraph))
                         .on("end", dragEndHandler(rightGraph))
@@ -118,7 +118,7 @@ define([
                                             relation.push({ source: d, target: d2 });
                                         }
                                         else {
-                                            relation.splice(i, 1);
+                                           relation.splice(i, 1);
                                         }
                                         drawRelation();
 
@@ -142,17 +142,18 @@ define([
             }
 
             function drawRelation() {
-                d3.select("#rightGraph")
+                console.log(relation)
+                main_svg.select("#rightGraph")
                     .selectAll("g.node")
                     .classed("matched", d => relation.some(r => r.target.id === d.id));
-                d3.select("#leftGraph")
+                main_svg.select("#leftGraph")
                     .selectAll("g.node")
                     .classed("matched", d => relation.some(r => r.source.id === d.id));
 
-                d3.select("#rightGraph")
+                main_svg.select("#rightGraph")
                     .selectAll("path.link")
                     .classed("matched", e => relation.some(r => r.target.id === e.source.id || r.target.id === e.target.id));
-                d3.select("#leftGraph")
+                main_svg.select("#leftGraph")
                     .selectAll("path.link")
                     .classed("matched", e => relation.some(r => r.source.id === e.source.id || r.source.id === e.target.id));
 
@@ -169,12 +170,19 @@ define([
             }
 
             this.update = function update(g1, g2, path1, path2, config1, config2) {
-                console.log(g1)
-                console.log(g2)
                 relation = [];
+                const nodeOfId = function(id1){
+                    const i = g2.nodes.findIndex(n=>n.id===id1);
+                    return g2.nodes[i];
+                }
+                relation = g1.nodes.filter(n1 => g2.nodes.some(n2=>n2.id === n1.id))
+                                   .map(n => ({source: n, target: nodeOfId(n.id)}));
+
+
                 parentPath = path1.substring(0, path1.lastIndexOf("/"));
                 leftGraphName = path1.substring(path1.lastIndexOf("/")+1);
                 rightGraphName = path2.substring(path1.lastIndexOf("/")+1);
+
                 localDispatch.on("move", null);
                 main_svg.selectAll("#leftGraph").remove();
                 main_svg.selectAll("#rightGraph").remove();

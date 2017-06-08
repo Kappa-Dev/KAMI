@@ -42,7 +42,7 @@ def get_kappa(path_to_graph=""):
             comp_ids = []
 
         # likely to change in the future
-        if parent_id != "kami":
+        if parent_id != id_of_kami():
             raise ValueError("the action graph must be typed by kami")
 
         kappa_code = kappa.to_kappa(kami_blueprint.hie(), graph_id, parent_id,
@@ -76,7 +76,7 @@ def make_splices(path_to_graph=""):
                           for name in splices_names]
 
         # likely to change in the future
-        if parent_id != "kami":
+        if parent_id != id_of_kami():
             raise ValueError("the action graph must be typed by kami")
 
         kappa.compose_splices(kami_blueprint.hie(), graph_id, parent_id,
@@ -191,9 +191,46 @@ def test_unfold(path_to_graph=""):
     def test_unfold_aux(graph_id, parent_id):
         nug_name = hie.node[graph_id].attrs["name"]
         for (new_nugg, typing_by_old) in\
-                kappa.unfold_nugget(hie, graph_id, parent_id, "kami", test=True):
+                kappa.unfold_nugget(hie, graph_id, parent_id, id_of_kami(), test=True):
             tree.add_graph(hie, new_nugg, nug_name, graph_id, typing_by_old)
         return ("nugget unfolded", 200)
 
     return apply_on_node_with_parent(hie, kami_blueprint.top,
                                      path_to_graph, test_unfold_aux)
+
+
+@kami_blueprint.route("/unfold_locus/", methods=["PUT"])
+@kami_blueprint.route("/unfold_locus/<path:path_to_graph>",
+                      methods=["PUT"])
+def unfold_locus(path_to_graph=""):
+    hie = kami_blueprint.hie()
+
+    def unfold_locus_aux(graph_id):
+        node_id = request.args.get("node_id")
+        kappa.unfold_locus(hie, graph_id, id_of_kami(), node_id)
+        return ("locus unfolded", 200)
+
+    return apply_on_node(hie, kami_blueprint.top,
+                         path_to_graph, unfold_locus_aux)
+
+
+@kami_blueprint.route("/remove_conflict/", methods=["PUT"])
+@kami_blueprint.route("/remove_conflict/<path:path_to_graph>",
+                      methods=["PUT"])
+def remove_conflict(path_to_graph=""):
+    hie = kami_blueprint.hie()
+
+    def remove_conflict_aux(graph_id):
+        node_id = request.args.get("node_id")
+        kappa.remove_conflict(hie, graph_id, id_of_kami(), node_id)
+        return ("locus unfolded", 200)
+
+    return apply_on_node(hie, kami_blueprint.top,
+                         path_to_graph, remove_conflict_aux)
+
+
+def id_of_kami():
+    def get_id(graph_id):
+        return graph_id
+    return apply_on_node(kami_blueprint.hie(), kami_blueprint.top,
+                         "/kami_base/kami", get_id)

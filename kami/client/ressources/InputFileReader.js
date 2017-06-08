@@ -68,9 +68,11 @@ define([
                            <div class="row">
                               <div class="col-md-12">
                                  <form class="form" role="form" method="" action="" accept-charset="UTF-8" id="form-import">
+								    <!--
                                     <div class="form-group">
                                        <input type="text" class="form-control" id="graphPathInput" placeholder="" required="true">
                                     </div>
+									-->
                                     <div class="checkbox">
                                        <label>
                                        <input type="checkbox" id="mergeCheckBox"> Indra 
@@ -205,8 +207,8 @@ define([
 			let input_files = d3.select("#ImportfileInput").node().files;
 			let merge = d3.select("#mergeCheckBox").property("checked");
 			let oldFormat = d3.select("#OldFormatCheckBox").property("checked");
-			let top_graph = d3.select("#graphPathInput").property("value");
-			if (top_graph === "" && !oldFormat) { alert("the new hierarchy position is empty"); return 0; }
+			// let top_graph = d3.select("#graphPathInput").property("value");
+			// if (top_graph === "" && !oldFormat) { alert("the new hierarchy position is empty"); return 0; }
 			if (input_files.length > 0) {
 				let file = input_files[0];
 				let ka = new FileReader();
@@ -218,13 +220,15 @@ define([
 						d3.json(e.target.result, function (rep) {
 							if (merge) {
 								request.mergeHierarchy2(
-									top_graph,
+									//top_graph,
+									"/",
 									JSON.stringify(rep, null, "\t"),
 									afterImport);
 							}
 							else {
 								request.mergeHierarchy(
-									top_graph,
+									"/",
+									// top_graph,
 									JSON.stringify(rep, null, "\t"),
 									afterImport);
 								// request.addHierarchy(

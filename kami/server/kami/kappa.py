@@ -3,15 +3,19 @@ import regraph.tree as tree
 from regraph.category_op import (pullback, pushout,
                                  compose_homomorphisms,
                                  multi_pullback_pushout,
+                                 pushout_from_partial_mapping,
+                                 merge_classes,
                                  subgraph,
                                  pullback_pushout)
-from regraph.utils import keys_by_value, restrict_mapping
+from regraph.utils import (keys_by_value, restrict_mapping,
+                           union_mappings, id_of,
+                           reverse_image)
 from regraph.rules import Rule
 from regraph.primitives import (unique_node_id, add_node, add_edge, remove_node)
 from math import sqrt
 import networkx as nx
 import copy
-from itertools import product
+from itertools import product, combinations
 """ represent a kappa model as python """
 
 
@@ -308,7 +312,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, rate):
     for deg in nug.nodes():
         if mm_typing[deg] == "deg":
             for (_, agent) in nug.out_edges(deg):
-                if agent_defs[agent].prefic == "+":
+                if agent_defs[agent].prefix == "+":
                     raise ValueError("syn and deg on same agent")
                 agent_defs[agent].prefix = "-"
 
@@ -737,3 +741,201 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
             new_mm_typing = compose_homomorphisms(mm_typing, new_typing)
             new_nuggets.append((new_nugget, new_ag_typing, new_mm_typing))
     return new_nuggets
+
+
+def unfold_locus(hie, ag_id, mm_id, locus, suffix=None):
+    ag_gr = hie.node[ag_id].graph
+    ag_mm = hie.get_typing(ag_id, mm_id)
+    nuggets = [nug for nug in tree.get_children_id_by_node(hie, ag_id, locus)
+               if hie.node[nug].attrs["type"] == "nugget"]
+
+    # Do not merge nodes that are Not valid
+    # As they are removed from the botom graph before the pushout
+    not_valid = [locus]+[node for node in ag_gr[locus]
+                         if ag_mm[node] not in ["region", "agent"]]
+
+    def valid_pullback_node(a, b, c, d, a_b, a_c, b_d, c_d, n):
+        a_d = union_mappings(compose_homomorphisms(b_d, a_b),
+                             compose_homomorphisms(c_d, a_c))
+        return n not in a_d or a_d[n] not in not_valid
+
+    (pp, pp_ag) = multi_pullback_pushout(
+        ag_gr,
+        [(hie.node[nug].graph, hie.get_typing(nug, ag_id)) for nug in nuggets],
+        valid_pullback_node)
+
+    adj_nodes = [suc for suc in ag_gr.successors(locus)] + [locus]
+
+    lhs = ag_gr.subgraph(adj_nodes)
+    new_pp = pp.subgraph(reverse_image(pp_ag, adj_nodes))
+
+    # add regions and agents that do not appear in any nuggets to the
+    # preserved part, so we can remove edges from the locus to them
+    to_add = {suc for suc in ag_gr.successors(locus)
+              if ag_mm[suc] in ["region", "agent"]} - set(pp_ag.values())
+    for node in to_add:
+        node_id = unique_node_id(new_pp, node)
+        add_node(new_pp, node_id)
+        pp_ag[node_id] = node
+
+    newpp_lhs = restrict_mapping(new_pp.nodes(), pp_ag)
+
+    # merge loci that have a shared successor component
+    def common_comp(loc1, loc2):
+        comps1 = {c for c in new_pp.successors(loc1)
+                  if ag_mm[pp_ag[c]] in ["region", "agent"]}
+        comps2 = {c for c in new_pp.successors(loc2)
+                  if ag_mm[pp_ag[c]] in ["region", "agent"]}
+        return comps1 & comps2
+    # compute equivalence classes of loci
+    loci = [pploc for pploc in new_pp
+            if pp_ag[pploc] == locus]
+    classes = [{pploc} for pploc in loci]
+    partial_eq = [{loc1, loc2} for (loc1, loc2) in combinations(loci, 2)
+                  if loc1 != loc2 and common_comp(loc1, loc2)]
+    for eq in partial_eq:
+        classes = merge_classes(eq, classes)
+
+    # compute equivalence classes of action nodes
+    def equiv_acts(act1, act2):
+        def equiv_loci(locs1, locs2):
+            if len(locs1) != 1:
+                raise ValueError("should have exactly one locus next to action")
+            if len(locs2) != 1:
+                raise ValueError("should have exactly one locus next to action")
+            return any(set(locs1) | set(locs2) <= cl for cl in classes)
+        return (pp_ag[act1] == pp_ag[act2] and
+                equiv_loci(new_pp.predecessors(act1),
+                           new_pp.predecessors(act2)))
+    actions = [act for act in new_pp
+               if ag_mm[pp_ag[act]] in ["is_bnd", "bnd", "is_free", "brk"]]
+    action_classes = [{act} for act in actions]
+    for (act1, act2) in combinations(actions, 2):
+        if equiv_acts(act1, act2):
+            action_classes = merge_classes({act1, act2}, action_classes)
+
+    eq_gr = nx.DiGraph()
+    newpp_eq = {}
+    for i, cl in enumerate(classes + action_classes):
+        eq_gr.add_node(i)
+        for node in cl:
+            newpp_eq[node] = i
+
+    (new_pp, newpp_lhs) = pushout_from_partial_mapping(new_pp,
+                                                       eq_gr,
+                                                       newpp_eq,
+                                                       newpp_lhs,
+                                                       {})
+
+    lhs_ag = id_of(lhs)
+    rhs = copy.deepcopy(new_pp)
+    rule = Rule(new_pp, lhs, rhs, newpp_lhs)
+    if suffix is None:
+        apply_rule_on_parent_inplace(hie, ag_id, rule, lhs_ag)
+    else:
+        raise ValueError("TODO? rewrite not in place")
+
+    # rule_id = hie.unique_graph_id("tmp_rule")
+    # rule_name = tree.get_valid_child_name(hie, ag_id, rule_id)
+    # hie.add_rule(rule_id, rule, {"type": "rule", "name": rule_name})
+    # hie.add_rule_typing(rule_id, ag_id, lhs_ag)
+
+    # # remove old hierarchy
+    # new_names = tree.rewrite_parent(hie, rule_id, ag_id, suffix)
+    # ag_name = hie.node[ag_id].attrs["name"]
+    # hie.delete_all_children(ag_id)
+    # hie.remove_node(new_names[rule_id])
+    # hie.node[new_names[ag_id]].attrs["name"] = ag_name
+
+
+def remove_conflict(hie, ag_id, mm_id, locus, suffix=None):
+    ag_gr = hie.node[ag_id].graph
+    ag_mm = hie.get_typing(ag_id, mm_id)
+    nuggets = [nug for nug in tree.get_children_id_by_node(hie, ag_id, locus)
+               if hie.node[nug].attrs["type"] == "nugget"]
+
+    # Do not merge nodes that are Not valid
+    # As they are removed from the botom graph before the pushout
+    not_valid = [locus]
+
+    def valid_pullback_node(a, b, c, d, a_b, a_c, b_d, c_d, n):
+        a_d = union_mappings(compose_homomorphisms(b_d, a_b),
+                             compose_homomorphisms(c_d, a_c))
+        return n not in a_d or a_d[n] not in not_valid
+
+    (pp, pp_ag) = multi_pullback_pushout(
+        ag_gr,
+        [(hie.node[nug].graph, hie.get_typing(nug, ag_id)) for nug in nuggets],
+        valid_pullback_node)
+
+    adj_nodes = [suc for suc in ag_gr.successors(locus)] + [locus]
+
+    lhs = ag_gr.subgraph(adj_nodes)
+    new_pp = pp.subgraph(reverse_image(pp_ag, adj_nodes))
+
+    # add regions and agents that do not appear in any nuggets to the
+    # preserved part, so we can remove edges from the locus to them
+    to_add = {suc for suc in ag_gr.successors(locus)
+              if ag_mm[suc] in ["region", "agent"]} - set(pp_ag.values())
+    for node in to_add:
+        node_id = unique_node_id(new_pp, node)
+        add_node(new_pp, node_id)
+        pp_ag[node_id] = node
+
+    newpp_lhs = restrict_mapping(new_pp.nodes(), pp_ag)
+
+    # merge loci from preserved part that arr linked to the same other loci
+    def linked_to(loc):
+        """loc being a locus from new_pp, returns the ag loci linked to loc """
+        adj_acts = {pp_ag[act] for act in new_pp.successors(loc)
+                    if ag_mm[pp_ag[act]] not in ["region", "agent"]}
+        return {other_loc for act in adj_acts
+                for other_loc in ag_gr.predecessors(act)
+                if other_loc != locus}
+
+    # compute equivalence classes of loci
+    loci = [pploc for pploc in new_pp
+            if pp_ag[pploc] == locus]
+    classes = [{pploc} for pploc in loci]
+    partial_eq = [{loc1, loc2}
+                  for loc1 in loci
+                  for loc2 in loci
+                  if loc1 != loc2 and linked_to(loc1) & linked_to(loc2)]
+    for eq in partial_eq:
+        classes = merge_classes(eq, classes)
+
+    eq_gr = nx.DiGraph()
+    newpp_eq = {}
+    for i, cl in enumerate(classes):
+        eq_gr.add_node(i)
+        for node in cl:
+            newpp_eq[node] = i
+
+    (new_pp, newpp_lhs) = pushout_from_partial_mapping(new_pp,
+                                                       eq_gr,
+                                                       newpp_eq,
+                                                       newpp_lhs,
+                                                       {})
+
+    lhs_ag = id_of(lhs)
+    rhs = copy.deepcopy(new_pp)
+    rule = Rule(new_pp, lhs, rhs, newpp_lhs)
+    if suffix is None:
+        apply_rule_on_parent_inplace(hie, ag_id, rule, lhs_ag)
+    else:
+        raise ValueError("TODO? rewrite not in place")
+
+
+def apply_rule_on_parent_inplace(hie, ag_id, rule, mapping):
+    rule_id = hie.unique_graph_id("tmp_rule")
+    rule_name = tree.get_valid_child_name(hie, ag_id, rule_id)
+    hie.add_rule(rule_id, rule, {"type": "rule", "name": rule_name})
+    hie.add_rule_typing(rule_id, ag_id, mapping)
+
+    # remove old hierarchy
+    new_names = tree.rewrite_parent(hie, rule_id, ag_id, "tmp_suffix")
+    ag_name = hie.node[ag_id].attrs["name"]
+    hie.delete_all_children(ag_id)
+    hie.remove_node(new_names[rule_id])
+    hie.node[new_names[ag_id]].attrs["name"] = ag_name
+

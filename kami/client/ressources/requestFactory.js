@@ -579,7 +579,7 @@ define(["ressources/d3/d3.js"], function (d3) {
 		 */
 		this.rnRule = function rnRule(g_path, name, callback) {
 			request("PUT",
-				"/rule/rename_graph",
+				"/rule/rename_rule",
 				g_path,
 				[{ id: "new_name", val: name }],
 				"text/html",

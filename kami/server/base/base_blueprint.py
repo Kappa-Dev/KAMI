@@ -610,7 +610,7 @@ def rename(path_to_graph):
     if not new_name:
         return ("The new_name argument is necessary", 404)
 
-    def callback(parent_id, graph_id):
+    def callback(graph_id ,parent_id):
         tree.rename_child(app.hie(), graph_id, parent_id, new_name)
         return ("rule renamed", 200)
 
@@ -738,19 +738,9 @@ def update_graph_attr(path_to_graph=""):
     def update_graph_attr_aux(graph_id):
         if not isinstance(request.json, dict):
             return("the body must be a json object", 404)
-        recursive_merge(app.hie().node[graph_id].attrs, request.json)
+        tree.recursive_merge(app.hie().node[graph_id].attrs, request.json)
         return ("merge successful", 200)
     return apply_on_node(app.hie(), app.top, path_to_graph, update_graph_attr_aux)
-
-
-def recursive_merge(dict1, dict2):
-    for k, v in dict2.items():
-        if (k in dict1.keys() and
-                isinstance(dict1[k], dict) and
-                isinstance(v, dict)):
-            recursive_merge(dict1[k], v)
-        else:
-            dict1[k] = v
 
 
 @app.route("/graph/delete_graph_attr/", methods=["PUT"])
