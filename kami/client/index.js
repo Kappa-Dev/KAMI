@@ -469,6 +469,7 @@ define([
                 }
                 factory.getParts(path, callback);
             });
+
             dispatch.on("loadTypeEditor", function (path, nodeId) {
                 let callback = function (err, types) {
                     if (!err) {
@@ -479,6 +480,7 @@ define([
                 }
                 factory.getTypes(path, nodeId, callback);
             });
+
         }())
     });
     

@@ -931,7 +931,16 @@ define(["ressources/d3/d3.js"], function (d3) {
 		this.getMetadata = function (g_path, callback) {
 			d3.request(srv + "/graph/get_metadata" + g_path)
 				.get((err, rep)=>{callback(err, JSON.parse(rep.response))});
-		}
+		};
+
+		this.pasteNodes = function (g_path, parent_path, node_list, callback) {
+			let rq = d3.request(srv + "/graph/paste" + g_path + "/" + "?parent=" + encodeURIComponent(parent_path))
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
+			rq.send("PUT", JSON.stringify({ "nodes": node_list }), callback);
+		};
 
 	}
 });

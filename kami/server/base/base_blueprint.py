@@ -268,10 +268,12 @@ def rm_node_graph(path_to_graph=""):
 def merge_node_graph(path_to_graph=""):
     return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, merge_nodes)
 
+
 @app.route("/graph/clone_node/", methods=["PUT"])
 @app.route("/graph/clone_node/<path:path_to_graph>", methods=["PUT"])
 def clone_node_graph(path_to_graph=""):
     return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, clone_node)
+
 
 @app.route("/graph/rm_edge/", methods=["PUT"])
 @app.route("/graph/rm_edge/<path:path_to_graph>", methods=["PUT"])
@@ -610,55 +612,11 @@ def rename(path_to_graph):
     if not new_name:
         return ("The new_name argument is necessary", 404)
 
-    def callback(graph_id ,parent_id):
+    def callback(graph_id, parent_id):
         tree.rename_child(app.hie(), graph_id, parent_id, new_name)
         return ("rule renamed", 200)
 
     return apply_on_node_with_parent(app.hie(), app.top, path_to_graph, callback)
-
-# @app.route("/graph/get_kappa/", methods=["POST"])
-# @app.route("/graph/get_kappa/<path:path_to_graph>", methods=["POST"])
-# def get_kappa(path_to_graph=""):
-#     def get_kappa_aux(command):
-#         if "names" not in request.json.keys():
-#             return ("the nugget names object does not contain a field names",
-#                     404)
-#         nuggets_names = request.json["names"]
-#         if command.graph.metamodel_ == kami:
-#             command.link_states()
-#             new_kappa_command = command.to_kappa_like()
-#             kappa_meta = app.cmd.subCmds[base_name].subCmds[metamodel_name]
-#             new_kappa_command.parent = kappa_meta
-#             # new_kappa_command.name = new_metamodel_name
-#             new_kappa_command.graph.metamodel_ = kappa_meta.graph
-#             command = new_kappa_command
-#         if command.graph.metamodel_ != metamodel_kappa:
-#             return("not a valid action graph", 404)
-#         # app.cmd.subCmds[base_name].subCmds[metamodel_name].graph = metamodel_kappa
-#         for n in nuggets_names:
-#             if n not in command.subCmds.keys():
-#                 return ("Nugget " + n + " does not exist in action graph: " +
-#                         path_to_graph, 404)
-#         if nuggets_names == []:
-#             nuggets_names = command.subCmds.keys()
-#         graph_list = [command.subCmds[n].graph for n in nuggets_names]
-#         nugget_list = [g for g in graph_list 
-#                        if "exception_nugget" not in g.graph_attr.keys()]
-#         try:
-#             (agent_dec, rules, variables_dec) =\
-#                      KappaExporter.compile_nugget_list(nugget_list)
-#             json_rep = {}
-#             json_rep["kappa_code"] = agent_dec+"\n"+variables_dec+"\n"+rules
-#             # json_rep["agent_decl"] = agent_dec
-#             # json_rep["rules"] = rules
-#             # json_rep["variable_decl"] = variables_dec
-#             resp = Response(response=json.dumps(json_rep),
-#                             status=200,
-#                             mimetype="application/json")
-#             return (resp)
-#         except ValueError as e:
-#             return (str(e), 412)
-#     return get_command(app.cmd, path_to_graph, get_kappa_aux)
 
 
 @app.route("/version/", methods=["GET"])
@@ -787,6 +745,7 @@ def delete_graph_attr(path_to_graph=""):
 #     return get_command(app.cmd, path_to_graph, unfold_nuggets_aux)
 
 
+# returns the graphs containing nodes typed by the given nodes
 @app.route("/graph/get_children/", methods=["GET"])
 @app.route("/graph/get_children/<path:path_to_graph>", methods=["GET"])
 def get_children(path_to_graph=""):
@@ -802,6 +761,7 @@ def get_children(path_to_graph=""):
     return apply_on_node(app.hie(), app.top, path_to_graph, get_children_aux)
 
 
+# merge two sibling graphs together according to a relation identifying nodes
 @app.route("/graph/merge_graphs/", methods=["POST"])
 @app.route("/graph/merge_graphs/<path:path_to_graph>", methods=["POST"])
 def merge_graphs(path_to_graph=""):
@@ -866,6 +826,8 @@ def child_rule_from_nodes(path_to_rule=""):
     return apply_on_parent(app.hie(), app.top, path_to_rule, callback)
 
 
+# apply a rule using the typing as a matching
+# in particular used to create splice variants
 @app.route("/rule/apply_on_parent/", methods=["POST"])
 @app.route("/rule/apply_on_parent/<path:path_to_rule>", methods=["POST"])
 def apply_rule_on_parent(path_to_rule=""):
@@ -930,6 +892,7 @@ def get_ancestors(path_to_graph=""):
     return apply_on_node(app.hie(), app.top, path_to_graph, get_ancestors_aux)
 
 
+# Used to navigate the hierarchy (returns children, children types ...)
 @app.route("/graph/get_metadata/", methods=["GET"])
 @app.route("/graph/get_metadata/<path:path_to_graph>", methods=["GET"])
 def get_metadata(path_to_graph=""):
@@ -940,3 +903,23 @@ def get_metadata(path_to_graph=""):
                         mimetype="application/json")
         return resp
     return apply_on_node(app.hie(), app.top, path_to_graph, get_metadata_aux)
+
+
+# "paste" a set of nodes in the same graph or in a direct child graph
+@app.route("/graph/paste/", methods=["PUT"])
+@app.route("/graph/paste/<path:path_to_graph>", methods=["PUT"])
+def paste_nodes(path_to_graph=""):
+    def paste_nodes_aux(graph_id):
+        if "nodes" not in request.json or\
+           not isinstance(request.json["nodes"], list):
+            return("the body must contain list called nodes", 412)
+        if request.json["nodes"] == []:
+            return("the body must not be the empty list", 412)
+        parent_path = request.args.get("parent")
+        if not parent_path:
+            return("the query parameter parent is necessary", 404)
+        tree.paste_nodes(app.hie(), app.top, graph_id, parent_path,
+                         request.json["nodes"])
+        return("nodes pasted", 200)
+
+    return apply_on_node(app.hie(), app.top, path_to_graph, paste_nodes_aux)

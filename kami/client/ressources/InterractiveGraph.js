@@ -19,6 +19,10 @@ define([
      */
     return function InterractiveGraph(container_id, new_svg_name, svg_width, svg_height, dispatch, request, readOnly, localDispatch) {
         var disp = dispatch;
+        let nodeClipboard = {
+                path: null,
+                nodes: []
+        };
         //var size = d3.select("#"+container_id).node().getBoundingClientRect();//the svg size
         // d3.select("#"+container_id)//the main svg object
         // 	// .append("div")
@@ -884,7 +888,7 @@ define([
                 menu.push({
                     title: "Remove Selected nodes",
                     action: function (elm, d, i) {
-                        if (confirm("Are you sure you want to delete ALL those Nodes ?")) {
+                        if (confirm("Delete all selected Nodes ?")) {
                             hideButtons();
                             selected.each(function (el, i) {
                                 request.rmNode(g_id, el.id, true, function (e, r) {
@@ -898,24 +902,30 @@ define([
                 });
 
                 menu.push({
-                    title: "New graph",
-                    action: function (elm, d, i) {
-                        let val = prompt("New name:", "");
-                        if (!val) { return 0 };
+                    title: "copy",
+                    action: function (_elm, _d, _i) {
                         let node_ids = selected.data().map(d => d.id);
-                        let callback = function (err, ret) {
-                            if (err) { console.error(err) }
-                            else {
-                                disp.call("hieUpdate", this);
-                            }
-
-                        };
-                        request.newGraphFromNodes(g_id, val, node_ids, callback)
-
-
+                        copyNodes(node_ids);
                     }
                 });
             }
+            if (nodeClipboard["path"] !== null && nodeClipboard["nodes"] !== []) {
+                if (g_id === nodeClipboard["path"] ||
+                    nodeClipboard["path"] == g_id.substring(0, g_id.lastIndexOf("/"))) {
+                    menu.push({
+                        title: "paste",
+                        action: function (_elm, _d, _i) {
+                            console.log(g_id, nodeClipboard["nodes"], nodeClipboard["path"]);
+                            let callback = function (_e, _r){
+
+                            };
+                            request.pasteNodes(g_id, nodeClipboard["path"], nodeClipboard["nodes"], callback);
+                        }
+                    });
+
+                }
+            }
+
             return menu;
         };
         /* define the node context menu
@@ -981,7 +991,7 @@ define([
                 title: "types",
                 action: nodeTypesEditor
             },
-            
+
             ];
 
             var selected = svg_content.selectAll("g.selected")
@@ -1020,7 +1030,7 @@ define([
                 }
 
             }
-            if (from_config !== undefined && nodeType === "locus" ) {
+            if (from_config !== undefined && nodeType === "locus") {
                 return menu.concat(from_config);
             }
             else {
@@ -1536,8 +1546,13 @@ define([
             }
         }
 
-
         this.buttons = function () { return buttonsDiv };
+
+        function copyNodes(nodeIds) {
+            nodeClipboard["path"] = g_id;
+            nodeClipboard["nodes"] = nodeIds;
+            console.log("copy", g_id, nodeIds);
+        }
 
 
         };

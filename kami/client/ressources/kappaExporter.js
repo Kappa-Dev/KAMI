@@ -53,60 +53,6 @@ define([
               .on("click", toKappa);
 
 
-            // d3.select("#saveButton")
-            //     .on("click", function () {
-            //         let new_formula = d3.select("#formulaTextArea")
-            //             .property("value");
-            //         formulae_data[active_formula]["formula"] = new_formula;
-            //         let callback = function (err, _ret) {
-            //             if (err) { console.log(err) }
-            //             else {
-            //                 d3.selectAll(".hide-if-modified")
-            //                     .style("display", "inline");
-            //                 d3.selectAll(".show-if-modified")
-            //                     .style("display", "none");
-            //                 active_modified = false;
-            //                 d3.select("#formulaeList")
-            //                     .selectAll("a")
-            //                     .on("click", formulaClickHandler)
-            //                     .classed("disabled", false);
-            //             }
-            //         }
-            //         request.addAttr(graph_path + "/", JSON.stringify({ formulae: formulae_data }), callback)
-            //     });
-
-
-            // function drawFormulae() {
-            //     d3.select("#formulaeList")
-            //         .selectAll("a")
-            //         .remove();
-            //     let list = d3.select("#formulaeList")
-            //         .selectAll("a")
-            //         .data(formulae_data);
-            //     list.enter()
-            //         .append("a")
-            //         .classed("list-group-item", true)
-            //         .classed("active", (d, i) => i === active_formula)
-            //         .on("click", formulaClickHandler)
-            //         .text(function (d, _i) { return d.id })
-            //         .append("span")
-            //         //.insert("span",":first-child")
-            //         .classed("glyphicon", true)
-            //         .classed("pull-right", true)
-            //         .classed("glyphicon-trash", true)
-            //         .on("click", deleteFormula);
-
-            //     if (active_formula !== -1) {
-            //         d3.select("#formulaTextArea")
-            //             .property("value", formulae_data[active_formula].formula);
-            //     }
-            //     else {
-            //         d3.select("#formulaTextArea")
-            //             .property("value", "");
-            //     }
-            //     // list.exit()
-            //     //     .remove();
-
             function drawKappaExporter() {
 
                 let [selectedCompos, unselectedCompos] = Object.keys(compos).reduce(

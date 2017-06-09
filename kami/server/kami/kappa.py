@@ -514,55 +514,6 @@ def link_components(hie, g_id, comp1, comp2):
                                          vect[0]*60)}
 
 
-# def _max_ncs2(graph, actions, mm_typing):
-#     """ return the maximal non conflicting sets of actions"""
-#     tests = [{test} for test in actions
-#              if mm_typing[test] in ["is_bnd", "is_free"]]
-#     bnds = [{bnd} for bnd in actions if mm_typing[bnd] == "bnd"]
-#     brks = [{brk} for brk in actions if mm_typing[brk] == "brk"]
-#     mods = [{mod} for mod in actions if mm_typing[mod] == "mod"]
-#     equs = [{equ} for equ in actions if mm_typing[equ] == "is_equal"]
-
-#     ncss = tests + bnds + brks + mods + equs
-#     if ncss == []:
-#         return [set()]
-#         # raise ValueError("no non conflicting sets for actions: {}"
-#         #                  .format(actions))
-#     return ncss
-
-
-# def _max_ncs(graph, actions, mm_typing):
-#     """ return the maximal non conflicting sets of actions"""
-#     tests = [{test} for test in actions
-#              if mm_typing[test] in ["is_bnd", "is_free"]]
-#     bnds = [bnd for bnd in actions if mm_typing[bnd] == "bnd"]
-#     brks = [brk for brk in actions if mm_typing[brk] == "brk"]
-#     mods = [mod for mod in actions if mm_typing[mod] == "mod"]
-#     equs = [equ for equ in actions if mm_typing[equ] == "is_equal"]
-
-#     def _same_loci(bnd, brk):
-#         return set(graph.predecessors(bnd)) ==\
-#                set(graph.predecessors(brk))
-#     lone_bnds = [{bnd} for bnd in bnds
-#                  if all([_same_loci(bnd, brk) for brk in brks])]
-#     lone_brks = [{brk} for brk in brks
-#                  if all([_same_loci(bnd, brk) for bnd in bnds])]
-#     bnds_brks = [{bnd, brk} for bnd in bnds for brk in brks
-#                  if not _same_loci(bnd, brk)]
-#     if mods == []:
-#         mods_equs = [{equ} for equ in equs]
-#     elif equs == []:
-#         mods_equs = [{mod} for mod in mods]
-#     else:
-#         mods_equs = [{mod, equ} for mod in mods for equ in equs]
-#     ncss = tests + bnds_brks + lone_bnds + lone_brks + mods_equs
-#     if ncss == []:
-#         return [set()]
-#         # raise ValueError("no non conflicting sets for actions: {}"
-#         #                  .format(actions))
-#     return ncss
-
-
 # Hypothesis : only one agent per region
 def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     """unfold a nugget with conflicts to create multiple nuggets"""
@@ -655,9 +606,33 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
         else:
             return new_ports[port1] != new_ports[port2]
 
+    def replace(node):
+        """identify is_equal and mod nodes with same values"""
+        if mm_typing[node] == "is_equal":
+            return ("is_equal", str(nug_gr.node[node]["val"]))
+        if mm_typing[node] == "mod":
+            return ("mod", str(nug_gr.node[node]["val"]))
+        return node
+
+    def reduce_subsets(set_list):
+        def equivalent_subsets(set1, set2):
+            set1 = {frozenset(map(replace, s)) for s in set1}
+            set2 = {frozenset(map(replace, s)) for s in set2}
+            return set1 == set2
+        new_list = []
+        for current_set in set_list:
+            if all(not equivalent_subsets(existing_set, current_set)
+                   for existing_set in new_list):
+                new_list.append(current_set)
+        return new_list
+
+    def subset_up_to_equivalence(set1, set2):
+        set1 = {frozenset(map(replace, s)) for s in set1}
+        set2 = {frozenset(map(replace, s)) for s in set2}
+        return set1.issubset(set2)
+
     def _valid_subsets(set_list):
-        """build the globally non conflicting sets of
-         (locally non conflicting sets) """
+        """build non conflicting sets of sets of nodes"""
         if set_list == []:
             return [[]]
         else:
@@ -666,12 +641,12 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
                 [(port2, a_node2) for (port2, a_node2) in set_list[1:]
                  if _nonconflicting(port, a_node, port2, a_node2)]
             if nonconflicting_sets == set_list[1:]:
-                return [sub + [components[port] | {a_node}]
-                        for sub in _valid_subsets(nonconflicting_sets)]
+                return reduce_subsets([sub + [components[port] | {a_node}]
+                                       for sub in _valid_subsets(nonconflicting_sets)])
             else:
-                return (_valid_subsets(set_list[1:]) +
-                        [sub + [components[port] | {a_node}]
-                         for sub in _valid_subsets(nonconflicting_sets)])
+                return reduce_subsets(_valid_subsets(set_list[1:]) +
+                                      [sub + [components[port] | {a_node}]
+                                       for sub in _valid_subsets(nonconflicting_sets)])
 
     def _remove_uncomplete_actions(set_list):
         """remove actions and test which are not connected to enough
@@ -705,9 +680,11 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     # remove the nuggets that are included in another one
     maximal_valid_ncss = {ncss for ncss in valid_ncss
                           if all(ncss == other_ncss or
-                                 not ncss.issubset(other_ncss)
+                                #  not ncss.issubset(other_ncss)
+                                 not subset_up_to_equivalence(ncss,other_ncss)
                                  for other_ncss in valid_ncss)}
-
+    for n in maximal_valid_ncss:
+        print(n)
     # add the nodes that where not considered at all
     # because they are not connected to a locus or state
     nodes_with_ports = set.union(

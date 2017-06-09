@@ -68,7 +68,9 @@ SERVER.register_blueprint(kami_blueprint)
 # load the exemples.json file to the hierarchy
 # EXAMPLE = os.path.join(os.path.dirname(__file__), 'example.json')
 # EXAMPLE = "/home/stan/Downloads/hierarchy (52).json"
-EXAMPLE = "/home/stan/Downloads/bigwnt.json"
+# EXAMPLE = "/home/stan/Downloads/hierarchy (37).json"
+# EXAMPLE = "/home/stan/Downloads/bigwnt.json"
+EXAMPLE = "/home/stan/Downloads/mult-phos-test.json"
 with open(EXAMPLE) as data_file:
     DATA = json.load(data_file)
     new_hie = SERVER._hie.__class__()
