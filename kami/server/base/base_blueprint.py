@@ -919,7 +919,7 @@ def paste_nodes(path_to_graph=""):
         if not parent_path:
             return("the query parameter parent is necessary", 404)
         tree.paste_nodes(app.hie(), app.top, graph_id, parent_path,
-                         request.json["nodes"])
+                         request.json["nodes"], request.json["mouseX"], request.json["mouseY"])
         return("nodes pasted", 200)
 
     return apply_on_node(app.hie(), app.top, path_to_graph, paste_nodes_aux)

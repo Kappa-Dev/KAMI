@@ -933,13 +933,13 @@ define(["ressources/d3/d3.js"], function (d3) {
 				.get((err, rep)=>{callback(err, JSON.parse(rep.response))});
 		};
 
-		this.pasteNodes = function (g_path, parent_path, node_list, callback) {
+		this.pasteNodes = function (g_path, parent_path, node_list, mousepos, callback) {
 			let rq = d3.request(srv + "/graph/paste" + g_path + "/" + "?parent=" + encodeURIComponent(parent_path))
 				.header("X-Requested-With", "XMLHttpRequest")
 				.header("Content-Type", "application/json")
 				.on("error", function (error) { callback(error, null); })
 				.on("load", function (xhr) { callback(null, xhr); });
-			rq.send("PUT", JSON.stringify({ "nodes": node_list }), callback);
+			rq.send("PUT", JSON.stringify({ "nodes": node_list, "mouseX": mousepos[0], "mouseY": mousepos[1]}), callback);
 		};
 
 	}

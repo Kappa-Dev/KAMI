@@ -61,8 +61,8 @@ define([
         var startOfLinkNode;//id of node that started the link
         var edgesList;//the edges of the graph
         let existsEdge = function (source, target){
-            return edgesList.some(d => d.source.id == source && d.target.id == target)
-        }
+            return edgesList.some(d => d.source.id == source && d.target.id == target);
+        };
 
 
         let buttonsDiv = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
@@ -91,7 +91,7 @@ define([
             simulation.force("chargeAgent", null);
             simulation.force("chargeBnd", null);
             simulation.force("chargeBrk", null);
-            simulation.force("link", d3.forceLink().id(function (d) { return d.id }))
+            simulation.force("link", d3.forceLink().id(function (d) { return d.id; }))
                 .force("charge", new d3.forceManyBody().distanceMax(radius * 10))
                 .force("center", d3.forceCenter(width / 2, height / 2))
                 .force("collision", d3.forceCollide(radius + radius / 4));
@@ -99,7 +99,7 @@ define([
             simulation.alphaDecay(0.06);
             simulation.stop();
             if (path) {
-                loadType(path, graph, function (rep) { loadGraph(rep, null, config) });
+                loadType(path, graph, function (rep) { loadGraph(rep, null, config); });
             }
         }
 
@@ -133,8 +133,8 @@ define([
                 let source_type = ancestorArray[l.source["id"]];
                 let target_type = ancestorArray[l.target["id"]];
                 return (edge_length[source_type][target_type] * width / 2000);
-            }
-            simulation.force("link", d3.forceLink().id(function (d) { return d.id }));
+            };
+            simulation.force("link", d3.forceLink().id(function (d) { return d.id; }));
             simulation.force("link").distance(distanceOfLink);
             //simulation.force("link").iterations(2);
 
@@ -255,7 +255,7 @@ define([
                 else {
                     return d3.symbolCircle;
                 }
-            }
+            };
             var node_to_size = function (n) {
                 var ancestor = ancestorArray[n.id];
                 if (ancestor == "mod" ||
@@ -325,7 +325,7 @@ define([
                     "dotStyle": link_to_dotStyle,
                     "nodeColor": node_to_color
                 };
-            loadType(path, graph, function (rep) { loadGraph(rep, shapeClassifier, config) });
+            loadType(path, graph, function (rep) { loadGraph(rep, shapeClassifier, config); });
         }
         /* init the svg object
          * add arrows on edges
@@ -336,7 +336,7 @@ define([
         function initSvg() {
             //add drag/zoom behavior
             zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
-            zoom.filter(function () { return !event.button && !event.shiftKey });
+            zoom.filter(function () { return !event.button && !event.shiftKey; });
             svg.classed("svg-content-responsive", true);
             svg.append("svg:defs").selectAll("marker")
                 .data(["arrow_end"])      // Different link/path types can be defined here
@@ -363,8 +363,8 @@ define([
             svg_content.append("svg:image")
                 .attr("width", 900)
                 .attr("height", 400)
-                .attr("x", function () { return width / 2 - 450 })
-                .attr("y", function () { return height / 2 - 200 })
+                .attr("x", function () { return width / 2 - 450; })
+                .attr("y", function () { return height / 2 - 200; })
                 .attr("xlink:href", "ressources/toucan.png");
         };
         // this.initSvg = initSvg;
@@ -910,20 +910,20 @@ define([
                 });
             }
             if (nodeClipboard["path"] !== null && nodeClipboard["nodes"] !== []) {
-                if (g_id === nodeClipboard["path"] ||
-                    nodeClipboard["path"] == g_id.substring(0, g_id.lastIndexOf("/"))) {
+                // if (g_id === nodeClipboard["path"] ||
+                //     nodeClipboard["path"] == g_id.substring(0, g_id.lastIndexOf("/"))) {
                     menu.push({
                         title: "paste",
                         action: function (_elm, _d, _i) {
-                            console.log(g_id, nodeClipboard["nodes"], nodeClipboard["path"]);
-                            let callback = function (_e, _r){
-
+                            let svgmousepos = d3.mouse(svg_content.node());
+                            let callback = function (_e, _r) {
+                                disp.call("graphUpdate", this, g_id, true)
                             };
-                            request.pasteNodes(g_id, nodeClipboard["path"], nodeClipboard["nodes"], callback);
+                            request.pasteNodes(g_id, nodeClipboard["path"], nodeClipboard["nodes"],svgmousepos, callback);
                         }
                     });
 
-                }
+                // }
             }
 
             return menu;

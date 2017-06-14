@@ -1,3 +1,4 @@
+""" represent a kappa model as python """
 import regraph.tree as tree
 
 from regraph.category_op import (pullback, pushout,
@@ -14,9 +15,23 @@ from regraph.rules import Rule
 from regraph.primitives import (unique_node_id, add_node, add_edge, remove_node)
 from math import sqrt
 import networkx as nx
+import functools 
 import copy
 from itertools import product, combinations
-""" represent a kappa model as python """
+from profilehooks import profile
+
+
+def memoize(func):
+    cache = func.cache = {}
+
+    @functools.wraps(func)
+    def memoized_func(args):
+        print(args)
+        key = frozenset(map(frozenset, args))
+        if key not in cache:
+            cache[key] = func(args)
+        return cache[key]
+    return memoized_func
 
 
 class KappaModel(object):
@@ -483,7 +498,7 @@ def link_components(hie, g_id, comp1, comp2):
     add_edge(graph, loc2, bnd_name)
     add_edge(graph, loc2, brk_name)
 
-    if "positions" in hie.node[g_id].attrs.keys():
+    if "positions" in hie.node[g_id].attrs:
         positions = hie.node[g_id].attrs["positions"]
         if comp1 in positions.keys():
             xpos1 = positions[comp1].get("x", 0)
@@ -515,6 +530,7 @@ def link_components(hie, g_id, comp1, comp2):
 
 
 # Hypothesis : only one agent per region
+@profile
 def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     """unfold a nugget with conflicts to create multiple nuggets"""
     nug_gr = copy.deepcopy(hie.node[nug_id].graph)
@@ -614,39 +630,112 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
             return ("mod", str(nug_gr.node[node]["val"]))
         return node
 
-    def reduce_subsets(set_list):
-        def equivalent_subsets(set1, set2):
-            set1 = {frozenset(map(replace, s)) for s in set1}
-            set2 = {frozenset(map(replace, s)) for s in set2}
-            return set1 == set2
-        new_list = []
-        for current_set in set_list:
-            if all(not equivalent_subsets(existing_set, current_set)
-                   for existing_set in new_list):
-                new_list.append(current_set)
-        return new_list
+    # @profile
+    # @memoize
+    # def reduce_subsets(set_list):
+    #     def equivalent_subsets(set1, set2):
+    #         set1 = {frozenset(map(replace, s)) for s in set1}
+    #         set2 = {frozenset(map(replace, s)) for s in set2}
+    #         return set1 == set2
+    #     new_list = []
+    #     for current_set in set_list:
+    #         if all(not equivalent_subsets(existing_set, current_set)
+    #                for existing_set in new_list):
+    #             new_list.append(current_set)
+    #     return new_list
 
+    def reduce_subsets(set_list):
+        return set_list
+
+    # def subset_up_to_equivalence(s1, s2):
+    #     return False
     def subset_up_to_equivalence(set1, set2):
         set1 = {frozenset(map(replace, s)) for s in set1}
         set2 = {frozenset(map(replace, s)) for s in set2}
         return set1.issubset(set2)
 
-    def _valid_subsets(set_list):
+    def replace2(node):
+        """identify is_equal and mod nodes with same values"""
+        if mm_typing[node] == "is_equal":
+            return ("is_equal", str(nug_gr.node[node]["val"]), frozenset(nug_gr.successors(node)))
+        if mm_typing[node] == "mod":
+            return ("mod", str(nug_gr.node[node]["val"]), frozenset(nug_gr.successors(node)))
+        return node
+
+    def _equivalent_actions(act1, act2, edge_list):
+        l1 = [(port, replace(node)) for (port, node) in edge_list if node == act1]
+        l2 = [(port, replace(node)) for (port, node) in edge_list if node == act2]
+        return l1 == l2
+
+    def _equivalent_edge(p1, a1, p2, a2):
+        return p1 == p2 and replace2(a1) == replace2(a2)
+
+    @profile
+    def _valid_subsets(memo_dict, set_list):
         """build non conflicting sets of sets of nodes"""
+        # print(len(memo_dict))
+        # print(set_list)
         if set_list == []:
             return [[]]
+        # memo_key = frozenset([(port, replace(a_node))
+        #                       for (port, a_node) in set_list])
+        memo_key = frozenset(set_list)
+        if memo_key in memo_dict:
+            return memo_dict[memo_key]
+        (port, a_node) = set_list[0]
+        conflicting_edges = [(port2, a_node2) for (port2, a_node2) in set_list[1:]
+                             if not _nonconflicting(port, a_node, port2, a_node2)]
+
+        nonconflicting_sets =\
+            [(port2, a_node2) for (port2, a_node2) in set_list[1:]
+             if _nonconflicting(port, a_node, port2, a_node2)]
+        # new_set_list = [(p2, n2) for (p2, n2) in set_list[1:]
+        #                 if not _equivalent_edge(port, a_node, p2, n2)]
+        equivalent_edges = [(p2, n2) for (p2, n2) in set_list
+                            if p2 == port and _equivalent_actions(a_node, n2, set_list)]
+
+        new_set_list = [(p2, n2) for (p2, n2) in set_list[1:]
+                        if p2 != port or not _equivalent_actions(a_node, n2, set_list)]
+         
+        cond1 = (len([node for (_, node) in set_list[1:] if node == a_node]) == 0 and
+                 all(replace(n2) == replace(a_node) for (p2, n2) in set_list[1:] if p2 == port))
+
+        if nonconflicting_sets == new_set_list or cond1:
+            # memo_dict[memo_key] =\
+            #     reduce_subsets([sub + [components[port] | {a_node}]
+            #                     for sub in _valid_subsets(memo_dict,
+            #                                               nonconflicting_sets)])
+            memo_dict[memo_key] =\
+                [sub + [(port, a_node)]
+                 for sub in _valid_subsets(memo_dict, nonconflicting_sets)]
+            return memo_dict[memo_key]
         else:
-            (port, a_node) = set_list[0]
-            nonconflicting_sets =\
-                [(port2, a_node2) for (port2, a_node2) in set_list[1:]
-                 if _nonconflicting(port, a_node, port2, a_node2)]
-            if nonconflicting_sets == set_list[1:]:
-                return reduce_subsets([sub + [components[port] | {a_node}]
-                                       for sub in _valid_subsets(nonconflicting_sets)])
-            else:
-                return reduce_subsets(_valid_subsets(set_list[1:]) +
-                                      [sub + [components[port] | {a_node}]
-                                       for sub in _valid_subsets(nonconflicting_sets)])
+            # memo_dict[memo_key] =\
+            #     reduce_subsets(_valid_subsets(memo_dict, new_set_list) +
+            #                    [sub + [components[port] | {a_node}]
+            #                     for sub in _valid_subsets(memo_dict, nonconflicting_sets)])
+
+            without_current_edge = _valid_subsets(memo_dict, new_set_list)
+
+            # def conflict_with_current_edge(edge_list):
+            #     return any(not _nonconflicting(port, a_node, p2, a_node2)
+            #                for (p2, a_node2) in edge_list)
+
+            def conflict_with_removed_edges(edge_list):
+                return all(any(not _nonconflicting(p1, a_node1, p2, a_node2)
+                           for (p2, a_node2) in edge_list) for (p1, a_node1) in equivalent_edges)
+
+            # with_conflict = list(filter(conflict_with_current_edge, without_current_edge)) 
+            with_conflict = list(filter(conflict_with_removed_edges, without_current_edge)) 
+            memo_dict[memo_key] =\
+                with_conflict +\
+                [sub + [(port, a_node)]
+                 for sub in _valid_subsets(memo_dict, nonconflicting_sets)]
+            return memo_dict[memo_key]
+
+    def _complete_subsets(set_list):
+        print(set_list)
+        return [components[port] | {a_node} for (port, a_node) in set_list]
 
     def _remove_uncomplete_actions(set_list):
         """remove actions and test which are not connected to enough
@@ -673,18 +762,20 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
                         for a_node in a_nodes]
 
     # build globally non conflicting subsets and remove the uncomplete actions
+    memo_dict = {}
     valid_ncss = {frozenset(map(frozenset,
-                                _remove_uncomplete_actions(set_list)))
-                  for set_list in _valid_subsets(port_action_list)}
-
+                                _remove_uncomplete_actions(_complete_subsets(set_list))))
+                  for set_list in _valid_subsets(memo_dict, port_action_list)}
+    print("valid_ended")
+    print(len(valid_ncss))
+    # print(valid_ncss)
     # remove the nuggets that are included in another one
-    maximal_valid_ncss = {ncss for ncss in valid_ncss
-                          if all(ncss == other_ncss or
-                                #  not ncss.issubset(other_ncss)
-                                 not subset_up_to_equivalence(ncss,other_ncss)
-                                 for other_ncss in valid_ncss)}
-    for n in maximal_valid_ncss:
-        print(n)
+    # maximal_valid_ncss = {ncss for ncss in valid_ncss
+    #                       if all(ncss == other_ncss or
+    #                              #not ncss.issubset(other_ncss)
+    #                              not subset_up_to_equivalence(ncss, other_ncss)
+    #                              for other_ncss in valid_ncss)}
+    maximal_valid_ncss = valid_ncss
     # add the nodes that where not considered at all
     # because they are not connected to a locus or state
     nodes_with_ports = set.union(
