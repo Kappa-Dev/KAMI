@@ -18,20 +18,7 @@ import networkx as nx
 import functools 
 import copy
 from itertools import product, combinations
-from profilehooks import profile
-
-
-def memoize(func):
-    cache = func.cache = {}
-
-    @functools.wraps(func)
-    def memoized_func(args):
-        print(args)
-        key = frozenset(map(frozenset, args))
-        if key not in cache:
-            cache[key] = func(args)
-        return cache[key]
-    return memoized_func
+# from profilehooks import profile
 
 
 class KappaModel(object):
@@ -530,7 +517,6 @@ def link_components(hie, g_id, comp1, comp2):
 
 
 # Hypothesis : only one agent per region
-@profile
 def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     """unfold a nugget with conflicts to create multiple nuggets"""
     nug_gr = copy.deepcopy(hie.node[nug_id].graph)
@@ -630,8 +616,6 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
             return ("mod", str(nug_gr.node[node]["val"]))
         return node
 
-    # @profile
-    # @memoize
     # def reduce_subsets(set_list):
     #     def equivalent_subsets(set1, set2):
     #         set1 = {frozenset(map(replace, s)) for s in set1}
@@ -670,7 +654,6 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     def _equivalent_edge(p1, a1, p2, a2):
         return p1 == p2 and replace2(a1) == replace2(a2)
 
-    @profile
     def _valid_subsets(memo_dict, set_list):
         """build non conflicting sets of sets of nodes"""
         # print(len(memo_dict))

@@ -133,7 +133,7 @@ define([
             // 	graph_frame.style("margin-left", size);
             // 	side.style("width", size);
             // });
-
+            
             /* On tabUpdate : change the tab content
              * @input : g_id : the current object in the hierarchy
              * @input : up_type : the type of content
@@ -330,6 +330,8 @@ define([
                 clean();
                 dispatch.on("graphUpdate", update_graph);
                 update_graph(abs_path, false);
+                d3.select("body").on("keydown", function(){
+                    graph_pan.svgKeydownHandler();});
             });
 
             dispatch.on("loadPreview", function (abs_path) {

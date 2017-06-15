@@ -3,7 +3,7 @@
  * @ Author Adrien Basso blandin
  * This module is part of regraphGui project
  * this project is under AGPL Licence
-*/
+ */
 define([
     "ressources/d3/d3.js",
     "ressources/d3/d3-context-menu.js",
@@ -20,8 +20,8 @@ define([
     return function InterractiveGraph(container_id, new_svg_name, svg_width, svg_height, dispatch, request, readOnly, localDispatch) {
         var disp = dispatch;
         let nodeClipboard = {
-                path: null,
-                nodes: []
+            path: null,
+            nodes: []
         };
         //var size = d3.select("#"+container_id).node().getBoundingClientRect();//the svg size
         // d3.select("#"+container_id)//the main svg object
@@ -206,9 +206,9 @@ define([
                 var ancestor = ancestorArray[n.id];
                 if (
                     ancestor == "agent" ||
-                    ancestor == "residue" ||
-                    ancestor == "region" ||
-                    ancestor == "locus"
+                        ancestor == "residue" ||
+                        ancestor == "region" ||
+                        ancestor == "locus"
                 ) {
                     return d3.symbolCircle;
                 }
@@ -240,16 +240,16 @@ define([
                 }
                 else if (
                     ancestor == "mod" ||
-                    ancestor == "syn" ||
-                    ancestor == "deg" ||
-                    ancestor == "bnd" ||
-                    ancestor == "brk") {
+                        ancestor == "syn" ||
+                        ancestor == "deg" ||
+                        ancestor == "bnd" ||
+                        ancestor == "brk") {
                     return d3.symbolSquare;
                 }
                 else if (
                     ancestor == "is_bnd" ||
-                    ancestor == "is_equal" ||
-                    ancestor == "is_free") {
+                        ancestor == "is_equal" ||
+                        ancestor == "is_free") {
                     return d3.symbolDiamond;
                 }
                 else {
@@ -263,16 +263,16 @@ define([
                     ancestor == "deg" ||
                     ancestor == "brk" ||
                     ancestor == "bnd"
-                ) { return 4000; }
+                   ) { return 4000; }
                 else if (
                     ancestor == "is_bnd" ||
-                    ancestor == "is_equal" ||
-                    ancestor == "is_free"
+                        ancestor == "is_equal" ||
+                        ancestor == "is_free"
                 ) { return 3000; }
                 else if (
                     ancestor == "state" ||
-                    ancestor == "residue" ||
-                    ancestor == "region"
+                        ancestor == "residue" ||
+                        ancestor == "region"
                 ) { return 2000; }
                 else if (
                     ancestor == "locus"
@@ -348,13 +348,14 @@ define([
                 .attr("markerHeight", 10)
                 .attr("orient", "auto")
                 .attr("markerUnits", "strokeWidth")
-                // .attr("position","90%")
+            // .attr("position","90%")
                 .append("svg:path")
                 .attr("d", "M0,0 L0,6 L9,3 z");
             svg.on("contextmenu", d3ContextMenu(function () { return svgMenu(); }));//add context menu
             svg.call(zoom);
             svg.call(d3.drag().on("drag", selectionHandler).on("end", selectionHandlerEnd).on("start", selectionHandlerStart));
             svg.on("click", svgClickHandler);
+            // d3.select("body").on("keydown", svgKeydownHandler);
 
             d3.select("#tab_frame").append("div")//add the description tooltip
                 .attr("id", "n_tooltip")
@@ -420,9 +421,9 @@ define([
                                 let dotArrayLength = ~~(dr / 12);
                                 let dottedpoints = Array(~~(dotArrayLength / 2)).fill()
                                     .map((_, i) => [x1 + 2 * i * dx / dotArrayLength,
-                                    y1 + 2 * i * dy / dotArrayLength,
-                                    x1 + (2 * i + 1) * dx / dotArrayLength,
-                                    y1 + (2 * i + 1) * dy / dotArrayLength]);
+                                                    y1 + 2 * i * dy / dotArrayLength,
+                                                    x1 + (2 * i + 1) * dx / dotArrayLength,
+                                                    y1 + (2 * i + 1) * dy / dotArrayLength]);
                                 let str = dottedpoints.map(([xd1, yd1, xd2, yd2]) => `L ${xd1} ${yd1} M ${xd2} ${yd2}`)
                                     .join(" ");
                                 return `M ${x1} ${y1}` + str + `L ${endx} ${endy} L ${arrowLeftX} ${arrowLeftY} L ${arrowRightX} ${arrowRightY} L ${endx} ${endy}`;
@@ -575,7 +576,7 @@ define([
             link.enter()//.insert("line","g")
                 .append("path")
                 .classed("link", true)
-                //.attr("marker-mid", "url(#arrow_end)")
+            //.attr("marker-mid", "url(#arrow_end)")
                 .on("contextmenu", d3ContextMenu(edgeCtMenu));
             link.exit().remove();
             // svg_content.selectAll(".link")
@@ -594,15 +595,15 @@ define([
             var node_g = node.enter().insert("g")
                 .classed("node", true)
                 .call(d3.drag().on("drag", dragged)
-                    .on("end", dragNodeEndHighlightRel(config))
-                    .on("start", dragNodeStart)
-                    // .filter(function () { return (d3.event.button == 0) || !readOnly }))//disable right click drag if readOnly
-                    .filter(function () { return true }))//disable right click drag if readOnly
+                      .on("end", dragNodeEndHighlightRel(config))
+                      .on("start", dragNodeStart)
+                      // .filter(function () { return (d3.event.button == 0) || !readOnly }))//disable right click drag if readOnly
+                      .filter(function () { return true }))//disable right click drag if readOnly
                 .on("mouseover", mouseOver)
                 .on("mouseout", mouseOut)
-                //.on("mouseup",function(){d3.selectAll("g").dispatch("endOfLink")})
+            //.on("mouseup",function(){d3.selectAll("g").dispatch("endOfLink")})
                 .on("click", clickHandler)
-                //.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
+            //.on("contextmenu",d3ContextMenu(function(){return nodeCtMenu()}));
                 .on("contextmenu", nodeContextMenuHandler);
 
             svg_content.selectAll("g.node").each(function (d) { if (d.type) d3.select(this).classed(d.type, true) });
@@ -654,8 +655,8 @@ define([
             //add symbol
             node_g.append("path")
                 .attr("d", d3.symbol()
-                    .type(shapeClassifier.shape)
-                    .size(shapeClassifier.size))
+                      .type(shapeClassifier.shape)
+                      .size(shapeClassifier.size))
                 .style("fill", shapeClassifier.nodeColor)
             // .style("fill", function (d) {
             // 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length);
@@ -676,16 +677,16 @@ define([
                     let name = d.id.split(" ")[0]
                     return name.length > 7 ? name.substring(0, 5).concat("..") : name;
                 })
-                //.text(function(d){return d.id})
+            //.text(function(d){return d.id})
                 .attr("font-size", function () { return (radius / 2) + "px" })
-                // .style("fill", function (d) {
-                // 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
-                // 	else return "black";
-                // })
-                // .style("stroke", function (d) {
-                // 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
-                // 	else return "black";
-                // })
+            // .style("fill", function (d) {
+            // 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+            // 	else return "black";
+            // })
+            // .style("stroke", function (d) {
+            // 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
+            // 	else return "black";
+            // })
                 .on("dblclick", clickText);
 
             node_g
@@ -696,7 +697,7 @@ define([
                 .attr("dy", "1.35em")
                 .attr("text-anchor", "middle")
                 .text(d => d.attrs["val"].length > 7 ? d.attrs["val"].substring(0, 5).concat("..") : d.attrs["val"])
-                //.text(function(d){return d.id})
+            //.text(function(d){return d.id})
                 .attr("font-size", function () { return (radius / 2) + "px" })
             // .style("fill", function (d) {
             // 	if (d.type && d.type != "") return "#" + setColor(type_list.indexOf(d.type), type_list.length, true);
@@ -819,7 +820,7 @@ define([
          * remove all selected nodes
          * @return : the svg context menu object
          * @call : graphUpdate
-        */
+         */
         function svgMenu() {
             var menu = [{
                 title: "Unlock all",
@@ -862,24 +863,24 @@ define([
                         var svgmousepos = d3.mouse(svg_content.node());
                         locked = true;
                         inputMenu("New Name", [""], type_list.concat(["notype"]), null, true, true, 'center',
-                            function (cb) {
-                                locked = false;
-                                if (cb.line) {
-                                    request.addNode(g_id, cb.line, cb.radio, function (e, r) {
-                                        if (e) console.error(e);
-                                        else {
-                                            console.log("node added")
-                                            let req = {};
-                                            req[cb.line] = { "x": svgmousepos[0], "y": svgmousepos[1] }
-                                            request.addAttr(g_id, JSON.stringify({ positions: req }),
-                                                function () { disp.call("graphUpdate", this, g_id, true); });
+                                  function (cb) {
+                                      locked = false;
+                                      if (cb.line) {
+                                          request.addNode(g_id, cb.line, cb.radio, function (e, r) {
+                                              if (e) console.error(e);
+                                              else {
+                                                  console.log("node added")
+                                                  let req = {};
+                                                  req[cb.line] = { "x": svgmousepos[0], "y": svgmousepos[1] }
+                                                  request.addAttr(g_id, JSON.stringify({ positions: req }),
+                                                                  function () { disp.call("graphUpdate", this, g_id, true); });
 
-                                        }
-                                    });
-                                }
-                            },
-                            { x: mousepos[0], y: mousepos[1], r: radius / 2 },
-                            svg)
+                                              }
+                                          });
+                                      }
+                                  },
+                                  { x: mousepos[0], y: mousepos[1], r: radius / 2 },
+                                  svg)
                     }
                 });
             };
@@ -887,18 +888,7 @@ define([
             if (!readOnly && selected.size()) {
                 menu.push({
                     title: "Remove Selected nodes",
-                    action: function (elm, d, i) {
-                        if (confirm("Delete all selected Nodes ?")) {
-                            hideButtons();
-                            selected.each(function (el, i) {
-                                request.rmNode(g_id, el.id, true, function (e, r) {
-                                    if (e) console.error(e);
-                                    else console.log(r);
-                                    if (i = selected.size() - 1) disp.call("graphUpdate", this, g_id, true);
-                                })
-                            });
-                        }
-                    }
+                    action: deleteSelectedNodes
                 });
 
                 menu.push({
@@ -912,16 +902,9 @@ define([
             if (nodeClipboard["path"] !== null && nodeClipboard["nodes"] !== []) {
                 // if (g_id === nodeClipboard["path"] ||
                 //     nodeClipboard["path"] == g_id.substring(0, g_id.lastIndexOf("/"))) {
-                    menu.push({
-                        title: "paste",
-                        action: function (_elm, _d, _i) {
-                            let svgmousepos = d3.mouse(svg_content.node());
-                            let callback = function (_e, _r) {
-                                disp.call("graphUpdate", this, g_id, true)
-                            };
-                            request.pasteNodes(g_id, nodeClipboard["path"], nodeClipboard["nodes"],svgmousepos, callback);
-                        }
-                    });
+                menu.push({
+                    title: "paste",
+                    action: pasteNode });
 
                 // }
             }
@@ -935,7 +918,7 @@ define([
          * merge with a selected node : TODO -> change server properties,
          * @return : the node context menu object
          * @call : graphUpdate
-        */
+         */
 
         function nodeCtMenu(nodeType, from_config) {
             var menu = [{
@@ -966,7 +949,7 @@ define([
                                     let req = {};
                                     req[cb.line] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
                                     request.addAttr(g_id, JSON.stringify({ positions: req }),
-                                        function () { disp.call("graphUpdate", this, g_id, true); });
+                                                    function () { disp.call("graphUpdate", this, g_id, true); });
                                 }
                             });
                         }
@@ -975,24 +958,24 @@ define([
                 }
             },
 
-            // {title: "children",
-            //  action: getChildren},
+                        // {title: "children",
+                        //  action: getChildren},
 
-            {
-                title: "Add value",
-                action: addVal
-            },
+                        {
+                            title: "Add value",
+                            action: addVal
+                        },
 
-            {
-                title: "remove value",
-                action: rmVal
-            },
-            {
-                title: "types",
-                action: nodeTypesEditor
-            },
+                        {
+                            title: "remove value",
+                            action: rmVal
+                        },
+                        {
+                            title: "types",
+                            action: nodeTypesEditor
+                        },
 
-            ];
+                       ];
 
             var selected = svg_content.selectAll("g.selected")
             if (selected.size()) {
@@ -1042,7 +1025,7 @@ define([
          * edge context menu allow to remove it,
          * select source and target node,
          * @call : graphUpdate
-        */
+         */
         var edgeCtMenu = [{
             title: "Select Source-target",
             action: function (elm, d, _i) {
@@ -1085,19 +1068,19 @@ define([
             div_ct += "</p>";
             d3.select("#n_tooltip")
                 .style("visibility", "visible")
-                // .style("background-color", "#fffeec")
-                // .style("position", "absolute")
-                // .style("bottom", "20px")
-                // .style("left", "10px")
-                // .style("border", "4px solid #0f71ba")
-                // .style("border-radius", "10px")
-                // .style("box-shadow", " 3px 3px 3px #888888")
-                // .style("z-index", " 100")
-                // .style("display", " block")
-                // .style("text-align", " left")
-                // .style("vertical-align", " top")
-                // .style("width", " 150px")
-                // .style("overflow ", " hidden")
+            // .style("background-color", "#fffeec")
+            // .style("position", "absolute")
+            // .style("bottom", "20px")
+            // .style("left", "10px")
+            // .style("border", "4px solid #0f71ba")
+            // .style("border-radius", "10px")
+            // .style("box-shadow", " 3px 3px 3px #888888")
+            // .style("z-index", " 100")
+            // .style("display", " block")
+            // .style("text-align", " left")
+            // .style("vertical-align", " top")
+            // .style("width", " 150px")
+            // .style("overflow ", " hidden")
                 .html(div_ct);
         };
         /* handling mouse out of nodes
@@ -1155,9 +1138,9 @@ define([
                         req[cb.line] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
                         locked = false;
                         request.addAttr(g_id, JSON.stringify({ positions: req }),
-                            function () {
-                                disp.call("graphUpdate", this, g_id, true);
-                            });
+                                        function () {
+                                            disp.call("graphUpdate", this, g_id, true);
+                                        });
                     });
                 }
                 else { locked = false; }
@@ -1218,7 +1201,7 @@ define([
 
         /* handling dragend event on nodes
          * @input : d : the node datas
-        */
+         */
         function dragNodeEndHighlightRel(config) {
             return function (d, _elm, _i) {
                 var nodecontext = this;
@@ -1418,14 +1401,15 @@ define([
                         .filter(function (n) {
                             return (
                                 n.x <= maxx &&
-                                n.x >= minx &&
-                                n.y <= maxy &&
-                                n.y >= miny)
+                                    n.x >= minx &&
+                                    n.y <= maxy &&
+                                    n.y >= miny);
                         })
                         .classed("selected", true);
                     maybeDrawButtons();
-                })
+                });
         }
+
         function svgClickHandler() {
             svg_content.selectAll("g.selected")
                 .classed("selected", false);
@@ -1433,6 +1417,7 @@ define([
             dehilightNodes();
         }
         this.svg_result = function () { return (svg.node()); };
+
 
         function dehilightNodes() {
             svg.selectAll(".node")
@@ -1517,9 +1502,9 @@ define([
             if (!readOnly) {
                 let buttons = d3.select(buttonsDiv);
                 buttons.attr("id", "GraphButtons")
-                    // .append("button")
-                    // .text("New child graph")
-                    // .on("click", newGraph);
+                // .append("button")
+                // .text("New child graph")
+                // .on("click", newGraph);
                     .append("button")
                     .text("New child")
                     .on("click", newChild);
@@ -1546,12 +1531,59 @@ define([
             }
         }
 
-        this.buttons = function () { return buttonsDiv };
+        function deleteSelectedNodes(elm, d, i) {
+            var selected = svg_content.selectAll("g.selected");
+            if (!readOnly && selected.size()) {
+                if (confirm("Delete all selected Nodes ?")) {
+                    hideButtons();
+                    selected.each(function (el, i) {
+                        request.rmNode(g_id, el.id, true, function (e, r) {
+                            if (e) console.error(e);
+                            else console.log(r);
+                            if (i === selected.size() - 1) disp.call("graphUpdate", this, g_id, true);
+                        })
+                    });
+                }
+            }
+        }
+
+        this.buttons = function () { return buttonsDiv; };
 
         function copyNodes(nodeIds) {
             nodeClipboard["path"] = g_id;
             nodeClipboard["nodes"] = nodeIds;
-            console.log("copy", g_id, nodeIds);
+        }
+
+        function pasteNode(_elm, _d, _i, svgmousepos) {
+            if (svgmousepos === undefined) {
+                svgmousepos = d3.mouse(svg_content.node());
+            }
+            let callback = function (_e, _r) {
+                disp.call("graphUpdate", this, g_id, true);
+            };
+            request.pasteNodes(g_id, nodeClipboard["path"], nodeClipboard["nodes"], svgmousepos, callback);
+        }
+
+        this.svgKeydownHandler = function () {
+            if (d3.event.target === d3.select("body").node()) {
+                if (d3.event.keyCode === 80 || (d3.event.keyCode === 86 && d3.event.ctrlKey)) {
+                    if (nodeClipboard["path"] !== null && nodeClipboard["nodes"] !== []) {
+                        let transf = d3.zoomTransform(svg.node());
+                        pasteNode(null, null, null, [(-transf.x + width / 2) / transf.k, (-transf.y + height / 2) / transf.k]);
+                    }
+
+                }
+                else if (d3.event.keyCode === 89 || (d3.event.keyCode === 67 && d3.event.ctrlKey)) {
+                    var selected = svg_content.selectAll("g.selected")
+                    if (selected.size()) {
+                        let node_ids = selected.data().map(d => d.id);
+                        copyNodes(node_ids);
+                    }
+                }
+                else if (d3.event.keyCode === 46) {
+                    deleteSelectedNodes();
+                }
+            }
         }
 
 
