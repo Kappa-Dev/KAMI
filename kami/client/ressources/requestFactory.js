@@ -942,5 +942,24 @@ define(["ressources/d3/d3.js"], function (d3) {
 			rq.send("PUT", JSON.stringify({ "nodes": node_list, "mouseX": mousepos[0], "mouseY": mousepos[1]}), callback);
 		};
 
+		function saveModel(g_path, nuggets, callback) {
+			d3.request(srv + "/graph/save_model" + g_path)
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.post(nuggets, callback);
+		}
+
+		this.promSaveModel = callbackToPromise(saveModel);
+
+		function removeModel(g_path, modelName, callback) {
+			let rq = d3.request(srv + "/graph/remove_model" + g_path + "/?modelName=" + encodeURIComponent(modelName))
+				.header("X-Requested-With", "XMLHttpRequest")
+				.header("Content-Type", "application/json")
+				.on("error", function (error) { callback(error, null); })
+				.on("load", function (xhr) { callback(null, xhr); });
+			rq.send("PUT", null, callback);
+		}
+
+		this.promRemoveModel = callbackToPromise(removeModel);
 	}
 });

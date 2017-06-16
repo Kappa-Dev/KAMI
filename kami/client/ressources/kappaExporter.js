@@ -5,9 +5,10 @@ define([
 
         //Interface allowing to define relations between nodes of different graphs
         return function kappaExporter(fatherElem, modalId, dispatch, request) {
-            let nuggets = []
-            let selected_nuggets = []
-            let compos = {}
+            let nuggets = [];
+            let savedModels = {};
+            let selected_nuggets = [];
+            let compos = {};
             let graph_path = "";
             let modal = fatherElem
                 .append("div")
@@ -43,6 +44,8 @@ define([
                             </div>
                         </div>
                         <div class="modal-footer">
+                            <button id="selectAll" type="button" class="btn btn-default">Select All</button>
+                            <button id="deselectAll" type="button" class="btn btn-default">Deselect All</button>
                             <button id="saveModel" type="button" class="btn btn-default">Save Model</button>
                             <button id="getKappaButton" type="button" class="btn btn-default">Get Kappa</button>
                         </div>
@@ -51,6 +54,15 @@ define([
 
             modal.select("#getKappaButton")
               .on("click", toKappa);
+
+            modal.select("#saveModel")
+              .on("click", saveModel);
+
+            modal.select("#deselectAll")
+              .on("click", deselectAll);
+
+            modal.select("#selectAll")
+              .on("click", selectAll);
 
 
             function drawKappaExporter() {
@@ -65,7 +77,7 @@ define([
                         }
                         return acc;
                     }, [[], []]);
-
+                
                 d3.select("#expNugList")
                     .selectAll("a")
                     .remove();
@@ -130,8 +142,27 @@ define([
                     .classed("pull-right", true)
                     .classed("glyphicon-eye-open", true)
                     .on("click", () => console.log("view"));
+                
+                d3.select("#existing_models")
+                  .selectAll("a")
+                  .remove();
 
-                d3.selectAll("#selected_parts, #expNugList, #expCompList")
+                let models_list = d3.select("#existing_models")
+                  .selectAll("a")
+                  .data(savedModels);
+                models_list.enter()
+                    .append("a")  
+                    .classed("btn btn-default", true)
+                    .on("click", addModel)
+                    .text(function (d, _i) { return d["name"] + "\xa0" })
+                    .append("span")
+                    //.insert("span",":first-child")
+                    .classed("glyphicon", true)
+                    .classed("pull-right", true)
+                    .classed("glyphicon-trash", true)
+                    .on("click", deleteModel);
+
+                d3.selectAll("#selected_parts, #expNugList, #expCompList, #existing_models")
                     .selectAll("a")
                     .classed("kappaPart", true);
             }
@@ -155,16 +186,26 @@ define([
                 drawKappaExporter();
             }
 
-            this.update = function update(path, parts) {
+            this.update = function update(path, parts, selected) {
                 graph_path = path;
-                nuggets = parts.nuggets
-                selected_nuggets = []
-                compos = {}
-                if ("compositions" in parts) {
-                    parts.compositions.forEach(
-                        comp => { compos[comp.id] = { "selected": false } })
+                nuggets = parts.nuggets;
+                savedModels = Object.keys(parts.savedModels).reduce(
+                    function (acc, key) {
+                        parts.savedModels[key]
+                        acc.push({"name": key, "nuggets": parts.savedModels[key]["nuggets"]})
+                        return acc;
+                    }, []);
+                if (selected !== undefined){
+                    selected_nuggets = selected;
+                    nuggets = nuggets.filter(nug => selected.indexOf(nug) === -1);
                 }
-                // parts.compositions.forEach(comp => compos[comp] = { "selected": false });
+                else{
+                selected_nuggets = [];
+                }
+
+                compos = {};
+                parts.compositions.forEach(
+                    comp => { compos[comp.id] = { "selected": false } })
                 drawKappaExporter();
                 d3.selectAll(".hide-if-modified")
                     .style("display", "inline");
@@ -203,7 +244,63 @@ define([
                     "compositions": compositionList}), callback)
                 return false;
             }
+            
+            function saveModel(){
+                let name = prompt("Model name:");
+                if (!name){return false;}
+                if (Object.keys(savedModels).findIndex(m => savedModels[m].name === name) !== -1){
+                    if (!confirm(`Overwrite model ${name} ?`)){
+                        return false
+                    }
+                }
+                let compositionList = Object.keys(compos).reduce(
+                    function (acc, compo) {
+                        if (compos[compo]["selected"]) {
+                            acc.push(compo);
+                        }
+                        return acc;
+                    }, []);
 
+                request.promSaveModel(graph_path, JSON.stringify({
+                    "names": selected_nuggets,
+                    "compositions": compositionList,
+                    "modelName": name
+                }))
+                    .then(()=> dispatch.call("loadKappaExporter", this, graph_path, selected_nuggets));
+                return false;
+            }
+
+            function addModel(d, _i){
+                d.nuggets.forEach(nugName => {
+                    let index =  nuggets.indexOf(nugName);
+                    if (index > -1){
+                        nuggets.splice(index, 1);
+                    }
+                    index = selected_nuggets.indexOf(nugName);
+                    if (index === -1){
+                        selected_nuggets.push(nugName);
+                    }
+                });
+                drawKappaExporter();
+            }
+
+            function deselectAll(){
+                nuggets = nuggets.concat(selected_nuggets);
+                selected_nuggets = [];
+                drawKappaExporter();
+            }
+
+            function selectAll(){
+                selected_nuggets = nuggets.concat(selected_nuggets);
+                nuggets = [];
+                drawKappaExporter();
+            }
+            
+            function deleteModel(d, _i){
+                d3.event.stopPropagation();
+                request.promRemoveModel(graph_path, d.name)
+                .then(()=> dispatch.call("loadKappaExporter", this, graph_path, selected_nuggets));
+            }
         }
     });
-	
+    

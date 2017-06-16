@@ -41,7 +41,6 @@ def get_kappa(path_to_graph=""):
         else:
             comp_ids = []
 
-        # likely to change in the future
         if parent_id != id_of_kami():
             raise ValueError("the action graph must be typed by kami")
 
@@ -60,6 +59,61 @@ def get_kappa(path_to_graph=""):
         return resp
     return apply_on_node_with_parent(kami_blueprint.hie(), kami_blueprint.top,
                                      path_to_graph, get_kappa_aux)
+
+
+@kami_blueprint.route("/graph/save_model/", methods=["POST"])
+@kami_blueprint.route("/graph/save_model/<path:path_to_graph>",
+                      methods=["POST"])
+def save_model(path_to_graph=""):
+    def save_model_aux(graph_id, parent_id):
+        if parent_id != id_of_kami():
+            raise ValueError("the action graph must be typed by kami")
+
+        if "names" not in request.json:
+            return ("names field necessary", 404)
+        nuggets_names = request.json["names"]
+
+        if "modelName" not in request.json:
+            return ("modelName field necessary", 404)
+        new_model_name = request.json["modelName"]
+
+        ag_attrs = kami_blueprint.hie().node[graph_id].attrs
+        if "saved_models" not in ag_attrs:
+            ag_attrs["saved_models"] = {}
+
+        # if new_model_name in ag_attrs["saved_models"]:
+        #     return ("model {} already exists".format(new_model_name), 404)
+
+        nuggets_ids = [tree.child_from_name(kami_blueprint.hie(),
+                                            graph_id, name)
+                       for name in nuggets_names]
+        if nuggets_ids:
+            ag_attrs["saved_models"][new_model_name] = {"nuggets": nuggets_ids}
+            return ("model {} saved".format(new_model_name), 200)
+        else:
+            return ("empty nugget list", 404)
+
+    return apply_on_node_with_parent(kami_blueprint.hie(), kami_blueprint.top,
+                                     path_to_graph, save_model_aux)
+
+
+@kami_blueprint.route("/graph/remove_model/", methods=["PUT"])
+@kami_blueprint.route("/graph/remove_model/<path:path_to_graph>",
+                      methods=["PUT"])
+def remove_model(path_to_graph=""):
+    def remove_model_aux(graph_id, parent_id):
+        model_name = request.args.get("modelName")
+        if not model_name:
+            return ("modelName argument is necessary", 404)
+        ag_attrs = kami_blueprint.hie().node[graph_id].attrs
+        if ("saved_models" not in ag_attrs or
+                model_name not in ag_attrs["saved_models"]):
+            return ("model not found", 404)
+        del ag_attrs["saved_models"][model_name]
+        return ("model deleted", 200)
+
+    return apply_on_node_with_parent(kami_blueprint.hie(), kami_blueprint.top,
+                                     path_to_graph, remove_model_aux)
 
 
 @kami_blueprint.route("/graph/splices/", methods=["POST"])
@@ -123,12 +177,22 @@ def get_parts(path_to_graph=""):
         nuggets = [hie.node[child].attrs["name"]
                    for child in tree.graph_children(hie, graph_id)]
         graph_attrs = hie.node[graph_id].attrs
-        if "compositions" in graph_attrs.keys():
-            compositions = graph_attrs["compositions"]
-        else:
-            compositions = []
+
+        compositions = graph_attrs.get("compositions", [])
+        saved_models = graph_attrs.get("saved_models", {})
+        saved_models_names = {}
+        for model in saved_models:
+            saved_models_names[model] = {"nuggets": []}
+            for nug in saved_models[model]["nuggets"]:
+                if nug not in hie.predecessors(graph_id):
+                    saved_models[model]["nuggets"].remove(nug)
+                else:
+                    nug_name = hie.node[nug].attrs["name"]
+                    saved_models_names[model]["nuggets"].append(nug_name)
+
         json_data = {"nuggets": nuggets,
-                     "compositions": compositions}
+                     "compositions": compositions,
+                     "savedModels": saved_models_names}
         resp = Response(response=json.dumps(json_data),
                         status=200,
                         mimetype="application/json")

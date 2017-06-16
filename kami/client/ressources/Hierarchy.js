@@ -233,26 +233,6 @@ define([
                         slc.append("div")
                             .classed("tab_menu_el_rate", true)
                             .text(d => {if ("rate" in d) {return d.rate} else {return "UND"}});
-                        // d3.selectAll(".tab_menu_el")
-                        //     .each(function (id) {
-                        //         var elem = d3.select(this)
-                        //         factory.getGraph(hierarchy.getAbsPath(id),
-                        //             function (err, resp) {
-                        //                 if (err) { return 0 }
-                        //                 let rate = resp.attributes["rate"];
-                        //                 rate = rate ? rate : "und";
-                        //                 elem.append("div")
-                        //                     .style("width", "1vw");
-                        //                 elem.append("div")
-                        //                     .classed("tab_menu_el_rate", true)
-                        //                     .text(rate);
-
-                        //             }
-
-
-                        //         )
-
-                        //     })
                     }
                 });
             }

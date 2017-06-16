@@ -461,11 +461,10 @@ define([
                 $('#formulaResult').modal({ backdrop: 'static', keyboard: false });
             });
 
-            dispatch.on("loadKappaExporter", function (path) {
+            dispatch.on("loadKappaExporter", function (path, selected) {
                 let callback = function (err, parts) {
                     if (!err) {
-                        console.log(parts);
-                        kapExporter.update(path, JSON.parse(parts.response));
+                        kapExporter.update(path, JSON.parse(parts.response), selected);
                         $('#kappaExporter').modal({ backdrop: 'static', keyboard: false });
                     }
                 }
@@ -475,7 +474,6 @@ define([
             dispatch.on("loadTypeEditor", function (path, nodeId) {
                 let callback = function (err, types) {
                     if (!err) {
-                        console.log(types);
                         typesEditor.update(path, nodeId, JSON.parse(types.response));
                         $('#typesEditor').modal({ backdrop: 'static', keyboard: false });
                     }
