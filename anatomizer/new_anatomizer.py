@@ -13,10 +13,22 @@ import warnings
 
 from xml.dom import minidom
 
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as etree
 
 ENSEMBL_SERVER = 'http://rest.ensembl.org'
 INTERPROFILE = 'interpro.xml'
+
+IPR_MATCHES = '/home/slegare/ENS/InterPro/interpro_swiss_match-63.xml'
+IPR_SIGNATURES = '/home/slegare/ENS/InterPro/interpro_shortnames-63.xml'
+
+# Read InterPro matched (IPR_MATCHES) and 
+# InterPro signatures (IPR_SIGNATURES) and keep them in memory.
+print('Loading SwissProt-InterPro matches ....... ')
+ipr_matches = open(IPR_MATCHES, 'r').read()
+ipr_matches_root = etree.fromstring(ipr_matches)
+print('Done')
+ipr_signatures = open(IPR_SIGNATURES, 'r').read()
+ipr_signatures_root = etree.fromstring(ipr_signatures)
 
 
 class AnatomizerError(Exception):
@@ -186,7 +198,7 @@ def _fetch_uniprotxml(uniprotac, workdir=None):
               % uniprotac)
     # Removing default namespace to simplify parsing.
     xmlnonamespace = re.sub(r'\sxmlns="[^"]+"', '', uniprot, count=1)
-    root = ET.fromstring(xmlnonamespace)
+    root = etree.fromstring(xmlnonamespace)
     return root
 
 
@@ -300,6 +312,105 @@ def get_features(ensemblegene):
 
     return featurelist
 
+def get_ipr_features(uniprot_ac):
+    """ Get features by UniProt Accession (Optionally specifying isoform). """
+    ignorelist = ['PANTHER', 'SignalP', 'Seg', 'Tmhmm', 'PRINTS']
+    featurelist = []
+    entry = ipr_matches_root.find("protein[@id='%s']" % uniprot_ac)
+    matchlist = entry.findall('match')
+    for feature in matchlist:
+        if feature.get('dbname') not in ignorelist:
+            # Check if domain is intergrated in InterPro. Ignore otherwise.
+            ipr = feature.find('ipr')
+            try:
+                interpro_id = ipr.get('id')
+                integrated = True
+            except:
+                integrated = False
+
+            # If domain has InterPro ID, add as feature.
+            if integrated:
+
+                feature_dict = {}
+                feature_dict['xname'] = feature.get('name')
+                feature_dict['xid'] = feature.get('id')
+                feature_dict['xdatabase'] = feature.get('dbname')
+
+                feature_dict['ipr_id'] = interpro_id
+                try:
+                    ipr_parent = ipr.get('parent_id')
+                except:
+                    ipr_parent = None
+                feature_dict['ipr_parents'] = parent_chain(interpro_id, ipr_parent)
+
+                feature_dict['ipr_name'] = ipr.get('name')
+
+                # Get short name from file interpro.xml.
+                short_name = find_shortname(feature_dict['ipr_id'])
+                feature_dict['short_name'] = short_name
+                feature_dict['feature_type'] = ipr.get('type')
+
+                lcn = feature.find('lcn')
+                start = int(lcn.get('start'))
+                end = int(lcn.get('end'))
+                length = end - start
+                feature_dict['start'] = start
+                feature_dict['end'] = end
+                feature_dict['length'] = length
+
+                featurelist.append(feature_dict)
+
+    return featurelist
+
+
+def find_shortname(ipr):
+    """ Find the short name associated with an InterPro ID. """
+    ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % ipr)
+    shortname = ipr_entry.get('short_name')
+
+    return shortname
+
+
+def parent_chain(ipr, parent):
+    """ 
+    Build the chain of parents (as a list) from given InterPro ID
+    to top of hierarchy.
+    """
+    parchain = []
+    while parent != None:
+        if parent != 'None':
+            parchain.append(parent)
+        # Find the entry of that parent
+        ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % parent)
+        # Redefine parent as the parent of the previous parent.
+        try:
+            parent = ipr_entry.get('parent')
+        except:
+            parent = None
+
+    return parchain
+
+
+def are_parents(frag1, frag2):
+    """ 
+    Returns True if InterPro IDs of given fragments are identical or parents.
+    Returns False otherwise.
+    """
+    ipr1 = frag1.ipr_id
+    ipr2 = frag2.ipr_id
+    par1 = frag1.ipr_parents
+    par2 = frag2.ipr_parents
+
+    answer = False
+    if ipr1 == ipr2:
+        answer = True
+    if ipr1 in par2:
+        answer = True
+    if ipr2 in par1:
+        answer = True
+   
+    return answer
+
 
 def _merge_overlap(f1, f2):
     """Calculate overlap ratio.
@@ -360,26 +471,38 @@ def _nest_overlap(f1, f2):
 class Fragment:
     """Class implementing raw domain fragment."""
 
-    def __init__(self, start, end, xrefs=None, desc=None, name=None):
+    def __init__(self, internal_id, xname, xid, xdatabase, 
+                 start, end, length, short_name, ipr_name,
+                 ipr_id, feature_type, ipr_parents):
         """Initilize raw fragment."""
+        self.internal_id = internal_id
+        self.xname = xname
+        self.xid = xid
+        self.xdatabase = xdatabase
         self.start = start
         self.end = end
-        self.description = desc
-        if xrefs:
-            self.xrefs = xrefs
-        else:
-            self.xrefs = dict()
-        self.name = name
-        self.length = end - start
+        self.length = length
+        self.short_name = short_name
+        self.ipr_name = ipr_name
+        self.ipr_id = ipr_id
+        self.feature_type = feature_type
+        self.ipr_parents = ipr_parents
         return
 
     def to_dict(self):
         fragment_dict = {}
+        fragment_dict["internal_id"] = self.internal_id
+        fragment_dict["xname"] = self.xname
+        fragment_dict["xid"] = self.xid
+        fragment_dict["xdatabase"] = self.xdatabase
         fragment_dict["start"] = self.start
         fragment_dict["end"] = self.end
-        fragment_dict["xrefs"] = self.xrefs
-        fragment_dict["name"] = self.name
-        fragment_dict["desc"] = self.description
+        fragment_dict["length"] = self.length
+        fragment_dict["short_name"] = self.short_name
+        fragment_dict["ipr_name"] = self.ipr_name
+        fragment_dict["ipr_id"] = self.ipr_id
+        fragment_dict["feature_type"] = self.feature_type
+        fragment_dict["ipr_parents"] = self.ipr_parents
 
         return fragment_dict
 
@@ -387,35 +510,40 @@ class Fragment:
         prefix = ""
         for i in range(level):
             prefix += "\t"
-        print(
-            prefix,
-            "Fragment name: %s (%s-%s)" %
-            (self.name, self.start, self.end)
-        )
-        if len(self.description) > 45:
-            desc = self.description[0:45] + "..."
+
+        if len(self.xname) > 45:
+            fragname = self.xname[0:45] + "..."
         else:
-            desc = self.description
+            fragname = self.xname
+
         print(
             prefix,
-            "  Description: %s" % desc
+            "  Fragment %2i: %s" % (self.internal_id,fragname)
         )
         print(
             prefix,
-            "   References: %s" %
-            ", ".join(["%s:%s" % (db, f_id) for db, f_id in self.xrefs.items()])
+            "    Start-End: %i-%i" % (self.start, self.end)
+        ) 
+        print(
+            prefix,
+            "   References: %s: %s" % (self.xdatabase, self.xid)
         )
+
         return
 
 
 class DomainAnatomy:
     """Class implements anatomy of a domain."""
 
-    def __init__(self, start, end, subdomains=None,
-                 fragments=None, names=None, desc=None):
+    def __init__(self, short_names, ipr_names, ipr_ids, start, end,
+                 length, feature_type, subdomains=None, fragments=None):
+        self.short_names = short_names
+        self.ipr_names = ipr_names
+        self.ipr_ids = ipr_ids
         self.start = start
         self.end = end
-        self.length = end - start
+        self.length = length
+        self.feature_type = feature_type
 
         if subdomains:
             self.subdomains = subdomains
@@ -425,11 +553,11 @@ class DomainAnatomy:
             self.fragments = fragments
         else:
             self.fragments = list()
-        if names:
-            self.names = names
-        else:
-            self.names = list()
-        self.description = desc
+        #if names:
+        #    self.names = names
+        #else:
+        #    self.names = list()
+        #self.description = desc
         return
 
     @classmethod
@@ -492,30 +620,42 @@ class DomainAnatomy:
         return json.dumps(anatomy, indent=4)
 
     def print_summary(self, fragments=True, level=0):
-        prefix = ""
-        for i in range(level):
-            prefix += "\t"
-        if len(self.names) == 0:
-            name = "None"
-        else:
-            name = ", ".join(self.names)
-        print(prefix, "         ---> Domain <---")
-        print(prefix, "           Names: %s" % name)
-        print(prefix, "      Desciption: %s" % self.description)
-        print(prefix, "           Start: %s" % self.start)
-        print(prefix, "             End: %s" % self.end)
-        if fragments:
-            if len(self.fragments) > 0:
-                print(prefix, "Source fragments: ")
-                for fragment in self.fragments:
-                    fragment.print_summary(level + 3)
-                    print()
-        if len(self.subdomains) > 0:
-            sorted_subdomains = sorted(self.subdomains, key=lambda x: x.start)
-            print(prefix, "      Subdomains:")
-            for domain in sorted_subdomains:
-                domain.print_summary(fragments, level=level + 2)
-        return
+        if self.feature_type == 'Domain' or self.feature_type == 'Repeat':
+            prefix = ""
+            for i in range(level):
+                prefix += "\t"
+
+            if len(self.short_names) == 0:
+                shorts = "None"
+            else:
+                shorts = ", ".join(self.short_names)
+            if len(self.ipr_names) == 0:
+                names = "None"
+            else:
+                names = ", ".join(self.ipr_names)
+            if len(self.ipr_ids) == 0:
+                ids = "None"
+            else:
+                ids = ", ".join(self.ipr_ids)
+
+            print(prefix, "         ---> %s <---" % self.feature_type) 
+            print(prefix, "     Short Names: %s" % shorts)
+            print(prefix, "  InterPro Names: %s" % names)
+            print(prefix, "    InterPro IDs: %s" % ids)
+            print(prefix, "           Start: %s" % self.start)
+            print(prefix, "             End: %s" % self.end)
+            if fragments:
+                if len(self.fragments) > 0:
+                    print(prefix, "Source fragments: ")
+                    for fragment in self.fragments:
+                        fragment.print_summary(level + 3)
+                        print()
+            if len(self.subdomains) > 0:
+                sorted_subdomains = sorted(self.subdomains, key=lambda x: x.start)
+                print(prefix, "      Subdomains:")
+                for domain in sorted_subdomains:
+                    domain.print_summary(fragments, level=level + 2)
+            return
 
 
 class ProteinAnatomy:
@@ -555,6 +695,7 @@ class GeneAnatomy:
 
     def _merge_fragments(self, fragments, overlap_threshold=0.7, shortest=True):
         nfeatures = len(fragments)
+        ipr_overlap_threshold=0.1
 
         visited = set()
         groups = []
@@ -567,9 +708,10 @@ class GeneAnatomy:
                 for j in range(i + 1, nfeatures):
                     if j not in visited:
                         feature2 = fragments[j]
-                        for member in group:
+                        for member in group:                                
                             overlap = _merge_overlap(member, feature2)
-                            if overlap >= overlap_threshold:
+                            condition = are_parents(member, feature2)
+                            if condition == True and overlap >= ipr_overlap_threshold:
                                 group.append(feature2)
                                 visited.add(j)
                                 break
@@ -581,9 +723,9 @@ class GeneAnatomy:
             domain_desc = None
             descs = dict([
                 (
-                    len(member.description),
-                    member.description
-                ) for member in group if member.description
+                    len(member.short_name),
+                    member.short_name
+                ) for member in group if member.short_name
             ])
             if len(descs) > 0:
                 min_desc = min(descs.keys())
@@ -603,18 +745,30 @@ class GeneAnatomy:
                 max_length = max(lengths.keys())
                 domain_start = group[lengths[max_length]].start
                 domain_end = group[lengths[max_length]].end
+            domain_length = domain_start - domain_end
 
             # 3. find domain names from concatenation of all fragment names
-            domain_names = set([member.description for member in group if member.description])
+            short_name_list = [member.short_name for member in group if member.short_name]
+            ipr_name_list = [member.ipr_name for member in group if member.ipr_name]
+            ipr_id_list = [member.ipr_id for member in group if member.ipr_id]
+            short_names = sorted(set(short_name_list), key=lambda x: short_name_list.index(x))
+            ipr_names = sorted(set(ipr_name_list), key=lambda x: ipr_name_list.index(x))
+            ipr_ids = sorted(set(ipr_id_list), key=lambda x: ipr_id_list.index(x))
+
+            # 5. get feature type
+            feature_type = group[0].feature_type
 
             # 4. create domain object
             domain = DomainAnatomy(
+                short_names,
+                ipr_names,
+                ipr_ids,
                 domain_start,
                 domain_end,
+                domain_length,
+                feature_type,
                 subdomains=[],
-                fragments=group,
-                names=domain_names,
-                desc=domain_desc,
+                fragments=group
             )
 
             domains.append(domain)
@@ -716,15 +870,25 @@ class GeneAnatomy:
         # 2. (optional) Get features
         fragments = []
         if features:
-            feature_list = get_features(self.canonical)
+            #feature_list = get_features(self.canonical)
+            feature_list = get_ipr_features('P51587')
             # construct fragments from features found
+            fragnum = 0
             for feature in feature_list:
+                fragnum += 1
                 fragment = Fragment(
+                    fragnum,
+                    feature["xname"],
+                    feature["xid"],
+                    feature["xdatabase"],
                     feature["start"],
                     feature["end"],
-                    feature["xrefs"],
-                    feature["description"],
-                    feature["name"]
+                    feature["length"],
+                    feature["short_name"],
+                    feature["ipr_name"],
+                    feature["ipr_id"],
+                    feature["feature_type"],
+                    feature["ipr_parents"]
                 )
                 fragments.append(fragment)
         else:
