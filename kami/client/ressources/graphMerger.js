@@ -263,6 +263,22 @@ define([
 
             }
 
+            function typeGraph() {
+                let rel = relation.map(r => ({
+                    "left": r.source.id,
+                    "right": r.target.id
+                }));
+                request.promRetypeGraph(parentPath + "/" + leftGraphName,
+                    parentPath + "/" + rightGraphName,
+                    rel)
+                    .then(() => {
+                        dispatch.call("loadGraph", this, parentPath + "/" + rightGraphName + "/");
+                        dispatch.call("hieUpdate", this);
+                    })
+
+
+            }
+
             function createButtons() {
                 let buttonsDiv = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
                 // buttonsDiv.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
@@ -276,10 +292,18 @@ define([
                     .classed("btn-success", true)
                     .classed("btn-block", true)
                     .on("click", mergeGraphs);
+                buttons.append("button")
+                    .text("Retype")
+                    .attr("type", "button")
+                    .classed("top_chart_elem", true)
+                    .classed("btn", true)
+                    .classed("btn-success", true)
+                    .classed("btn-block", true)
+                    .on("click", typeGraph);
                 return buttons.node();
             }
             this.buttons = createButtons;
 
         }
     });
-	
+    

@@ -177,7 +177,7 @@ define([
 
             function update_graph(abs_path, noTranslate) {
                 current_graph = abs_path;
-                let config = { noTranslate: noTranslate };
+                let config = {noTranslate};
                 let get_graph_and_update = function (mapping) {
                     if (mapping !== undefined) {
                         config.ancestor_mapping = mapping;
@@ -330,8 +330,7 @@ define([
                 clean();
                 dispatch.on("graphUpdate", update_graph);
                 update_graph(abs_path, false);
-                d3.select("body").on("keydown", function(){
-                    graph_pan.svgKeydownHandler();});
+                d3.select("body").on("keydown", graph_pan.svgKeydownHandler);
             });
 
             dispatch.on("loadPreview", function (abs_path) {
@@ -350,6 +349,8 @@ define([
             });
 
             dispatch.on("loadMerger", function (abs_path1, abs_path2) {
+                console.log(abs_path1);
+                console.log(abs_path2);
                 clean();
                 update_merger(abs_path1, abs_path2, false);
             });

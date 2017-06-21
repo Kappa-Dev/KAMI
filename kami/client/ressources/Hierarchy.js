@@ -75,7 +75,9 @@ define([
                 {
                     title: "check",
                     action: checkFormulae
-                }
+                },
+                {  title: "type selected",
+                   action: typeSelected}
             ];
             let rule_context_menu = [
                 {
@@ -636,6 +638,27 @@ define([
             }
 
             this.metadata = function () { return current_metadata }
+
+            function typeSelected(_elm, d, _i){
+                let selectedGraphs = [];
+                d3.selectAll(".tab_menu_el.selected")
+                    .each(function () {
+                        selectedGraphs.push(this.id)
+                    });
+                if (selectedGraphs.length != 1) {
+                    alert("exactly one graph must be selected for typing");
+                }
+                else {
+                    let path = current_metadata.path + "/";
+                    if (path == "//") { path = "/" }
+                    console.log("path", path);
+                    let toType = path + selectedGraphs[0]
+                    console.log("d", d);
+                    let typingGraph = path + d.name;
+                    dispatch.call("loadMerger", this, toType, typingGraph);
+                }
+
+            }
 
         };
 

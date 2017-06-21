@@ -4,6 +4,7 @@ from flask import Blueprint, Response, request
 import json
 # from metamodels import (kami, base_kami)
 from base.webserver_utils import (apply_on_node_with_parent,
+                                  get_node_id,
                                   apply_on_node)
 import kami.server.kami.kappa as kappa
 from kami.server.kami.algebra import concat_test, create_compositions
@@ -238,7 +239,7 @@ def link_components(path_to_graph=""):
             return("parameters component1 and component2 are necessary", 404)
         try:
             kappa.link_components(kami_blueprint.hie(), graph_id, component1,
-                                  component2)
+                                  component2, id_of_kami())
             return ("component linked", 200)
         except (ValueError, KeyError) as e:
             return (str(e), 412)
@@ -291,6 +292,32 @@ def remove_conflict(path_to_graph=""):
 
     return apply_on_node(hie, kami_blueprint.top,
                          path_to_graph, remove_conflict_aux)
+
+
+@kami_blueprint.route("/graph/retype/", methods=["POST"])
+@kami_blueprint.route("/graph/retype/<path:path_to_graph>", methods=["POST"])
+def retype_graph(path_to_graph=""):
+    hie = kami_blueprint.hie()
+
+    def retype_graph_aux(graph_id):
+        typing_graph = request.args.get("typingGraph")
+        if not typing_graph:
+            return "argument typingGraph is required"
+        relation = request.json
+        try:
+            schema = schema_validator({'$ref': '#/definitions/Matching'},
+                                      context=json_schema_context)
+            flex.core.validate(schema, relation, context=json_schema_context)
+            partial_typing = {c["left"]: c["right"] for c in relation}
+        except ValueError as e:
+            return(str(e), 404)
+        kappa.add_nugget_to_action_graph(
+            hie, graph_id,
+            get_node_id(hie, kami_blueprint.top, typing_graph),
+            partial_typing)
+
+        return("graph moved successfully", 200)
+    return apply_on_node(hie, kami_blueprint.top, path_to_graph, retype_graph_aux)
 
 
 def id_of_kami():

@@ -239,6 +239,32 @@ def create_graph(path_to_graph=""):
 #     except (KeyError, ValueError) as e:
 #         return(str(e), 404)
 
+
+# add the node with a new name if it already exists
+@app.route("/graph/add_node_new_name/", methods=["PUT"])
+@app.route("/graph/add_node_new_name/<path:path_to_graph>", methods=["PUT"])
+def add_node_new_name(path_to_graph=""):
+    def add_node_new_name_aux(graph_id, parent_id):
+        node_id = request.args.get("node_id")
+        if not node_id:
+            return ("the node_id argument is necessary", 404)
+        xpos = request.args.get("xpos")
+        ypos = request.args.get("ypos")
+        node_type = request.args.get("node_type")
+        if node_type == "" or node_type == "notype":
+            node_type = None
+        node_id = tree.add_node(app.hie(), graph_id, parent_id, node_id,
+                                node_type, new_name=True)
+        if xpos and ypos:
+            tree.recursive_merge(app.hie().node[graph_id].attrs,
+                                 {"positions": {node_id: {"x": float(xpos),
+                                                          "y": float(ypos)}}})
+        return("node added", 200)
+
+    return apply_on_node_with_parent(app.hie(), app.top, path_to_graph,
+                                     add_node_new_name_aux)
+
+
 @app.route("/graph/add_node/", methods=["PUT"])
 @app.route("/graph/add_node/<path:path_to_graph>", methods=["PUT"])
 def add_node_graph(path_to_graph=""):

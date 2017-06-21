@@ -11,8 +11,10 @@ from regraph.category_op import (pullback, pushout,
 from regraph.utils import (keys_by_value, restrict_mapping,
                            union_mappings, id_of,
                            reverse_image)
+
 from regraph.rules import Rule
 from regraph.primitives import (unique_node_id, add_node, add_edge, remove_node)
+import regraph.primitives as prim
 from math import sqrt
 import networkx as nx
 import functools 
@@ -458,9 +460,9 @@ def compose_splices(hie, ag_id, mm_id, splices_list):
 
 
 # must be an action graph
-def link_components(hie, g_id, comp1, comp2):
+def link_components(hie, g_id, comp1, comp2, kami_id):
     """ link two componenst together with brk, bnd"""
-    typing = hie.edge[g_id]["kami"].mapping
+    typing = hie.edge[g_id][kami_id].mapping
     graph = hie.node[g_id].graph
 
     bnd_name = unique_node_id(graph, "bnd")
@@ -990,3 +992,38 @@ def apply_rule_on_parent_inplace(hie, ag_id, rule, mapping):
     hie.remove_node(new_names[rule_id])
     hie.node[new_names[ag_id]].attrs["name"] = ag_name
 
+
+# TODO? Add typing from nuggets which are not typing the action graph
+# precondition: the partial typing is consistent with types
+def add_nugget_to_action_graph(hie, nug_id, ag_id, partial_typing, move=True):
+    nug_gr = hie.node[nug_id].graph
+    ag_gr = hie.node[ag_id].graph
+    shared_typings = [typing for typing in hie.successors(ag_id)
+                      if typing in hie.successors(nug_id)]
+    # necessary_typings = [typing for typing in hie.successors(ag_id)
+    #                      if hie.edge[ag_id][typing].total]
+    necessary_typings = [typing for typing in hie.successors(ag_id)]
+    for typing in necessary_typings:
+        for node in nug_gr:
+            if node not in partial_typing:
+                mapping = hie.get_typing(nug_id, typing)
+                if mapping is None or node not in mapping:
+                    raise ValueError("Node {} is not typed by {}"
+                                     .format(node, typing))
+
+    for node in nug_gr:
+        if node not in partial_typing:
+            new_node = prim.add_node_new_id(ag_gr, node)
+            partial_typing[node] = new_node
+            for typing in necessary_typings:
+                mapping = hie.get_typing(nug_id, typing)
+                hie.edge[ag_id][typing].mapping[new_node] = mapping[node]
+
+    for (source, target) in nug_gr.edges():
+        prim.add_edge(ag_gr, partial_typing[source], partial_typing[target])
+
+    if move:
+        for typing in hie.successors(nug_id):
+            hie.remove_edge(nug_id, typing)
+        hie.add_typing(nug_id, ag_id, partial_typing, total=True)
+        hie.node[nug_id].attrs["type"] = "nugget"
