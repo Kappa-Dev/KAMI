@@ -3,14 +3,22 @@
 from new_anatomizer import GeneAnatomy
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
+
+ptnlist = ['Q9UJX6', 'P00533', 'Q6PH85']
+
+for ptn in ptnlist:
+
     anatomy = GeneAnatomy(
-        "EGFR",
+        ptn,
         merge_overlap=0.8,
         nest_overlap=0.8,
-        nest_level=3
+        nest_level=0,
+        offline=True
     )
-    anatomy.anatomy_summary(fragments=False)
-    print("Saving json anatomy in 'anatomy_output.json'...")
-    with open('anatomy_output.json', 'w') as f:
-        f.write(anatomy.to_json())
+    anatomy.anatomy_summary(fragments=True)
+
+#print("Saving json anatomy in 'anatomy_output.json'...")
+#    with open('anatomy_output.json', 'w') as f:
+#        f.write(anatomy.to_json())
+

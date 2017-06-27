@@ -10,6 +10,7 @@ import os
 import re
 import requests
 import warnings
+import gzip
 
 from xml.dom import minidom
 
@@ -18,18 +19,26 @@ import xml.etree.ElementTree as etree
 ENSEMBL_SERVER = 'http://rest.ensembl.org'
 INTERPROFILE = 'interpro.xml'
 
-IPR_MATCHES = '/home/slegare/ENS/InterPro/interpro_swiss_match-63.xml'
-IPR_SIGNATURES = '/home/slegare/ENS/InterPro/interpro_shortnames-63.xml'
+IPR_MATCHES = 'resources/ipr_swiss_match-63.xml.gz'
+IPR_SIGNATURES = 'resources/ipr_shortnames-63.xml.gz'
+HGNC_SYMBOLS = 'resources/human_genelist.txt'
 
 # Read InterPro matched (IPR_MATCHES) and 
 # InterPro signatures (IPR_SIGNATURES) and keep them in memory.
 print('Loading SwissProt-InterPro matches ....... ')
-ipr_matches = open(IPR_MATCHES, 'r').read()
+ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
 ipr_matches_root = etree.fromstring(ipr_matches)
 print('Done')
-ipr_signatures = open(IPR_SIGNATURES, 'r').read()
+ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
 ipr_signatures_root = etree.fromstring(ipr_signatures)
 
+# Get the list of HGNC:UniProt pairs.
+hgnc_symbols = open(HGNC_SYMBOLS,'r').readlines()
+hgnc_unip, unip_hgnc = {}, {}
+for line in hgnc_symbols:
+    tokens = line.split()
+    hgnc_unip[tokens[0]] = tokens[1]
+    unip_hgnc[tokens[1]] = tokens[0]
 
 class AnatomizerError(Exception):
     """Base class for anatomizer exception."""
@@ -823,55 +832,99 @@ class GeneAnatomy:
 
     def __init__(self, query, features=True, merge_features=True,
                  nest_features=True, merge_overlap=0.7, nest_overlap=0.7,
-                 nest_level=1):
+                 nest_level=1, offline=False):
         # 1. Get basic information about an agent
-        ensemblgene = get_ensembl_gene(query)
+        self.offline = offline
+        if not self.offline:
+            ensemblgene = get_ensembl_gene(query)
 
-        self.ensembl_gene = ensemblgene
-        self.hgnc_symbol = get_hgncsymbol(ensemblgene)
-        self.strand = get_strand(ensemblgene)
+            self.ensembl_gene = ensemblgene
+            self.hgnc_symbol = get_hgncsymbol(ensemblgene)
+            self.strand = get_strand(ensemblgene)
 
-        transcripts = get_transcripts(ensemblgene, self.strand)
+            transcripts = get_transcripts(ensemblgene, self.strand)
 
-        canonical_transcr = get_canon(ensemblgene)
-        if canonical_transcr:
+            canonical_transcr = get_canon(ensemblgene)
+            if canonical_transcr:
+                for transcr in transcripts:
+                    if transcr["Ensembl_transcr"] == canonical_transcr:
+                        self.canonical = transcr["Ensembl_protein"]
+            else:
+                # For the moment, just take the first ENST as canonical.
+                self.canonical = transcripts[0]["Ensembl_protein"]
+
+            self.proteins = []
             for transcr in transcripts:
-                if transcr["Ensembl_transcr"] == canonical_transcr:
-                    self.canonical = transcr["Ensembl_protein"]
-        else:
-            # For the moment, just take the first ENST as canonical.
-            self.canonical = transcripts[0]["Ensembl_protein"]
+                transcript_name = get_hgnctranscr(transcr['Ensembl_transcr'])
+                uniprot_ids = get_uniprotid(transcr["Ensembl_protein"])
 
-        self.proteins = []
-        for transcr in transcripts:
-            transcript_name = get_hgnctranscr(transcr['Ensembl_transcr'])
-            uniprot_ids = get_uniprotid(transcr["Ensembl_protein"])
+                primary = False
+                if transcr['Ensembl_protein'] == self.canonical:
+                    primary = True
 
-            primary = False
-            if transcr['Ensembl_protein'] == self.canonical:
-                primary = True
+                protein_anatomy = ProteinAnatomy(
+                    transcr['Ensembl_transcr'],
+                    transcr["Ensembl_protein"],
+                    transcript_name,
+                    uniprot_ids,
+                    primary
+                )
 
+                self.proteins.append(protein_anatomy)
+
+            #  _get_uniprotdupl(self.proteins)
+
+            self.length = get_length(self.canonical)
+
+            self.domains = []
+
+        if self.offline:
+            self.ensembl_gene = 'Unknown'
+            self.strand = 'Unknown'
+            self.canonical = 'Unknown'
+            self.proteins = []
             protein_anatomy = ProteinAnatomy(
-                transcr['Ensembl_transcr'],
-                transcr["Ensembl_protein"],
-                transcript_name,
-                uniprot_ids,
-                primary
-            )
-
+                    'Unknown',
+                    'Unknown',
+                    'Unknown',
+                    'Unknown',
+                    'Unknown'
+                )
             self.proteins.append(protein_anatomy)
+            self.length = 'Unknown'
 
-#         _get_uniprotdupl(self.proteins)
+            # Try to find query as a UniProt AC.
+            entry = ipr_matches_root.find("protein[@id='%s']" % query)
+            if entry:
+                self.uniprot_ac = query
+                print("Query %s found as UniProt accession." % query)
+                try:
+                    self.hgnc_symbol = unip_hgnc[self.uniprot_ac]
+                    print("Corresponding HGNC symbol %s." % self.hgnc_symbol)
+                except:
+                    self.hgnc_symbol = 'Unknown'
+                    print("Could not find corresponding HGNC symbol.")
 
-        self.length = get_length(self.canonical)
+            else:
+                try:
+                    self.uniprot_ac = hgnc_unip[query]
+                    self.hgnc_symbol = query
+                    print("Query %s found as HGNC symbol." % query)
+                    print("Corresponding UniProt accession %s." % self.uniprot_ac)
 
-        self.domains = []
+                except:
+                    raise AnatomizerError(
+                        "Query %s could not be found as UniProt accession "
+                        "or HGNC symbol." % query
+                    )
+
+
 
         # 2. (optional) Get features
         fragments = []
         if features:
-            #feature_list = get_features(self.canonical)
-            feature_list = get_ipr_features('P51587')
+            # feature_list = get_features(self.canonical)
+            feature_list = get_ipr_features(self.uniprot_ac)
             # construct fragments from features found
             fragnum = 0
             for feature in feature_list:
@@ -952,32 +1005,47 @@ class GeneAnatomy:
 
     def anatomy_summary(self, fragments=True):
         """Print summary in standard order."""
-        print("SUMMARY OF AGENT ANATOMY")
-        print("========================")
-        print()
-        print("    HGNC Symbol: %s" % self.hgnc_symbol)
-        print("Ensembl Gene ID: %s" % self.ensembl_gene)
-        print("         Strand: %s" % self.strand)
-        print("         Length: %s" % self.length)
-        print()
-        print("======= Proteins =======")
-        print()
-        print("->  Primary transcript: ")
-        print()
-        for protein in self.proteins:
-            if protein.ensembl_prot == self.canonical:
-                protein.print_summary()
-        print()
-        print("->  Other transctipts: ")
-        print()
-        sorted_proteins = sorted(self.proteins, key=lambda x: x.transcr_name)
-        for protein in sorted_proteins:
-            if protein.ensembl_prot != self.canonical:
-                protein.print_summary()
-                print()
-        print("======= Domains =======")
-        print()
-        sorted_domains = sorted(self.domains, key=lambda x: x.start)
-        for domain in sorted_domains:
-            domain.print_summary(fragments)
+        if not self.offline:
+            print("SUMMARY OF AGENT ANATOMY")
+            print("========================")
             print()
+            print("    HGNC Symbol: %s" % self.hgnc_symbol)
+            print("Ensembl Gene ID: %s" % self.ensembl_gene)
+            print("         Strand: %s" % self.strand)
+            print("         Length: %s" % self.length)
+            print()
+            print("======= Proteins =======")
+            print()
+            print("->  Primary transcript: ")
+            print()
+            for protein in self.proteins:
+                if protein.ensembl_prot == self.canonical:
+                    protein.print_summary()
+            print()
+            print("->  Other transcripts: ")
+            print()
+            sorted_proteins = sorted(self.proteins, key=lambda x: x.transcr_name)
+            for protein in sorted_proteins:
+                if protein.ensembl_prot != self.canonical:
+                    protein.print_summary()
+                    print()
+            print("======= Features =======")
+            print()
+            sorted_domains = sorted(self.domains, key=lambda x: x.start)
+            for domain in sorted_domains:
+                domain.print_summary(fragments)
+                print()
+        if self.offline:
+            print("SUMMARY OF AGENT ANATOMY")
+            print("========================")
+            print()
+            print("    HGNC Symbol: %s" % self.hgnc_symbol)
+            print(" UniProt Access: %s" % self.uniprot_ac)
+            print()
+            print("======= Features =======")
+            print()
+            sorted_domains = sorted(self.domains, key=lambda x: x.start)
+            for domain in sorted_domains:
+                domain.print_summary(fragments)
+                print()
+
