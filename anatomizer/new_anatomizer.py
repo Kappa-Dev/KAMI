@@ -562,11 +562,7 @@ class DomainAnatomy:
             self.fragments = fragments
         else:
             self.fragments = list()
-        #if names:
-        #    self.names = names
-        #else:
-        #    self.names = list()
-        #self.description = desc
+
         return
 
     @classmethod
@@ -608,11 +604,14 @@ class DomainAnatomy:
         return False
 
     def to_dict(self):
-        anatomy = dict()
+        anatomy = dict()        
+        anatomy["short_names"] = self.short_names
+        anatomy["ipr_names"] = self.ipr_names
+        anatomy["ipr_ids"] = self.ipr_ids
         anatomy["start"] = self.start
         anatomy["end"] = self.end
-        anatomy["names"] = self.names
-        anatomy["desc"] = self.description
+        anatomy["length"] = self.length
+        anatomy["feature_type"] = self.feature_type
 
         anatomy["subdomains"] = []
         for sd in self.subdomains:
@@ -754,7 +753,7 @@ class GeneAnatomy:
                 max_length = max(lengths.keys())
                 domain_start = group[lengths[max_length]].start
                 domain_end = group[lengths[max_length]].end
-            domain_length = domain_start - domain_end
+            domain_length = domain_end - domain_start
 
             # 3. find domain names from concatenation of all fragment names
             short_name_list = [member.short_name for member in group if member.short_name]
@@ -837,6 +836,7 @@ class GeneAnatomy:
         self.offline = offline
         if not self.offline:
             ensemblgene = get_ensembl_gene(query)
+            self.found = True
 
             self.ensembl_gene = ensemblgene
             self.hgnc_symbol = get_hgncsymbol(ensemblgene)
@@ -879,50 +879,36 @@ class GeneAnatomy:
             self.domains = []
 
         if self.offline:
-            self.ensembl_gene = 'Unknown'
-            self.strand = 'Unknown'
-            self.canonical = 'Unknown'
-            self.proteins = []
-            protein_anatomy = ProteinAnatomy(
-                    'Unknown',
-                    'Unknown',
-                    'Unknown',
-                    'Unknown',
-                    'Unknown'
-                )
-            self.proteins.append(protein_anatomy)
-            self.length = 'Unknown'
-
             # Try to find query as a UniProt AC.
             entry = ipr_matches_root.find("protein[@id='%s']" % query)
+            self.found = True
             if entry:
                 self.uniprot_ac = query
-                print("Query %s found as UniProt accession." % query)
+                print('Query "%s" found as UniProt accession.' % query)
                 try:
                     self.hgnc_symbol = unip_hgnc[self.uniprot_ac]
-                    print("Corresponding HGNC symbol %s." % self.hgnc_symbol)
+                    print('Corresponding HGNC symbol "%s".' % self.hgnc_symbol)
                 except:
                     self.hgnc_symbol = 'Unknown'
-                    print("Could not find corresponding HGNC symbol.")
+                    print('Could not find corresponding HGNC symbol.')
 
             else:
                 try:
                     self.uniprot_ac = hgnc_unip[query]
                     self.hgnc_symbol = query
-                    print("Query %s found as HGNC symbol." % query)
-                    print("Corresponding UniProt accession %s." % self.uniprot_ac)
+                    print('Query "%s" found as HGNC symbol.' % query)
+                    print('Corresponding UniProt accession "%s".' % self.uniprot_ac)
 
                 except:
-                    raise AnatomizerError(
-                        "Query %s could not be found as UniProt accession "
-                        "or HGNC symbol." % query
-                    )
+                    self.found = False
+                    print('Query "%s" not found as UniProt accession '
+                          'or HGNC symbol.' % query)
+            print('')
 
-
-
+        
         # 2. (optional) Get features
         fragments = []
-        if features:
+        if features and self.found:
             # feature_list = get_features(self.canonical)
             feature_list = get_ipr_features(self.uniprot_ac)
             # construct fragments from features found
@@ -948,7 +934,7 @@ class GeneAnatomy:
             return
 
         # 3. (optional) Merge features
-        if merge_features:
+        if merge_features and self.found:
             if not features:
                 raise AnatomizerError(
                     "Cannot merge features: parameter 'features' was set to False, "
@@ -964,7 +950,7 @@ class GeneAnatomy:
             return
 
         # 4. (optional) Nest features
-        if nest_features:
+        if nest_features and self.found:
             if not features:
                 raise AnatomizerError(
                     "Cannot nest features: parameter 'features' was set to False, "
@@ -982,16 +968,21 @@ class GeneAnatomy:
     def to_dict(self):
         anatomy = dict()
 
-        anatomy["ensembl_gene_id"] = self.ensembl_gene
-        anatomy["hgnc_symbol"] = self.hgnc_symbol
-        anatomy["strand"] = self.strand
+        if not self.offline:
+            anatomy["ensembl_gene_id"] = self.ensembl_gene
+            anatomy["hgnc_symbol"] = self.hgnc_symbol
+            anatomy["strand"] = self.strand
 
-        anatomy["proteins"] = []
-        for protein in self.proteins:
-            anatomy["proteins"].append(protein.to_dict())
+            anatomy["proteins"] = []
+            for protein in self.proteins:
+                anatomy["proteins"].append(protein.to_dict())
 
-        anatomy["length"] = self.length
-        anatomy["canonical"] = self.canonical
+            anatomy["length"] = self.length
+            anatomy["canonical"] = self.canonical
+
+        if self.offline and self.found:
+            anatomy["hgnc_symbol"] = self.hgnc_symbol
+            anatomy["proteins"] = self.uniprot_ac
 
         anatomy["domains"] = []
         for domain in self.domains:
@@ -1035,7 +1026,7 @@ class GeneAnatomy:
             for domain in sorted_domains:
                 domain.print_summary(fragments)
                 print()
-        if self.offline:
+        if self.offline and self.found:
             print("SUMMARY OF AGENT ANATOMY")
             print("========================")
             print()

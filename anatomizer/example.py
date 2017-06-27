@@ -5,7 +5,7 @@ from new_anatomizer import GeneAnatomy
 
 #if __name__ == '__main__':
 
-ptnlist = ['Q9UJX6', 'P00533', 'Q6PH85']
+ptnlist = ['Q9UJX6', 'P00533', 'wrongid', 'Q6PH85']
 
 for ptn in ptnlist:
 
@@ -18,7 +18,8 @@ for ptn in ptnlist:
     )
     anatomy.anatomy_summary(fragments=True)
 
-#print("Saving json anatomy in 'anatomy_output.json'...")
-#    with open('anatomy_output.json', 'w') as f:
-#        f.write(anatomy.to_json())
+    if anatomy.found:
+        print("Saving json anatomy in 'anatomy_%s.json'..." % ptn)
+        with open('anatomy_%s.json' % ptn, 'w') as f:
+            f.write(anatomy.to_json())
 
