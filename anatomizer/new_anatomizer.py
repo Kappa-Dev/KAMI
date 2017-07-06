@@ -4,41 +4,21 @@ Set of utils for agent anatomy.
 Provide the structural features of a protein based on information from
 biological knowledge databases.
 """
-import copy
-import json
+import sys
 import os
 import re
+import copy
+import json
 import requests
 import warnings
 import gzip
-
+import time
+import urllib.request
 from xml.dom import minidom
+import lxml.html
+from lxml import etree
+#import xml.etree.ElementTree as etree
 
-import xml.etree.ElementTree as etree
-
-ENSEMBL_SERVER = 'http://rest.ensembl.org'
-INTERPROFILE = 'interpro.xml'
-
-IPR_MATCHES = 'resources/ipr_swiss_match-63.xml.gz'
-IPR_SIGNATURES = 'resources/ipr_shortnames-63.xml.gz'
-HGNC_SYMBOLS = 'resources/human_genelist.txt'
-
-# Read InterPro matched (IPR_MATCHES) and 
-# InterPro signatures (IPR_SIGNATURES) and keep them in memory.
-print('Loading SwissProt-InterPro matches ....... ')
-ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
-ipr_matches_root = etree.fromstring(ipr_matches)
-print('Done')
-ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
-ipr_signatures_root = etree.fromstring(ipr_signatures)
-
-# Get the list of HGNC:UniProt pairs.
-hgnc_symbols = open(HGNC_SYMBOLS,'r').readlines()
-hgnc_unip, unip_hgnc = {}, {}
-for line in hgnc_symbols:
-    tokens = line.split()
-    hgnc_unip[tokens[0]] = tokens[1]
-    unip_hgnc[tokens[1]] = tokens[0]
 
 class AnatomizerError(Exception):
     """Base class for anatomizer exception."""
@@ -46,6 +26,207 @@ class AnatomizerError(Exception):
 
 class AnatomizerWarning(UserWarning):
     """Base class fro anatomizer warning."""
+
+
+# Functions to synchronize InterPro data with remote.
+# ---------------------------------------------------------------------------
+def interpro_update(local_dir, remote_dir, ipr_file):
+    """ Main function to synchronize InterPro data with remote. """
+    version = check_local_ver(local_dir)
+    check = chk_ipr_verfile()
+    if check:
+        rem_version = check_remote_ver(remote_dir)
+        update_ipr_verfile(version, rem_version)
+    else:
+        ipr_verfile = open('%s/%s' % (local_dir, ipr_file), 'w').readlines()
+        ipr_ver_line = ipr_verfile[0].split()
+        rem_version = int(ipr_ver_line[-1])
+    # Update if remote version is higher than the local one.
+    if rem_version > version:
+            fetch_ipr_new_ver(remote_dir, rem_version)
+            version = check_local_ver(local_dir)
+            # Check that download was successful.
+            if version != rem_version:
+                raise AnatomizerWarning('Local version still does not match '
+                                        'that from http://perso.ens-lyon.fr/'
+                                        'sebastien.legare/%s/' % remote_dir)
+
+
+def reporthook(blocknum, blocksize, totalsize):
+    """
+    Function to show download progression. 
+    Found on stackoverflow from J.F. Sebastian.
+    """
+    readsofar = blocknum * blocksize
+    if totalsize > 0:
+        percent = readsofar * 1e2 / totalsize
+        s = "\r%5.1f%% %*d / %d" % (
+            percent, len(str(totalsize)), readsofar, totalsize)
+        sys.stderr.write(s)
+        if readsofar >= totalsize: # near the end
+            sys.stderr.write("\n")
+    else: # total size is unknown
+        sys.stderr.write("read %d\n" % (readsofar,))
+
+
+def latest_version(file_list):
+    """ Find the latest version of a list of InterPro files. """
+    match_versions = []
+    for file_name in file_list:
+       # Find version as the first series of int characters.
+       start = 0
+       for i in range(len(file_name)):
+           try:
+               x = int(file_name[i])
+               start = i-1
+           except:
+               pass
+
+           if start > 0:
+               try:
+                   x = int(file_name[i])
+               except:
+                   end = i
+                   break
+
+       version = int(file_name[start:end])
+       match_versions.append(version)
+    if len(match_versions) > 0:
+        sorted_versions = sorted(match_versions)
+        latest_version = sorted_versions[-1]
+    else:
+        latest_version = 0
+
+    return latest_version
+
+
+def chk_ipr_verfile():
+    """ 
+    Check if it has been more than one day 
+    that remove ENS page has been checked.
+    """
+    check_needed = False
+    check_exist = os.path.exists('resources/ipr_version.txt')
+    if not check_exist:
+        check_needed = True
+    else:
+        # Get today's date.
+        today = time.strftime('%x')
+        today_tokens = today.split('/')
+        month = int(today_tokens[0])
+        day = int(today_tokens[1])
+        year = int(today_tokens[2])
+        # Get the date of last check.
+        date_infile = open('resources/ipr_version.txt', 'r').readlines()
+        date_line = date_infile[1].split()
+        date_tokens = date_line[4].split('/')
+        prev_month = int(date_tokens[0])
+        prev_day = int(date_tokens[1])
+        prev_year = int(date_tokens[2])
+        # Check if more than one day passed since last check.
+        if year >= prev_year and month >= prev_month and day > prev_day:
+            check_needed = True
+
+    return check_needed
+
+
+def update_ipr_verfile(loc_ver, rem_ver):
+    """ 
+    Update the InterPro version file if it was not 
+    updated since more than one day.
+    """
+    ipr_ver_file = open('resources/ipr_version.txt', 'w')
+    ipr_ver_file.write('InterPro local version: %i   Remote version: %i\n'
+                       % (loc_ver, rem_ver) )
+    ipr_ver_file.write('Last check (m/d/y h:m:s): %s %s\n'
+                       % (time.strftime('%x'), time.strftime('%X')) )
+
+
+def check_local_ver(local_dir):
+    """ Check local version of InterPro files. """
+    mapping_files = []
+    shortname_files = []
+    match_files = []
+    for loc_file in os.listdir(local_dir):
+        if 'refs_mapping-' in loc_file and 'xml.gz' in loc_file:
+            mapping_files.append(field)
+        if 'ipr_shortnames-' in loc_file and 'xml.gz' in loc_file:
+            shortname_files.append(field)
+        if 'ipr_reviewed_human_match-' in loc_file and 'xml.gz' in loc_file:
+            match_files.append(field)
+    mapping_ver = latest_version(mapping_files)
+    shrtnam_ver = latest_version(shortname_files)
+    match_ver = latest_version(match_files)
+    # If the version of all 3 files does not match, return the one
+    # with the oldest version.
+    if mapping_ver != shrtnam_ver or mapping_ver != match_ver:
+        raise AnatomizerWarning('InterPro files versions do not match.\n'
+                                'Trying to resolve the issue using remote '
+                                'files.')
+        ver_list = [mapping_ver, shortname_ver, match_ver]
+        sorted_list = sorted(ver_list)
+        loc_ver = sorted_list[0]
+    else:
+        loc_ver = match_ver
+
+    return loc_ver
+
+
+def check_remote_ver(remote_dir):
+    """ 
+    Syncronize with latest version of InterPro custom files at 
+    http://perso.ens-lyon.fr/sebastien.legare/anatomizer_ipr_files/
+    """
+    address = 'http://perso.ens-lyon.fr/sebastien.legare/%s/' % remote_dir
+    try:
+        enspage = urllib.request.urlopen(address)
+        content = enspage.read()
+        tree = lxml.etree.HTML(content)
+        entries = tree.findall('.//a')
+        # Just look at the ipr_reviewed_human_match file, assuming that 
+        # the two other files of the same version are available on remote.
+        rem_match_files = []
+        for entry in entries:
+            field = entry.text
+            if 'ipr_reviewed_human_match-' in field and 'xml.gz' in field:
+                rem_match_files.append(field)
+        rem_match_ver = latest_version(rem_match_files)   
+        rem_ver = rem_match_ver
+    except:
+        raise AnatomizerWarning('Cannot access remote, giving '
+                                'up InterPro update for now.')
+        rem_ver = 0
+
+    return rem_ver
+
+
+def fetch_ipr_new_ver(remote_dir, version):
+    """ Download files from remote ENS personnal site. """
+    print('Updating InterPro data')
+    address = 'http://perso.ens-lyon.fr/sebastien.legare/%s/' % remote_dir
+    try:
+        print('Downloading file ipr_reviewed_human_match-%i.xml.gz' % version)
+        urllib.request.urlretrieve('%s/ipr_reviewed_human_match-%i.xml.gz'
+                                    % (address, version), 
+                                    'ipr_reviewed_human_match-%i.xml.gz'
+                                    % version, reporthook
+        )
+        print('Downloading file ipr_shortnames-%i.xml.gz' % version)
+        urllib.request.urlretrieve('%s/ipr_shortnames-%i.xml.gz'
+                                    % (address, version), 
+                                    'ipr_shortnames-%i.xml.gz'
+                                    % version, reporthook
+        )
+        print('Downloading file refs_mapping-%i.xml.gz' % version)
+        urllib.request.urlretrieve('%s/refs_mapping-%i.xml.gz'
+                                    % (address, version), 
+                                    'refs_mapping-%i.xml.gz'
+                                    % version, reporthook
+        )
+    except:
+       raise AnatomizerWarning('Cannot access remote, giving '
+                               'up InterPro update for now.')
+# ---------------------------------------------------------------------------
 
 
 def _fetch_ensembl(ext):
@@ -207,7 +388,7 @@ def _fetch_uniprotxml(uniprotac, workdir=None):
               % uniprotac)
     # Removing default namespace to simplify parsing.
     xmlnonamespace = re.sub(r'\sxmlns="[^"]+"', '', uniprot, count=1)
-    root = etree.fromstring(xmlnonamespace)
+    root = lxml.etree.fromstring(xmlnonamespace)
     return root
 
 
@@ -1039,4 +1220,32 @@ class GeneAnatomy:
             for domain in sorted_domains:
                 domain.print_summary(fragments)
                 print()
+
+
+# Check once a day that InterPro custom files are up to date.
+update = interpro_update('resources', 'anatomizer_ipr_files', 'ipr_version.txt')
+ipr_version = check_local_ver('resources')
+
+IPR_MATCHES = 'resources/ipr_reviewed_human_match-%i.xml.gz' % ipr_version
+IPR_SIGNATURES = 'resources/ipr_shortnames-%i.xml.gz' % ipr_version
+HGNC_SYMBOLS = 'resources/refs_mapping-%i.xml.gz' % ipr_version
+
+# Read InterPro matched (IPR_MATCHES) and 
+# InterPro signatures (IPR_SIGNATURES) and keep them in memory.
+print('Loading SwissProt-InterPro matches ....... ')
+ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
+ipr_matches_root = etree.fromstring(ipr_matches)
+print('Done')
+ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
+ipr_signatures_root = etree.fromstring(ipr_signatures)
+
+# Get the list of HGNC:UniProt pairs.
+hgnc_symbols = open(HGNC_SYMBOLS,'r').readlines()
+hgnc_unip, unip_hgnc = {}, {}
+for line in hgnc_symbols:
+    tokens = line.split()
+    hgnc_unip[tokens[0]] = tokens[1]
+    unip_hgnc[tokens[1]] = tokens[0]
+
+ENSEMBL_SERVER = 'http://rest.ensembl.org'
 
