@@ -509,11 +509,17 @@ def get_features(ensemblegene):
 
     return featurelist
 
-def get_ipr_features(uniprot_ac):
+def get_ipr_features(selected_ac, canon):
     """ Get features by UniProt Accession (Optionally specifying isoform). """
     ignorelist = ['PANTHER', 'SignalP', 'Seg', 'Tmhmm', 'PRINTS']
     featurelist = []
-    entry = ipr_matches_root.find("protein[@id='%s']" % uniprot_ac)
+    # If selected UniProt AC is the canonical, need to search with generic AC.
+    if selected_ac == canon:
+        dash = selected_ac.index('-')
+        search_ac = selected_ac[:dash]
+    else:
+        search_ac = selected_ac
+    entry = ipr_matches_root.find("protein[@id='%s']" % search_ac)
     matchlist = entry.findall('match')
     for feature in matchlist:
         if feature.get('dbname') not in ignorelist:
@@ -715,7 +721,8 @@ class Fragment:
 
         print(
             prefix,
-            "  Fragment %2i: %s" % (self.internal_id,fragname)
+            #"  Fragment %2i: %s" % (self.internal_id,fragname)
+            "     Fragment: %s" % (fragname)
         )
         print(
             prefix,
@@ -1067,13 +1074,40 @@ class GeneAnatomy:
             self.domains = []
 
         if self.offline:
-            self.found = True
-            # Check if entry is directly found as UniProt AC, possibly
-            # removing the isoform number.
+            self.found = False
+            # Find proper entry according to query,
+            # which can be a UniProt AC or HGNC symbol.
             entry = ipr_matches_root.find("protein[@id='%s']" % query)
-            # Try to find query as a UniProt AC.
+            # First case possible: query is directly found as UniProt AC.
+            # That means query is either the generic AC or a specific 
+            # secondary isoform.
             if entry is not None:
-                self.uniprot_ac = query
+                try: # If there is a dash, query is a secondary isoform.
+                    dash = query.index('-')
+                    self.uniprot_ac = query[:dash]
+                    self.selected_iso = query
+                except: # If no dash, query is the generic UniProt AC.
+                    self.uniprot_ac = query
+                    self.selected_iso = 'canonical'
+                self.found = True
+
+            # Second case possible: query is an UniProt AC but is 
+            # explicitely given as the canonical isoform (i.e. P00533-1).
+            if entry is None:
+                try:
+                    dash = query.index('-')
+                    self.uniprot_ac = query[:dash]
+                    mod_entry = ipr_matches_root.find("protein[@id='%s']" 
+                                                      % self.uniprot_ac)
+                    if mod_entry is not None:
+                        self.selected_iso = 'canonical'
+                        self.found = True
+                except:
+                    pass
+
+            # Cases with query as UniProt AC completed. If it was found,
+            # try to find corresponding HGNC symbol and ID.
+            if self.found:
                 print('Query "%s" found as UniProt accession.' % query)
                 try:
                     mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
@@ -1085,8 +1119,9 @@ class GeneAnatomy:
                     self.hgnc_symbol = 'Unknown'
                     self.hgnc_id = 'Unknown'
                     print('Could not find corresponding HGNC symbol.')
-            # Otherwise try to find query as HGNC Symbol
-            else:
+
+            # Third case possible: query is a HGNC symbol.
+            if entry is None and not self.found:
                 try:
                     mapping = hgnc_symbols_root.find("entry[@hgnc_symbol='%s']"
                                                      % query)
@@ -1095,11 +1130,14 @@ class GeneAnatomy:
                     self.hgnc_id = mapping.get("hgnc_id")
                     print('Query "%s" found as HGNC symbol.' % query)
                     print('Corresponding UniProt accession "%s".' % self.uniprot_ac)
-
+                    self.found = True
                 except:
-                    self.found = False
-                    print('Query "%s" not found as UniProt accession '
-                          'or HGNC symbol.' % query)
+                    pass
+
+            # If nothing was found from query.
+            if not self.found:
+                print('Query "%s" not found as UniProt accession '
+                      'or HGNC symbol.' % query)
             print('')
 
         # 1.1 Get synonyms and isoforms
@@ -1119,12 +1157,16 @@ class GeneAnatomy:
                 iso_dict["length"] = int(iso.find("length").text)
                 iso_dict["type"] = iso.find("type").text
                 self.isoforms.append(iso_dict)
+                if iso_dict["type"] == 'canonical':
+                    self.canonical = iso_dict["id"]
+                    if self.selected_iso == 'canonical':
+                        self.selected_iso = iso_dict["id"]
         
         # 2. (optional) Get features
         fragments = []
         if features and self.found:
             # feature_list = get_features(self.canonical)
-            feature_list = get_ipr_features(self.uniprot_ac)
+            feature_list = get_ipr_features(self.selected_iso, self.canonical)
             # construct fragments from features found
             fragnum = 0
             for feature in feature_list:
@@ -1253,10 +1295,18 @@ class GeneAnatomy:
             print("=== Isoforms (length) ==")
             print()
             for iso in self.isoforms:
-                print("     %s (%i)" % (iso["id"], iso["length"]) )
-            #print("selected -> P00533-1 (1068) <- canonical")
+                iso_id = iso["id"]
+                iso_prefix = '           '
+                iso_suffix = '            '
+                if iso_id == self.selected_iso:
+                    iso_prefix = 'selected ->'
+                if iso_id == self.canonical:
+                    iso_suffix = '<- canonical'
+                print("%s %s (%i) %s" 
+                      % (iso_prefix, iso_id, iso["length"], iso_suffix) )
             print()
             print("======= Features =======")
+            print()
             sorted_domains = sorted(self.domains, key=lambda x: x.start)
             for domain in sorted_domains:
                 domain.print_summary(fragments)
@@ -1273,10 +1323,10 @@ IPR_SIGNATURES = 'resources/ipr_shortnames-%i.xml.gz' % ipr_version
 HGNC_SYMBOLS = 'resources/refs_mapping-%i.xml.gz' % ipr_version
 
 # Read InterPro matched (IPR_MATCHES) and keep them in memory.
-print('Loading SwissProt-InterPro matches version %i ....... ' % ipr_version)
+#print('Loading SwissProt-InterPro matches version %i ....... ' % ipr_version)
 ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
 ipr_matches_root = etree.fromstring(ipr_matches)
-print('Done')
+#print('Done')
 # Read InterPro signatures (IPR_SIGNATURES).
 ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
 ipr_signatures_root = etree.fromstring(ipr_signatures)
