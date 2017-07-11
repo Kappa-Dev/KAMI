@@ -33,18 +33,19 @@ class AnatomizerWarning(UserWarning):
 def interpro_update(local_dir, remote_dir, ipr_file):
     """ Main function to synchronize InterPro data with remote. """
     version = check_local_ver(local_dir)
-    check = chk_ipr_verfile()
+    check = chk_ipr_verfile(local_dir)
     if check:
         rem_version = check_remote_ver(remote_dir)
-        update_ipr_verfile(version, rem_version)
+        update_ipr_verfile(local_dir, version, rem_version)
     else:
-        ipr_verfile = open('%s/%s' % (local_dir, ipr_file), 'w').readlines()
+        ipr_verfile = open('%s/%s' % (local_dir, ipr_file), 'r').readlines()
         ipr_ver_line = ipr_verfile[0].split()
         rem_version = int(ipr_ver_line[-1])
     # Update if remote version is higher than the local one.
     if rem_version > version:
             fetch_ipr_new_ver(remote_dir, rem_version)
             version = check_local_ver(local_dir)
+            update_ipr_verfile(local_dir, version, rem_version)
             # Check that download was successful.
             if version != rem_version:
                 raise AnatomizerWarning('Local version still does not match '
@@ -100,42 +101,47 @@ def latest_version(file_list):
     return latest_version
 
 
-def chk_ipr_verfile():
+def chk_ipr_verfile(local_dir):
     """ 
     Check if it has been more than one day 
     that remove ENS page has been checked.
     """
-    check_needed = False
-    check_exist = os.path.exists('resources/ipr_version.txt')
+    check_exist = os.path.exists('%s/ipr_version.txt' % local_dir)
     if not check_exist:
         check_needed = True
     else:
-        # Get today's date.
-        today = time.strftime('%x')
-        today_tokens = today.split('/')
-        month = int(today_tokens[0])
-        day = int(today_tokens[1])
-        year = int(today_tokens[2])
-        # Get the date of last check.
-        date_infile = open('resources/ipr_version.txt', 'r').readlines()
-        date_line = date_infile[1].split()
-        date_tokens = date_line[4].split('/')
-        prev_month = int(date_tokens[0])
-        prev_day = int(date_tokens[1])
-        prev_year = int(date_tokens[2])
-        # Check if more than one day passed since last check.
-        if year >= prev_year and month >= prev_month and day > prev_day:
+        # Check if file contains information
+        date_infile = open('%s/ipr_version.txt' % local_dir, 'r').readlines()
+        if len(date_infile) == 0:
             check_needed = True
+        else:
+            # Get the date of last check.
+            date_line = date_infile[1].split()
+            date_tokens = date_line[4].split('/')
+            prev_month = int(date_tokens[0])
+            prev_day = int(date_tokens[1])
+            prev_year = int(date_tokens[2])
+            # Get today's date.
+            today = time.strftime('%x')
+            today_tokens = today.split('/')
+            month = int(today_tokens[0])
+            day = int(today_tokens[1])
+            year = int(today_tokens[2])
+            # Check if more than one day passed since last check.
+            if year == prev_year and month == prev_month and day == prev_day:
+                check_needed = False
+            else:
+                check_needed = True
 
     return check_needed
 
 
-def update_ipr_verfile(loc_ver, rem_ver):
+def update_ipr_verfile(local_dir, loc_ver, rem_ver):
     """ 
     Update the InterPro version file if it was not 
     updated since more than one day.
     """
-    ipr_ver_file = open('resources/ipr_version.txt', 'w')
+    ipr_ver_file = open('%s/ipr_version.txt' % local_dir, 'w')
     ipr_ver_file.write('InterPro local version: %i   Remote version: %i\n'
                        % (loc_ver, rem_ver) )
     ipr_ver_file.write('Last check (m/d/y h:m:s): %s %s\n'
@@ -149,11 +155,11 @@ def check_local_ver(local_dir):
     match_files = []
     for loc_file in os.listdir(local_dir):
         if 'refs_mapping-' in loc_file and 'xml.gz' in loc_file:
-            mapping_files.append(field)
+            mapping_files.append(loc_file)
         if 'ipr_shortnames-' in loc_file and 'xml.gz' in loc_file:
-            shortname_files.append(field)
+            shortname_files.append(loc_file)
         if 'ipr_reviewed_human_match-' in loc_file and 'xml.gz' in loc_file:
-            match_files.append(field)
+            match_files.append(loc_file)
     mapping_ver = latest_version(mapping_files)
     shrtnam_ver = latest_version(shortname_files)
     match_ver = latest_version(match_files)
@@ -208,19 +214,20 @@ def fetch_ipr_new_ver(remote_dir, version):
         print('Downloading file ipr_reviewed_human_match-%i.xml.gz' % version)
         urllib.request.urlretrieve('%s/ipr_reviewed_human_match-%i.xml.gz'
                                     % (address, version), 
+                                    'resources/'
                                     'ipr_reviewed_human_match-%i.xml.gz'
                                     % version, reporthook
         )
         print('Downloading file ipr_shortnames-%i.xml.gz' % version)
         urllib.request.urlretrieve('%s/ipr_shortnames-%i.xml.gz'
                                     % (address, version), 
-                                    'ipr_shortnames-%i.xml.gz'
+                                    'resources/ipr_shortnames-%i.xml.gz'
                                     % version, reporthook
         )
         print('Downloading file refs_mapping-%i.xml.gz' % version)
         urllib.request.urlretrieve('%s/refs_mapping-%i.xml.gz'
                                     % (address, version), 
-                                    'refs_mapping-%i.xml.gz'
+                                    'resources/refs_mapping-%i.xml.gz'
                                     % version, reporthook
         )
     except:
@@ -1060,23 +1067,32 @@ class GeneAnatomy:
             self.domains = []
 
         if self.offline:
-            # Try to find query as a UniProt AC.
-            entry = ipr_matches_root.find("protein[@id='%s']" % query)
             self.found = True
-            if entry:
+            # Check if entry is directly found as UniProt AC, possibly
+            # removing the isoform number.
+            entry = ipr_matches_root.find("protein[@id='%s']" % query)
+            # Try to find query as a UniProt AC.
+            if entry is not None:
                 self.uniprot_ac = query
                 print('Query "%s" found as UniProt accession.' % query)
                 try:
-                    self.hgnc_symbol = unip_hgnc[self.uniprot_ac]
+                    mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
+                                                     % self.uniprot_ac)
+                    self.hgnc_symbol = mapping.get("hgnc_symbol")
+                    self.hgnc_id = mapping.get("hgnc_id")
                     print('Corresponding HGNC symbol "%s".' % self.hgnc_symbol)
                 except:
                     self.hgnc_symbol = 'Unknown'
+                    self.hgnc_id = 'Unknown'
                     print('Could not find corresponding HGNC symbol.')
-
+            # Otherwise try to find query as HGNC Symbol
             else:
                 try:
-                    self.uniprot_ac = hgnc_unip[query]
-                    self.hgnc_symbol = query
+                    mapping = hgnc_symbols_root.find("entry[@hgnc_symbol='%s']"
+                                                     % query)
+                    self.uniprot_ac = mapping.get("uniprot_ac")
+                    self.hgnc_symbol = mapping.get("hgnc_symbol")
+                    self.hgnc_id = mapping.get("hgnc_id")
                     print('Query "%s" found as HGNC symbol.' % query)
                     print('Corresponding UniProt accession "%s".' % self.uniprot_ac)
 
@@ -1086,6 +1102,23 @@ class GeneAnatomy:
                           'or HGNC symbol.' % query)
             print('')
 
+        # 1.1 Get synonyms and isoforms
+        self.synonyms = []
+        self.isoforms = []
+        if self.found:
+            mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
+                                             % self.uniprot_ac)
+            syns = mapping.findall("synonym")
+            for syn in syns:
+                self.synonyms.append(syn.text)
+            # Will need to incorporate that in ProteinAnatomy.
+            isos = mapping.findall("isoform")
+            for iso in isos:
+                iso_dict = {}
+                iso_dict["id"] = iso.find("id").text
+                iso_dict["length"] = int(iso.find("length").text)
+                iso_dict["type"] = iso.find("type").text
+                self.isoforms.append(iso_dict)
         
         # 2. (optional) Get features
         fragments = []
@@ -1211,11 +1244,19 @@ class GeneAnatomy:
             print("SUMMARY OF AGENT ANATOMY")
             print("========================")
             print()
-            print("    HGNC Symbol: %s" % self.hgnc_symbol)
-            print(" UniProt Access: %s" % self.uniprot_ac)
+            print("       HGNC Symbol: %s" % self.hgnc_symbol)
+            print("           HGNC ID: %s" % self.hgnc_id)
+            print("     HGNC Synonyms: %s" % " ".join(self.synonyms))
+            print(" UniProt Accession: %s" % self.uniprot_ac)
+            print()
+            # Will need to incorporate that in protein.print_summary().
+            print("=== Isoforms (length) ==")
+            print()
+            for iso in self.isoforms:
+                print("     %s (%i)" % (iso["id"], iso["length"]) )
+            #print("selected -> P00533-1 (1068) <- canonical")
             print()
             print("======= Features =======")
-            print()
             sorted_domains = sorted(self.domains, key=lambda x: x.start)
             for domain in sorted_domains:
                 domain.print_summary(fragments)
@@ -1223,29 +1264,31 @@ class GeneAnatomy:
 
 
 # Check once a day that InterPro custom files are up to date.
-update = interpro_update('resources', 'anatomizer_ipr_files', 'ipr_version.txt')
+interpro_update('resources', 'anatomizer_ipr_files', 'ipr_version.txt')
+
 ipr_version = check_local_ver('resources')
 
 IPR_MATCHES = 'resources/ipr_reviewed_human_match-%i.xml.gz' % ipr_version
 IPR_SIGNATURES = 'resources/ipr_shortnames-%i.xml.gz' % ipr_version
 HGNC_SYMBOLS = 'resources/refs_mapping-%i.xml.gz' % ipr_version
 
-# Read InterPro matched (IPR_MATCHES) and 
-# InterPro signatures (IPR_SIGNATURES) and keep them in memory.
-print('Loading SwissProt-InterPro matches ....... ')
+# Read InterPro matched (IPR_MATCHES) and keep them in memory.
+print('Loading SwissProt-InterPro matches version %i ....... ' % ipr_version)
 ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
 ipr_matches_root = etree.fromstring(ipr_matches)
 print('Done')
+# Read InterPro signatures (IPR_SIGNATURES).
 ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
 ipr_signatures_root = etree.fromstring(ipr_signatures)
+# Read HGNC Symbols and isoforms (HGNC_SYMBOLS).
+hgnc_symbols = gzip.open(HGNC_SYMBOLS,'r').read()
+hgnc_symbols_root = etree.fromstring(hgnc_symbols)
 
-# Get the list of HGNC:UniProt pairs.
-hgnc_symbols = open(HGNC_SYMBOLS,'r').readlines()
-hgnc_unip, unip_hgnc = {}, {}
-for line in hgnc_symbols:
-    tokens = line.split()
-    hgnc_unip[tokens[0]] = tokens[1]
-    unip_hgnc[tokens[1]] = tokens[0]
+#hgnc_unip, unip_hgnc = {}, {}
+#for line in hgnc_symbols:
+#    tokens = line.split()
+#    hgnc_unip[tokens[0]] = tokens[1]
+#    unip_hgnc[tokens[1]] = tokens[0]
 
 ENSEMBL_SERVER = 'http://rest.ensembl.org'
 
