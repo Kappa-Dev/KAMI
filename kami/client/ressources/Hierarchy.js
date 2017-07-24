@@ -61,7 +61,7 @@ define([
 
                 },
                 {
-                    title: "create rule",
+                    title: "create identity rule from",
                     action: createRule
                 },
                 {
@@ -69,14 +69,14 @@ define([
                     action: mergeGraphs
                 },
                 {
-                    title: "formulae",
+                    title: "edit formulae",
                     action: editFormulae
                 },
                 {
-                    title: "check",
+                    title: "check formulae",
                     action: checkFormulae
                 },
-                {  title: "type selected",
+                {  title: "type selected graph by",
                    action: typeSelected}
             ];
             let rule_context_menu = [
@@ -86,7 +86,7 @@ define([
 
                 },
                 {
-                    title: "apply on parent",
+                    title: "apply rule on parent",
                     action: applyOnParent
                 }
             ];
@@ -107,7 +107,7 @@ define([
             ];
             let variant_context_menu = [
                 {
-                    title: "splice rule",
+                    title: "create splice rule",
                     action: createSplicesRule
                 }
             ];
@@ -387,9 +387,17 @@ define([
                     .each(function () {
                         splices.push(this.id);
                     })
+                if (splices.length == 0){
+                    alert("Select some splice variants before generating the rule");
+                    return false
+                }
+                let rule_name = prompt("New rule name", "");
+                if (!rule_name){
+                    return 0;
+                }
                 let path = current_metadata.path + "/";
                 path = (path == "//") ? "/" : path;
-                factory.makeSplices(path, JSON.stringify({ "names": splices }), callback)
+                factory.makeSplices(path, JSON.stringify({ "names": splices, rule_name }), callback)
             }
 
             function renameChild(_elm, id) {
@@ -475,35 +483,8 @@ define([
             }
 
 
-            // this.addGraph = function () {
-            // 	var name = prompt("Name of the new graph?", "");
-            // 	if (!name) { return 0 }
-            // 	var current_path = current_metadata.path + "/";
-            // 	if (current_path == "//") { current_path = "/" }
-            // 	factory.addGraph(current_path + name + "/",
-            // 		function (err, _ret) {
-            // 			if (!err) {
-            // 				dispatch.call("hieUpdate", this, null);
-            // 			}
-            // 			else console.error(err);
-            // 		});
-            // };
-
-            // this.addGraph = function () {
-            // 	var name = prompt("Name of the new graph?", "");
-            // 	if (!name) { return 0 }
-            // 	var current_path = current_metadata.path + "/";
-            // 	if (current_path == "//") { current_path = "/" }
-            // 	factory.addGraph(current_path + name + "/",
-            // 		function (err, _ret) {
-            // 			if (!err) {
-            // 				dispatch.call("hieUpdate", this, null);
-            // 			}
-            // 			else console.error(err);
-            // 		});
-            // };
-
-
+            // filter the graph list according to the filter textbox 
+            // and the filters added by middle clicking on a node
             function filterNuggets() {
                 var searchString = d3.select("#nugFilter").property("value");
                 var searchStrings = searchString.split("|");
@@ -540,6 +521,7 @@ define([
 
             this.filterNuggets = filterNuggets;
 
+            // create the identity rule from the graph
             function createRule(elm, d, _i) {
                 var name = prompt("Name of the new rule?", "");
                 var path = current_metadata.path + "/";
@@ -584,6 +566,7 @@ define([
 
             }
 
+            // apply the rule on parent graph
             function applyOnParent(_elm, d, _i) {
                 console.log(d);
                 let suffix = prompt("Name of the new rule?", "");
@@ -602,10 +585,8 @@ define([
                 dispatch.call("loadFormulaEditor", this, d.path);
             }
 
-            function editCompositions(_elm, d, _i) {
-                dispatch.call("loadCompositionsEditor", this, d.path);
-            }
-
+            // manages the filters for the list of graphs
+            // The filters are added by middle clicking on a node
             function updateCondList() {
                 var s = condList.selectAll("div")
                     .data(condData);
@@ -637,8 +618,11 @@ define([
                 updateCondList();
             }
 
+            // returns information about the current explorer
+            // (path, children, children types ...)
             this.metadata = function () { return current_metadata }
 
+            // Type the selected graph (nugget) by the graph d (action graph)
             function typeSelected(_elm, d, _i){
                 let selectedGraphs = [];
                 d3.selectAll(".tab_menu_el.selected")
@@ -655,7 +639,7 @@ define([
                     let toType = path + selectedGraphs[0]
                     console.log("d", d);
                     let typingGraph = path + d.name;
-                    dispatch.call("loadMerger", this, toType, typingGraph);
+                    dispatch.call("loadMerger", this, toType, typingGraph, {"type": true});
                 }
 
             }

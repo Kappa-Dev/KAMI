@@ -23,7 +23,7 @@ define([
                             <button type="button" class="close hide-if-modified" data-dismiss="modal">&times;</button>
                             <h4 class="modal-title">Kappa Generator</h4>
                         </div>
-                        <div class="modal-body row">
+                        <div id="exporterBody" class="modal-body row">
                             <div class="col col-sm-10">
                                 <div class="row" id="unselected_parts">
                                     <div class="col col-sm-6">

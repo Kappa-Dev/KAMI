@@ -130,12 +130,16 @@ def make_splices(path_to_graph=""):
                                                graph_id, name)
                           for name in splices_names]
 
-        # likely to change in the future
+        if "rule_name" not in request.json:
+            new_rule_name = "big_rule"
+        else:
+            new_rule_name = request.json["rule_name"]    
+
         if parent_id != id_of_kami():
             raise ValueError("the action graph must be typed by kami")
 
         kappa.compose_splices(kami_blueprint.hie(), graph_id, parent_id,
-                              splices_id)
+                              splices_id, new_rule_name)
         return ("rule_created", 200)
 
     return apply_on_node_with_parent(kami_blueprint.hie(), kami_blueprint.top,

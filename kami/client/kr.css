@@ -733,6 +733,17 @@ opacity: 0.1;
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    max-height: 70vh;
+    overflow: auto;
+}
+
+#selected_parts{
+    /*max-height: 30vh;
+    overflow: auto;*/
+}
+#exporterBody{
+    max-height: 80vh;
+    overflow: auto;
 }
 
 .kappaPart{

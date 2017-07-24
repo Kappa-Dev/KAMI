@@ -9,12 +9,15 @@ from base.base_blueprint import app
 from kami.server.kami.kami_blueprint import kami_blueprint
 from kami.server.mu_calculus.mu_blueprint import mu_blueprint
 from regraph.tree import (from_json_tree, to_json_tree, new_action_graph,
-                          add_types, merge_json_into_hierarchy)
+                          add_types, tmp_add_attributes, merge_json_into_hierarchy)
 from regraph.primitives import graph_to_json, add_edge
 from regraph.hierarchy import MuHierarchy
 from kami.server.kami.metamodels import untypedkami, untyped_base_kami, kami_basekami
 
 from flask_cors import CORS
+import cProfile
+import pstats
+
 
 
 class ServerHierarchy(MuHierarchy):
@@ -77,12 +80,20 @@ with open(EXAMPLE) as data_file:
     DATA = json.load(data_file)
     new_hie = SERVER._hie.__class__()
     new_hie.remove_graph("/")
+    pr = cProfile.Profile()
+    pr.enable()
     from_json_tree(new_hie, DATA, None)
     add_types(new_hie, "/")
+    tmp_add_attributes(new_hie, "/")
     SERVER._hie = new_hie
+    pr.disable()
+    pr.dump_stats('restats')
+    p = pstats.Stats('restats')
+    p.sort_stats('cumulative').print_stats(20)
+    # pr.print_stats(sort="time")
 
 
-# import and replace hierarchy
+# import and merge new hierarchy into current one
 @SERVER.route("/hierarchy/", methods=["PUT"])
 @SERVER.route("/hierarchy/<path:path_to_graph>", methods=["PUT"])
 def replace_hierachy(path_to_graph=""):

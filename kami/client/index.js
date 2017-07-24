@@ -260,7 +260,7 @@ define([
 
             }
 
-            function update_merger(abs_path1, abs_path2, noTranslate) {
+            function update_merger(abs_path1, abs_path2, noTranslate, mergerConfig) {
 
                 if (abs_path1.search("/kami_base/kami/") == 0) {
                     Q.all([factory.promGetGraph(abs_path1),
@@ -271,7 +271,8 @@ define([
                         .spread((graph1, graph2, typing1, typing2) => {
                             merger_pan.update(graph1, graph2, abs_path1, abs_path2,
                                 { noTranslate: noTranslate, ancestor_mapping: typing1 },
-                                { noTranslate: noTranslate, ancestor_mapping: typing2 });
+                                { noTranslate: noTranslate, ancestor_mapping: typing2 },
+                                mergerConfig);
                             tab_frame.append(merger_pan.svg_result)
                                 .attr("x", 0)
                                 .attr("y", 0);
@@ -285,7 +286,8 @@ define([
                         .spread((graph1, graph2) => {
                             merger_pan.update(graph1, graph2, abs_path1, abs_path2,
                                 { noTranslate: noTranslate },
-                                { noTranslate: noTranslate });
+                                { noTranslate: noTranslate },
+                                mergerConfig);
                             tab_frame.append(merger_pan.svg_result)
                                 .attr("x", 0)
                                 .attr("y", 0);
@@ -294,27 +296,6 @@ define([
                         })
                 }
             }
-            // function update_merger(abs_path1, abs_path2, noTranslate) {
-            // 	factory.getGraph(
-            // 		abs_path1,
-            // 		function (err, ret1) {
-            // 			if (!err) {
-            // 				factory.getGraph(
-            // 					abs_path2,
-            // 					function (err, ret2) {
-            // 						if (!err) {
-            // 							merger_pan.update(ret1, ret2, abs_path1, abs_path2, { noTranslate: noTranslate });
-            // 							tab_frame.append(merger_pan.svg_result)
-            // 								.attr("x", 0)
-            // 								.attr("y", 0);
-            // 							//d3.select("#top_chart").append(merger_pan.buttons);"
-            // 							d3.select("#top_chart").insert(merger_pan.buttons, ":first-child");
-            // 						}
-
-            // 					});
-            // 			}
-            // 		});
-            // }
 
             function clean() {
                 tab_frame.selectAll('svg')
@@ -348,11 +329,9 @@ define([
                 update_rule(abs_path, false);
             });
 
-            dispatch.on("loadMerger", function (abs_path1, abs_path2) {
-                console.log(abs_path1);
-                console.log(abs_path2);
+            dispatch.on("loadMerger", function (abs_path1, abs_path2, mergerConfig) {
                 clean();
-                update_merger(abs_path1, abs_path2, false);
+                update_merger(abs_path1, abs_path2, false, mergerConfig);
             });
 
             /* On graphFileLoaded : Load a graph into the server and update Gui

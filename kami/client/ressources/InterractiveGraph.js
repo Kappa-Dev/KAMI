@@ -697,14 +697,21 @@ define([
                 // })
                 .on("dblclick", clickText);
 
-            node_g
-                .filter(d => d.attrs && "val" in d.attrs)
+            node_g.filter(d => d.attrs && "val" in d.attrs)
                 .insert("text")
                 .classed("nodeLabel", true)
                 .attr("x", 0)
                 .attr("dy", "1.35em")
                 .attr("text-anchor", "middle")
-                .text(d => d.attrs["val"].length > 7 ? d.attrs["val"].substring(0, 5).concat("..") : d.attrs["val"])
+                .text(d => {
+                    const setString = setToString(d.attrs["val"]);
+                    if (setString.length > 7) {
+                        return setString.substring(0, 5).concat("..");
+                    }
+                    else {
+                        return setString;
+                    }
+                })
                 //.text(function(d){return d.id})
                 .attr("font-size", function () { return (radius / 2) + "px" })
             // .style("fill", function (d) {
@@ -1063,14 +1070,65 @@ define([
          * show all the node information in the bottom left tooltip
          * @input : d : the node datas
          */
+        function numSetToString(set) {
+            for (const setType of Object.keys(set)) {
+                if (setType === "pos_list") {
+                    return set[setType].join(",");
+                }
+                if (setType === "neg_list") {
+                    if (set[setType].length !== 0) {
+                        return "D* \\ {" + set[setType].join(",") + "}";
+                    }
+                    else {
+                        return "D*"
+                    }
+                }
+                if (setType === "string") {
+                    return set[setType];
+                }
+                return ""
+            }
+        }
+
+        function strSetToString(set) {
+            for (const setType of Object.keys(set)) {
+                if (setType === "pos_list") {
+                    return set[setType].join(",");
+                }
+                if (setType === "neg_list") {
+                    if (set[setType].length !== 0) {
+                        return "S* \\ {" + set[setType].join(",") + "}";
+                    }
+                    else {
+                        return "S*"
+                    }
+                }
+                return ""
+            }
+        }
+
+        function setToString(set){
+            console.log(set)
+            const strset = strSetToString(set["strSet"]);
+            console.log(strset)
+            const numset = numSetToString(set["numSet"])
+            if (strset === ""){return numset}
+            if (numset === ""){return strset}
+            const str = numset + " + " + strset;
+            return str === "D* + S*"? "*" : str ;
+        }
 
         function mouseOver(d) {
+            console.log("d", d)
             var div_ct = "<p><h3><b><center>" + d.id + "</center></b>";
             div_ct += "<h5><b><center>class: " + d.type + "</center></b></h5>";
             if (d.attrs) {
                 div_ct += "<ul>";
-                for (el in d.attrs) {
-                    div_ct += "<li><b><center>" + el + ":" + d.attrs[el].join(",") + "</center></b></li>";
+                for (let el of Object.keys(d.attrs)) {
+                    let setString = setToString(d.attrs[el])
+                    if (setString) {
+                        div_ct += "<li><b><center>" + el + ":" + setString + "</center></b></li>";
+                    }
                 }
                 div_ct += "</ul>";
             }
@@ -1333,13 +1391,13 @@ define([
                     alert(err.currentTarget.response);
                     return false;
                 }
-                if (!d.attrs) { d.attrs = {} };
-                if (!d.attrs["val"]) { d.attrs["val"] = [] };
-                index = d.attrs["val"].indexOf(val);
-                if (index === -1) { d.attrs["val"].push(val) };
+                // if (!d.attrs) { d.attrs = {} };
+                // if (!d.attrs["val"]) { d.attrs["val"] = [] };
+                // const index = d.attrs["val"].indexOf(val);
+                // if (index === -1) { d.attrs["val"].push(val) };
                 disp.call("graphUpdate", this, g_id, true);
             }
-            request.addNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
+            request.addNodeAtt(g_id, d.id, JSON.stringify({ "val": [val] }), callback);
         };
 
         function rmVal(elm, d, i) {
@@ -1352,11 +1410,11 @@ define([
                 }
                 if (!d.attrs) { return 0 };
                 if (!d.attrs["val"]) { return 0 };
-                index = d.attrs["val"].indexOf(val);
-                if (index != -1) { d.attrs["val"].splice(index, 1) };
+                // let index = d.attrs["val"].indexOf(val);
+                // if (index != -1) { d.attrs["val"].splice(index, 1) };
                 disp.call("graphUpdate", this, g_id, true);
             }
-            request.rmNodeAtt(g_id, d.id, JSON.stringify({ "val": val }), callback);
+            request.rmNodeAtt(g_id, d.id, JSON.stringify({ "val": [val] }), callback);
         };
 
         function nodeTypesEditor(_elm, d, _i) {
@@ -1369,8 +1427,8 @@ define([
                     alert(err.currentTarget.response);
                     return false;
                 }
-                jsonRep = JSON.parse(rep.response);
-                children = jsonRep["children"];
+                const jsonRep = JSON.parse(rep.response);
+                const children = jsonRep["children"];
                 disp.call("addNugetsToInput", this, children, d.id, keepOldConds);
             }
             request.getChildren(g_id, d.id, callback)
@@ -1602,7 +1660,7 @@ define([
             }
         }
         this.svgKeydownHandler = svgKeydownHandler;
-    
+
         function newNodeClickHandler() {
             let currentType = newNodeSelect.currentType();
             if (currentType) {
@@ -1615,10 +1673,10 @@ define([
             }
         }
 
-        this.endNewNode = function (){
+        this.endNewNode = function () {
             console.log("endNewNode")
             d3.select("body").on("keydown", svgKeydownHandler);
             svg.on("click", svgClickHandler);
         }
-    };
-});
+        };
+    });

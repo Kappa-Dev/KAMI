@@ -368,7 +368,7 @@ def subgraph_by_types(graph, types, typing):
     return (new_graph, inclusion_mono)
 
 
-def compose_splices(hie, ag_id, mm_id, splices_list):
+def compose_splices(hie, ag_id, mm_id, splices_list, new_rule_name):
     known_agents = []
     lhs = nx.DiGraph()
     ppp = nx.DiGraph()
@@ -452,8 +452,8 @@ def compose_splices(hie, ag_id, mm_id, splices_list):
     (final_ppp, _, _, finalppp_lhs) = pullback_pushout(lhs_loci, ppp, lhs,
                                                        lhsloci_lhs, p_lhs)
     rule = Rule(final_ppp, lhs, final_ppp, finalppp_lhs)
-    rule_id = hie.unique_graph_id("big_rule")
-    rule_name = tree.get_valid_name(hie, ag_id, "big_rule")
+    rule_id = hie.unique_graph_id(new_rule_name)
+    rule_name = tree.get_valid_name(hie, ag_id, new_rule_name)
     hie.add_rule(rule_id, rule, {"name": rule_name})
     hie.add_rule_typing(rule_id, ag_id, lhs_ag,
                         compose_homomorphisms(lhs_ag, finalppp_lhs))
@@ -1013,7 +1013,7 @@ def add_nugget_to_action_graph(hie, nug_id, ag_id, partial_typing, move=True):
 
     for node in nug_gr:
         if node not in partial_typing:
-            new_node = prim.add_node_new_id(ag_gr, node)
+            new_node = prim.add_node_new_id(ag_gr, node, copy.deepcopy(nug_gr.node[node]))
             partial_typing[node] = new_node
             for typing in necessary_typings:
                 mapping = hie.get_typing(nug_id, typing)

@@ -1,5 +1,6 @@
 """Collection of classes implementing kami-specific entities."""
 import collections
+from regraph.atset import to_atset
 
 
 class PhysicalEntity(object):
@@ -46,9 +47,9 @@ class Agent(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         agent_attrs = {
-            "uniprotid": {self.uniprotid},
-            "names": set(self.names),
-            "xrefs": set(self.xrefs.items())
+            "uniprotid": to_atset({self.uniprotid}),
+            "names": to_atset(self.names),
+            "xrefs": to_atset(set(self.xrefs.items()))
         }
         return agent_attrs
 
@@ -102,11 +103,11 @@ class Region(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         res = {
-            "start": self.start,
-            "end": self.end
+            "start": to_atset({self.start}),
+            "end": to_atset({self.end})
         }
         if self.name:
-            res["name"] = self.name
+            res["name"] = to_atset({self.name})
         return res
 
 
@@ -167,8 +168,8 @@ class Residue(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         return {
-            "aa": self.aa,
-            "loc": self.loc
+            "aa": to_atset(self.aa),
+            "loc": to_atset({self.loc})
         }
 
 
@@ -188,7 +189,7 @@ class State(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         return {
-            self.name: self.value
+            self.name: to_atset({self.value})
         }
 
 
@@ -205,9 +206,9 @@ class NuggetAnnotation(object):
         """Convert agent object to attrs."""
         attrs = dict()
         if self.epistemics:
-            attrs["epistemics"] = self.epistemics
+            attrs["epistemics"] = to_atset({self.epistemics})
         if self.source:
-            attrs["source"] = self.source
+            attrs["source"] = to_atset({self.source})
         if self.text:
-            attrs["text"] = self.text
+            attrs["text"] = to_atset({self.text})
         return attrs

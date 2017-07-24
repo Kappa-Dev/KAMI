@@ -9,6 +9,7 @@ define([
 
         return function GraphMerger(topSvgId, fatherElem, dispatch, server_url) {
             let relation = [];
+            let configMerger = {};
             let parentPath, leftGraphName, rightGraphName;
             
             var localDispatch = d3.dispatch(
@@ -137,6 +138,22 @@ define([
                                 }
                             })
                         }
+                        else {
+                            if (startOfLinkNode.parentNode.parentNode.id == "leftGraph") {
+                                // let i = relation.findIndex(v => v.source.id === d.id);
+                                // relation.splice(i, 1);
+                                relation = relation.filter(v => v.source.id !== d.id);
+                                drawRelation();
+
+                            }
+                            else if (startOfLinkNode.parentNode.parentNode.id == "rightGraph") {
+                                // let i = relation.findIndex(v => v.target.id === d.id);
+                                // relation.splice(i, 1);
+                                relation = relation.filter(v => v.target.id !== d.id);
+                                drawRelation();
+                            }
+
+                        }
                     }
                 }
             }
@@ -169,19 +186,25 @@ define([
                 moveMappingEdges();
             }
 
-            this.update = function update(g1, g2, path1, path2, config1, config2) {
+            // g1, g2 : graphs
+            // path1, path2 : paths of the graphs
+            // config1, config2 : configs for the interractiveGraph displays
+            // mergerConfig : config for the merger
+            //                Used to chose between merging the graphs or typing one by the other
+            this.update = function update(g1, g2, path1, path2, config1, config2, mergerConfig) {
                 relation = [];
-                const nodeOfId = function(id1){
-                    const i = g2.nodes.findIndex(n=>n.id===id1);
+                configMerger = mergerConfig;
+                const nodeOfId = function (id1) {
+                    const i = g2.nodes.findIndex(n => n.id === id1);
                     return g2.nodes[i];
                 }
-                relation = g1.nodes.filter(n1 => g2.nodes.some(n2=>n2.id === n1.id))
-                                   .map(n => ({source: n, target: nodeOfId(n.id)}));
+                relation = g1.nodes.filter(n1 => g2.nodes.some(n2 => n2.id === n1.id))
+                    .map(n => ({ source: n, target: nodeOfId(n.id) }));
 
 
                 parentPath = path1.substring(0, path1.lastIndexOf("/"));
-                leftGraphName = path1.substring(path1.lastIndexOf("/")+1);
-                rightGraphName = path2.substring(path1.lastIndexOf("/")+1);
+                leftGraphName = path1.substring(path1.lastIndexOf("/") + 1);
+                rightGraphName = path2.substring(path1.lastIndexOf("/") + 1);
 
                 localDispatch.on("move", null);
                 main_svg.selectAll("#leftGraph").remove();
@@ -196,12 +219,12 @@ define([
                     drawRelation();
                     localDispatch.on("move", moveMappingEdges);
                 }));
-                let graphConfigL = {noTranslate:config1.noTranslate, repDispatch:repDispatch}
-                let graphConfigR = {noTranslate:config2.noTranslate, repDispatch:repDispatch}
-                if (config1["ancestor_mapping"] !== undefined){
+                let graphConfigL = { noTranslate: config1.noTranslate, repDispatch: repDispatch }
+                let graphConfigR = { noTranslate: config2.noTranslate, repDispatch: repDispatch }
+                if (config1["ancestor_mapping"] !== undefined) {
                     graphConfigL["ancestor_mapping"] = config1["ancestor_mapping"]["typing"];
                 }
-                if (config2["ancestor_mapping"] !== undefined){
+                if (config2["ancestor_mapping"] !== undefined) {
                     graphConfigR["ancestor_mapping"] = config2["ancestor_mapping"]["typing"];
                 }
                 leftGraph.update(g1, path1, graphConfigL);
@@ -214,6 +237,7 @@ define([
                     .attr("y2", size.height);
             };
 
+            // call the callback function once both interactiveGraphs have finished loading
             function loadedEndedHandler(callback) {
                 var nbEnd = 0;
                 return function () {
@@ -244,20 +268,24 @@ define([
                 main_svg.selectAll(".ruleMapping").remove();
             }
 
-            function mergeGraphs(){
-                let name = prompt("New graph name: ","");
-                let rel = relation.map(r => ({"left": r.source.id,
-                                             "right": r.target.id}));
-                let callback = function(err, _ret){
-                    if (err){
+            function mergeGraphs() {
+                console.log("merge;")
+                let name = prompt("New graph name: ", "");
+                if (!name) { return 0; }
+                let rel = relation.map(r => ({
+                    "left": r.source.id,
+                    "right": r.target.id
+                }));
+                let callback = function (err, _ret) {
+                    if (err) {
                         console.log(err);
 
                     }
-                    else{
-                        dispatch.call("loadGraph", this, parentPath+"/"+name+"/" );
+                    else {
+                        dispatch.call("loadGraph", this, parentPath + "/" + name + "/");
                         dispatch.call("hieUpdate", this);
                     }
-                }                             
+                }
                 request.mergeGraphs(parentPath, name, leftGraphName, rightGraphName, rel, callback)
                 console.log(name);
 
@@ -283,23 +311,29 @@ define([
                 let buttonsDiv = document.createElementNS("http://www.w3.org/1999/xhtml", "div");
                 // buttonsDiv.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
                 let buttons = d3.select(buttonsDiv);
-                buttons.attr("id", "mergeButtons")
-                    .append("button")
-                    .text("Merge")
-                    .attr("type", "button")
-                    .classed("top_chart_elem", true)
-                    .classed("btn", true)
-                    .classed("btn-success", true)
-                    .classed("btn-block", true)
-                    .on("click", mergeGraphs);
-                buttons.append("button")
-                    .text("Retype")
-                    .attr("type", "button")
-                    .classed("top_chart_elem", true)
-                    .classed("btn", true)
-                    .classed("btn-success", true)
-                    .classed("btn-block", true)
-                    .on("click", typeGraph);
+                if (configMerger && configMerger["type"]) {
+                    console.log("type", configMerger);
+                    buttons.append("button")
+                        .text("Retype")
+                        .attr("type", "button")
+                        .classed("top_chart_elem", true)
+                        .classed("btn", true)
+                        .classed("btn-success", true)
+                        .classed("btn-block", true)
+                        .on("click", typeGraph);
+                }
+                else {
+                    console.log("merge", configMerger);
+                    buttons.attr("id", "mergeButtons")
+                        .append("button")
+                        .text("Merge")
+                        .attr("type", "button")
+                        .classed("top_chart_elem", true)
+                        .classed("btn", true)
+                        .classed("btn-success", true)
+                        .classed("btn-block", true)
+                        .on("click", mergeGraphs);
+                }
                 return buttons.node();
             }
             this.buttons = createButtons;

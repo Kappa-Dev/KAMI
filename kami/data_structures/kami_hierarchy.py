@@ -49,16 +49,14 @@ class KamiHierarchy(Hierarchy):
             "phosphorylation",
             "semantic_action_graph",
             semantic_nuggets.phosphorylation_semantic_AG,
-            total=True,
-            ignore_attrs=True
+            total=True
         )
 
         self.add_typing(
             "semantic_action_graph",
             "kami",
             semantic_AG.kami_typing,
-            total=True,
-            ignore_attrs=True
+            total=True
         )
         self.add_relation("action_graph", "semantic_action_graph", set())
         return
