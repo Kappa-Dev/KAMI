@@ -7,6 +7,7 @@ from base.webserver_utils import (apply_on_node_with_parent,
                                   get_node_id,
                                   apply_on_node)
 import kami.server.kami.kappa as kappa
+import kami.server.kami.anatomizer_tools as anatomizer_tools
 from kami.server.kami.algebra import concat_test, create_compositions
 import regraph.tree as tree
 import flex
@@ -322,6 +323,21 @@ def retype_graph(path_to_graph=""):
 
         return("graph moved successfully", 200)
     return apply_on_node(hie, kami_blueprint.top, path_to_graph, retype_graph_aux)
+
+
+@kami_blueprint.route("/anatomizer/", methods=["PUT"])
+@kami_blueprint.route("/anatomizer/<path:path_to_graph>", methods=["PUT"])
+def anatomizer(path_to_graph=""):
+    hie = kami_blueprint.hie()
+
+    def anatomizer_aux(graph_id, parent_id):
+        uniprot_id = request.args.get("uniProtId")
+        if not uniprot_id:
+            return ("argument uniProtId is required", 404)
+        anatomizer_tools.anatomizer_add_agent(hie, graph_id, parent_id, uniprot_id)    
+        return("agent added successfully", 200)
+
+    return apply_on_node_with_parent(hie, kami_blueprint.top, path_to_graph, anatomizer_aux)
 
 
 def id_of_kami():

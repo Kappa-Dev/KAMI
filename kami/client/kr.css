@@ -689,6 +689,16 @@ opacity: 0.1;
   background:#cccccc;
 }
 
+.anatomizer-icon {
+  display: block;
+  width: 2vw;
+  height: 2vh;
+  -webkit-mask-image: url(ico_new_graph.svg);
+  mask: url(ico_new_graph.svg);
+  -webkit-mask-size: 2vw  2vh;   
+  mask-size: 2vw  2vh;   
+  background:#cccccc;
+}
 .menubtn{
   width: 2vw;
   height: 2vh;

@@ -1314,13 +1314,16 @@ class GeneAnatomy:
 
 
 # Check once a day that InterPro custom files are up to date.
-interpro_update('resources', 'anatomizer_ipr_files', 'ipr_version.txt')
+RESSOURCES = os.path.join(os.path.dirname(__file__), 'resources')
+# interpro_update('resources', 'anatomizer_ipr_files', 'ipr_version.txt')
+interpro_update(RESSOURCES, 'anatomizer_ipr_files', 'ipr_version.txt')
 
-ipr_version = check_local_ver('resources')
+ipr_version = check_local_ver(RESSOURCES)
+# ipr_version = check_local_ver('resources')
 
-IPR_MATCHES = 'resources/ipr_reviewed_human_match-%i.xml.gz' % ipr_version
-IPR_SIGNATURES = 'resources/ipr_shortnames-%i.xml.gz' % ipr_version
-HGNC_SYMBOLS = 'resources/refs_mapping-%i.xml.gz' % ipr_version
+IPR_MATCHES = '%s/ipr_reviewed_human_match-%i.xml.gz' % (RESSOURCES, ipr_version)
+IPR_SIGNATURES = '%s/ipr_shortnames-%i.xml.gz' % (RESSOURCES, ipr_version)
+HGNC_SYMBOLS = '%s/refs_mapping-%i.xml.gz' % (RESSOURCES, ipr_version)
 
 # Read InterPro matched (IPR_MATCHES) and keep them in memory.
 #print('Loading SwissProt-InterPro matches version %i ....... ' % ipr_version)

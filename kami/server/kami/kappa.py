@@ -1027,3 +1027,5 @@ def add_nugget_to_action_graph(hie, nug_id, ag_id, partial_typing, move=True):
             hie.remove_edge(nug_id, typing)
         hie.add_typing(nug_id, ag_id, partial_typing, total=True)
         hie.node[nug_id].attrs["type"] = "nugget"
+
+

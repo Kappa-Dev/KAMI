@@ -512,7 +512,7 @@ define([
          * @input : path : the graph path
          * @input : callback : the next function to call : loadGraph
          */
-        function loadType(path, graph, config,callback) {
+        function loadType(path, graph, config, callback) {
             if (path != "/") {
                 path = path.split("/");
                 if (path.length <= 2) {
@@ -869,6 +869,9 @@ define([
                     svg_content.selectAll("g").classed("selected", false);
                     hideButtons();
                 }
+            }, {
+                title: "Anatomizer",
+                action: anatomizerHandler
             }];
             if (!readOnly) {
                 menu.push({
@@ -1107,15 +1110,13 @@ define([
             }
         }
 
-        function setToString(set){
-            console.log(set)
+        function setToString(set) {
             const strset = strSetToString(set["strSet"]);
-            console.log(strset)
             const numset = numSetToString(set["numSet"])
-            if (strset === ""){return numset}
-            if (numset === ""){return strset}
+            if (strset === "") { return numset }
+            if (numset === "") { return strset }
             const str = numset + " + " + strset;
-            return str === "D* + S*"? "*" : str ;
+            return str === "D* + S*" ? "*" : str;
         }
 
         function mouseOver(d) {
@@ -1678,5 +1679,21 @@ define([
             d3.select("body").on("keydown", svgKeydownHandler);
             svg.on("click", svgClickHandler);
         }
-        };
-    });
+
+        function anatomizerHandler() {
+            let uniProtId = prompt("enter UniProt id", "");
+            if (!uniProtId) { return false }
+
+            let callback = function (e, _r) {
+                if (e) { console.log(e) }
+                else {
+                    console.log("graphUpdate");
+                    disp.call("graphUpdate", this, g_id, true);
+                }
+            };
+            request.anatomizer(g_id, uniProtId, callback);
+
+        }
+
+    };
+});

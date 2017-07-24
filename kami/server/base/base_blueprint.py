@@ -751,26 +751,6 @@ def delete_graph_attr(path_to_graph=""):
                          delete_graph_attr_aux)
 
 
-# @app.route("/graph/unfold/", methods=["PUT"])
-# @app.route("/graph/unfold/<path:path_to_graph>", methods=["PUT"])
-# def unfold_nuggets(path_to_graph=""):
-#     def unfold_nuggets_aux(command):
-#         new_metamodel_name = request.args.get("new_metamodel_name")
-#         if not new_metamodel_name:
-#             return("the query parameter new_metamodel_name is necessary", 404)
-#         if not isinstance(request.json, list):
-#             return("the body must be a list of subgraphs", 412)
-#         if request.json == []:
-#             return("the body must not be the empty list", 412)
-#         nuggets = list(request.json)
-#         try:
-#             command.unfold_abstract_nuggets(new_metamodel_name, nuggets)
-#             return("unfolding done", 200)
-#         except (ValueError, KeyError) as e:
-#             return(str(e), 412)
-#     return get_command(app.cmd, path_to_graph, unfold_nuggets_aux)
-
-
 # returns the graphs containing nodes typed by the given nodes
 @app.route("/graph/get_children/", methods=["GET"])
 @app.route("/graph/get_children/<path:path_to_graph>", methods=["GET"])

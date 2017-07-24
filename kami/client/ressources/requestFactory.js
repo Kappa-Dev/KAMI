@@ -983,5 +983,16 @@ define(["ressources/d3/d3.js"], function (d3) {
         }
 
         this.promRemoveModel = callbackToPromise(removeModel);
+
+        this.anatomizer = function(graph_path, uniProtId, callback){
+            request("PUT",
+                "/anatomizer",
+                graph_path,
+                [{"id": "uniProtId", "val": uniProtId}],
+                "text/html",
+                callback,
+                null,
+                null);
+        };
     }
 });
