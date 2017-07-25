@@ -17,7 +17,16 @@ import urllib.request
 from xml.dom import minidom
 import lxml.html
 from lxml import etree
-#import xml.etree.ElementTree as etree
+
+
+# Paths and filenames.
+RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
+REMOTE_IPR_DIR = 'anatomizer_ipr_files'
+IPR_VERFILE = 'ipr_version.txt'
+# Database addresses.
+ENSEMBL_SERVER = 'http://rest.ensembl.org'
+# Global variable
+ipr_loaded = False
 
 
 class AnatomizerError(Exception):
@@ -30,7 +39,8 @@ class AnatomizerWarning(UserWarning):
 
 # Functions to synchronize InterPro data with remote.
 # ---------------------------------------------------------------------------
-def interpro_update(local_dir, remote_dir, ipr_file):
+def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
+                    ipr_file=IPR_VERFILE):
     """ Main function to synchronize InterPro data with remote. """
     version = check_local_ver(local_dir)
     check = chk_ipr_verfile(local_dir)
@@ -234,6 +244,38 @@ def fetch_ipr_new_ver(remote_dir, version):
        raise AnatomizerWarning('Cannot access remote, giving '
                                'up InterPro update for now.')
 # ---------------------------------------------------------------------------
+
+
+def interpro_load(local_dir=RESOURCES):
+    """ Loads InterPro and mapping files as global variables. """
+
+    global ipr_matches_root
+    global ipr_signatures_root
+    global hgnc_symbols_root
+    global ipr_loaded
+
+    ipr_version = check_local_ver(local_dir)
+
+    print('Loading InterPro Data version %i' % ipr_version)
+
+    IPR_MATCHES = '%s/ipr_reviewed_human_match-%i.xml.gz' % (local_dir,
+                                                             ipr_version)
+    IPR_SIGNATURES = '%s/ipr_shortnames-%i.xml.gz' % (local_dir,
+                                                      ipr_version)
+    HGNC_SYMBOLS = '%s/refs_mapping-%i.xml.gz' % (local_dir,
+                                                  ipr_version)
+
+    # Read InterPro matched (IPR_MATCHES) and keep them in memory.
+    ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
+    ipr_matches_root = etree.fromstring(ipr_matches)
+    # Read InterPro signatures (IPR_SIGNATURES).
+    ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
+    ipr_signatures_root = etree.fromstring(ipr_signatures)
+    # Read HGNC Symbols and isoforms (HGNC_SYMBOLS).
+    hgnc_symbols = gzip.open(HGNC_SYMBOLS,'r').read()
+    hgnc_symbols_root = etree.fromstring(hgnc_symbols)
+
+    ipr_loaded = True
 
 
 def _fetch_ensembl(ext):
@@ -1027,6 +1069,11 @@ class GeneAnatomy:
     def __init__(self, query, features=True, merge_features=True,
                  nest_features=True, merge_overlap=0.7, nest_overlap=0.7,
                  nest_level=1, offline=False):
+        # 0. Read InterPro data.
+        global ipr_loaded
+        if not ipr_loaded:
+            interpro_update()
+            interpro_load() # Sets ipr_loaded to True
         # 1. Get basic information about an agent
         self.offline = offline
         if not self.offline:
@@ -1312,37 +1359,4 @@ class GeneAnatomy:
             for domain in sorted_domains:
                 domain.print_summary(fragments)
                 print()
-
-
-# Check once a day that InterPro custom files are up to date.
-RESSOURCES = os.path.join(os.path.dirname(__file__), 'resources')
-# interpro_update('resources', 'anatomizer_ipr_files', 'ipr_version.txt')
-interpro_update(RESSOURCES, 'anatomizer_ipr_files', 'ipr_version.txt')
-
-ipr_version = check_local_ver(RESSOURCES)
-# ipr_version = check_local_ver('resources')
-
-IPR_MATCHES = '%s/ipr_reviewed_human_match-%i.xml.gz' % (RESSOURCES, ipr_version)
-IPR_SIGNATURES = '%s/ipr_shortnames-%i.xml.gz' % (RESSOURCES, ipr_version)
-HGNC_SYMBOLS = '%s/refs_mapping-%i.xml.gz' % (RESSOURCES, ipr_version)
-
-# Read InterPro matched (IPR_MATCHES) and keep them in memory.
-#print('Loading SwissProt-InterPro matches version %i ....... ' % ipr_version)
-ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
-ipr_matches_root = etree.fromstring(ipr_matches)
-#print('Done')
-# Read InterPro signatures (IPR_SIGNATURES).
-ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
-ipr_signatures_root = etree.fromstring(ipr_signatures)
-# Read HGNC Symbols and isoforms (HGNC_SYMBOLS).
-hgnc_symbols = gzip.open(HGNC_SYMBOLS,'r').read()
-hgnc_symbols_root = etree.fromstring(hgnc_symbols)
-
-#hgnc_unip, unip_hgnc = {}, {}
-#for line in hgnc_symbols:
-#    tokens = line.split()
-#    hgnc_unip[tokens[0]] = tokens[1]
-#    unip_hgnc[tokens[1]] = tokens[0]
-
-ENSEMBL_SERVER = 'http://rest.ensembl.org'
 

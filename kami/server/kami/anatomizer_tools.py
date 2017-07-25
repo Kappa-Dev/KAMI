@@ -1,8 +1,8 @@
-from anatomizer.new_anatomizer import GeneAnatomy
+import anatomizer.new_anatomizer as anatomizer
 import regraph.tree as tree
 
 def anatomizer_add_agent(hie, g_id, parent_id, uniprot_id):
-    anatomy = GeneAnatomy(
+    anatomy = anatomizer.GeneAnatomy(
         uniprot_id,
         merge_overlap=0.8,
         nest_overlap=0.8,
