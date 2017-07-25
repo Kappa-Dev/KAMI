@@ -1681,7 +1681,7 @@ define([
         }
 
         function anatomizerHandler() {
-            let uniProtId = prompt("enter UniProt id", "");
+            let uniProtId = prompt("enter UniProt accession or HGNC symbol", "");
             if (!uniProtId) { return false }
 
             let callback = function (e, _r) {

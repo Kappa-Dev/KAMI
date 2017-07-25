@@ -68,29 +68,29 @@ SERVER.register_blueprint(kami_blueprint)
 # include_kami_metamodel(SERVER)
 
 
-# load the exemples.json file to the hierarchy
-# EXAMPLE = os.path.join(os.path.dirname(__file__), 'example.json')
-# EXAMPLE = "/home/stan/Downloads/hierarchy (52).json"
-# EXAMPLE = "/home/stan/Downloads/hierarchy (37).json"
-# EXAMPLE = "/home/stan/Downloads/bigwnt.json"
-# EXAMPLE = "/home/stan/Downloads/mult-phos-test.json"
-# EXAMPLE = "/home/stan/BigWNT-sphos-n2.json"
-EXAMPLE = "/home/stan/Downloads/hierarchy (59).json"
-with open(EXAMPLE) as data_file:
-    DATA = json.load(data_file)
-    new_hie = SERVER._hie.__class__()
-    new_hie.remove_graph("/")
-    pr = cProfile.Profile()
-    pr.enable()
-    from_json_tree(new_hie, DATA, None)
-    add_types(new_hie, "/")
-    tmp_add_attributes(new_hie, "/")
-    SERVER._hie = new_hie
-    pr.disable()
-    pr.dump_stats('restats')
-    p = pstats.Stats('restats')
-    p.sort_stats('cumulative').print_stats(20)
-    # pr.print_stats(sort="time")
+## load the exemples.json file to the hierarchy
+## EXAMPLE = os.path.join(os.path.dirname(__file__), 'example.json')
+## EXAMPLE = "/home/stan/Downloads/hierarchy (52).json"
+## EXAMPLE = "/home/stan/Downloads/hierarchy (37).json"
+## EXAMPLE = "/home/stan/Downloads/bigwnt.json"
+## EXAMPLE = "/home/stan/Downloads/mult-phos-test.json"
+## EXAMPLE = "/home/stan/BigWNT-sphos-n2.json"
+#EXAMPLE = "/home/stan/Downloads/hierarchy (59).json"
+#with open(EXAMPLE) as data_file:
+#    DATA = json.load(data_file)
+#    new_hie = SERVER._hie.__class__()
+#    new_hie.remove_graph("/")
+#    pr = cProfile.Profile()
+#    pr.enable()
+#    from_json_tree(new_hie, DATA, None)
+#    add_types(new_hie, "/")
+#    tmp_add_attributes(new_hie, "/")
+#    SERVER._hie = new_hie
+#    pr.disable()
+#    pr.dump_stats('restats')
+#    p = pstats.Stats('restats')
+#    p.sort_stats('cumulative').print_stats(20)
+#    # pr.print_stats(sort="time")
 
 
 # import and merge new hierarchy into current one
