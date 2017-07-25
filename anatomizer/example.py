@@ -5,7 +5,7 @@ from new_anatomizer import GeneAnatomy
 
 #if __name__ == '__main__':
 
-ptnlist = ['Q9UJX6', 'P00533', 'wrongid', 'Q6PH85']
+ptnlist = ['Q9UJX6', 'EGFR', 'wrongid', 'Q6PH85']
 
 for ptn in ptnlist:
 

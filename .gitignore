@@ -25,4 +25,5 @@ anatomizer/resources/ipr_shortnames-*.xml.gz
 anatomizer/resources/refs_mapping-*.xml.gz
 anatomizer/resources/ipr_check.txt
 anatomizer/resources/ipr_version.txt
+anatomizer/anatomy_*.json
 restats

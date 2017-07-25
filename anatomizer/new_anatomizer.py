@@ -1128,6 +1128,7 @@ class GeneAnatomy:
                     self.uniprot_ac = mapping.get("uniprot_ac")
                     self.hgnc_symbol = mapping.get("hgnc_symbol")
                     self.hgnc_id = mapping.get("hgnc_id")
+                    self.selected_iso = 'canonical'
                     print('Query "%s" found as HGNC symbol.' % query)
                     print('Corresponding UniProt accession "%s".' % self.uniprot_ac)
                     self.found = True
