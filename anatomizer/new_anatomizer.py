@@ -938,9 +938,9 @@ class ProteinAnatomy:
 class GeneAnatomy:
     """Implements gene anatomy."""
 
-    def _merge_fragments(self, fragments, overlap_threshold=0.7, shortest=True):
+    def _merge_fragments(self, fragments, overlap_threshold=0.7, shortest=False):
         nfeatures = len(fragments)
-        ipr_overlap_threshold=0.1
+        ipr_overlap_threshold=0.0001
 
         visited = set()
         groups = []
@@ -950,7 +950,9 @@ class GeneAnatomy:
             if i not in visited:
                 group = [feature1]
                 visited.add(i)
-                for j in range(i + 1, nfeatures):
+                #for j in range(i + 1, nfeatures):
+                j = 0
+                while j < nfeatures:
                     if j not in visited:
                         feature2 = fragments[j]
                         for member in group:                                
@@ -959,7 +961,9 @@ class GeneAnatomy:
                             if condition == True and overlap >= ipr_overlap_threshold:
                                 group.append(feature2)
                                 visited.add(j)
+                                j = -1 # Restart from the beginning of fragments
                                 break
+                    j += 1
                 groups.append(group)
         domains = []
         # create domains from groups
@@ -987,9 +991,14 @@ class GeneAnatomy:
                 domain_end = group[lengths[min_length]].end
             # 2.b. create domain from the longest fragment
             else:
-                max_length = max(lengths.keys())
-                domain_start = group[lengths[max_length]].start
-                domain_end = group[lengths[max_length]].end
+                #max_length = max(lengths.keys())
+                #domain_start = group[lengths[max_length]].start
+                #domain_end = group[lengths[max_length]].end
+                # Take lowest start and highest end value.
+                starts = [member.start for i, member in enumerate(group)]
+                ends = [member.end for i, member in enumerate(group)]
+                domain_start = min(starts)
+                domain_end = max(ends)
             domain_length = domain_end - domain_start
 
             # 3. find domain names from concatenation of all fragment names
