@@ -1120,7 +1120,6 @@ define([
         }
 
         function mouseOver(d) {
-            console.log("d", d)
             var div_ct = "<p><h3><b><center>" + d.id + "</center></b>";
             div_ct += "<h5><b><center>class: " + d.type + "</center></b></h5>";
             if (d.attrs) {
@@ -1184,9 +1183,6 @@ define([
                     drawButtons();
                 }
             }
-            if (d3.event.button == 1) {
-                console.log("middle button");
-            }
         };
         /* handling double-click on a node text
          * open an input menu
@@ -1237,7 +1233,7 @@ define([
             if (locked) return;
             var xpos = d3.event.x;
             var ypos = d3.event.y;
-            if (!d3.event.sourceEvent.button) {
+            if (d3.event.sourceEvent.buttons == 1) {
                 if (simulation.alpha() < 0.09 && simulation.nodes().length > 0)
                     simulation.alpha(1).restart();
                 // var xpos = d3.event.x;
@@ -1259,7 +1255,7 @@ define([
                 saveX = xpos;
                 saveY = ypos;
             }
-            else if (d3.event.sourceEvent.button == 2 && !readOnly) {
+            else if (d3.event.sourceEvent.buttons == 2 && !readOnly) {
                 var mousepos = d3.mouse(svg_content.node());
                 svg_content.selectAll("#LinkLine")
                     .attr("x2", beginMouseX + (mousepos[0] - beginMouseX) * 0.99)
@@ -1276,6 +1272,7 @@ define([
                 var currentEvent = d3.event;
                 var xpos = d3.event.x;
                 var ypos = d3.event.y;
+                console.log(d3.event.sourceEvent.button);
                 if (!d3.event.sourceEvent.button) {
                     var id = d["id"];
                     var req = {};

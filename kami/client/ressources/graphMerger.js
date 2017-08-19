@@ -64,10 +64,10 @@ define([
 
             function dragHandler(subGraph) {
                 return function (d) {
-                    if (d3.event.sourceEvent.button == 0) {
+                    if (d3.event.sourceEvent.buttons == 1) {
                         subGraph.dragged.call(this, d);
                     }
-                    else if (d3.event.sourceEvent.button == 2) {
+                    else if (d3.event.sourceEvent.buttons == 2) {
                         var mousepos = d3.mouse(main_svg.node());
                         main_svg.selectAll("#MergeLinkLine")
                             .attr("x2", beginMouseX + (mousepos[0] - beginMouseX) * 0.99)
