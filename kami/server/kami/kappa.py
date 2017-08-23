@@ -32,7 +32,7 @@ class KappaModel(object):
 
     def __str__(self):
         return "{}\n\n{}\n\n{}\n\n{}".format(
-            '%def: "newSyntax" "true"',
+            '%def: "syntaxVersion" "4"',
             "\n".join(map(str, self.agent_decls)),
             "\n".join(map(str, self.rules)),
             "\n".join(map(str, self.variables)))
@@ -45,7 +45,9 @@ class AgentDecl(object):
         self.sites_decl = sites_decl
 
     def __str__(self):
-        return "%agent: {}({})".format(self.name, ",".join(map(str, self.sites_decl)))
+        return "%agent: {}({})".format(
+            self.name.replace(" ", "_"), 
+            ",".join([s.replace(" ", "_") for s in map(str, self.sites_decl)]))
 
 
 class SiteDecl(object):
@@ -86,7 +88,7 @@ class Agent(object):
         return "{}{}({})".format(
             self.prefix,
             self.name,
-            ",".join(map(str, self.sites)))
+            ",".join([s.replace(" ", "_") for s in map(str, self.sites)]))
 
 
 class BindingSite(object):
