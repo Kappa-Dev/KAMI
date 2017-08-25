@@ -73,15 +73,16 @@ define([
                     .property("value");
                 if (!name) { return 0 }
                 let type = children_types[formSelectedType];
+                let child_path = parent_path==="/"?"/" + name + "/":parent_path + "/" + name + "/";
                 if (type !== "rule") {
                     if (selected_nodes === null) {
-                        factory.promAddGraph(parent_path + "/" + name + "/")
-                            .then(factory.promAddAttr(parent_path + "/" + name + "/", JSON.stringify({ "type": type })))
+                        factory.promAddGraph(child_path)
+                            .then(factory.promAddAttr(child_path, JSON.stringify({ "type": type })))
                             .then(dispatch.call("hieUpdate", this, parent_path, type));
                     }
                     else {
                         factory.promNewGraphFromNodes(parent_path, name, selected_nodes)
-                            .then(factory.promAddAttr(parent_path + "/" + name + "/", JSON.stringify({ "type": type })))
+                            .then(factory.promAddAttr(child_path, JSON.stringify({ "type": type })))
                             .then(dispatch.call("hieUpdate", this, parent_path, type));
                     }
                 }

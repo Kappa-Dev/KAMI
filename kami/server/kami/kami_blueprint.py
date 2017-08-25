@@ -25,6 +25,7 @@ kami_blueprint = Blueprint("kami_blueprint", __name__)
 @kami_blueprint.route("/graph/get_kappa/<path:path_to_graph>",
                       methods=["POST"])
 def get_kappa(path_to_graph=""):
+    """ generates a kappa model from a set of nuggets"""
     def get_kappa_aux(graph_id, parent_id):
         hie = kami_blueprint.hie()
         if "names" not in request.json.keys():
@@ -67,6 +68,7 @@ def get_kappa(path_to_graph=""):
 @kami_blueprint.route("/graph/save_model/<path:path_to_graph>",
                       methods=["POST"])
 def save_model(path_to_graph=""):
+    """give a name to and remember a set of nuggets"""
     def save_model_aux(graph_id, parent_id):
         if parent_id != id_of_kami():
             raise ValueError("the action graph must be typed by kami")
@@ -103,6 +105,7 @@ def save_model(path_to_graph=""):
 @kami_blueprint.route("/graph/remove_model/<path:path_to_graph>",
                       methods=["PUT"])
 def remove_model(path_to_graph=""):
+    """remove a saved model (a set of chosen nuggets)"""
     def remove_model_aux(graph_id, parent_id):
         model_name = request.args.get("modelName")
         if not model_name:
@@ -122,6 +125,7 @@ def remove_model(path_to_graph=""):
 @kami_blueprint.route("/graph/splices/<path:path_to_graph>",
                       methods=["POST"])
 def make_splices(path_to_graph=""):
+    """create a rewritting rule from the selected splice variants """
     def make_splices_aux(graph_id, parent_id):
         if "names" not in request.json.keys():
             splices_id = []
@@ -147,30 +151,30 @@ def make_splices(path_to_graph=""):
                                      path_to_graph, make_splices_aux)
 
 
-@kami_blueprint.route("/graph/testconcat/", methods=["POST"])
-@kami_blueprint.route("/graph/testconcat/<path:path_to_graph>",
-                      methods=["POST"])
-def testconcat(path_to_graph=""):
-    def testconcat_aux(graph_id, parent_id):
-        if "names" not in request.json.keys():
-            splices_id = []
-        else:
-            hie = kami_blueprint.hie()
-            splices_names = request.json["names"]
-            splices_id = [tree.child_from_name(hie,
-                                               graph_id, name)
-                          for name in splices_names]
-            pat1 = [id for id in splices_id if id.startswith("1")]
-            pat2 = [id for id in splices_id if id.startswith("2")]
-            g1 = hie.node[pat1[0]].graph
-            g2 = hie.node[pat2[0]].graph
-            pats = concat_test(g1, g2)
-            for pat in pats:
-                hie.add_graph(pat.name, pat.graph, {"name": pat.name})
-                hie.add_typing(pat.name, "/", {})
-        return ("concat_created", 200)
-    return apply_on_node_with_parent(kami_blueprint.hie(), kami_blueprint.top,
-                                     path_to_graph, testconcat_aux)
+# @kami_blueprint.route("/graph/testconcat/", methods=["POST"])
+# @kami_blueprint.route("/graph/testconcat/<path:path_to_graph>",
+#                       methods=["POST"])
+# def testconcat(path_to_graph=""):
+#     def testconcat_aux(graph_id, parent_id):
+#         if "names" not in request.json.keys():
+#             splices_id = []
+#         else:
+#             hie = kami_blueprint.hie()
+#             splices_names = request.json["names"]
+#             splices_id = [tree.child_from_name(hie,
+#                                                graph_id, name)
+#                           for name in splices_names]
+#             pat1 = [id for id in splices_id if id.startswith("1")]
+#             pat2 = [id for id in splices_id if id.startswith("2")]
+#             g1 = hie.node[pat1[0]].graph
+#             g2 = hie.node[pat2[0]].graph
+#             pats = concat_test(g1, g2)
+#             for pat in pats:
+#                 hie.add_graph(pat.name, pat.graph, {"name": pat.name})
+#                 hie.add_typing(pat.name, "/", {})
+#         return ("concat_created", 200)
+#     return apply_on_node_with_parent(kami_blueprint.hie(), kami_blueprint.top,
+#                                      path_to_graph, testconcat_aux)
 
 
 @kami_blueprint.route("/getparts/", methods=["GET"])
@@ -180,6 +184,7 @@ def get_parts(path_to_graph=""):
     hie = kami_blueprint.hie()
 
     def get_parts_aux(graph_id):
+        """returns the nuggets and saved models for the get kappa window"""
         nuggets = [hie.node[child].attrs["name"]
                    for child in tree.graph_children(hie, graph_id)]
         graph_attrs = hie.node[graph_id].attrs
@@ -215,6 +220,7 @@ def get_types(path_to_graph=""):
     hie = kami_blueprint.hie()
 
     def get_types_aux(graph_id):
+        """get all the ancestors of a given node"""
         node_id = request.args.get("nodeId")
         ancestors = hie.get_ancestors(graph_id)
         json_data = {}
@@ -237,6 +243,7 @@ def get_types(path_to_graph=""):
 @kami_blueprint.route("/graph/link_components/<path:path_to_graph>",
                       methods=["PUT"])
 def link_components(path_to_graph=""):
+    """add a bnd and a brk between agents/regions"""
     def link_components_aux(graph_id):
         component1 = request.args.get("component1")
         component2 = request.args.get("component2")
@@ -256,6 +263,7 @@ def link_components(path_to_graph=""):
 @kami_blueprint.route("/graph/test_unfold/<path:path_to_graph>",
                       methods=["PUT"])
 def test_unfold(path_to_graph=""):
+    """ used to visualize the unfolding of nuggets for testing"""
     hie = kami_blueprint.hie()
 
     def test_unfold_aux(graph_id, parent_id):
@@ -273,6 +281,7 @@ def test_unfold(path_to_graph=""):
 @kami_blueprint.route("/unfold_locus/<path:path_to_graph>",
                       methods=["PUT"])
 def unfold_locus(path_to_graph=""):
+    """duplicates a locus that is shared between agents or regions"""
     hie = kami_blueprint.hie()
 
     def unfold_locus_aux(graph_id):
@@ -288,6 +297,7 @@ def unfold_locus(path_to_graph=""):
 @kami_blueprint.route("/remove_conflict/<path:path_to_graph>",
                       methods=["PUT"])
 def remove_conflict(path_to_graph=""):
+    """duplicate a locus in order to remove conflicts"""
     hie = kami_blueprint.hie()
 
     def remove_conflict_aux(graph_id):
@@ -302,6 +312,8 @@ def remove_conflict(path_to_graph=""):
 @kami_blueprint.route("/graph/retype/", methods=["POST"])
 @kami_blueprint.route("/graph/retype/<path:path_to_graph>", methods=["POST"])
 def retype_graph(path_to_graph=""):
+    """add a nugget as a child of the action graph, given a partial typing
+       add the untyped nodes to the action graph"""
     hie = kami_blueprint.hie()
 
     def retype_graph_aux(graph_id):

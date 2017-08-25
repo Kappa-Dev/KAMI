@@ -371,6 +371,10 @@ def subgraph_by_types(graph, types, typing):
 
 
 def compose_splices(hie, ag_id, mm_id, splices_list, new_rule_name):
+    """build a rewritting rule of the action graph,
+    from a list of chosen splice variants,
+    each one represented as a subgraph of the action graph """
+
     known_agents = []
     lhs = nx.DiGraph()
     ppp = nx.DiGraph()
@@ -461,7 +465,6 @@ def compose_splices(hie, ag_id, mm_id, splices_list, new_rule_name):
                         compose_homomorphisms(lhs_ag, finalppp_lhs))
 
 
-# must be an action graph
 def link_components(hie, g_id, comp1, comp2, kami_id):
     """ link two componenst together with brk, bnd"""
     typing = hie.edge[g_id][kami_id].mapping
@@ -620,23 +623,9 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
             return ("mod", str(nug_gr.node[node]["val"]))
         return node
 
-    # def reduce_subsets(set_list):
-    #     def equivalent_subsets(set1, set2):
-    #         set1 = {frozenset(map(replace, s)) for s in set1}
-    #         set2 = {frozenset(map(replace, s)) for s in set2}
-    #         return set1 == set2
-    #     new_list = []
-    #     for current_set in set_list:
-    #         if all(not equivalent_subsets(existing_set, current_set)
-    #                for existing_set in new_list):
-    #             new_list.append(current_set)
-    #     return new_list
-
     def reduce_subsets(set_list):
         return set_list
 
-    # def subset_up_to_equivalence(s1, s2):
-    #     return False
     def subset_up_to_equivalence(set1, set2):
         set1 = {frozenset(map(replace, s)) for s in set1}
         set2 = {frozenset(map(replace, s)) for s in set2}
@@ -660,12 +649,8 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
 
     def _valid_subsets(memo_dict, set_list):
         """build non conflicting sets of sets of nodes"""
-        # print(len(memo_dict))
-        # print(set_list)
         if set_list == []:
             return [[]]
-        # memo_key = frozenset([(port, replace(a_node))
-        #                       for (port, a_node) in set_list])
         memo_key = frozenset(set_list)
         if memo_key in memo_dict:
             return memo_dict[memo_key]
@@ -676,8 +661,6 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
         nonconflicting_sets =\
             [(port2, a_node2) for (port2, a_node2) in set_list[1:]
              if _nonconflicting(port, a_node, port2, a_node2)]
-        # new_set_list = [(p2, n2) for (p2, n2) in set_list[1:]
-        #                 if not _equivalent_edge(port, a_node, p2, n2)]
         equivalent_edges = [(p2, n2) for (p2, n2) in set_list
                             if p2 == port and _equivalent_actions(a_node, n2, set_list)]
 
@@ -688,25 +671,12 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
                  all(replace(n2) == replace(a_node) for (p2, n2) in set_list[1:] if p2 == port))
 
         if nonconflicting_sets == new_set_list or cond1:
-            # memo_dict[memo_key] =\
-            #     reduce_subsets([sub + [components[port] | {a_node}]
-            #                     for sub in _valid_subsets(memo_dict,
-            #                                               nonconflicting_sets)])
             memo_dict[memo_key] =\
                 [sub + [(port, a_node)]
                  for sub in _valid_subsets(memo_dict, nonconflicting_sets)]
             return memo_dict[memo_key]
         else:
-            # memo_dict[memo_key] =\
-            #     reduce_subsets(_valid_subsets(memo_dict, new_set_list) +
-            #                    [sub + [components[port] | {a_node}]
-            #                     for sub in _valid_subsets(memo_dict, nonconflicting_sets)])
-
             without_current_edge = _valid_subsets(memo_dict, new_set_list)
-
-            # def conflict_with_current_edge(edge_list):
-            #     return any(not _nonconflicting(port, a_node, p2, a_node2)
-            #                for (p2, a_node2) in edge_list)
 
             def conflict_with_removed_edges(edge_list):
                 return all(any(not _nonconflicting(p1, a_node1, p2, a_node2)
@@ -753,16 +723,8 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
     valid_ncss = {frozenset(map(frozenset,
                                 _remove_uncomplete_actions(_complete_subsets(set_list))))
                   for set_list in _valid_subsets(memo_dict, port_action_list)}
-    print("valid_ended")
-    print(len(valid_ncss))
-    # print(valid_ncss)
-    # remove the nuggets that are included in another one
-    # maximal_valid_ncss = {ncss for ncss in valid_ncss
-    #                       if all(ncss == other_ncss or
-    #                              #not ncss.issubset(other_ncss)
-    #                              not subset_up_to_equivalence(ncss, other_ncss)
-    #                              for other_ncss in valid_ncss)}
     maximal_valid_ncss = valid_ncss
+
     # add the nodes that where not considered at all
     # because they are not connected to a locus or state
     nodes_with_ports = set.union(
@@ -799,11 +761,11 @@ def unfold_nugget(hie, nug_id, ag_id, mm_id, test=False):
 
 
 def unfold_locus(hie, ag_id, mm_id, locus, suffix=None):
+    """duplicate a locus that is shared between agents"""
     ag_gr = hie.node[ag_id].graph
     ag_mm = hie.get_typing(ag_id, mm_id)
     nuggets = [nug for nug in tree.get_children_id_by_node(hie, ag_id, locus)
                if hie.node[nug].attrs["type"] == "nugget"]
-
     # Do not merge nodes that are Not valid
     # As they are removed from the botom graph before the pushout
     not_valid = [locus]+[node for node in ag_gr[locus]
@@ -904,6 +866,7 @@ def unfold_locus(hie, ag_id, mm_id, locus, suffix=None):
 
 
 def remove_conflict(hie, ag_id, mm_id, locus, suffix=None):
+    """duplicates a locus in order to remove conflicts"""
     ag_gr = hie.node[ag_id].graph
     ag_mm = hie.get_typing(ag_id, mm_id)
     nuggets = [nug for nug in tree.get_children_id_by_node(hie, ag_id, locus)
