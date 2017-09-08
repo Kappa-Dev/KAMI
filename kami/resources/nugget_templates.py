@@ -1,18 +1,24 @@
 """Collection of nugget templates."""
 import networkx as nx
 
+from regraph.primitives import (add_nodes_from,
+                                add_edges_from)
+
 
 mod_nugget = nx.DiGraph()
-mod_nugget.add_nodes_from([
-    "enzyme",
-    "enzyme_region",
-    "substrate",
-    "substrate_region",
-    "substrate_residue",
-    "mod_state",
-    "mod"
-])
-mod_nugget.add_edges_from([
+add_nodes_from(
+    mod_nugget,
+    [
+        "enzyme",
+        "enzyme_region",
+        "substrate",
+        "substrate_region",
+        "substrate_residue",
+        "mod_state",
+        "mod"
+    ]
+)
+add_edges_from(mod_nugget, [
     ("enzyme_region", "enzyme"),
     ("enzyme", "mod"),
     ("enzyme_region", "mod"),
@@ -36,13 +42,13 @@ mod_kami_typing = {
 }
 
 bnd_nugget = nx.DiGraph()
-bnd_nugget.add_nodes_from([
+add_nodes_from(bnd_nugget, [
     "partner",
     "partner_region",
     "partner_locus",
     "bnd"
 ])
-bnd_nugget.add_edges_from([
+add_edges_from(bnd_nugget, [
     ("partner_region", "partner"),
     ("partner_region", "partner_locus"),
     ("partner", "partner_locus"),

@@ -1,9 +1,12 @@
 """Semantic AG."""
 import networkx as nx
 
+from regraph.primitives import (add_nodes_from,
+                                add_edges_from)
+
 
 semantic_action_graph = nx.DiGraph()
-semantic_action_graph.add_nodes_from([
+add_nodes_from(semantic_action_graph, [
     "kinase",
     ("kinase_activity", {"activity": {True}}),
     ("phospho", {"value": {True}}),
@@ -11,7 +14,7 @@ semantic_action_graph.add_nodes_from([
     ("target_residue", {"aa": {"S", "T", "Y"}})
 ])
 
-semantic_action_graph.add_edges_from([
+add_edges_from(semantic_action_graph, [
     ("kinase_activity", "kinase"),
     ("kinase", "phospho"),
     ("phospho", "target_state"),

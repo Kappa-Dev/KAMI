@@ -1,9 +1,12 @@
 """Collection of metamodels used in Kami."""
 import networkx as nx
 
+from regraph.primitives import (add_nodes_from,
+                                add_edges_from)
 
 base_kami = nx.DiGraph()
-base_kami.add_nodes_from(
+add_nodes_from(
+    base_kami,
     [
         "component",
         "test",
@@ -12,7 +15,8 @@ base_kami.add_nodes_from(
     ]
 )
 
-base_kami.add_edges_from(
+add_edges_from(
+    base_kami,
     [
         ("component", "component"),
         ("state", "component"),
@@ -23,9 +27,10 @@ base_kami.add_edges_from(
     ]
 )
 
-kami = nx.DiGraph(base_kami)
+kami = nx.DiGraph()
 
-kami.add_nodes_from(
+add_nodes_from(
+    kami,
     [
         "agent",
         "region",
@@ -42,7 +47,8 @@ kami.add_nodes_from(
     ]
 )
 
-kami.add_edges_from(
+add_edges_from(
+    kami,
     [
         ("region", "agent"),
         ("residue", "agent"),
