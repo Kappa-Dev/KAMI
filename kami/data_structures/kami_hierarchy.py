@@ -205,7 +205,7 @@ class KamiHierarchy(Hierarchy):
         # found node in AG corresponding to reference agent
         agent_nodes = self.get_agents()
         for node in agent_nodes:
-            if self.action_graph.node[node]["uniprotid"] == {ref_agent}:
+            if ref_agent in self.action_graph.node[node]["uniprotid"]:
                 found = True
                 ref_agent_id = node
         if not found:
@@ -302,7 +302,7 @@ class KamiHierarchy(Hierarchy):
         """Find corresponding agent in action graph."""
         agents = self.get_agents()
         for node in agents:
-            if self.action_graph.node[node]["uniprotid"] == {agent.uniprotid}:
+            if agent.uniprotid in self.action_graph.node[node]["uniprotid"]:
                 return node
         return None
 
@@ -312,7 +312,7 @@ class KamiHierarchy(Hierarchy):
         agent_node = None
         agent_nodes = self.get_agents()
         for node in agent_nodes:
-            if self.action_graph.node[node]["uniprotid"] == {ref_agent}:
+            if ref_agent in self.action_graph.node[node]["uniprotid"]:
                 found = True
                 agent_node = node
         if not found:
@@ -340,7 +340,7 @@ class KamiHierarchy(Hierarchy):
         """
         residue_candidates = self.get_attached_residues(ref_agent)
         for res in residue_candidates:
-            if self.action_graph.node[res]["loc"] == {residue.loc} and\
+            if residue.loc in self.action_graph.node[res]["loc"] and\
                residue.aa <= self.action_graph.node[res]["aa"]:
                 return res
         return None
@@ -352,7 +352,7 @@ class KamiHierarchy(Hierarchy):
                self.action_graph_typing[pred] == "state":
                 names = set(self.action_graph.node[pred].keys())
                 values = list(self.action_graph.node[pred].values())[0]
-                if names == {state.name} and state.value in values:
+                if state.name in names and state.value in values:
                     return pred
         return None
 

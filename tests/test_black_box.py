@@ -1,7 +1,9 @@
 """."""
 import networkx as nx
 
-from regraph.primitives import print_graph
+from regraph.primitives import (print_graph,
+                                add_nodes_from,
+                                add_edges_from)
 
 from kami.resolvers.black_box import create_nuggets
 from kami.data_structures.interactions import (Modification,
@@ -114,7 +116,7 @@ class TestBlackBox:
         h = KamiHierarchy()
 
         n = nx.DiGraph()
-        n.add_nodes_from([
+        add_nodes_from(n, [
             ("Q9UN19", {"uniprotid": {"Q9UN19"}}),
             ("Q9UN19_Y139", {"aa": {"Y"}, "loc": {139}}),
             ("Q9UN19_Y139_phosphorylation", {"phosphorylation": {True}}),
@@ -124,7 +126,7 @@ class TestBlackBox:
             ("Q16539_activity", {"active": {True}}),
             ("P16333", {"uniprotid": {"P16333"}})
         ])
-        n.add_edges_from([
+        add_edges_from(n, [
             ("Q9UN19_Y139", "Q9UN19"),
             ("Q9UN19_Y139_phosphorylation", "Q9UN19_Y139"),
             ("Q9UN19_region_100_200", "Q9UN19"),
