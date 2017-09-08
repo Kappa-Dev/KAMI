@@ -142,6 +142,12 @@ class PhysicalRegionAgent(PhysicalEntity):
         self.physical_region = physical_region
         self.physical_agent = physical_agent
 
+    def __str__(self):
+        res = ""
+        res += str(self.physical_region) + " domain of " +\
+            str(self.physical_agent)
+        return res
+
 
 class Residue(object):
     """Class implementing kami residue."""

@@ -87,6 +87,16 @@ class BinaryBinding:
         self.annotation = annotation
         self.direct = direct
 
+    def __str__(self):
+        """String representation of Binding class."""
+        res = "Binding:\n"
+        res += "\tLeft members: %s\n" %\
+            ", ".join([str(m) for m in self.left])
+        res += "\tRight members: %s\n" %\
+            ", ".join([str(m) for m in self.right])
+        res += "\tDirect? %s\n" % self.direct
+        return res
+
 
 class Complex:
     """Class for Kami representation of complex."""
