@@ -1199,7 +1199,7 @@ class GeneAnatomy:
 
             # If nothing was found from query.
             if not self.found:
-                # print('Query "%s" not found as UniProt accession '
+                print('Query "%s" not found as UniProt accession '
                       'or HGNC symbol.' % query)
             # print('')
 
