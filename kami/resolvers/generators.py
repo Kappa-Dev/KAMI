@@ -7,7 +7,8 @@ import warnings
 from regraph.primitives import (add_node,
                                 add_edge,
                                 remove_edge,
-                                print_graph)
+                                print_graph,
+                                add_node_attrs)
 
 from kami.data_structures.entities import (Region, State, Residue,
                                            PhysicalRegion,
@@ -105,16 +106,19 @@ class Generator:
                 agent.uniprotid,
                 merge_features=True,
                 nest_features=False,
-                merge_overlap=0.05
+                merge_overlap=0.05,
+                offline=True
             )
             agent.names = {anatomy.hgnc_symbol}
             agent_id = self.hierarchy.add_agent(agent)
             for domain in anatomy.domains:
-                region = Region(domain.start, domain.end, ", ".join(domain.names))
+                region = Region(domain.start, domain.end, ", ".join(domain.short_names))
                 kinase = False
                 if domain.is_protein_kinase():
                     kinase = True
-                region_id = self.hierarchy.add_region(region, agent_id, kinase=kinase)
+                region_id = self.hierarchy.find_region(region, agent_id)
+                if not region_id:
+                    region_id = self.hierarchy.add_region(region, agent_id, kinase=kinase)
                 add_edge(self.hierarchy.action_graph, region_id, agent_id)
         else:
             agent_id = self.hierarchy.add_agent(agent)
@@ -136,9 +140,25 @@ class Generator:
         # try to identify an agent
         reference_id = self.hierarchy.find_agent(agent)
 
-        # if not found
-        if reference_id is None and add_agents is True:
-            reference_id = self._add_agent_to_ag(agent, anatomize)
+        if add_agents is True:
+            if reference_id is not None:
+                # add new names to AG agent
+                # if not set(agent.names).issubset(
+                #    self.hierarchy.action_graph.node[reference_id]["names"]):
+                #     add_node_attrs(
+                #         self.hierarchy.action_graph,
+                #         reference_id,
+                #         {"names": agent.names}
+                #     )
+                # add new xrefs to AG agent
+                add_node_attrs(
+                    self.hierarchy.action_graph,
+                    reference_id,
+                    agent.to_attrs()
+                )
+            # if not found
+            else:
+                reference_id = self._add_agent_to_ag(agent, anatomize)
 
         return reference_id
 
@@ -445,11 +465,11 @@ class Generator:
             )
 
             nugget_id = self.hierarchy.add_nugget(nugget.graph)
-            print("Nugget '%s' added..." % nugget_id)
-            print(
-                "# nodes in the action graph: %d" %
-                len(self.hierarchy.action_graph.nodes())
-            )
+            # print("Nugget '%s' added..." % nugget_id)
+            # print(
+            #     "# nodes in the action graph: %d" %
+            #     len(self.hierarchy.action_graph.nodes())
+            # )
             self.hierarchy.type_nugget_by_ag(nugget_id, nugget.ag_typing)
             # self.hierarchy.type_nugget_by_meta(nugget_id, nugget.meta_typing)
             self.hierarchy.add_mod_template_rel(nugget_id, nugget.template_rel)
@@ -678,6 +698,11 @@ class ModGenerator(Generator):
                 # protein kinase region already exists
                 if len(mods) == 1:
                     nugget.ag_typing["mod"] = mods[0]
+                    add_node_attrs(
+                        self.hierarchy.action_graph,
+                        mods[0],
+                        mod_attrs
+                    )
                     if (mods[0], nugget.ag_typing[mod_state_id]) not \
                        in self.hierarchy.action_graph.edges():
                         add_edge(
@@ -733,7 +758,6 @@ class ModGenerator(Generator):
                         nugget.ag_typing[mod_residue_id],
                         "target_residue"
                     )
-        print(nugget.semantic_rels)
         return nugget
 
 

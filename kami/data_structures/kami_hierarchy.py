@@ -242,7 +242,8 @@ class KamiHierarchy(Hierarchy):
         # try to find an existing residue with this
         for res in self.get_attached_residues(ref_agent):
             if list(self.action_graph.node[res]["loc"])[0] == residue.loc:
-                self.action_graph.node[res]["aa"].update(residue.aa)
+                self.action_graph.node[res]["aa"] =\
+                    self.action_graph.node[res]["aa"].union(residue.aa)
                 return res
 
         # if residue with this loc does not exist: create one

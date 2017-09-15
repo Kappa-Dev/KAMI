@@ -111,52 +111,52 @@ class TestBlackBox:
     def test_create_nuggets(self):
         create_nuggets(self.interactions, add_agents=True, anatomize=False)
 
-    def test_add_nugget_graph(self):
+    # def test_add_nugget_graph(self):
 
-        h = KamiHierarchy()
+    #     h = KamiHierarchy()
 
-        n = nx.DiGraph()
-        add_nodes_from(n, [
-            ("Q9UN19", {"uniprotid": {"Q9UN19"}}),
-            ("Q9UN19_Y139", {"aa": {"Y"}, "loc": {139}}),
-            ("Q9UN19_Y139_phosphorylation", {"phosphorylation": {True}}),
-            ("Q9UN19_region_100_200", {"start": {100}, "end": {200}}),
-            ("mod", {"value": {True}}),
-            ("Q16539", {"uniprotid": {"Q16539"}}),
-            ("Q16539_activity", {"active": {True}}),
-            ("P16333", {"uniprotid": {"P16333"}})
-        ])
-        add_edges_from(n, [
-            ("Q9UN19_Y139", "Q9UN19"),
-            ("Q9UN19_Y139_phosphorylation", "Q9UN19_Y139"),
-            ("Q9UN19_region_100_200", "Q9UN19"),
-            ("Q9UN19_region_100_200", "mod"),
-            ("mod", "Q16539_activity"),
-            ("Q16539_activity", "Q16539"),
-            ("Q9UN19_region_100_200", "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333"),
-            ("Q9UN19_region_100_200_is_bnd_P16333", "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333"),
-            ("Q9UN19_region_100_200_is_bnd_P16333", "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333"),
-            ("P16333", "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333")
-        ])
+    #     n = nx.DiGraph()
+    #     add_nodes_from(n, [
+    #         ("Q9UN19", {"uniprotid": {"Q9UN19"}}),
+    #         ("Q9UN19_Y139", {"aa": {"Y"}, "loc": {139}}),
+    #         ("Q9UN19_Y139_phosphorylation", {"phosphorylation": {True}}),
+    #         ("Q9UN19_region_100_200", {"start": {100}, "end": {200}}),
+    #         ("mod", {"value": {True}}),
+    #         ("Q16539", {"uniprotid": {"Q16539"}}),
+    #         ("Q16539_activity", {"active": {True}}),
+    #         ("P16333", {"uniprotid": {"P16333"}})
+    #     ])
+    #     add_edges_from(n, [
+    #         ("Q9UN19_Y139", "Q9UN19"),
+    #         ("Q9UN19_Y139_phosphorylation", "Q9UN19_Y139"),
+    #         ("Q9UN19_region_100_200", "Q9UN19"),
+    #         ("Q9UN19_region_100_200", "mod"),
+    #         ("mod", "Q16539_activity"),
+    #         ("Q16539_activity", "Q16539"),
+    #         ("Q9UN19_region_100_200", "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333"),
+    #         ("Q9UN19_region_100_200_is_bnd_P16333", "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333"),
+    #         ("Q9UN19_region_100_200_is_bnd_P16333", "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333"),
+    #         ("P16333", "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333")
+    #     ])
 
-        nugget = NuggetContrainer(
-            n,
-            meta_typing={
-                "Q9UN19": "agent",
-                "Q16539": "agent",
-                "Q9UN19_Y139": "residue",
-                "Q9UN19_Y139_phosphorylation": "state",
-                "mod": "mod",
-                "Q16539_activity": "state",
-                "Q9UN19_region_100_200": "region",
-                "P16333": "agent",
-                "Q9UN19_region_100_200_is_bnd_P16333": "is_bnd",
-                "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333": "locus",
-                "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333": "locus"
-            }
-        )
+    #     nugget = NuggetContrainer(
+    #         n,
+    #         meta_typing={
+    #             "Q9UN19": "agent",
+    #             "Q16539": "agent",
+    #             "Q9UN19_Y139": "residue",
+    #             "Q9UN19_Y139_phosphorylation": "state",
+    #             "mod": "mod",
+    #             "Q16539_activity": "state",
+    #             "Q9UN19_region_100_200": "region",
+    #             "P16333": "agent",
+    #             "Q9UN19_region_100_200_is_bnd_P16333": "is_bnd",
+    #             "P16333_locus_Q9UN19_region_100_200_is_bnd_P16333": "locus",
+    #             "Q9UN19_region_100_200_locus_Q9UN19_region_100_200_is_bnd_P16333": "locus"
+    #         }
+    #     )
 
-        h.add_nugget_magical(
-            nugget,
-            KamiIdentifier
-        )
+    #     h.add_nugget_magical(
+    #         nugget,
+    #         KamiIdentifier
+    #     )

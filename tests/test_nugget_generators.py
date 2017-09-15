@@ -43,9 +43,9 @@ class TestNuggetGenerators(object):
 
         mod_generator = ModGenerator(enzyme_entity, substrate_entity, mod_state, value)
 
-        print_graph(mod_generator.nugget)
-        print(mod_generator.meta_typing)
-        print(mod_generator.template_relation)
+        # print_graph(mod_generator.nugget)
+        # print(mod_generator.meta_typing)
+        # print(mod_generator.template_relation)
 
         self.generators.append(mod_generator)
 
@@ -99,9 +99,9 @@ class TestNuggetGenerators(object):
         gen = ModGenerator(enzyme, substrate, mod_target, True)
         assert(len(gen.nugget.nodes()) == len(gen.meta_typing.keys()))
 
-        print_graph(gen.nugget)
-        print(gen.meta_typing)
-        print(gen.template_relation)
+        # print_graph(gen.nugget)
+        # print(gen.meta_typing)
+        # print(gen.template_relation)
 
         self.generators.append(gen)
 
@@ -131,9 +131,9 @@ class TestNuggetGenerators(object):
         )
         assert(len(gen.nugget.nodes()) == len(gen.meta_typing.keys()))
 
-        print_graph(gen.nugget)
-        print(gen.meta_typing)
-        print(gen.template_relation)
+        # print_graph(gen.nugget)
+        # print(gen.meta_typing)
+        # print(gen.template_relation)
 
         self.generators.append(gen)
 
@@ -153,9 +153,9 @@ class TestNuggetGenerators(object):
         )
         assert(len(gen.nugget.nodes()) == len(gen.meta_typing.keys()))
 
-        print_graph(gen.nugget)
-        print(gen.meta_typing)
-        print(gen.template_relation)
+        # print_graph(gen.nugget)
+        # print(gen.meta_typing)
+        # print(gen.template_relation)
 
     def test_anonymous_mod_nugget(self):
         substrate_ph_agent = PhysicalAgent(
@@ -173,9 +173,9 @@ class TestNuggetGenerators(object):
         )
         assert(len(gen.nugget.nodes()) == len(gen.meta_typing.keys()))
 
-        print_graph(gen.nugget)
-        print(gen.meta_typing)
-        print(gen.template_relation)
+        # print_graph(gen.nugget)
+        # print(gen.meta_typing)
+        # print(gen.template_relation)
 
     def test_binary_bnd_nugget(self):
         left_members = [
@@ -198,8 +198,8 @@ class TestNuggetGenerators(object):
         ]
 
         gen = BinaryBndGenerator(left_members, right_members)
-        print_graph(gen.nugget)
-        print(gen.meta_typing)
+        # print_graph(gen.nugget)
+        # print(gen.meta_typing)
         # print(gen.template_relation)
 
     def test_complex_nugget(self):
@@ -213,8 +213,8 @@ class TestNuggetGenerators(object):
         ]
 
         gen = ComplexGenerator(members)
-        print_graph(gen.nugget)
-        print(gen.meta_typing)
+        # print_graph(gen.nugget)
+        # print(gen.meta_typing)
 
     def add_residue_to_agent(self):
         pass

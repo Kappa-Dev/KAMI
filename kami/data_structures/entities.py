@@ -1,6 +1,5 @@
 """Collection of classes implementing kami-specific entities."""
 import collections
-from regraph.atset import to_atset
 
 
 class PhysicalEntity(object):
@@ -47,9 +46,9 @@ class Agent(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         agent_attrs = {
-            "uniprotid": to_atset({self.uniprotid}),
-            "names": to_atset(self.names),
-            "xrefs": to_atset(set(self.xrefs.items()))
+            "uniprotid": {self.uniprotid},
+            "names": self.names,
+            "xrefs": set(self.xrefs.items())
         }
         return agent_attrs
 
@@ -57,7 +56,8 @@ class Agent(object):
 class PhysicalAgent(PhysicalEntity):
     """Class implementing kami physical agent."""
 
-    def __init__(self, agent, regions=None, residues=None, states=None, bounds=None):
+    def __init__(self, agent, regions=None,
+                 residues=None, states=None, bounds=None):
         """Initialize kami physical agent object."""
         self.agent = agent
         if regions:
@@ -103,11 +103,11 @@ class Region(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         res = {
-            "start": to_atset({self.start}),
-            "end": to_atset({self.end})
+            "start": {self.start},
+            "end": {self.end}
         }
         if self.name:
-            res["name"] = to_atset({self.name})
+            res["name"] = {self.name}
         return res
 
 
@@ -174,8 +174,8 @@ class Residue(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         return {
-            "aa": to_atset(self.aa),
-            "loc": to_atset({self.loc})
+            "aa": self.aa,
+            "loc": {self.loc}
         }
 
 
@@ -195,7 +195,7 @@ class State(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         return {
-            self.name: to_atset({self.value})
+            self.name: {self.value}
         }
 
 
@@ -212,9 +212,9 @@ class NuggetAnnotation(object):
         """Convert agent object to attrs."""
         attrs = dict()
         if self.epistemics:
-            attrs["epistemics"] = to_atset({self.epistemics})
+            attrs["epistemics"] = {self.epistemics}
         if self.source:
-            attrs["source"] = to_atset({self.source})
+            attrs["source"] = {self.source}
         if self.text:
-            attrs["text"] = to_atset({self.text})
+            attrs["text"] = {self.text}
         return attrs
