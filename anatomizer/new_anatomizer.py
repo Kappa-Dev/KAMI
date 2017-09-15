@@ -53,7 +53,7 @@ def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
         rem_version = int(ipr_ver_line[-1])
     # Update if remote version is higher than the local one.
     if rem_version > version:
-            fetch_ipr_new_ver(remote_dir, rem_version)
+            fetch_ipr_new_ver(remote_dir, rem_version, local_dir)
             version = check_local_ver(local_dir)
             update_ipr_verfile(local_dir, version, rem_version)
             # Check that download was successful.
@@ -65,7 +65,7 @@ def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
 
 def reporthook(blocknum, blocksize, totalsize):
     """
-    Function to show download progression. 
+    Function to show download progression.
     Found on stackoverflow from J.F. Sebastian.
     """
     readsofar = blocknum * blocksize
@@ -199,14 +199,14 @@ def check_remote_ver(remote_dir):
         content = enspage.read()
         tree = lxml.etree.HTML(content)
         entries = tree.findall('.//a')
-        # Just look at the ipr_reviewed_human_match file, assuming that 
+        # Just look at the ipr_reviewed_human_match file, assuming that
         # the two other files of the same version are available on remote.
         rem_match_files = []
         for entry in entries:
             field = entry.text
             if 'ipr_reviewed_human_match-' in field and 'xml.gz' in field:
                 rem_match_files.append(field)
-        rem_match_ver = latest_version(rem_match_files)   
+        rem_match_ver = latest_version(rem_match_files)
         rem_ver = rem_match_ver
     except:
         raise AnatomizerWarning('Cannot access remote, giving '
@@ -216,29 +216,30 @@ def check_remote_ver(remote_dir):
     return rem_ver
 
 
-def fetch_ipr_new_ver(remote_dir, version):
+def fetch_ipr_new_ver(remote_dir, version, local_dir=RESOURCES):
     """ Download files from remote ENS personnal site. """
     print('Updating InterPro data')
     address = 'http://perso.ens-lyon.fr/sebastien.legare/%s/' % remote_dir
     try:
         print('Downloading file ipr_reviewed_human_match-%i.xml.gz' % version)
-        urllib.request.urlretrieve('%s/ipr_reviewed_human_match-%i.xml.gz'
-                                    % (address, version), 
-                                    'resources/'
-                                    'ipr_reviewed_human_match-%i.xml.gz'
-                                    % version, reporthook
+        filename = '%s/ipr_reviewed_human_match-%i.xml.gz' %\
+            (local_dir, version)
+
+        urllib.request.urlretrieve(
+            '%s/ipr_reviewed_human_match-%i.xml.gz' % (address, version),
+            filename, reporthook
         )
         print('Downloading file ipr_shortnames-%i.xml.gz' % version)
         urllib.request.urlretrieve('%s/ipr_shortnames-%i.xml.gz'
-                                    % (address, version), 
-                                    'resources/ipr_shortnames-%i.xml.gz'
-                                    % version, reporthook
+                                    % (address, version),
+                                    '%s/ipr_shortnames-%i.xml.gz'
+                                    % (local_dir, version), reporthook
         )
         print('Downloading file refs_mapping-%i.xml.gz' % version)
         urllib.request.urlretrieve('%s/refs_mapping-%i.xml.gz'
-                                    % (address, version), 
-                                    'resources/refs_mapping-%i.xml.gz'
-                                    % version, reporthook
+                                    % (address, version),
+                                    '%s/refs_mapping-%i.xml.gz'
+                                    % (local_dir, version), reporthook
         )
     except:
        raise AnatomizerWarning('Cannot access remote, giving '
@@ -316,7 +317,7 @@ def get_ensembl_gene(query, species=None, workdir=None):
             query
         )
     else:
-        print(genes)
+        # print(genes)
         raise AnatomizerError(
             "Could not find unique Ensembl Gene ID for query '%s'" %
             query
@@ -823,7 +824,7 @@ class DomainAnatomy:
         key_words = ["protein kinase"]
         stop_words = ["phorbol ester"]
         for key_word in key_words:
-            for name in self.names:
+            for name in self.ipr_names:
                 if name and key_word in name.lower():
                     # check for stop words
                     for stop_word in stop_words:
@@ -831,13 +832,13 @@ class DomainAnatomy:
                             return False
                     # no stop words were found
                     return True
-            if self.description and key_word in self.description.lower():
-                # check for stop words
-                for stop_word in stop_words:
-                    if stop_word in name.lower():
-                        return False
-                # no stop words were found
-                return True
+            # if self.description and key_word in self.description.lower():
+            #     # check for stop words
+            #     for stop_word in stop_words:
+            #         if stop_word in name.lower():
+            #             return False
+            #     # no stop words were found
+            #     return True
         return False
 
     def to_dict(self):
@@ -1130,6 +1131,7 @@ class GeneAnatomy:
             self.domains = []
 
         if self.offline:
+            self.domains = []
             self.found = False
             # Find proper entry according to query,
             # which can be a UniProt AC or HGNC symbol.
@@ -1164,17 +1166,17 @@ class GeneAnatomy:
             # Cases with query as UniProt AC completed. If it was found,
             # try to find corresponding HGNC symbol and ID.
             if self.found:
-                print('Query "%s" found as UniProt accession.' % query)
+                # print('Query "%s" found as UniProt accession.' % query)
                 try:
                     mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
                                                      % self.uniprot_ac)
                     self.hgnc_symbol = mapping.get("hgnc_symbol")
                     self.hgnc_id = mapping.get("hgnc_id")
-                    print('Corresponding HGNC symbol "%s".' % self.hgnc_symbol)
+                    # print('Corresponding HGNC symbol "%s".' % self.hgnc_symbol)
                 except:
                     self.hgnc_symbol = 'Unknown'
                     self.hgnc_id = 'Unknown'
-                    print('Could not find corresponding HGNC symbol.')
+                    # print('Could not find corresponding HGNC symbol.')
 
             # Third case possible: query is a HGNC symbol.
             if entry is None and not self.found:
@@ -1185,17 +1187,21 @@ class GeneAnatomy:
                     self.hgnc_symbol = mapping.get("hgnc_symbol")
                     self.hgnc_id = mapping.get("hgnc_id")
                     self.selected_iso = 'canonical'
-                    print('Query "%s" found as HGNC symbol.' % query)
-                    print('Corresponding UniProt accession "%s".' % self.uniprot_ac)
+                    # print('Query "%s" found as HGNC symbol.' % query)
+                    # print('Corresponding UniProt accession "%s".' % self.uniprot_ac)
                     self.found = True
                 except:
-                    pass
+                    self.uniprot_ac = None
+                    self.hgnc_symbol = None
+                    self.hgnc_id = None
+                    self.selected_iso = None
+                    self.found = None
 
             # If nothing was found from query.
             if not self.found:
-                print('Query "%s" not found as UniProt accession '
+                # print('Query "%s" not found as UniProt accession '
                       'or HGNC symbol.' % query)
-            print('')
+            # print('')
 
         # 1.1 Get synonyms and isoforms
         self.synonyms = []
