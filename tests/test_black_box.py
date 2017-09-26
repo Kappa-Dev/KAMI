@@ -160,3 +160,49 @@ class TestBlackBox:
     #         nugget,
     #         KamiIdentifier
     #     )
+
+    def test_sh2_pY_semantics(self):
+
+        phos = State("phosphorylation", True)
+        dok1_gene = Agent("Q99704", names=["DOK1", "p62DOK1"])
+        # ptail = PhysicalRegion(Region(name="Phospho-tail"))
+        dok1_pY398 = PhysicalAgent(dok1_gene, residues=[Residue("Y", 398, phos)])
+
+        abl2 = PhysicalAgent(Agent("P42684", names=["ABL2"]))
+        sh2 = PhysicalRegion(Region(name="SH2"))
+
+        abl2_sh2 = PhysicalRegionAgent(sh2, abl2)
+        # dok1_pY398_ptail = PhysicalRegionAgent(ptail, dok1_pY398)
+
+        bnd527 = BinaryBinding([dok1_pY398], [abl2_sh2])
+        print(bnd527)
+        # bnd = BinaryBinding(
+        #     [PhysicalRegionAgent(
+        #         PhysicalRegion(
+        #             Region(
+        #                 100, 200, "SH2"
+        #             )
+        #         ),
+        #         PhysicalAgent(
+        #             Agent(
+        #                 "P00533"
+        #             )
+        #         )
+        #     )],
+        #     [
+        #         PhysicalAgent(
+        #             Agent(
+        #                 "Q00534"
+        #             )
+        #         ),
+        #         PhysicalAgent(
+        #             Agent(
+        #                 "R00533"
+        #             )
+        #         )
+        #     ],
+        #     direct=True
+        # )
+        # print(bnd)
+        hierarchy = create_nuggets([bnd527])
+        print(hierarchy)

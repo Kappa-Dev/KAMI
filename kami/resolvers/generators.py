@@ -167,6 +167,7 @@ class Generator:
         try:
             reference_id = self.hierarchy.find_region(region.region, agent)
         except Exception as e:
+            print(e)
             if add_agents is False:
                 return None
             else:
@@ -472,7 +473,7 @@ class Generator:
             # )
             self.hierarchy.type_nugget_by_ag(nugget_id, nugget.ag_typing)
             # self.hierarchy.type_nugget_by_meta(nugget_id, nugget.meta_typing)
-            self.hierarchy.add_mod_template_rel(nugget_id, nugget.template_rel)
+            self.hierarchy.add_template_rel(nugget_id, nugget.template_id, nugget.template_rel)
 
             # add semantic relations found for the nugget
             for semantic_nugget, rel in nugget.semantic_rels.items():
@@ -510,6 +511,7 @@ class ModGenerator(Generator):
                        merge_actions=True, apply_semantics=True):
         """Create mod nugget graph and find its typing."""
         nugget = NuggetContrainer()
+        nugget.template_id = "mod_template"
         # 1. Process enzyme
         if isinstance(mod.enzyme, PhysicalAgent):
             enzyme = self._generate_agent_group(
@@ -768,6 +770,7 @@ class AutoModGenerator(Generator):
                        merge_actions=True, apply_semantics=True):
         """Create mod nugget graph and find its typing."""
         nugget = NuggetContrainer()
+        nugget.template_id = "mod_template"
 
         if not isinstance(mod.enzyme, PhysicalAgent):
             raise NuggetGenerationError(
@@ -911,6 +914,7 @@ class TransModGenerator(ModGenerator):
             mod, add_agents=True, anatomize=True,
             merge_actions=True, apply_semantics=True
         )
+        nugget.template_id = "mod_template"
 
         # find enzyme and substrate node ids
         enzyme_id = None
@@ -934,6 +938,7 @@ class AnonymousModGenerator(Generator):
     def _create_nugget(self, mod, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
         nugget = NuggetContrainer()
+        nugget.template_id = "mod_template"
 
         if isinstance(mod.substrate, PhysicalAgent):
             substrate = self._generate_agent_group(
@@ -1025,6 +1030,8 @@ class BinaryBndGenerator(Generator):
                        merge_actions=True, apply_semantics=True):
 
         nugget = NuggetContrainer()
+        nugget.template_id = "bnd_template"
+
         left = []
         right = []
 
@@ -1045,7 +1052,7 @@ class BinaryBndGenerator(Generator):
                     "Unkown type of an agent: '%s'" % type(member)
                 )
             left.append(member_id)
-            nugget.template_rel.add((member_id, "left"))
+            nugget.template_rel.add((member_id, "partner"))
 
         for member in bnd.right:
             if isinstance(member, PhysicalAgent):
@@ -1063,7 +1070,7 @@ class BinaryBndGenerator(Generator):
                     "Unkown type of an agent: '%s'" % type(member)
                 )
             right.append(member_id)
-            nugget.template_rel.add((member_id, "right"))
+            nugget.template_rel.add((member_id, "partner"))
 
         # 2. create binding action
         left_ids = "_".join(left)
@@ -1087,7 +1094,7 @@ class BinaryBndGenerator(Generator):
         nugget.add_node(
             left_locus,
             meta_typing="locus",
-            template_rel=["left_locus"]
+            template_rel=["partner_locus"]
         )
         nugget.add_edge(left_locus, bnd_id)
 
@@ -1098,7 +1105,8 @@ class BinaryBndGenerator(Generator):
         )
         nugget.add_node(
             right_locus,
-            meta_typing="locus"
+            meta_typing="locus",
+            template_rel=["partner_locus"]
         )
         nugget.add_edge(right_locus, bnd_id)
 
@@ -1108,6 +1116,10 @@ class BinaryBndGenerator(Generator):
 
         for member in right:
             nugget.add_edge(member, right_locus)
+
+        # Attempt to autocomplete nugget using semantics
+        # 1) SH2 - pY binding
+        #
 
         return nugget
 

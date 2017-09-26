@@ -83,10 +83,12 @@ class Region(object):
 
     def to_attrs(self):
         """Convert agent object to attrs."""
-        res = {
-            "start": {self.start},
-            "end": {self.end}
-        }
+
+        res = dict()
+        if self.start is not None:
+            res["start"] = {self.start}
+        if self.end is not None:
+            res["end"] = {self.end}
         if self.name:
             res["name"] = {self.name}
         return res

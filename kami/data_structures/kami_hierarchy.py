@@ -322,13 +322,21 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
         else:
-            # currently assume there is no nesting of regions at the moment
+            # assume there is no nesting of regions for the moment
             region_candidates = self.get_regions_of_agent(agent_node)
             for reg in region_candidates:
                 start = list(self.action_graph.node[reg]["start"])[0]
                 end = list(self.action_graph.node[reg]["end"])[0]
-                if region.start >= start and region.end <= end:
-                    return reg
+                if region.start is not None and region.end is not None:
+                    if region.start >= start and region.end <= end:
+                        return reg
+                else:
+                    if region.name is not None:
+                        normalized_name = region.name.lower()
+                        ag_region_name =\
+                            list(self.action_graph.node[reg]["name"])[0].lower()
+                        if normalized_name in ag_region_name:
+                            return reg
         return None
 
     def find_residue(self, residue, ref_agent):
@@ -393,9 +401,9 @@ class KamiHierarchy(Hierarchy):
         self.add_typing(nugget_id, "kami", typing)
         return
 
-    def add_mod_template_rel(self, nugget_id, rel):
+    def add_template_rel(self, nugget_id, template_id, rel):
         """Relate nugget to mod template."""
-        self.add_relation(nugget_id, "mod_template", rel)
+        self.add_relation(nugget_id, template_id, rel)
         return
 
     def add_semantic_nugget_rel(self, nugget_id, semantic_nugget_id, rel):
