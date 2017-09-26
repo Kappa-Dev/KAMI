@@ -247,7 +247,9 @@ class PhysicalRegionAgent(PhysicalEntity):
 
 class Motif():
     """."""
-    def __init__(self, )
+
+    def __init__(self):
+        pass
 
 
 class NuggetAnnotation(object):
