@@ -76,7 +76,11 @@ class Region(object):
 
     def __str__(self):
         """String representation of the region."""
-        res = "region_%s_%s" % (self.start, self.end)
+        res = "region"
+        if self.start:
+            res += "_" + str(self.start)
+        if self.end:
+            res += "_" + str(self.end)
         if self.name:
             res += "_%s" % self.name
         return res

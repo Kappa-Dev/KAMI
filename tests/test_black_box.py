@@ -206,3 +206,5 @@ class TestBlackBox:
         # print(bnd)
         hierarchy = create_nuggets([bnd527])
         print(hierarchy)
+        print_graph(hierarchy.node["nugget_1"].graph)
+        print_graph(hierarchy.action_graph)
