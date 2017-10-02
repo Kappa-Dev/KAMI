@@ -60,7 +60,7 @@ add_nodes_from(
         }),
         "syn",
         "deg",
-        "bnd",
+        ("bnd", {"direct": {True, False}}),
         "brk",
         "is_bnd",
         "is_free",

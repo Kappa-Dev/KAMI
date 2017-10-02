@@ -109,7 +109,7 @@ class Generator:
                 merge_overlap=0.05,
                 offline=True
             )
-            agent.names = {anatomy.hgnc_symbol}
+            agent.hgnc_symbol = anatomy.hgnc_symbol
             agent_id = self.hierarchy.add_agent(agent)
             for domain in anatomy.domains:
                 region = Region(domain.start, domain.end, ", ".join(domain.short_names))
@@ -119,6 +119,18 @@ class Generator:
                 region_id = self.hierarchy.find_region(region, agent_id)
                 if not region_id:
                     region_id = self.hierarchy.add_region(region, agent_id, kinase=kinase)
+                    if kinase:
+                        state = State("activity", True)
+                        activity_id = self.hierarchy.add_state(
+                            state,
+                            region_id,
+                            semantics=["activity"]
+                        )
+                        add_edge(
+                            self.hierarchy.action_graph,
+                            activity_id,
+                            region_id
+                        )
                 add_edge(self.hierarchy.action_graph, region_id, agent_id)
         else:
             agent_id = self.hierarchy.add_agent(agent)
@@ -749,7 +761,7 @@ class ModGenerator(Generator):
 
                 self.hierarchy.add_ag_node_semantics(
                     nugget.ag_typing[mod_state_id],
-                    "target_state"
+                    "phosphorylation_state"
                 )
 
                 if mod_residue_id:
@@ -758,8 +770,11 @@ class ModGenerator(Generator):
                     )
                     self.hierarchy.add_ag_node_semantics(
                         nugget.ag_typing[mod_residue_id],
-                        "target_residue"
+                        "phospho_target_residue"
                     )
+
+        # 2. DEPHOSPHORYLATION
+
         return nugget
 
 
@@ -1117,9 +1132,9 @@ class BinaryBndGenerator(Generator):
         for member in right:
             nugget.add_edge(member, right_locus)
 
-        # Attempt to autocomplete nugget using semantics
-        # 1) SH2 - pY binding
-        #
+        # Attempt to autocomplete the nugget
+        # using semantics
+        # 1. SH2 - pY binding
 
         return nugget
 
