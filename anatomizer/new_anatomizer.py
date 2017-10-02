@@ -84,24 +84,24 @@ def latest_version(file_list):
     """ Find the latest version of a list of InterPro files. """
     match_versions = []
     for file_name in file_list:
-       # Find version as the first series of int characters.
-       start = 0
-       for i in range(len(file_name)):
-           try:
-               x = int(file_name[i])
-               start = i-1
-           except:
-               pass
+        # Find version as the first series of int characters.
+        start = 0
+        for i in range(len(file_name)):
+            try:
+                x = int(file_name[i])
+                start = i - 1
+            except:
+                pass
 
-           if start > 0:
-               try:
-                   x = int(file_name[i])
-               except:
-                   end = i
-                   break
+            if start > 0:
+                try:
+                    x = int(file_name[i])
+                except:
+                    end = i
+                    break
 
-       version = int(file_name[start:end])
-       match_versions.append(version)
+        version = int(file_name[start:end])
+        match_versions.append(version)
     if len(match_versions) > 0:
         sorted_versions = sorted(match_versions)
         latest_version = sorted_versions[-1]
@@ -112,8 +112,8 @@ def latest_version(file_list):
 
 
 def chk_ipr_verfile(local_dir):
-    """ 
-    Check if it has been more than one day 
+    """
+    Check if it has been more than one day
     that remove ENS page has been checked.
     """
     check_exist = os.path.exists('%s/ipr_version.txt' % local_dir)
@@ -148,14 +148,14 @@ def chk_ipr_verfile(local_dir):
 
 def update_ipr_verfile(local_dir, loc_ver, rem_ver):
     """ 
-    Update the InterPro version file if it was not 
+    Update the InterPro version file if it was not
     updated since more than one day.
     """
     ipr_ver_file = open('%s/ipr_version.txt' % local_dir, 'w')
     ipr_ver_file.write('InterPro local version: %i   Remote version: %i\n'
-                       % (loc_ver, rem_ver) )
+                       % (loc_ver, rem_ver))
     ipr_ver_file.write('Last check (m/d/y h:m:s): %s %s\n'
-                       % (time.strftime('%x'), time.strftime('%X')) )
+                       % (time.strftime('%x'), time.strftime('%X')))
 
 
 def check_local_ver(local_dir):
@@ -190,7 +190,7 @@ def check_local_ver(local_dir):
 
 def check_remote_ver(remote_dir):
     """ 
-    Syncronize with latest version of InterPro custom files at 
+    Syncronize with latest version of InterPro custom files at
     http://perso.ens-lyon.fr/sebastien.legare/anatomizer_ipr_files/
     """
     address = 'http://perso.ens-lyon.fr/sebastien.legare/%s/' % remote_dir
@@ -230,20 +230,22 @@ def fetch_ipr_new_ver(remote_dir, version, local_dir=RESOURCES):
             filename, reporthook
         )
         print('Downloading file ipr_shortnames-%i.xml.gz' % version)
-        urllib.request.urlretrieve('%s/ipr_shortnames-%i.xml.gz'
-                                    % (address, version),
-                                    '%s/ipr_shortnames-%i.xml.gz'
-                                    % (local_dir, version), reporthook
+        urllib.request.urlretrieve(
+            '%s/ipr_shortnames-%i.xml.gz' %
+            (address, version),
+            '%s/ipr_shortnames-%i.xml.gz' %
+            (local_dir, version), reporthook
         )
         print('Downloading file refs_mapping-%i.xml.gz' % version)
-        urllib.request.urlretrieve('%s/refs_mapping-%i.xml.gz'
-                                    % (address, version),
-                                    '%s/refs_mapping-%i.xml.gz'
-                                    % (local_dir, version), reporthook
+        urllib.request.urlretrieve(
+            '%s/refs_mapping-%i.xml.gz'
+            % (address, version),
+            '%s/refs_mapping-%i.xml.gz'
+            % (local_dir, version), reporthook
         )
     except:
-       raise AnatomizerWarning('Cannot access remote, giving '
-                               'up InterPro update for now.')
+        raise AnatomizerWarning('Cannot access remote, giving '
+                                'up InterPro update for now.')
 # ---------------------------------------------------------------------------
 
 
@@ -273,7 +275,7 @@ def interpro_load(local_dir=RESOURCES):
     ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
     ipr_signatures_root = etree.fromstring(ipr_signatures)
     # Read HGNC Symbols and isoforms (HGNC_SYMBOLS).
-    hgnc_symbols = gzip.open(HGNC_SYMBOLS,'r').read()
+    hgnc_symbols = gzip.open(HGNC_SYMBOLS, 'r').read()
     hgnc_symbols_root = etree.fromstring(hgnc_symbols)
 
     ipr_loaded = True
@@ -618,13 +620,13 @@ def find_shortname(ipr):
 
 
 def parent_chain(ipr, parent):
-    """ 
+    """
     Build the chain of parents (as a list) from given InterPro ID
     to top of hierarchy.
     """
     parchain = []
-    while parent != None:
-        if parent != 'None':
+    while parent is not None:
+        if parent is not 'None':
             parchain.append(parent)
         # Find the entry of that parent
         ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % parent)
@@ -638,7 +640,7 @@ def parent_chain(ipr, parent):
 
 
 def are_parents(frag1, frag2):
-    """ 
+    """
     Returns True if InterPro IDs of given fragments are identical or parents.
     Returns False otherwise.
     """
@@ -654,7 +656,7 @@ def are_parents(frag1, frag2):
         answer = True
     if ipr2 in par1:
         answer = True
-   
+
     return answer
 
 
@@ -764,13 +766,13 @@ class Fragment:
 
         print(
             prefix,
-            #"  Fragment %2i: %s" % (self.internal_id,fragname)
+            # "  Fragment %2i: %s" % (self.internal_id,fragname)
             "     Fragment: %s" % (fragname)
         )
         print(
             prefix,
             "    Start-End: %i-%i" % (self.start, self.end)
-        ) 
+        )
         print(
             prefix,
             "   References: %s: %s" % (self.xdatabase, self.xid)
@@ -841,8 +843,51 @@ class DomainAnatomy:
             #     return True
         return False
 
+    def get_semantics(self):
+        """Dummy function which returns domain semantics.
+
+        If name or description of domain mentions
+        one of the key words, assign the semantics.
+        """
+        semantics = []
+        # Test if protein kinase region
+        kinase = False
+        key_words = ["protein kinase"]
+        stop_words = ["phorbol ester"]
+        for key_word in key_words:
+            for name in self.ipr_names:
+                if name and key_word in name.lower():
+                    # check for stop words
+                    for stop_word in stop_words:
+                        if stop_word in name.lower():
+                            break
+                    # no stop words were found
+                    else:
+                        kinase = True
+        if kinase:
+            semantics.append("kinase")
+
+        # Test if SH2 region
+        sh2 = False
+        key_words = ["sh2"]
+        stop_words = []
+        for key_word in key_words:
+            for name in self.ipr_names:
+                if name and key_word in name.lower():
+                    # check for stop words
+                    for stop_word in stop_words:
+                        if stop_word in name.lower():
+                            break
+                    # no stop words were found
+                    else:
+                        sh2 = True
+        if sh2:
+            semantics.append("sh2")
+
+        return semantics
+
     def to_dict(self):
-        anatomy = dict()        
+        anatomy = dict()
         anatomy["short_names"] = self.short_names
         anatomy["ipr_names"] = self.ipr_names
         anatomy["ipr_ids"] = self.ipr_ids
@@ -941,7 +986,7 @@ class GeneAnatomy:
 
     def _merge_fragments(self, fragments, overlap_threshold=0.7, shortest=False):
         nfeatures = len(fragments)
-        ipr_overlap_threshold=0.0001
+        ipr_overlap_threshold = 0.0001
 
         visited = set()
         groups = []
@@ -956,13 +1001,13 @@ class GeneAnatomy:
                 while j < nfeatures:
                     if j not in visited:
                         feature2 = fragments[j]
-                        for member in group:                                
+                        for member in group:
                             overlap = _merge_overlap(member, feature2)
                             condition = are_parents(member, feature2)
-                            if condition == True and overlap >= ipr_overlap_threshold:
+                            if condition is True and overlap >= ipr_overlap_threshold:
                                 group.append(feature2)
                                 visited.add(j)
-                                j = -1 # Restart from the beginning of fragments
+                                j = -1  # Restart from the beginning of fragments
                                 break
                     j += 1
                 groups.append(group)
@@ -992,9 +1037,9 @@ class GeneAnatomy:
                 domain_end = group[lengths[min_length]].end
             # 2.b. create domain from the longest fragment
             else:
-                #max_length = max(lengths.keys())
-                #domain_start = group[lengths[max_length]].start
-                #domain_end = group[lengths[max_length]].end
+                # max_length = max(lengths.keys())
+                # domain_start = group[lengths[max_length]].start
+                # domain_end = group[lengths[max_length]].end
                 # Take lowest start and highest end value.
                 starts = [member.start for i, member in enumerate(group)]
                 ends = [member.end for i, member in enumerate(group)]
@@ -1055,7 +1100,9 @@ class GeneAnatomy:
                 return domains
             else:
                 # sort_domains by size
-                sorted_domains = sorted(domains, key=lambda x: x.length, reverse=True)
+                sorted_domains = sorted(
+                    domains, key=lambda x: x.length, reverse=True
+                )
 
                 nestsing_indices = _find_nests(
                     list(range(len(sorted_domains))), sorted_domains
@@ -1063,7 +1110,9 @@ class GeneAnatomy:
                 result_domains = []
                 for domain_index, indices in nestsing_indices.items():
                     next_level_domains = [sorted_domains[i] for i in indices]
-                    nested_domains = _nest(next_level_domains, current_level + 1)
+                    nested_domains = _nest(
+                        next_level_domains, current_level + 1
+                    )
                     for domain in nested_domains:
                         sorted_domains[domain_index].subdomains.append(
                             domain
@@ -1083,7 +1132,7 @@ class GeneAnatomy:
         global ipr_loaded
         if not ipr_loaded:
             interpro_update()
-            interpro_load() # Sets ipr_loaded to True
+            interpro_load()  # Sets ipr_loaded to True
         # 1. Get basic information about an agent
         self.offline = offline
         if not self.offline:
@@ -1137,7 +1186,7 @@ class GeneAnatomy:
             # which can be a UniProt AC or HGNC symbol.
             entry = ipr_matches_root.find("protein[@id='%s']" % query)
             # First case possible: query is directly found as UniProt AC.
-            # That means query is either the generic AC or a specific 
+            # That means query is either the generic AC or a specific
             # secondary isoform.
             if entry is not None:
                 try: # If there is a dash, query is a secondary isoform.
@@ -1149,13 +1198,13 @@ class GeneAnatomy:
                     self.selected_iso = 'canonical'
                 self.found = True
 
-            # Second case possible: query is an UniProt AC but is 
+            # Second case possible: query is an UniProt AC but is
             # explicitely given as the canonical isoform (i.e. P00533-1).
             if entry is None:
                 try:
                     dash = query.index('-')
                     self.uniprot_ac = query[:dash]
-                    mod_entry = ipr_matches_root.find("protein[@id='%s']" 
+                    mod_entry = ipr_matches_root.find("protein[@id='%s']"
                                                       % self.uniprot_ac)
                     if mod_entry is not None:
                         self.selected_iso = 'canonical'
@@ -1224,7 +1273,7 @@ class GeneAnatomy:
                     self.canonical = iso_dict["id"]
                     if self.selected_iso == 'canonical':
                         self.selected_iso = iso_dict["id"]
-        
+
         # 2. (optional) Get features
         fragments = []
         if features and self.found:
@@ -1280,7 +1329,9 @@ class GeneAnatomy:
                     "Cannot nest features: parameter 'merge_features' was set to False, "
                     "features should be merged to be nested.'"
                 )
-            self.domains = self._nest_domains(merge_overlap, max_level=nest_level)
+            self.domains = self._nest_domains(
+                merge_overlap, max_level=nest_level
+            )
 
         return
 
@@ -1334,7 +1385,9 @@ class GeneAnatomy:
             print()
             print("->  Other transcripts: ")
             print()
-            sorted_proteins = sorted(self.proteins, key=lambda x: x.transcr_name)
+            sorted_proteins = sorted(
+                self.proteins, key=lambda x: x.transcr_name
+            )
             for protein in sorted_proteins:
                 if protein.ensembl_prot != self.canonical:
                     protein.print_summary()
@@ -1365,8 +1418,8 @@ class GeneAnatomy:
                     iso_prefix = 'selected ->'
                 if iso_id == self.canonical:
                     iso_suffix = '<- canonical'
-                print("%s %s (%i) %s" 
-                      % (iso_prefix, iso_id, iso["length"], iso_suffix) )
+                print("%s %s (%i) %s"
+                      % (iso_prefix, iso_id, iso["length"], iso_suffix))
             print()
             print("======= Features =======")
             print()
@@ -1374,4 +1427,3 @@ class GeneAnatomy:
             for domain in sorted_domains:
                 domain.print_summary(fragments)
                 print()
-
