@@ -36,14 +36,18 @@ import collections
 class Agent(object):
     """Class implementing KAMI agent (gene)."""
 
-    def __init__(self, uniprotid, names=None,
-                 xrefs=None, location=None):
+    def __init__(self, uniprotid, hgnc_symbol=None,
+                 synonyms=None, xrefs=None, location=None):
         """Initialize kami agent object."""
         self.uniprotid = uniprotid
-        if names:
-            self.names = names
+        if hgnc_symbol:
+            self.hgnc_symbol = hgnc_symbol
         else:
-            self.names = []
+            self.hgnc_symbol = None
+        if synonyms:
+            self.synonyms = synonyms
+        else:
+            self.synonyms = []
         if xrefs:
             self.xrefs = xrefs
         else:
@@ -58,7 +62,8 @@ class Agent(object):
         """Convert agent object to attrs."""
         agent_attrs = {
             "uniprotid": {self.uniprotid},
-            "names": self.names,
+            "hgnc_symbol": {self.hgnc_symbol},
+            "synonyms": set(self.synonyms),
             "xrefs": set(self.xrefs.items())
         }
         return agent_attrs

@@ -271,7 +271,7 @@ class KamiHierarchy(Hierarchy):
 
         return residue_id
 
-    def add_state(self, state, ref_agent):
+    def add_state(self, state, ref_agent, semantics=None):
         """Add state node to the action graph."""
         if ref_agent not in self.action_graph.nodes():
             raise KamiHierarchyError(
@@ -297,6 +297,10 @@ class KamiHierarchy(Hierarchy):
         self.action_graph_typing[state_id] = "state"
         add_edge(self.action_graph, state_id, ref_agent)
 
+        # add relation to a semantic ag node
+        if semantics:
+            for s in semantics:
+                self.add_ag_node_semantics(state_id, s)
         return state_id
 
     def find_agent(self, agent):
