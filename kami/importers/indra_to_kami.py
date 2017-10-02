@@ -62,9 +62,9 @@ class IndraImporter(object):
 
         kami_agent = Agent(
             uniprotid,
-            names,
-            xrefs,
-            location
+            synonyms=names,
+            xrefs=xrefs,
+            location=location
         )
         return kami_agent
 
