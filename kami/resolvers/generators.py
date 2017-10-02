@@ -7,16 +7,13 @@ import warnings
 from regraph.primitives import (add_node,
                                 add_edge,
                                 remove_edge,
-                                print_graph,
                                 add_node_attrs)
 
 from kami.data_structures.entities import (Region, State, Residue,
-                                           PhysicalRegion,
                                            PhysicalAgent,
                                            PhysicalRegionAgent)
 from kami.exceptions import (KamiError,
                              NuggetGenerationError,
-                             KamiHierarchyError,
                              KamiWarning)
 # from kami.resolvers.identifiers import (identify_agent,
 #                                         identify_region,
@@ -30,7 +27,6 @@ from kami.utils.id_generators import (get_nugget_agent_id,
                                       get_nugget_state_id,
                                       get_nugget_is_bnd_id,
                                       get_nugget_locus_id,
-                                      get_nugget_is_free_id,
                                       get_nugget_bnd_id)
 from anatomizer.new_anatomizer import (GeneAnatomy, AnatomizerError)
 
@@ -112,14 +108,22 @@ class Generator:
             agent.hgnc_symbol = anatomy.hgnc_symbol
             agent_id = self.hierarchy.add_agent(agent)
             for domain in anatomy.domains:
-                region = Region(domain.start, domain.end, ", ".join(domain.short_names))
-                kinase = False
-                if domain.is_protein_kinase():
-                    kinase = True
+                region = Region(
+                    domain.start,
+                    domain.end,
+                    ", ".join(domain.short_names)
+                )
+
+                semantics = domain.get_semantics()
+
                 region_id = self.hierarchy.find_region(region, agent_id)
                 if not region_id:
-                    region_id = self.hierarchy.add_region(region, agent_id, kinase=kinase)
-                    if kinase:
+                    region_id = self.hierarchy.add_region(
+                        region,
+                        agent_id,
+                        semantics=semantics
+                    )
+                    if 'kinase' in semantics:
                         state = State("activity", True)
                         activity_id = self.hierarchy.add_state(
                             state,
@@ -521,6 +525,7 @@ class ModGenerator(Generator):
 
     def _create_nugget(self, mod, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
+
         """Create mod nugget graph and find its typing."""
         nugget = NuggetContrainer()
         nugget.template_id = "mod_template"
@@ -1135,6 +1140,16 @@ class BinaryBndGenerator(Generator):
         # Attempt to autocomplete the nugget
         # using semantics
         # 1. SH2 - pY binding
+
+        if len(bnd.left) == 1:
+            if isinstance(bnd.left[0], PhysicalRegionAgent) and\
+               "sh2" in self.hierarchy.ag_node_semantics(left_ids[0]):
+                    print("\n\n\n\nLeft SH2!!\n\n\n\n")
+
+        elif len(bnd.right) == 1:
+            if isinstance(bnd.left[0], PhysicalRegionAgent) and\
+               "sh2" in self.hierarchy.ag_node_semantics(right_ids[0]):
+                    print("\n\n\n\nRight SH2!!\n\n\n\n")
 
         return nugget
 

@@ -197,7 +197,7 @@ class KamiHierarchy(Hierarchy):
                 result.append(semantic_node)
         return result
 
-    def add_region(self, region, ref_agent, kinase=False):
+    def add_region(self, region, ref_agent, semantics=None):
         """Add region node to action graph connected to `ref_agent`."""
         found = False
         ref_agent_id = None
@@ -220,8 +220,11 @@ class KamiHierarchy(Hierarchy):
         self.action_graph_typing[region_id] = "region"
         add_edge(self.action_graph, region_id, ref_agent_id)
 
-        if kinase is True:
-            self.relation["action_graph"]["semantic_action_graph"].rel.add((region_id, "kinase"))
+        if semantics is not None:
+            for sem in semantics:
+                self.relation["action_graph"]["semantic_action_graph"].rel.add(
+                    (region_id, sem)
+                )
         return region_id
 
     def add_residue(self, residue, ref_agent):

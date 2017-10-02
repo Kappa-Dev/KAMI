@@ -164,11 +164,11 @@ class TestBlackBox:
     def test_sh2_pY_semantics(self):
 
         phos = State("phosphorylation", True)
-        dok1_gene = Agent("Q99704", names=["DOK1", "p62DOK1"])
+        dok1_gene = Agent("Q99704", synonyms=["DOK1", "p62DOK1"])
         # ptail = PhysicalRegion(Region(name="Phospho-tail"))
         dok1_pY398 = PhysicalAgent(dok1_gene, residues=[Residue("Y", 398, phos)])
 
-        abl2 = PhysicalAgent(Agent("P42684", names=["ABL2"]))
+        abl2 = PhysicalAgent(Agent("P42684", synonyms=["ABL2"]))
         sh2 = PhysicalRegion(Region(name="SH2"))
 
         abl2_sh2 = PhysicalRegionAgent(sh2, abl2)
