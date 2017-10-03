@@ -92,7 +92,6 @@ class Region(object):
 
     def to_attrs(self):
         """Convert agent object to attrs."""
-
         res = dict()
         if self.start is not None:
             res["start"] = {self.start}
@@ -244,23 +243,85 @@ class PhysicalAgent(PhysicalEntity):
 
 class PhysicalRegionAgent(PhysicalEntity):
     """."""
+
     def __init__(self, physical_region, physical_agent):
         """."""
         self.physical_region = physical_region
         self.physical_agent = physical_agent
 
     def __str__(self):
+        """String representation of  region/agent."""
         res = ""
-        res += str(self.physical_region) + " domain of " +\
-            str(self.physical_agent)
+        res += str(self.physical_agent) + "_region_" + \
+            str(self.physical_region)
+
         return res
 
 
-class Motif():
+class Motif(PhysicalEntity):
+    """Class implementing KAMI residue motif."""
+
+    def __init__(self, residue_list, name):
+        """."""
+        self.residue_list = residue_list
+        self.name = name
+
+    def __str__(self):
+        """String represenation of motif."""
+        res = ""
+        for residue in self.residue_list:
+            if len(residue.aa) > 1:
+                res += "(" + "/".join(residue.aa)
+                if res.loc:
+                    res += str(res.loc)
+                res += ")"
+            else:
+                res += list(residue.aa)[0]
+                if residue.loc:
+                    res += str(residue.loc)
+        return res
+
+    def to_physical_region(self):
+        """Convert motif object to region object."""
+        res_locs = []
+
+        for residue in self.residue_list:
+            if residue.loc:
+                res_locs.append(residue.loc)
+
+        start = None
+        end = None
+        if len(res_locs) > 0:
+            start = min(res_locs)
+            end = max(res_locs)
+
+        region = Region(start=start, end=end, name=self.name)
+        res = PhysicalRegion(region, residues=self.residue_list)
+        return res
+
+    def to_attrs(self):
+        """Convert motif object to attrs."""
+        res = dict()
+        if self.name:
+            res["name"] = {self.name}
+        return res
+
+
+class MotifAgent(PhysicalEntity):
     """."""
 
-    def __init__(self):
-        pass
+    def __init__(self, motif, physical_agent):
+        """."""
+        self.motif = motif
+        self.physical_agent = physical_agent
+
+    def __str__(self):
+        """String representation of  region/agent."""
+        res = ""
+        res += str(self.physical_agent) + "_motif_" + \
+            str(self.motif)
+
+        return res
 
 
 class NuggetAnnotation(object):
