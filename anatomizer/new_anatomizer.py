@@ -53,14 +53,14 @@ def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
         rem_version = int(ipr_ver_line[-1])
     # Update if remote version is higher than the local one.
     if rem_version > version:
-            fetch_ipr_new_ver(remote_dir, rem_version, local_dir)
-            version = check_local_ver(local_dir)
-            update_ipr_verfile(local_dir, version, rem_version)
-            # Check that download was successful.
-            if version != rem_version:
-                raise AnatomizerWarning('Local version still does not match '
-                                        'that from http://perso.ens-lyon.fr/'
-                                        'sebastien.legare/%s/' % remote_dir)
+        fetch_ipr_new_ver(remote_dir, rem_version, local_dir)
+        version = check_local_ver(local_dir)
+        update_ipr_verfile(local_dir, version, rem_version)
+        # Check that download was successful.
+        if version != rem_version:
+            raise AnatomizerWarning('Local version still does not match '
+                                    'that from http://perso.ens-lyon.fr/'
+                                    'sebastien.legare/%s/' % remote_dir)
 
 
 def reporthook(blocknum, blocksize, totalsize):
@@ -74,9 +74,9 @@ def reporthook(blocknum, blocksize, totalsize):
         s = "\r%5.1f%% %*d / %d" % (
             percent, len(str(totalsize)), readsofar, totalsize)
         sys.stderr.write(s)
-        if readsofar >= totalsize: # near the end
+        if readsofar >= totalsize:  # near the end
             sys.stderr.write("\n")
-    else: # total size is unknown
+    else:  # total size is unknown
         sys.stderr.write("read %d\n" % (readsofar,))
 
 
@@ -554,6 +554,7 @@ def get_features(ensemblegene):
 
     return featurelist
 
+
 def get_ipr_features(selected_ac, canon):
     """ Get features by UniProt Accession (Optionally specifying isoform). """
     ignorelist = ['PANTHER', 'SignalP', 'Seg', 'Tmhmm', 'PRINTS']
@@ -589,7 +590,8 @@ def get_ipr_features(selected_ac, canon):
                     ipr_parent = ipr.get('parent_id')
                 except:
                     ipr_parent = None
-                feature_dict['ipr_parents'] = parent_chain(interpro_id, ipr_parent)
+                feature_dict['ipr_parents'] = parent_chain(
+                    interpro_id, ipr_parent)
 
                 feature_dict['ipr_name'] = ipr.get('name')
 
@@ -719,7 +721,7 @@ def _nest_overlap(f1, f2):
 class Fragment:
     """Class implementing raw domain fragment."""
 
-    def __init__(self, internal_id, xname, xid, xdatabase, 
+    def __init__(self, internal_id, xname, xid, xdatabase,
                  start, end, length, short_name, ipr_name,
                  ipr_id, feature_type, ipr_parents):
         """Initilize raw fragment."""
@@ -823,7 +825,7 @@ class DomainAnatomy:
         If name or description of domain mentions
         one of the key words, return True.
         """
-        key_words = ["protein kinase"]
+        key_words = ["protein kinase", "kinase"]
         stop_words = ["phorbol ester"]
         for key_word in key_words:
             for name in self.ipr_names:
@@ -929,7 +931,7 @@ class DomainAnatomy:
             else:
                 ids = ", ".join(self.ipr_ids)
 
-            print(prefix, "         ---> %s <---" % self.feature_type) 
+            print(prefix, "         ---> %s <---" % self.feature_type)
             print(prefix, "     Short Names: %s" % shorts)
             print(prefix, "  InterPro Names: %s" % names)
             print(prefix, "    InterPro IDs: %s" % ids)
@@ -942,7 +944,8 @@ class DomainAnatomy:
                         fragment.print_summary(level + 3)
                         print()
             if len(self.subdomains) > 0:
-                sorted_subdomains = sorted(self.subdomains, key=lambda x: x.start)
+                sorted_subdomains = sorted(
+                    self.subdomains, key=lambda x: x.start)
                 print(prefix, "      Subdomains:")
                 for domain in sorted_subdomains:
                     domain.print_summary(fragments, level=level + 2)
@@ -996,7 +999,7 @@ class GeneAnatomy:
             if i not in visited:
                 group = [feature1]
                 visited.add(i)
-                #for j in range(i + 1, nfeatures):
+                # for j in range(i + 1, nfeatures):
                 j = 0
                 while j < nfeatures:
                     if j not in visited:
@@ -1048,12 +1051,17 @@ class GeneAnatomy:
             domain_length = domain_end - domain_start
 
             # 3. find domain names from concatenation of all fragment names
-            short_name_list = [member.short_name for member in group if member.short_name]
-            ipr_name_list = [member.ipr_name for member in group if member.ipr_name]
+            short_name_list = [
+                member.short_name for member in group if member.short_name]
+            ipr_name_list = [
+                member.ipr_name for member in group if member.ipr_name]
             ipr_id_list = [member.ipr_id for member in group if member.ipr_id]
-            short_names = sorted(set(short_name_list), key=lambda x: short_name_list.index(x))
-            ipr_names = sorted(set(ipr_name_list), key=lambda x: ipr_name_list.index(x))
-            ipr_ids = sorted(set(ipr_id_list), key=lambda x: ipr_id_list.index(x))
+            short_names = sorted(set(short_name_list),
+                                 key=lambda x: short_name_list.index(x))
+            ipr_names = sorted(set(ipr_name_list),
+                               key=lambda x: ipr_name_list.index(x))
+            ipr_ids = sorted(set(ipr_id_list),
+                             key=lambda x: ipr_id_list.index(x))
 
             # 5. get feature type
             feature_type = group[0].feature_type
@@ -1189,11 +1197,11 @@ class GeneAnatomy:
             # That means query is either the generic AC or a specific
             # secondary isoform.
             if entry is not None:
-                try: # If there is a dash, query is a secondary isoform.
+                try:  # If there is a dash, query is a secondary isoform.
                     dash = query.index('-')
                     self.uniprot_ac = query[:dash]
                     self.selected_iso = query
-                except: # If no dash, query is the generic UniProt AC.
+                except:  # If no dash, query is the generic UniProt AC.
                     self.uniprot_ac = query
                     self.selected_iso = 'canonical'
                 self.found = True
@@ -1308,7 +1316,8 @@ class GeneAnatomy:
                     "Cannot merge features: parameter 'features' was set to False, "
                     "no features were collected.'"
                 )
-            domains = self._merge_fragments(fragments, overlap_threshold=merge_overlap)
+            domains = self._merge_fragments(
+                fragments, overlap_threshold=merge_overlap)
             self.domains = domains
         else:
             for fr in fragments:
