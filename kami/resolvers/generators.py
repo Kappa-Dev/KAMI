@@ -11,7 +11,8 @@ from regraph.primitives import (add_node,
 
 from kami.data_structures.entities import (Region, State, Residue,
                                            PhysicalAgent,
-                                           PhysicalRegionAgent)
+                                           PhysicalRegionAgent,
+                                           MotifAgent)
 from kami.exceptions import (KamiError,
                              NuggetGenerationError,
                              KamiWarning)
@@ -27,11 +28,12 @@ from kami.utils.id_generators import (get_nugget_agent_id,
                                       get_nugget_state_id,
                                       get_nugget_is_bnd_id,
                                       get_nugget_locus_id,
-                                      get_nugget_bnd_id)
+                                      get_nugget_bnd_id,
+                                      get_nugget_motif_id)
 from anatomizer.new_anatomizer import (GeneAnatomy, AnatomizerError)
 
 
-class NuggetContrainer:
+class NuggetContainer:
     """Nugget container data structure."""
 
     def __init__(self, graph=None, meta_typing=None,
@@ -158,14 +160,6 @@ class Generator:
 
         if add_agents is True:
             if reference_id is not None:
-                # add new names to AG agent
-                # if not set(agent.names).issubset(
-                #    self.hierarchy.action_graph.node[reference_id]["names"]):
-                #     add_node_attrs(
-                #         self.hierarchy.action_graph,
-                #         reference_id,
-                #         {"names": agent.names}
-                #     )
                 # add new xrefs to AG agent
                 add_node_attrs(
                     self.hierarchy.action_graph,
@@ -193,12 +187,19 @@ class Generator:
                     str(region.region)
                 )
         # if not found
-        if reference_id is None and add_agents is True:
-            reference_id = self._add_region_to_ag(
-                region.region,
-                agent,
-                anatomize
-            )
+        if add_agents is True:
+            if reference_id is None:
+                reference_id = self._add_region_to_ag(
+                    region.region,
+                    agent,
+                    anatomize
+                )
+            else:
+                add_node_attrs(
+                    self.hierarchy.action_graph,
+                    reference_id,
+                    region.region.to_attrs()
+                )
 
         return reference_id
 
@@ -323,7 +324,8 @@ class Generator:
             )
             is_bnd_ids.append(is_bnd_id)
 
-            partner_locus_id = get_nugget_locus_id(nugget.graph, partner_id, is_bnd_id)
+            partner_locus_id = get_nugget_locus_id(
+                nugget.graph, partner_id, is_bnd_id)
             # !TODO! add indentification in ag
             nugget.add_node(
                 partner_locus_id,
@@ -360,6 +362,54 @@ class Generator:
             nugget.add_edge(bound_locus_id, is_bnd_id)
         return bound_locus_id
 
+    def _generate_motif(self, nugget, motif, father, add_agents=True, anatomize=True):
+        # 1. create region node
+        prefix = father
+
+        motif_id = get_nugget_motif_id(
+            nugget.graph, str(motif), prefix
+        )
+
+        # convert to physical region (?) and identify a region to which it
+        # belongs (?)
+
+        region = motif.to_physical_region()
+
+        action_graph_region = None
+        if father in nugget.ag_typing.keys():
+            action_graph_region = self._identify_region(
+                region, nugget.ag_typing[father], add_agents, anatomize
+            )
+
+        nugget.add_node(
+            motif_id, region.region.to_attrs(),
+            meta_typing="region",
+            ag_typing=action_graph_region,
+            # semantic_rels=semantic_rels
+        )
+
+        # create and attach residues
+        for residue in motif.residue_list:
+            (residue_id, _) = self._generate_residue(
+                nugget, residue, motif_id, add_agents
+            )
+            nugget.add_edge(residue_id, motif_id)
+
+        return motif_id
+
+    def _generate_agent_motif_group(self, nugget, agent,
+                                    add_agents=True, anatomize=True,
+                                    merge_actions=True, apply_sematics=True):
+        agent_id = self._generate_agent_group(
+            nugget, agent.physical_agent, add_agents, anatomize, merge_actions,
+            apply_sematics
+        )
+        motif_id = self._generate_motif(
+            nugget, agent.motif, agent_id, add_agents, anatomize
+        )
+        nugget.add_edge(motif_id, agent_id)
+        return (agent_id, motif_id)
+
     def _generate_region_group(self, nugget, region, father,
                                add_agents=True, anatomize=True,
                                merge_actions=True, apply_sematics=True):
@@ -376,6 +426,8 @@ class Generator:
             action_graph_region = self._identify_region(
                 region, nugget.ag_typing[father], add_agents, anatomize
             )
+
+        # find semantic relations
 
         nugget.add_node(
             region_id, region.region.to_attrs(),
@@ -489,7 +541,8 @@ class Generator:
             # )
             self.hierarchy.type_nugget_by_ag(nugget_id, nugget.ag_typing)
             # self.hierarchy.type_nugget_by_meta(nugget_id, nugget.meta_typing)
-            self.hierarchy.add_template_rel(nugget_id, nugget.template_id, nugget.template_rel)
+            self.hierarchy.add_template_rel(
+                nugget_id, nugget.template_id, nugget.template_rel)
 
             # add semantic relations found for the nugget
             for semantic_nugget, rel in nugget.semantic_rels.items():
@@ -525,9 +578,8 @@ class ModGenerator(Generator):
 
     def _create_nugget(self, mod, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
-
         """Create mod nugget graph and find its typing."""
-        nugget = NuggetContrainer()
+        nugget = NuggetContainer()
         nugget.template_id = "mod_template"
         # 1. Process enzyme
         if isinstance(mod.enzyme, PhysicalAgent):
@@ -537,6 +589,10 @@ class ModGenerator(Generator):
             enzyme_region = None
         elif isinstance(mod.enzyme, PhysicalRegionAgent):
             (enzyme, enzyme_region) = self._generate_agent_region_group(
+                nugget, mod.enzyme, add_agents, anatomize
+            )
+        elif isinstance(mod.enzyme, MotifAgent):
+            (enzyme, enzyme_region) = self._generate_agent_motif_group(
                 nugget, mod.enzyme, add_agents, anatomize
             )
         else:
@@ -555,6 +611,10 @@ class ModGenerator(Generator):
             substrate_region = None
         elif isinstance(substrate, PhysicalRegionAgent):
             (substrate, substrate_region) = self._generate_agent_region_group(
+                nugget, mod.substrate, add_agents, anatomize
+            )
+        elif isinstance(substrate, MotifAgent):
+            (substrate, substrate_region) = self._generate_agent_motif_group(
                 nugget, mod.substrate, add_agents, anatomize
             )
         else:
@@ -676,7 +736,7 @@ class ModGenerator(Generator):
                     warnings.warn(
                         "Cannot resolve phospho modification: "
                         "multiple protein kinase regions (%s) are associated "
-                        "with a single protein: %s" %
+                        "with a single protein in the action graph: %s" %
                         (", ".join(kinase_regions), enzyme),
                         KamiWarning
                     )
@@ -684,7 +744,7 @@ class ModGenerator(Generator):
                     warnings.warn(
                         "Cannot resolve phospho modification: "
                         "no protein kinase region is associated "
-                        "with the protein: %s" % enzyme,
+                        "with the protein in the action graph: %s" % enzyme,
                         KamiWarning
                     )
             if kinase_region:
@@ -711,7 +771,7 @@ class ModGenerator(Generator):
                     )
 
                 ag_region = nugget.ag_typing[kinase_region]
-                mods = self.hierarchy.get_mods_of_region(ag_region)
+                mods = self.hierarchy.ag_successors_of_type(ag_region, "mod")
 
                 # if mod associated with
                 # protein kinase region already exists
@@ -754,7 +814,8 @@ class ModGenerator(Generator):
                     warnings.warn(
                         "Cannot resolve phospho modification: "
                         "multiple modifications are associated "
-                        "with a single protein kinase domain: %s" % region,
+                        "with a single protein kinase domain "
+                        "in the action graph: %s" % region,
                         KamiWarning
                     )
                 nugget.semantic_rels["phosphorylation"].add(
@@ -789,7 +850,7 @@ class AutoModGenerator(Generator):
     def _create_nugget(self, mod, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
         """Create mod nugget graph and find its typing."""
-        nugget = NuggetContrainer()
+        nugget = NuggetContainer()
         nugget.template_id = "mod_template"
 
         if not isinstance(mod.enzyme, PhysicalAgent):
@@ -800,7 +861,8 @@ class AutoModGenerator(Generator):
             )
 
         enzyme = self._generate_agent_group(
-            nugget, mod.enzyme, add_agents, anatomize, merge_actions, apply_sematics
+            nugget, mod.enzyme, add_agents, anatomize,
+            merge_actions, apply_semantics
         )
 
         nugget.template_rel.add((enzyme, "enzyme"))
@@ -957,7 +1019,7 @@ class AnonymousModGenerator(Generator):
 
     def _create_nugget(self, mod, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
-        nugget = NuggetContrainer()
+        nugget = NuggetContainer()
         nugget.template_id = "mod_template"
 
         if isinstance(mod.substrate, PhysicalAgent):
@@ -1046,10 +1108,157 @@ class AnonymousModGenerator(Generator):
 class BinaryBndGenerator(Generator):
     """Generator class for binary binding nugget."""
 
+    def _autocomplete_sh2_partners(self, nugget, partner_ids):
+        updated_partners = []
+        for partner in partner_ids:
+            py_motif = None
+            ag_partner_ref = nugget.ag_typing[partner]
+
+            # If a binding partner has been already recognized
+            # (in rel to semantic AG) as a pY motif
+            if 'pY_motif' in self.hierarchy.ag_node_semantics(ag_partner_ref):
+                py_motif = partner
+            else:
+                pass
+
+            nugget.semantic_rels["sh2_pY_binding"].add(
+                (py_motif, 'pY_motif')
+            )
+            updated_partners.append(py_motif)
+            # Check if has phosphorylated Y, if not --
+            # autocomplete
+            py_residue = None
+            nugget.semantic_rels["sh2_pY_binding"].add(
+                (py_residue, 'pY_residue')
+            )
+            py_state = None
+            nugget.semantic_rels["sh2_pY_binding"].add(
+                (py_state, 'phosphorylation')
+            )
+
+        return updated_partners
+
+    def _apply_sh2_semantics(self, nugget, sh2_region, sh2_locus,
+                             bnd_action_id, partner_ids, partner_locus,
+                             bnd_attrs):
+        print("\n\n\n\nFound SH2 '%s'!\n" % sh2_region)
+
+        # 1. Find loci and bnd nodes associated with this sh2 region
+        # in ag
+        ag_loci = self.hierarchy.ag_successors_of_type(
+            nugget.ag_typing[sh2_region],
+            "locus"
+        )
+        if len(ag_loci) == 0:
+            # 2. Create new locus and new bnd action
+
+            ag_left_locus_id = self.hierarchy.add_locus(
+                semantics=["sh2_locus"])
+            ag_bnd_id = self.hierarchy.add_bnd(
+                bnd_attrs,
+                semantics=["sh2_pY_bnd"]
+            )
+            ag_right_locus_id = self.hierarchy.add_locus(
+                semantics=["pY_locus"])
+
+            add_edge(
+                self.hierarchy.action_graph,
+                nugget.ag_typing[sh2_region],
+                ag_left_locus_id,
+            )
+
+            add_edge(
+                self.hierarchy.action_graph,
+                ag_left_locus_id,
+                ag_bnd_id
+            )
+
+            add_edge(
+                self.hierarchy.action_graph,
+                ag_right_locus_id,
+                ag_bnd_id
+            )
+
+            nugget.ag_typing[sh2_locus] = ag_left_locus_id
+            nugget.ag_typing[bnd_action_id] = ag_bnd_id
+            nugget.ag_typing[partner_locus] = ag_right_locus_id
+
+            # 3. Autocomplete partners to contain pY motifs
+            updated_partners = self._autocomplete_sh2_partners(
+                nugget, partner_ids
+            )
+            for partner in updated_partners:
+                add_edge(
+                    self.hierarchy.action_graph,
+                    nugget.ag_typing[partner],
+                    ag_right_locus_id
+                )
+
+        elif len(ag_loci) == 1:
+            ag_bnds = self.hierarchy.ag_successors_of_type(
+                ag_loci[0], "bnd"
+            )
+            if len(ag_bnds) == 1:
+                # Find partner opposite of SH2 loci in the action graph
+                all_bnd_loci = self.hierarchy.ag_predecessors_of_type(
+                    ag_bnds[0],
+                    "locus"
+                )
+                opposite_loci = [l for l in all_bnd_loci if l != ag_loci[0]]
+                if len(opposite_loci) == 1:
+                    nugget.ag_typing[partner_locus] = opposite_loci[0]
+                else:
+                    # smth is not right
+                    raise ValueError()
+
+                nugget.ag_typing[sh2_locus] = ag_loci[0]
+                nugget.ag_typing[bnd_action_id] = ag_bnds[0]
+
+                # 2. Add semantic relation to the nugget nodes
+                nugget.semantic_rels["sh2_pY_binding"] = set()
+                nugget.semantic_rels["sh2_pY_binding"].add(
+                    (sh2_region, 'sh2')
+                )
+                nugget.semantic_rels["sh2_pY_binding"].add(
+                    (sh2_locus, 'sh2_locus')
+                )
+                nugget.semantic_rels["sh2_pY_binding"].add(
+                    (bnd_action_id, 'sh2_pY_bnd')
+                )
+
+                # 3. Autocomplete partners to contain pY motifs
+                updated_partners = self._autocomplete_sh2_partners(
+                    nugget, partner_ids
+                )
+                for partner in updated_partners:
+                    add_edge(
+                        self.hierarchy.action_graph,
+                        nugget.ag_typing[partner],
+                        opposite_loci[0]
+                    )
+
+            else:
+                warnings.warn(
+                    "Cannot resolve SH2 binding: a loci node '%s' "
+                    "has invalid number of 'bnd' nodes asociated "
+                    "in the action graph" % ag_loci[0],
+                    KamiWarning
+                )
+
+        else:
+            warnings.warn(
+                "Cannot resolve SH2 binding: multiple loci "
+                "are associated with a single SH2 domain in "
+                "the action graph: %s" % nugget.ag_typing[
+                    sh2_region],
+                KamiWarning
+            )
+        return
+
     def _create_nugget(self, bnd, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
 
-        nugget = NuggetContrainer()
+        nugget = NuggetContainer()
         nugget.template_id = "bnd_template"
 
         left = []
@@ -1064,6 +1273,11 @@ class BinaryBndGenerator(Generator):
                 )
             elif isinstance(member, PhysicalRegionAgent):
                 (_, member_id) = self._generate_agent_region_group(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            elif isinstance(member, MotifAgent):
+                (_, member_id) = self._generate_agent_motif_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
@@ -1082,6 +1296,11 @@ class BinaryBndGenerator(Generator):
                 )
             elif isinstance(member, PhysicalRegionAgent):
                 (_, member_id) = self._generate_agent_region_group(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            elif isinstance(member, MotifAgent):
+                (_, member_id) = self._generate_agent_motif_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
@@ -1141,16 +1360,25 @@ class BinaryBndGenerator(Generator):
         # using semantics
         # 1. SH2 - pY binding
 
+        # a) Left partner is SH2
         if len(bnd.left) == 1:
-            if isinstance(bnd.left[0], PhysicalRegionAgent) and\
-               "sh2" in self.hierarchy.ag_node_semantics(left_ids[0]):
-                    print("\n\n\n\nLeft SH2!!\n\n\n\n")
+            if isinstance(bnd.left[0], PhysicalRegionAgent):
+                if "sh2" in self.hierarchy.ag_node_semantics(
+                        nugget.ag_typing[left[0]]):
+                    self._apply_sh2_semantics(
+                        nugget, left[0], left_locus, bnd_id,
+                        right, right_locus, bnd_attrs
+                    )
 
-        elif len(bnd.right) == 1:
-            if isinstance(bnd.left[0], PhysicalRegionAgent) and\
-               "sh2" in self.hierarchy.ag_node_semantics(right_ids[0]):
-                    print("\n\n\n\nRight SH2!!\n\n\n\n")
-
+        # b) Right partner is SH2
+        if len(bnd.right) == 1:
+            if isinstance(bnd.right[0], PhysicalRegionAgent):
+                if "sh2" in self.hierarchy.ag_node_semantics(
+                        nugget.ag_typing[right[0]]):
+                    self._apply_sh2_semantics(
+                        nugget, right[0], right_locus, bnd_id, left,
+                        left_locus, bnd_attrs
+                    )
         return nugget
 
 
@@ -1160,7 +1388,7 @@ class ComplexGenerator(Generator):
     def _create_nugget(self, complex, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
 
-        nugget = NuggetContrainer()
+        nugget = NuggetContainer()
 
         members = []
 

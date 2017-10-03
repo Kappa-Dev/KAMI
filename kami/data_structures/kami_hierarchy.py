@@ -10,6 +10,7 @@ from kami.resources import (metamodels,
                             nugget_templates,
                             semantic_nuggets,
                             semantic_AG)
+from kami.utils.id_generators import generate_new_id
 
 
 class KamiHierarchy(Hierarchy):
@@ -36,15 +37,18 @@ class KamiHierarchy(Hierarchy):
         self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
 
         self.add_graph("mod_template", nugget_templates.mod_nugget)
-        self.add_typing("mod_template", "kami", nugget_templates.mod_kami_typing)
+        self.add_typing("mod_template", "kami",
+                        nugget_templates.mod_kami_typing)
         self.mod_template = self.node["mod_template"].graph
 
         self.add_graph("bnd_template", nugget_templates.bnd_nugget)
-        self.add_typing("bnd_template", "kami", nugget_templates.bnd_kami_typing)
+        self.add_typing("bnd_template", "kami",
+                        nugget_templates.bnd_kami_typing)
         self.bnd_template = self.node["bnd_template"].graph
 
         self.add_graph("phosphorylation", semantic_nuggets.phosphorylation)
-        self.add_graph("semantic_action_graph", semantic_AG.semantic_action_graph)
+        self.add_graph("semantic_action_graph",
+                       semantic_AG.semantic_action_graph)
         self.add_typing(
             "phosphorylation",
             "semantic_action_graph",
@@ -66,7 +70,8 @@ class KamiHierarchy(Hierarchy):
         """Create hierarchy from json representation."""
         hierarchy = Hierarchy.from_json(json_data, directed=directed)
         hierarchy.action_graph = hierarchy.node["action_graph"].graph
-        hierarchy.action_graph_typing = hierarchy.edge["action_graph"]["kami"].mapping
+        hierarchy.action_graph_typing = hierarchy.edge[
+            "action_graph"]["kami"].mapping
         hierarchy.mod_template = hierarchy.node["mod_template"].graph
         hierarchy.bnd_template = hierarchy.node["bnd_template"].graph
         return hierarchy
@@ -101,12 +106,19 @@ class KamiHierarchy(Hierarchy):
                 regions.append(node)
         return regions
 
-    def get_mods_of_region(self, region_id):
-        mods = []
-        for suc in self.action_graph.successors(region_id):
-            if self.action_graph_typing[suc] == "mod":
-                mods.append(suc)
-        return mods
+    def ag_successors_of_type(self, node_id, meta_type):
+        succs = []
+        for suc in self.action_graph.successors(node_id):
+            if self.action_graph_typing[suc] == meta_type:
+                succs.append(suc)
+        return succs
+
+    def ag_predecessors_of_type(self, node_id, meta_type):
+        preds = []
+        for pred in self.action_graph.predecessors(node_id):
+            if self.action_graph_typing[pred] == meta_type:
+                preds.append(pred)
+        return preds
 
     def get_regions_of_agent(self, agent_id):
         """Get a list of regions belonging to a specified agent."""
@@ -160,15 +172,10 @@ class KamiHierarchy(Hierarchy):
         self.action_graph_typing[agent_id] = "agent"
         return agent_id
 
-    def add_mod(self, attrs, semantics=None):
+    def add_mod(self, attrs=None, semantics=None):
         """Add mod node to the action graph."""
         # TODO: nice mod ids generation
-        i = 1
-        name = "mod"
-        mod_id = name + str(i)
-        while mod_id in self.action_graph.nodes():
-            i += 1
-            mod_id = name + str(i)
+        mod_id = generate_new_id("mod")
 
         add_node(self.action_graph, mod_id, attrs)
         self.action_graph_typing[mod_id] = "mod"
@@ -213,8 +220,15 @@ class KamiHierarchy(Hierarchy):
                 "Agent with UniProtID '%s' is not found in the action graph" %
                 ref_agent
             )
-        region_id = "%s_region_%s_%s" %\
-                    (ref_agent, region.start, region.end)
+
+        region_id = "%s_region" % ref_agent
+        if region.start is not None and region.end is not None:
+            region_id += "_%s_%s" % (region.start, region.end)
+        if region.name is not None:
+            region_id += "_%s" % region.name.replace(" ", "_")
+
+        if region_id in self.action_graph.nodes():
+            region_id = generate_new_id(self.action_graph, region_id)
 
         add_node(self.action_graph, region_id, region.to_attrs())
         self.action_graph_typing[region_id] = "region"
@@ -257,9 +271,11 @@ class KamiHierarchy(Hierarchy):
             add_node(self.action_graph, residue_id, residue.to_attrs())
             for region in self.get_regions_of_agent(ref_agent):
                 if residue.loc:
-                    if int(residue.loc) >= list(self.action_graph.node[region]["start"])[0] and\
-                       int(residue.loc) <= list(self.action_graph.node[region]["end"])[0]:
-                        add_edge(self.action_graph, residue_id, region)
+                    if "start" in self.action_graph.node[region] and\
+                       "end" in self.action_graph.node[region]:
+                        if int(residue.loc) >= list(self.action_graph.node[region]["start"])[0] and\
+                           int(residue.loc) <= list(self.action_graph.node[region]["end"])[0]:
+                            add_edge(self.action_graph, residue_id, region)
             add_edge(self.action_graph, residue_id, ref_agent)
 
         else:
@@ -273,6 +289,34 @@ class KamiHierarchy(Hierarchy):
             self.action_graph_typing[residue_id] = "residue"
 
         return residue_id
+
+    def add_bnd(self, attrs=None, semantics=None):
+        """Add bnd node to the action graph."""
+        # TODO: nice bnd ids generation
+        bnd_id = generate_new_id(self.action_graph, "bnd")
+
+        add_node(self.action_graph, bnd_id, attrs)
+        self.action_graph_typing[bnd_id] = "bnd"
+
+        # add semantic relations of the node
+        if semantics:
+            for s in semantics:
+                self.add_ag_node_semantics(bnd_id, s)
+        return bnd_id
+
+    def add_locus(self, attrs=None, semantics=None):
+        """Add locus node to the action graph."""
+        # TODO: nice locus ids generation
+        locus_id = generate_new_id(self.action_graph, "locus")
+
+        add_node(self.action_graph, locus_id, attrs)
+        self.action_graph_typing[locus_id] = "locus"
+
+        # add semantic relations of the node
+        if semantics:
+            for s in semantics:
+                self.add_ag_node_semantics(locus_id, s)
+        return locus_id
 
     def add_state(self, state, ref_agent, semantics=None):
         """Add state node to the action graph."""
@@ -332,8 +376,12 @@ class KamiHierarchy(Hierarchy):
             # assume there is no nesting of regions for the moment
             region_candidates = self.get_regions_of_agent(agent_node)
             for reg in region_candidates:
-                start = list(self.action_graph.node[reg]["start"])[0]
-                end = list(self.action_graph.node[reg]["end"])[0]
+                start = None
+                end = None
+                if "start" in self.action_graph.node[reg].keys():
+                    start = list(self.action_graph.node[reg]["start"])[0]
+                if "end" in self.action_graph.node[reg].keys():
+                    end = list(self.action_graph.node[reg]["end"])[0]
                 if region.start is not None and region.end is not None:
                     if region.start >= start and region.end <= end:
                         return reg
@@ -341,7 +389,8 @@ class KamiHierarchy(Hierarchy):
                     if region.name is not None:
                         normalized_name = region.name.lower()
                         ag_region_name =\
-                            list(self.action_graph.node[reg]["name"])[0].lower()
+                            list(self.action_graph.node[
+                                 reg]["name"])[0].lower()
                         if normalized_name in ag_region_name:
                             return reg
         return None
@@ -505,7 +554,8 @@ class KamiHierarchy(Hierarchy):
                             list(nugget.graph.node[node_id]["start"])[0],
                             list(nugget.graph.node[node_id]["end"])[0]
                         )
-                    add_node(self.action_graph, region_ref_id, nugget.graph.node[node_id])
+                    add_node(self.action_graph, region_ref_id,
+                             nugget.graph.node[node_id])
                     self.action_graph_typing[region_ref_id] = "region"
             relation.add((node_id, region_ref_id))
             for pred in nugget.graph.predecessors(node):
@@ -523,14 +573,16 @@ class KamiHierarchy(Hierarchy):
                             if nugget.meta_typing[locus_pred] == "is_bnd":
                                 if locus_pred not in visited:
                                     visited.add(locus_pred)
-                                    _process_is_bnd(suc, locus_pred, region_ref_id)
+                                    _process_is_bnd(
+                                        suc, locus_pred, region_ref_id)
 
         def _process_agent(node_id):
             ref_id = identifier.identify_agent(nugget.graph.node[node_id])
             if not ref_id:
                 if add_agents:
                     ref_id = list(nugget.graph.node[node_id]["uniprotid"])[0]
-                    add_node(self.action_graph, ref_id, nugget.graph.node[node_id])
+                    add_node(self.action_graph, ref_id,
+                             nugget.graph.node[node_id])
                     self.action_graph_typing[ref_id] = "agent"
             relation.add((node_id, ref_id))
             for pred in nugget.graph.predecessors(node):
