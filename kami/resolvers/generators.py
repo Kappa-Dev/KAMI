@@ -12,7 +12,7 @@ from regraph.primitives import (add_node,
 from kami.data_structures.entities import (Region, State, Residue,
                                            PhysicalAgent,
                                            PhysicalRegionAgent,
-                                           MotifAgent)
+                                           MotifAgent, Motif)
 from kami.exceptions import (KamiError,
                              NuggetGenerationError,
                              KamiWarning)
@@ -29,7 +29,8 @@ from kami.utils.id_generators import (get_nugget_agent_id,
                                       get_nugget_is_bnd_id,
                                       get_nugget_locus_id,
                                       get_nugget_bnd_id,
-                                      get_nugget_motif_id)
+                                      get_nugget_motif_id,
+                                      generate_new_id)
 from anatomizer.new_anatomizer import (GeneAnatomy, AnatomizerError)
 
 
@@ -1108,7 +1109,7 @@ class AnonymousModGenerator(Generator):
 class BinaryBndGenerator(Generator):
     """Generator class for binary binding nugget."""
 
-    def _autocomplete_sh2_partners(self, nugget, partner_ids):
+    def _autocomplete_sh2_partners(self, nugget, partner_ids, partner_locus):
         updated_partners = []
         for partner in partner_ids:
             py_motif = None
@@ -1116,10 +1117,88 @@ class BinaryBndGenerator(Generator):
 
             # If a binding partner has been already recognized
             # (in rel to semantic AG) as a pY motif
-            if 'pY_motif' in self.hierarchy.ag_node_semantics(ag_partner_ref):
-                py_motif = partner
+            if self.hierarchy.action_graph_typing[ag_partner_ref] == 'region':
+                if 'pY_motif' in self.hierarchy.ag_node_semantics(ag_partner_ref):
+                    py_motif = partner
+                else:
+                    raise ValueError("Binding region of wrong semantics!")
             else:
-                pass
+                # Create pY motif node
+                reg_obj = Region(name="pY_motif")
+                # a) in AG
+                ag_motif = self.hierarchy.add_region(
+                    reg_obj,
+                    partner,
+                    semantics=["pY_motif"]
+                )
+                # b) in the nugget
+                py_motif = generate_new_id('pY_motif')
+                nugget.add_node(
+                    py_motif,
+                    reg_obj.to_attrs,
+                    ag_typing=ag_motif,
+                    template_rel=["partner_region"],
+                    semantic_rels={
+                        "sh2_pY_binding": ["pY_motif"]
+                    }
+                )
+
+                # Create pY residue
+                res_obj = Residue("Y")
+                ag_py_residue = self.hierarchy.add_residue(
+                    res_obj,
+                    partner,
+                    "pY_residue"
+                )
+                py_residue = generate_new_id('pY_residue')
+                nugget.add_node(
+                    py_residue,
+                    res_obj.to_attrs(),
+                    ag_typing=ag_py_residue,
+                    semantic_rels={
+                        "sh2_pY_binding": ["pY_residue"]
+                    }
+                )
+                # Create phospho state
+                state_obj = State("phosphorylation", True)
+                ag_phospho = self.hierarchy.add_state(
+                    state_obj,
+                    ag_py_residue,
+                    "phosphorylation"
+                )
+                py_state = generate_new_id('pY_phosporylation')
+                nugget.add_node(
+                    py_state,
+                    state_obj.to_attrs,
+                    ag_typing=ag_phospho,
+                    semantic_rels={
+                        "sh2_pY_binding": ["phosphorylation"]
+                    }
+                )
+
+                # Add AG edges
+                add_edge(
+                    self.hierarchy.action_graph,
+                    ag_motif,
+                    nugget.ag_typing[partner]
+                )
+                add_edge(
+                    self.hierarchy.action_graph,
+                    ag_py_residue,
+                    ag_motif
+                )
+                add_edge(
+                    self.hierarchy.action_graph,
+                    ag_phospho,
+                    ag_py_residue
+                )
+
+                # Add nugget edges
+                remove_edge(nugget.graph, partner, partner_locus)
+                nugget.add_edge(py_motif, partner_locus)
+                nugget.add_edge(py_motif, partner)
+                nugget.add_edge(py_residue, py_motif)
+                nugget.add_edge(py_state, py_residue)
 
             nugget.semantic_rels["sh2_pY_binding"].add(
                 (py_motif, 'pY_motif')
@@ -1141,7 +1220,6 @@ class BinaryBndGenerator(Generator):
     def _apply_sh2_semantics(self, nugget, sh2_region, sh2_locus,
                              bnd_action_id, partner_ids, partner_locus,
                              bnd_attrs):
-        print("\n\n\n\nFound SH2 '%s'!\n" % sh2_region)
 
         # 1. Find loci and bnd nodes associated with this sh2 region
         # in ag
@@ -1183,10 +1261,23 @@ class BinaryBndGenerator(Generator):
             nugget.ag_typing[bnd_action_id] = ag_bnd_id
             nugget.ag_typing[partner_locus] = ag_right_locus_id
 
-            # 3. Autocomplete partners to contain pY motifs
-            updated_partners = self._autocomplete_sh2_partners(
-                nugget, partner_ids
+            # 3. Add semantic relation to the nugget nodes
+            nugget.semantic_rels["sh2_pY_binding"] = set()
+            nugget.semantic_rels["sh2_pY_binding"].add(
+                (sh2_region, 'sh2')
             )
+            nugget.semantic_rels["sh2_pY_binding"].add(
+                (sh2_locus, 'sh2_locus')
+            )
+            nugget.semantic_rels["sh2_pY_binding"].add(
+                (bnd_action_id, 'sh2_pY_bnd')
+            )
+
+            # 4. Autocomplete partners to contain pY motifs
+            # updated_partners = self._autocomplete_sh2_partners(
+            #     nugget, partner_ids, partner_locus
+            # )
+            updated_partners = partner_ids
             for partner in updated_partners:
                 add_edge(
                     self.hierarchy.action_graph,
@@ -1227,9 +1318,10 @@ class BinaryBndGenerator(Generator):
                 )
 
                 # 3. Autocomplete partners to contain pY motifs
-                updated_partners = self._autocomplete_sh2_partners(
-                    nugget, partner_ids
-                )
+                # updated_partners = self._autocomplete_sh2_partners(
+                #     nugget, partner_ids, partner_locus
+                # )
+                updated_partners = partner_ids
                 for partner in updated_partners:
                     add_edge(
                         self.hierarchy.action_graph,

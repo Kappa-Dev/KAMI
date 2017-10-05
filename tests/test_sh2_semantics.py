@@ -46,3 +46,22 @@ class TestSh2Semantics(object):
         # print(hierarchy)
         # print_graph(hierarchy.node["nugget_1"].graph)
         # print_graph(hierarchy.action_graph)
+
+    def test_multiple_sh2(self):
+        phos = State("phosphorylation", True)
+        sh2n = PhysicalRegion(Region(name="SH2", order=1))
+        sh2c = PhysicalRegion(Region(name="SH2", order=2))
+
+        pik3r1 = PhysicalAgent(Agent("P27986", synonyms=["PIK3R1", "PI3K1"]))
+        pik3r1_sh2n = PhysicalRegionAgent(sh2n, pik3r1)
+        pik3r1_sh2c = PhysicalRegionAgent(sh2c, pik3r1)
+
+        frs2_gene = Agent("Q8WU20", synonyms=["FRS2"])
+        frs2_pY196 = PhysicalAgent(
+            frs2_gene, residues=[Residue("Y", 196, phos)])
+        frs2_pY349 = PhysicalAgent(
+            frs2_gene, residues=[Residue("Y", 349, phos)])
+
+        bnds = []
+        bnds.append(BinaryBinding([frs2_pY196], [pik3r1_sh2n]))
+        bnds.append(BinaryBinding([frs2_pY349], [pik3r1_sh2c]))
