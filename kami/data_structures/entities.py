@@ -72,11 +72,12 @@ class Agent(object):
 class Region(object):
     """Class implementing KAMI region (domain)."""
 
-    def __init__(self, start=None, end=None, name=None):
+    def __init__(self, start=None, end=None, name=None, order=None):
         """Initialize KAMI region object."""
         self.start = start
         self.end = end
         self.name = name
+        self.order = order
         return
 
     def __str__(self):
@@ -88,6 +89,8 @@ class Region(object):
             res += "_" + str(self.end)
         if self.name:
             res += "_%s" % self.name
+        if self.order:
+            res += "_%s" % str(self.order)
         return res
 
     def to_attrs(self):
@@ -99,6 +102,8 @@ class Region(object):
             res["end"] = {self.end}
         if self.name:
             res["name"] = {self.name}
+        if self.order:
+            res["order"] = {self.order}
         return res
 
 

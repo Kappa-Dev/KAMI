@@ -1,5 +1,6 @@
 """."""
 import networkx as nx
+import numpy as np
 
 from regraph.hierarchy import Hierarchy
 from regraph.primitives import (add_node,
@@ -46,22 +47,46 @@ class KamiHierarchy(Hierarchy):
                         nugget_templates.bnd_kami_typing)
         self.bnd_template = self.node["bnd_template"].graph
 
-        self.add_graph("phosphorylation", semantic_nuggets.phosphorylation)
+        # Semantic AG init
         self.add_graph("semantic_action_graph",
                        semantic_AG.semantic_action_graph)
-        self.add_typing(
-            "phosphorylation",
-            "semantic_action_graph",
-            semantic_nuggets.phosphorylation_semantic_AG,
-            total=True
-        )
-
         self.add_typing(
             "semantic_action_graph",
             "kami",
             semantic_AG.kami_typing,
             total=True
         )
+
+        # Phosphorylation init
+        self.add_graph("phosphorylation", semantic_nuggets.phosphorylation)
+        self.add_typing(
+            "phosphorylation",
+            "semantic_action_graph",
+            semantic_nuggets.phosphorylation_semantic_AG,
+            total=True
+        )
+        self.add_typing(
+            "phosphorylation",
+            "kami",
+            semantic_nuggets.phosphorylation_kami_typing,
+            total=True
+        )
+
+        # sh2 init
+        self.add_graph("sh2_pY_binding", semantic_nuggets.sh2_pY_binding)
+        self.add_typing(
+            "sh2_pY_binding",
+            "kami",
+            semantic_nuggets.sh2_pY_kami_typing,
+            total=True
+        )
+        self.add_typing(
+            "sh2_pY_binding",
+            "semantic_action_graph",
+            semantic_nuggets.sh2_pY_semantic_AG,
+            total=True
+        )
+
         self.add_relation("action_graph", "semantic_action_graph", set())
         return
 
@@ -241,7 +266,7 @@ class KamiHierarchy(Hierarchy):
                 )
         return region_id
 
-    def add_residue(self, residue, ref_agent):
+    def add_residue(self, residue, ref_agent, semantics=None):
         """Add residue node to the action_graph."""
         if ref_agent not in self.action_graph.nodes():
             raise KamiHierarchyError(
@@ -287,6 +312,11 @@ class KamiHierarchy(Hierarchy):
 
         if residue_id:
             self.action_graph_typing[residue_id] = "residue"
+
+        # add semantic relations of the node
+        if semantics:
+            for s in semantics:
+                self.add_ag_node_semantics(residue_id, s)
 
         return residue_id
 
@@ -375,6 +405,7 @@ class KamiHierarchy(Hierarchy):
         else:
             # assume there is no nesting of regions for the moment
             region_candidates = self.get_regions_of_agent(agent_node)
+            satifying_regions = []
             for reg in region_candidates:
                 start = None
                 end = None
@@ -384,7 +415,7 @@ class KamiHierarchy(Hierarchy):
                     end = list(self.action_graph.node[reg]["end"])[0]
                 if region.start is not None and region.end is not None:
                     if region.start >= start and region.end <= end:
-                        return reg
+                        satifying_regions.append(reg)
                 else:
                     if region.name is not None:
                         normalized_name = region.name.lower()
@@ -392,8 +423,43 @@ class KamiHierarchy(Hierarchy):
                             list(self.action_graph.node[
                                  reg]["name"])[0].lower()
                         if normalized_name in ag_region_name:
-                            return reg
-        return None
+                            satifying_regions.append(reg)
+
+        if len(satifying_regions) == 1:
+            return satifying_regions[0]
+        elif len(satifying_regions) > 1:
+            # Try to find if there is a unique region in a list of
+            # satisfying regions with the same order number
+            if region.order is not None:
+                same_order_regions = []
+                for reg in satifying_regions:
+                    if "order" in self.action_graph.node[reg].keys():
+                        if region.order in self.action_graph.node[reg]["order"]:
+                            same_order_regions.append(reg)
+                # if not explicit order number was found
+                if len(same_order_regions) == 0:
+                    try:
+                        start_orders = np.argsort([
+                            list(self.action_graph.node[reg]["start"])[0] for reg in satifying_regions
+                        ])
+                        return satifying_regions[start_orders[region.order - 1]]
+                    except:
+                        return None
+                elif len(same_order_regions) == 1:
+                    return same_order_regions[0]
+                else:
+                    return None
+                # raise KamiHierarchyError(
+                #     "Agent with UniProtID '%s' has more than one regions (%s) that"
+                #     " may correspond to the region of interest '%s'" %
+                #     (
+                #         ref_agent,
+                #         ", ".join([str(r) for r in satifying_regions]),
+                #         str(region)
+                #     )
+                # )
+        else:
+            return None
 
     def find_residue(self, residue, ref_agent):
         """Find corresponding residue.
