@@ -1136,13 +1136,22 @@ class GeneAnatomy:
     def __init__(self, query, features=True, merge_features=True,
                  nest_features=True, merge_overlap=0.7, nest_overlap=0.7,
                  nest_level=1, offline=False):
+        # -1. Initialize all the possible fields with None (otherwise errors)
+        self.uniprot_ac = None
+        self.hgnc_symbol = None
+        self.hgnc_id = None
+        self.selected_iso = None
+        self.found = None
+        self.domains = None
+        self.offline = offline
+
         # 0. Read InterPro data.
         global ipr_loaded
         if not ipr_loaded:
             interpro_update()
             interpro_load()  # Sets ipr_loaded to True
         # 1. Get basic information about an agent
-        self.offline = offline
+
         if not self.offline:
             ensemblgene = get_ensembl_gene(query)
             self.found = True
@@ -1263,7 +1272,7 @@ class GeneAnatomy:
         # 1.1 Get synonyms and isoforms
         self.synonyms = []
         self.isoforms = []
-        if self.found:
+        if self.found and self.uniprot_ac is not None:
             mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
                                              % self.uniprot_ac)
             syns = mapping.findall("synonym")
