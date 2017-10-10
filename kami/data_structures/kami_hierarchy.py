@@ -1,4 +1,5 @@
 """."""
+import copy
 import networkx as nx
 import numpy as np
 
@@ -17,8 +18,18 @@ from kami.utils.id_generators import generate_new_id
 class KamiHierarchy(Hierarchy):
     """Kami-specific hierarchy class."""
 
-    def __init__(self):
-        """Initialize empty kami hierarchy.
+    def _init_shortcuts(self):
+        """Initialize kami-specific shortcuts."""
+        self.action_graph = self.node["action_graph"].graph
+        self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
+        self.mod_template = self.node["mod_template"].graph
+        self.bnd_template = self.node["bnd_template"].graph
+        self.semantic_action_graph = self.node["semantic_action_graph"].graph
+
+    def __init__(self, ag=None, ag_typing=None, ag_semantics=None,
+                 nuggets=None, nuggets_template_rels=None,
+                 nuggets_ag_typing=None, nuggets_semantic_rels=None):
+        """Initialize a KAMI hierarchy.
 
         By default action graph is empty, typed by `kami` (meta-model)
         `self.action_graph` -- direct access to the action graph.
@@ -29,27 +40,29 @@ class KamiHierarchy(Hierarchy):
         """
         Hierarchy.__init__(self)
 
-        self.add_graph("kami", metamodels.kami)
-
-        action_graph = nx.DiGraph()
-        self.add_graph("action_graph", action_graph)
-        self.add_typing("action_graph", "kami", dict())
-        self.action_graph = self.node["action_graph"].graph
-        self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
-
-        self.add_graph("mod_template", nugget_templates.mod_nugget)
+        # Add KAMI-specific invariant components of the hierarchy
+        self.add_graph("kami", metamodels.kami, {"type": "meta_model"})
+        self.add_graph(
+            "mod_template",
+            nugget_templates.mod_nugget,
+            {"type": "template"}
+        )
         self.add_typing("mod_template", "kami",
                         nugget_templates.mod_kami_typing)
-        self.mod_template = self.node["mod_template"].graph
-
-        self.add_graph("bnd_template", nugget_templates.bnd_nugget)
+        self.add_graph(
+            "bnd_template",
+            nugget_templates.bnd_nugget,
+            {"type": "template"}
+        )
         self.add_typing("bnd_template", "kami",
                         nugget_templates.bnd_kami_typing)
-        self.bnd_template = self.node["bnd_template"].graph
 
         # Semantic AG init
-        self.add_graph("semantic_action_graph",
-                       semantic_AG.semantic_action_graph)
+        self.add_graph(
+            "semantic_action_graph",
+            semantic_AG.semantic_action_graph,
+            {"type": "semantic_action_graph"}
+        )
         self.add_typing(
             "semantic_action_graph",
             "kami",
@@ -57,8 +70,15 @@ class KamiHierarchy(Hierarchy):
             total=True
         )
 
-        # Phosphorylation init
-        self.add_graph("phosphorylation", semantic_nuggets.phosphorylation)
+        # Semantic nugget 'phosphorylation' init
+        self.add_graph(
+            "phosphorylation",
+            semantic_nuggets.phosphorylation,
+            {
+                "type": "semantic_nugget",
+                "interaction_type": "mod"
+            }
+        )
         self.add_typing(
             "phosphorylation",
             "semantic_action_graph",
@@ -72,8 +92,15 @@ class KamiHierarchy(Hierarchy):
             total=True
         )
 
-        # sh2 init
-        self.add_graph("sh2_pY_binding", semantic_nuggets.sh2_pY_binding)
+        # Semantic nugget 'sh2_pY_binding' init
+        self.add_graph(
+            "sh2_pY_binding",
+            semantic_nuggets.sh2_pY_binding,
+            {
+                "type": "semantic_nugget",
+                "interaction_type": "bnd"
+            }
+        )
         self.add_typing(
             "sh2_pY_binding",
             "kami",
@@ -87,18 +114,128 @@ class KamiHierarchy(Hierarchy):
             total=True
         )
 
-        self.add_relation("action_graph", "semantic_action_graph", set())
+        # Initialization of knowledge-related components
+        # Action graph related init
+        if ag is not None:
+            ag = copy.deepcopy(ag)
+        else:
+            ag = nx.DiGraph()
+
+        if ag_typing is not None:
+            ag_typing = copy.deepcopy(ag_typing)
+        else:
+            ag_typing = dict()
+
+        if ag_semantics is not None:
+            ag_semantics = copy.deepcopy(ag_semantics)
+        else:
+            ag_semantics = set()
+
+        self.add_graph("action_graph", ag, {"type": "action_graph"})
+        self.add_typing("action_graph", "kami", ag_typing)
+        self.add_relation("action_graph", "semantic_action_graph",
+                          ag_semantics)
+
+        # Nuggets related init
+        if nuggets is not None:
+            for nugget_id, nugget_graph in nuggets:
+                self.add_graph(
+                    nugget_id,
+                    nugget_graph,
+                    {"type": "nugget"}
+                )
+
+        if nuggets_ag_typing is not None:
+            for nugget_id, typing in nuggets_ag_typing.items():
+                self.add_typing(
+                    nugget_id,
+                    "action_graph",
+                    typing
+                )
+
+        if nuggets_template_rels is not None:
+            for nugget_id, nugget_rels in nuggets_template_rels.items():
+                for template_id, rel in nugget_rels.items():
+                    self.add_relation(
+                        nugget_id,
+                        template_id,
+                        rel
+                    )
+
+        if nuggets_semantic_rels is not None:
+            for nugget_id, nugget_rels in nuggets_semantic_rels.items():
+                for s_nugget_id, rel in nugget_rels.items():
+                    self.add_relation(
+                        nugget_id,
+                        s_nugget_id,
+                        rel
+                    )
+
+        self._init_shortcuts()
         return
 
+    def nuggets(self):
+        """Get a list of nuggets in the hierarchy."""
+        nuggets = []
+        for node_id in self.nodes():
+            if self.node[node_id].attrs["type"] == "nugget":
+                nuggets.append(node_id)
+        return nuggets
+
+    def semantic_nuggets(self):
+        """Get a list of semantic nuggets in the hierarchy."""
+        nuggets = []
+        for node_id in self.nodes():
+            if self.node[node_id].attrs["type"] == "semantic_nugget":
+                nuggets.append(node_id)
+        return nuggets
+
+    def mod_semantic_nuggets(self):
+        """Get a list of semantic nuggets related to mod interactions."""
+        nuggets = []
+        for node_id in self.nodes():
+            if self.node[node_id].attrs["type"] == "semantic_nugget" and\
+               self.node[node_id].attrs["interaction_type"] == "mod":
+                nuggets.append(node_id)
+        return nuggets
+
+    def bnd_semantic_nuggets(self):
+        """Get a list of semantic nuggets related to bnd interactions."""
+        nuggets = []
+        for node_id in self.nodes():
+            if self.node[node_id].attrs["type"] == "semantic_nugget" and\
+               self.node[node_id].attrs["interaction_type"] == "bnd":
+                nuggets.append(node_id)
+        return nuggets
+
+    def empty(self):
+        """Test if hierarchy is empty."""
+        return (len(self.nuggets()) == 0) and\
+               (len(self.action_graph.nodes()) == 0)
+
     @classmethod
-    def from_json(cls, json_data, directed=True):
+    def from_hierarchy(cls, hierarchy):
+        """Create a KAMI hierarchy from a generic hierarchy."""
+        ag = hierarchy.node["action_graph"].graph
+        ag_typing = hierarchy.edge["action_graph"]["kami"].mapping
+        ag_semantics = hierarchy.relation["action_graph"]["semantic_action_graph"].rel
+
+        nuggets = []
+        for node_id in hierarchy.nodes():
+            if "type" in hierarchy.node[node_id].attrs.keys() and\
+               hierarchy.node[node_id].attrs["type"] == "nugget":
+                nuggets.append((node_id, hierarchy.node[node_id].graph))
+
+        # nuggets_ag_typing = dict()
+        # for nugget_id, _ in nuggets:
+        #     if (nugget_id, )
+
+        return cls(ag, ag_typing, ag_semantics, nuggets)
+
+    @classmethod
+    def from_json(cls, json_data):
         """Create hierarchy from json representation."""
-        hierarchy = Hierarchy.from_json(json_data, directed=directed)
-        hierarchy.action_graph = hierarchy.node["action_graph"].graph
-        hierarchy.action_graph_typing = hierarchy.edge[
-            "action_graph"]["kami"].mapping
-        hierarchy.mod_template = hierarchy.node["mod_template"].graph
-        hierarchy.bnd_template = hierarchy.node["bnd_template"].graph
+        hierarchy = super().from_json(json_data)
         return hierarchy
 
     def _generate_agent_id(self, agent):
@@ -132,6 +269,7 @@ class KamiHierarchy(Hierarchy):
         return regions
 
     def ag_successors_of_type(self, node_id, meta_type):
+        """Get successors of a node of a specific type."""
         succs = []
         for suc in self.action_graph.successors(node_id):
             if self.action_graph_typing[suc] == meta_type:
@@ -139,6 +277,7 @@ class KamiHierarchy(Hierarchy):
         return succs
 
     def ag_predecessors_of_type(self, node_id, meta_type):
+        """Get predecessors of a node of a specific type."""
         preds = []
         for pred in self.action_graph.predecessors(node_id):
             if self.action_graph_typing[pred] == meta_type:
@@ -200,7 +339,7 @@ class KamiHierarchy(Hierarchy):
     def add_mod(self, attrs=None, semantics=None):
         """Add mod node to the action graph."""
         # TODO: nice mod ids generation
-        mod_id = generate_new_id("mod")
+        mod_id = generate_new_id(self.action_graph, "mod")
 
         add_node(self.action_graph, mod_id, attrs)
         self.action_graph_typing[mod_id] = "mod"
@@ -487,7 +626,7 @@ class KamiHierarchy(Hierarchy):
                     return pred
         return None
 
-    def generate_nugget_id(self, name=None):
+    def _generate_nugget_id(self, name=None):
         """Generate id for a new nugget."""
         if name:
             if name not in self.nodes():
@@ -509,8 +648,12 @@ class KamiHierarchy(Hierarchy):
 
     def add_nugget(self, nugget, name=None):
         """Add nugget to the hierarchy."""
-        nugget_id = self.generate_nugget_id()
-        self.add_graph(nugget_id, nugget)
+        nugget_id = self._generate_nugget_id()
+        self.add_graph(
+            nugget_id,
+            nugget,
+            {"type": "nugget"}
+        )
         return nugget_id
 
     def type_nugget_by_ag(self, nugget_id, typing):
