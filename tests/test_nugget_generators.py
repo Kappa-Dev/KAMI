@@ -43,10 +43,6 @@ class TestNuggetGenerators(object):
 
         mod_generator = ModGenerator(enzyme_entity, substrate_entity, mod_state, value)
 
-        # print_graph(mod_generator.nugget)
-        # print(mod_generator.meta_typing)
-        # print(mod_generator.template_relation)
-
         self.generators.append(mod_generator)
 
         # 1b. Complex modification generator
