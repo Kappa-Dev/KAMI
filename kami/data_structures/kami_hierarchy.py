@@ -190,6 +190,14 @@ class KamiHierarchy(Hierarchy):
                 nuggets.append(node_id)
         return nuggets
 
+    def templates(self):
+        """Get a list of templates in the hierarchy."""
+        templates = []
+        for node_id in self.nodes():
+            if self.node[node_id].attrs["type"] == "template":
+                templates.append(node_id)
+        return templates
+
     def mod_semantic_nuggets(self):
         """Get a list of semantic nuggets related to mod interactions."""
         nuggets = []
@@ -213,42 +221,37 @@ class KamiHierarchy(Hierarchy):
         return (len(self.nuggets()) == 0) and\
                (len(self.action_graph.nodes()) == 0)
 
-    @classmethod
-    def from_hierarchy(cls, hierarchy):
-        """Create a KAMI hierarchy from a generic hierarchy."""
-        ag = hierarchy.node["action_graph"].graph
-        ag_typing = hierarchy.edge["action_graph"]["kami"].mapping
-        ag_semantics = hierarchy.relation["action_graph"]["semantic_action_graph"].rel
+    # @classmethod
+    # def from_hierarchy(cls, hierarchy):
+    #     """Create a KAMI hierarchy from a generic hierarchy."""
+    #     ag = hierarchy.node["action_graph"].graph
+    #     ag_typing = hierarchy.edge["action_graph"]["kami"].mapping
+    #     ag_semantics = hierarchy.relation["action_graph"]["semantic_action_graph"].rel
 
-        nuggets = []
-        for node_id in hierarchy.nodes():
-            if "type" in hierarchy.node[node_id].attrs.keys() and\
-               hierarchy.node[node_id].attrs["type"] == "nugget":
-                nuggets.append((node_id, hierarchy.node[node_id].graph))
+    #     nuggets = []
+    #     for node_id in hierarchy.nodes():
+    #         if "type" in hierarchy.node[node_id].attrs.keys() and\
+    #            hierarchy.node[node_id].attrs["type"] == "nugget":
+    #             nuggets.append((node_id, hierarchy.node[node_id].graph))
 
-        # nuggets_ag_typing = dict()
-        # for nugget_id, _ in nuggets:
-        #     if (nugget_id, )
+    #     nuggets_ag_typing = dict()
+    #     nuggets_template_rels = dict()
+    #     nuggets_semantic_rels = dict()
 
-        return cls(ag, ag_typing, ag_semantics, nuggets)
+    #     for nugget_id, _ in nuggets:
+    #         if (nugget_id, "action_graph") in hierarchy.edges():
+    #             nuggets_ag_typing[nugget_id] = hierarchy.edge[nugget_id]["action_graph"].mapping
+    #         for template in self.templates():
+    #             if (nugget_id, template) in hierarchy.relations():
+    #                 pass
+    #         for s_nugget_id in self.semantic_nuggets
+    #     return cls(ag, ag_typing, ag_semantics, nuggets)
 
     @classmethod
     def from_json(cls, json_data):
         """Create hierarchy from json representation."""
         hierarchy = super().from_json(json_data)
         return hierarchy
-
-    def _generate_agent_id(self, agent):
-        pass
-
-    def _generate_region_id(self, region):
-        pass
-
-    def _generate_residue_id(self, residue):
-        pass
-
-    def _generate_state_id(self, state):
-        pass
 
     def get_agents(self):
         """Get a list of agent nodes in the action graph."""
@@ -286,39 +289,26 @@ class KamiHierarchy(Hierarchy):
 
     def get_regions_of_agent(self, agent_id):
         """Get a list of regions belonging to a specified agent."""
-        regions = []
-        for pred in self.action_graph.predecessors(agent_id):
-            if pred in self.action_graph_typing.keys() and\
-               self.action_graph_typing[pred] == "region":
-                regions.append(pred)
-        return regions
+        return self.ag_predecessors_of_type(agent_id, "region")
 
     def get_attached_residues(self, agent_id):
         """Get a list of residues attached to a node with `agent_id`."""
-        residues = []
-        # collect residues directly connected
-        for pred in self.action_graph.predecessors(agent_id):
-            if pred in self.action_graph_typing.keys() and\
-               self.action_graph_typing[pred] == "residue":
-                residues.append(pred)
-        return residues
+        return self.ag_predecessors_of_type(agent_id, "residue")
 
     def get_attached_states(self, agent_id):
         """Get a list of states attached to a node with `agent_id`."""
-        states = []
-        # collect residues directly connected
-        for pred in self.action_graph.predecessors(agent_id):
-            if pred in self.action_graph_typing.keys() and\
-               self.action_graph_typing[pred] == "state":
-                states.append(pred)
-        return states
+        return self.ag_predecessors_of_type(agent_id, "state")
 
     def get_agent_by_region(self, region_id):
         """Get agent id conntected to the region."""
-        for suc in self.action_graph.successors(region_id):
-            if suc in self.action_graph_typing.keys() and\
-               self.action_graph_typing[suc] == "agent":
-                return suc
+        agents = self.ag_successors_of_type(region_id, "agent")
+        if len(agents) == 1:
+            return agents[0]
+        elif len(agents) > 1:
+            raise KamiHierarchyError(
+                "More than one agents ('%s') are associated "
+                "with a single region '%s'" % (", ".join(agents), region_id)
+            )
         return None
 
     def add_agent(self, agent):

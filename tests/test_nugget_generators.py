@@ -1,5 +1,5 @@
-"""."""
-from regraph.primitives import print_graph
+"""Collection of tests for nugget generators."""
+# from regraph.primitives import print_graph
 
 from kami.nugget_generators import (ModGenerator,
                                     AutoModGenerator,
@@ -10,14 +10,15 @@ from kami.nugget_generators import (ModGenerator,
 from kami.data_structures.entities import (PhysicalAgent, Agent,
                                            PhysicalRegion, Region,
                                            PhysicalRegionAgent,
-                                           Residue, State, NuggetAnnotation,
+                                           Residue, State,
                                            )
 
 
 class TestNuggetGenerators(object):
-    """Collection of tests for nugget generators."""
+    """Test class for nugget generators."""
 
     def __init__(self):
+        """."""
         self.generators = []
 
         # 1a. Simple modification generator
@@ -154,6 +155,7 @@ class TestNuggetGenerators(object):
         # print(gen.template_relation)
 
     def test_anonymous_mod_nugget(self):
+        """."""
         substrate_ph_agent = PhysicalAgent(
             Agent("A"),
             residues=[
@@ -174,6 +176,7 @@ class TestNuggetGenerators(object):
         # print(gen.template_relation)
 
     def test_binary_bnd_nugget(self):
+        """."""
         left_members = [
             PhysicalAgent(
                 Agent("A1"), states=[State('activity', True)]
@@ -199,6 +202,7 @@ class TestNuggetGenerators(object):
         # print(gen.template_relation)
 
     def test_complex_nugget(self):
+        """."""
         members = [
             PhysicalAgent(Agent("A")),
             PhysicalAgent(Agent("B")),
@@ -212,23 +216,23 @@ class TestNuggetGenerators(object):
         # print_graph(gen.nugget)
         # print(gen.meta_typing)
 
-    def add_residue_to_agent(self):
-        pass
+    # def add_residue_to_agent(self):
+    #     pass
 
-    def add_state_to_agent(self):
-        pass
+    # def add_state_to_agent(self):
+    #     pass
 
-    def add_is_bnd_to_agent(self):
-        pass
+    # def add_is_bnd_to_agent(self):
+    #     pass
 
-    def add_is_free_to_agent(self):
-        pass
+    # def add_is_free_to_agent(self):
+    #     pass
 
-    def add_region_to_agent(self):
-        pass
+    # def add_region_to_agent(self):
+    #     pass
 
-    def insert_region(self):
-        pass
+    # def insert_region(self):
+    #     pass
 
-    def add_is_bnd_between(self):
-        pass
+    # def add_is_bnd_between(self):
+    #     pass

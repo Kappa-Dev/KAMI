@@ -15,3 +15,15 @@ class TestKamiHierarchy(object):
         json_hierarchy = hierarchy.to_json()
         new_hierarchy = KamiHierarchy.from_json(json_hierarchy)
         assert(isinstance(new_hierarchy, KamiHierarchy))
+        print(new_hierarchy)
+        print(hierarchy)
+        assert(new_hierarchy == hierarchy)
+
+        assert(hierarchy.action_graph is hierarchy.node["action_graph"].graph)
+        assert(hierarchy.action_graph_typing is
+               hierarchy.edge["action_graph"]["kami"].mapping)
+        assert(hierarchy.mod_template is
+               hierarchy.node["mod_template"].graph)
+        assert(hierarchy.bnd_template is hierarchy.node["bnd_template"].graph)
+        assert(hierarchy.semantic_action_graph is
+               hierarchy.node["semantic_action_graph"].graph)
