@@ -17,11 +17,8 @@ from kami.data_structures.entities import (PhysicalAgent, Agent,
 class TestNuggetGenerators(object):
     """Test class for nugget generators."""
 
-    def __init__(self):
-        """."""
-        self.generators = []
-
-        # 1a. Simple modification generator
+    def test_simple_mod_generator(self):
+        """Simple modification generator."""
         enz_res = Residue("S", 100, State("phospho", True))
         enzyme_entity = PhysicalAgent(Agent("E"), residues=[enz_res])
 
@@ -42,12 +39,13 @@ class TestNuggetGenerators(object):
         mod_state = State("activity", False)
         value = True
 
-        mod_generator = ModGenerator(enzyme_entity, substrate_entity, mod_state, value)
+        mod_generator = ModGenerator(
+            enzyme_entity, substrate_entity, mod_state, value
+        )
+        # TODO: tests
 
-        self.generators.append(mod_generator)
-
-        # 1b. Complex modification generator
-
+    def test_complex_mod_generator(self):
+        """Complex modification generator."""
         enzyme_agent = Agent("Enzyme")
         enzyme_ph_agent = PhysicalAgent(enzyme_agent)
         enzyme_region = PhysicalRegion(Region(100, 200, "sh2"))
@@ -100,9 +98,8 @@ class TestNuggetGenerators(object):
         # print(gen.meta_typing)
         # print(gen.template_relation)
 
-        self.generators.append(gen)
-
-        # 2. Automodification
+    def test_automodification_generator(self):
+        """Automodification nugget generator."""
         agent = Agent("A")
 
         a1 = PhysicalAgent(Agent("B"))
@@ -132,9 +129,8 @@ class TestNuggetGenerators(object):
         # print(gen.meta_typing)
         # print(gen.template_relation)
 
-        self.generators.append(gen)
-
-        # 3. Transmodification
+    def test_transmodification_generator(self):
+        """Transmodification nugget generator."""
         enzyme_ph_agent = PhysicalAgent(Agent("A"))
 
         substrate_ph_agent = PhysicalRegionAgent(

@@ -1195,8 +1195,7 @@ class GeneAnatomy:
             self.length = get_length(self.canonical)
 
             self.domains = []
-
-        if self.offline:
+        else:
             self.domains = []
             self.found = False
             # Find proper entry according to query,

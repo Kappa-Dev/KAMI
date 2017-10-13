@@ -12,7 +12,10 @@ def generate_new_id(graph, base_name):
 
 def get_nugget_agent_id(nugget, agent):
     """Generate agent id for an input nugget."""
-    agent_id = agent.uniprotid
+    if agent.uniprotid is not None:
+        agent_id = agent.uniprotid
+    else:
+        agent_id = "unknown_agent"
     if agent_id in nugget.nodes():
         agent_id = generate_new_id(nugget, agent_id)
     return agent_id

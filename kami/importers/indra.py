@@ -234,7 +234,8 @@ class IndraImporter(object):
         mod_residue = None
         if statement.residue:
             if statement.position:
-                mod_residue = Residue(statement.residue, statement.position, state_obj)
+                mod_residue = Residue(
+                    statement.residue, statement.position, state_obj)
             else:
                 mod_residue = Residue(statement.residue, state=state_obj)
 
@@ -268,7 +269,8 @@ class IndraImporter(object):
             mod_residue = None
             if statement.residue:
                 if statement.position:
-                    mod_residue = Residue(statement.residue, statement.position, state_obj)
+                    mod_residue = Residue(
+                        statement.residue, statement.position, state_obj)
                 else:
                     mod_residue = Residue(statement.residue, state=state_obj)
 

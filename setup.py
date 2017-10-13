@@ -1,6 +1,6 @@
 """Setup of KAMI."""
 
-from setuptools import setup, find_packages
+from setuptools import setup
 setup(name='kami',
       version='0.1',
       description='Knowledge Aggregator and Model Instantiator',
@@ -25,4 +25,5 @@ setup(name='kami',
           'anatomizer': ['resources/*']
       },
       include_package_data=True,
-      zip_safe=False)
+      zip_safe=False,
+      )
