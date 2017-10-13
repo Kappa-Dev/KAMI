@@ -139,7 +139,8 @@ class Residue(object):
         else:
             aa = set([aa])
         self.aa = aa
-        self.loc = loc
+        if loc is not None:
+            self.loc = int(loc)
         self.state = state
 
     def __str__(self):
@@ -151,10 +152,11 @@ class Residue(object):
 
     def to_attrs(self):
         """Convert agent object to attrs."""
-        return {
-            "aa": self.aa,
-            "loc": {self.loc}
-        }
+        res = dict()
+        res["aa"] = self.aa
+        if "loc" is not None:
+            res["loc"] = {int(self.loc)}
+        return res
 
 
 class PhysicalEntity(object):

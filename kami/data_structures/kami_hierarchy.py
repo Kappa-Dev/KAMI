@@ -8,10 +8,7 @@ from regraph.primitives import (add_node,
                                 add_edge)
 
 from kami.exceptions import KamiHierarchyError
-from kami.resources import (metamodels,
-                            nugget_templates,
-                            semantic_nuggets,
-                            semantic_AG)
+from kami.resources import default_components
 from kami.utils.id_generators import generate_new_id
 
 
@@ -20,11 +17,40 @@ class KamiHierarchy(Hierarchy):
 
     def _init_shortcuts(self):
         """Initialize kami-specific shortcuts."""
-        self.action_graph = self.node["action_graph"].graph
-        self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
+        if "action_graph" in self.nodes():
+            self.action_graph = self.node["action_graph"].graph
+        else:
+            self.action_graph = None
+
+        if ("action_graph", "kami") in self.edges():
+            self.action_graph_typing =\
+                self.edge["action_graph"]["kami"].mapping
+        else:
+            self.action_graph_typing = None
         self.mod_template = self.node["mod_template"].graph
         self.bnd_template = self.node["bnd_template"].graph
         self.semantic_action_graph = self.node["semantic_action_graph"].graph
+
+    def create_empty_action_graph(self):
+        self.add_graph(
+            "action_graph",
+            nx.DiGraph(),
+            {"type": "action_graph"}
+        )
+        self.add_typing(
+            "action_graph",
+            "kami",
+            dict()
+        )
+        self.add_relation(
+            "action_graph",
+            "semantic_action_graph",
+            set()
+        )
+        self.action_graph = self.node["action_graph"].graph
+        self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
+
+        return
 
     def __init__(self, ag=None, ag_typing=None, ag_semantics=None,
                  nuggets=None, nuggets_template_rels=None,
@@ -41,100 +67,32 @@ class KamiHierarchy(Hierarchy):
         Hierarchy.__init__(self)
 
         # Add KAMI-specific invariant components of the hierarchy
-        self.add_graph("kami", metamodels.kami, {"type": "meta_model"})
-        self.add_graph(
-            "mod_template",
-            nugget_templates.mod_nugget,
-            {"type": "template"}
-        )
-        self.add_typing("mod_template", "kami",
-                        nugget_templates.mod_kami_typing)
-        self.add_graph(
-            "bnd_template",
-            nugget_templates.bnd_nugget,
-            {"type": "template"}
-        )
-        self.add_typing("bnd_template", "kami",
-                        nugget_templates.bnd_kami_typing)
-
-        # Semantic AG init
-        self.add_graph(
-            "semantic_action_graph",
-            semantic_AG.semantic_action_graph,
-            {"type": "semantic_action_graph"}
-        )
-        self.add_typing(
-            "semantic_action_graph",
-            "kami",
-            semantic_AG.kami_typing,
-            total=True
-        )
-
-        # Semantic nugget 'phosphorylation' init
-        self.add_graph(
-            "phosphorylation",
-            semantic_nuggets.phosphorylation,
-            {
-                "type": "semantic_nugget",
-                "interaction_type": "mod"
-            }
-        )
-        self.add_typing(
-            "phosphorylation",
-            "semantic_action_graph",
-            semantic_nuggets.phosphorylation_semantic_AG,
-            total=True
-        )
-        self.add_typing(
-            "phosphorylation",
-            "kami",
-            semantic_nuggets.phosphorylation_kami_typing,
-            total=True
-        )
-
-        # Semantic nugget 'sh2_pY_binding' init
-        self.add_graph(
-            "sh2_pY_binding",
-            semantic_nuggets.sh2_pY_binding,
-            {
-                "type": "semantic_nugget",
-                "interaction_type": "bnd"
-            }
-        )
-        self.add_typing(
-            "sh2_pY_binding",
-            "kami",
-            semantic_nuggets.sh2_pY_kami_typing,
-            total=True
-        )
-        self.add_typing(
-            "sh2_pY_binding",
-            "semantic_action_graph",
-            semantic_nuggets.sh2_pY_semantic_AG,
-            total=True
-        )
+        for graph_id, graph, attrs in default_components.GRAPHS:
+            self.add_graph(graph_id, graph, attrs)
+        for s, t, mapping, attrs in default_components.TYPING:
+            self.add_typing(s, t, mapping, total=True, attrs=attrs)
+        for rule_id, rule, attrs in default_components.RULES:
+            self.add_rule(rule_id, rule, attrs)
+        for s, t, (lhs_mapping, rhs_mapping), attrs in default_components.RULE_TYPING:
+            self.add_rule_typing(s, t, lhs_mapping, rhs_mapping,
+                                 lhs_total=True, rhs_total=True, attrs=attrs)
+        for u, v, rel, attrs in default_components.RELATIONS:
+            self.add_relation(u, v, rel, attrs)
 
         # Initialization of knowledge-related components
         # Action graph related init
         if ag is not None:
             ag = copy.deepcopy(ag)
-        else:
-            ag = nx.DiGraph()
+            self.add_graph("action_graph", ag, {"type": "action_graph"})
 
-        if ag_typing is not None:
-            ag_typing = copy.deepcopy(ag_typing)
-        else:
-            ag_typing = dict()
+            if ag_typing is not None:
+                ag_typing = copy.deepcopy(ag_typing)
+                self.add_typing("action_graph", "kami", ag_typing)
 
-        if ag_semantics is not None:
-            ag_semantics = copy.deepcopy(ag_semantics)
-        else:
-            ag_semantics = set()
-
-        self.add_graph("action_graph", ag, {"type": "action_graph"})
-        self.add_typing("action_graph", "kami", ag_typing)
-        self.add_relation("action_graph", "semantic_action_graph",
-                          ag_semantics)
+            if ag_semantics is not None:
+                ag_semantics = copy.deepcopy(ag_semantics)
+                self.add_relation("action_graph", "semantic_action_graph",
+                                  ag_semantics)
 
         # Nuggets related init
         if nuggets is not None:
@@ -173,6 +131,58 @@ class KamiHierarchy(Hierarchy):
 
         self._init_shortcuts()
         return
+
+    @classmethod
+    def from_json(cls, json_data, directed=True):
+        """Create hierarchy from json representation."""
+        default_graphs = [graph_id for graph_id,
+                          _, _ in default_components.GRAPHS]
+        default_typings = [(s, t) for s, t, _, _ in default_components.TYPING]
+        default_rules = [rule_id for rule_id, _, _ in default_components.RULES]
+        default_rule_typings = [(s, t)
+                                for s, t, _, _, _ in default_components.RULE_TYPING]
+        default_relations = [(s, t)
+                             for s, t, _ in default_components.RELATIONS]
+
+        # filter nodes and edges of the hierarchy that are created by default
+        filtered_json_data = {
+            "graphs": [],
+            "typing": [],
+            "rules": [],
+            "rule_typing": [],
+            "relations": []
+        }
+        for graph_data in json_data["graphs"]:
+            if graph_data["id"] not in default_graphs:
+                filtered_json_data["graphs"].append(graph_data)
+
+        for rule_data in json_data["rules"]:
+            if rule_data["id"] not in default_rules:
+                filtered_json_data["rules"].append(rule_data)
+
+        for typing_data in json_data["typing"]:
+            if (typing_data["from"], typing_data["to"]) not in default_typings:
+                filtered_json_data["typing"].append(typing_data)
+
+        for rule_typing_data in json_data["rule_typing"]:
+            if (rule_typing_data["from"], rule_typing_data["to"]) not in default_rule_typings:
+                filtered_json_data["rule_typing"].append(rule_typing_data)
+
+        for relation_data in json_data["relations"]:
+            if (relation_data["from"], relation_data["to"]) not in default_relations and\
+               (relation_data["to"], relation_data["from"]) not in default_relations:
+                filtered_json_data["relations"].append(relation_data)
+
+        hierarchy = super().from_json(filtered_json_data, directed)
+        hierarchy._init_shortcuts()
+        return hierarchy
+
+    @classmethod
+    def load(cls, filename, directed=True):
+        """Load a KamiHierarchy from its json representation."""
+        hierarchy = super().load(filename)
+        hierarchy._init_shortcuts()
+        return hierarchy
 
     def nuggets(self):
         """Get a list of nuggets in the hierarchy."""
@@ -219,57 +229,34 @@ class KamiHierarchy(Hierarchy):
     def empty(self):
         """Test if hierarchy is empty."""
         return (len(self.nuggets()) == 0) and\
-               (len(self.action_graph.nodes()) == 0)
+               ((self.action_graph is None) or
+                (len(self.action_graph.nodes()) == 0))
 
-    # @classmethod
-    # def from_hierarchy(cls, hierarchy):
-    #     """Create a KAMI hierarchy from a generic hierarchy."""
-    #     ag = hierarchy.node["action_graph"].graph
-    #     ag_typing = hierarchy.edge["action_graph"]["kami"].mapping
-    #     ag_semantics = hierarchy.relation["action_graph"]["semantic_action_graph"].rel
+    def nodes_of_type(self, type_name):
+        """Get action graph nodes of a specified type."""
+        nodes = []
+        if self.action_graph is not None and\
+           self.action_graph_typing is not None:
+            for node in self.action_graph.nodes():
+                if self.action_graph_typing[node] == type_name:
+                    nodes.append(node)
+        return nodes
 
-    #     nuggets = []
-    #     for node_id in hierarchy.nodes():
-    #         if "type" in hierarchy.node[node_id].attrs.keys() and\
-    #            hierarchy.node[node_id].attrs["type"] == "nugget":
-    #             nuggets.append((node_id, hierarchy.node[node_id].graph))
-
-    #     nuggets_ag_typing = dict()
-    #     nuggets_template_rels = dict()
-    #     nuggets_semantic_rels = dict()
-
-    #     for nugget_id, _ in nuggets:
-    #         if (nugget_id, "action_graph") in hierarchy.edges():
-    #             nuggets_ag_typing[nugget_id] = hierarchy.edge[nugget_id]["action_graph"].mapping
-    #         for template in self.templates():
-    #             if (nugget_id, template) in hierarchy.relations():
-    #                 pass
-    #         for s_nugget_id in self.semantic_nuggets
-    #     return cls(ag, ag_typing, ag_semantics, nuggets)
-
-    @classmethod
-    def from_json(cls, json_data):
-        """Create hierarchy from json representation."""
-        hierarchy = super().from_json(json_data)
-        return hierarchy
-
-    def get_agents(self):
+    def agents(self):
         """Get a list of agent nodes in the action graph."""
-        agents = []
-        for node in self.action_graph.nodes():
-            if node in self.action_graph_typing.keys() and\
-               self.action_graph_typing[node] == "agent":
-                agents.append(node)
-        return agents
+        return self.nodes_of_type("agent")
 
-    def get_regions(self):
+    def regions(self):
         """Get a list of region nodes in the action graph."""
-        regions = []
-        for node in self.action_graph.nodes():
-            if node in self.action_graph_typing.keys() and\
-               self.action_graph_typing[node] == "region":
-                regions.append(node)
-        return regions
+        return self.nodes_of_type("region")
+
+    def bindings(self):
+        """Get a list of bnd nodes in the action graph."""
+        return self.nodes_of_type("bnd")
+
+    def modifications(self):
+        """Get a list of bnd nodes in the action graph."""
+        return self.nodes_of_type("mod")
 
     def ag_successors_of_type(self, node_id, meta_type):
         """Get successors of a node of a specific type."""
@@ -313,6 +300,8 @@ class KamiHierarchy(Hierarchy):
 
     def add_agent(self, agent):
         """Add agent node to action graph."""
+        if self.action_graph is None:
+            self.create_empty_action_graph()
         if agent.uniprotid:
             agent_id = agent.uniprotid
         else:
@@ -360,18 +349,10 @@ class KamiHierarchy(Hierarchy):
 
     def add_region(self, region, ref_agent, semantics=None):
         """Add region node to action graph connected to `ref_agent`."""
-        found = False
-        ref_agent_id = None
-
         # found node in AG corresponding to reference agent
-        agent_nodes = self.get_agents()
-        for node in agent_nodes:
-            if ref_agent in self.action_graph.node[node]["uniprotid"]:
-                found = True
-                ref_agent_id = node
-        if not found:
+        if ref_agent not in self.agents():
             raise KamiHierarchyError(
-                "Agent with UniProtID '%s' is not found in the action graph" %
+                "Agent '%s' is not found in the action graph" %
                 ref_agent
             )
 
@@ -379,14 +360,15 @@ class KamiHierarchy(Hierarchy):
         if region.start is not None and region.end is not None:
             region_id += "_%s_%s" % (region.start, region.end)
         if region.name is not None:
-            region_id += "_%s" % region.name.replace(" ", "_")
+            region_id += "_%s" % region.name.replace(
+                " ", "_").replace(",", "")
 
         if region_id in self.action_graph.nodes():
             region_id = generate_new_id(self.action_graph, region_id)
 
         add_node(self.action_graph, region_id, region.to_attrs())
         self.action_graph_typing[region_id] = "region"
-        add_edge(self.action_graph, region_id, ref_agent_id)
+        add_edge(self.action_graph, region_id, ref_agent)
 
         if semantics is not None:
             for sem in semantics:
@@ -411,41 +393,42 @@ class KamiHierarchy(Hierarchy):
             )
 
         # try to find an existing residue with this
-        for res in self.get_attached_residues(ref_agent):
-            if list(self.action_graph.node[res]["loc"])[0] == residue.loc:
-                self.action_graph.node[res]["aa"] =\
-                    self.action_graph.node[res]["aa"].union(residue.aa)
-                return res
-
+        res = self.find_residue(residue, ref_agent, True)
         # if residue with this loc does not exist: create one
-        residue_id = None
+        if res is None:
+            if self.action_graph_typing[ref_agent] == "agent":
+                residue_id = "%s_residue" % ref_agent
+                if residue.loc is not None:
+                    residue_id += "_%s" % residue.loc
+                else:
+                    residue_id = generate_new_id(self.action_graph, residue_id)
+                add_node(self.action_graph, residue_id, residue.to_attrs())
+                self.action_graph_typing[residue_id] = "residue"
+                for region in self.get_regions_of_agent(ref_agent):
+                    if residue.loc:
+                        if "start" in self.action_graph.node[region] and\
+                           "end" in self.action_graph.node[region]:
+                            if int(residue.loc) >= list(self.action_graph.node[region]["start"])[0] and\
+                               int(residue.loc) <= list(self.action_graph.node[region]["end"])[0]:
+                                add_edge(self.action_graph, residue_id, region)
+                add_edge(self.action_graph, residue_id, ref_agent)
 
-        if self.action_graph_typing[ref_agent] == "agent":
-            residue_id = "%s_residue_%s" % (ref_agent, str(residue.loc))
-            add_node(self.action_graph, residue_id, residue.to_attrs())
-            for region in self.get_regions_of_agent(ref_agent):
-                if residue.loc:
-                    if "start" in self.action_graph.node[region] and\
-                       "end" in self.action_graph.node[region]:
-                        if int(residue.loc) >= list(self.action_graph.node[region]["start"])[0] and\
-                           int(residue.loc) <= list(self.action_graph.node[region]["end"])[0]:
-                            add_edge(self.action_graph, residue_id, region)
-            add_edge(self.action_graph, residue_id, ref_agent)
+            else:
+                agent = self.get_agent_by_region(ref_agent)
+                residue_id = "%s_residue" % agent
+                if residue.loc is not None:
+                    residue_id += "_%s" % residue.loc
+                else:
+                    residue_id = generate_new_id(self.action_graph, residue_id)
+                add_node(self.action_graph, residue_id, residue.to_attrs())
+                self.action_graph_typing[residue_id] = "residue"
+                add_edge(self.action_graph, residue_id, ref_agent)
+                add_edge(self.action_graph, residue_id, agent)
 
-        else:
-            residue_id = "%s_residue_%s" % (ref_agent, str(residue.loc))
-            agent = self.get_agent_by_region(ref_agent)
-            add_node(self.action_graph, residue_id, residue.to_attrs())
-            add_edge(self.action_graph, residue_id, ref_agent)
-            add_edge(self.action_graph, residue_id, agent)
-
-        if residue_id:
-            self.action_graph_typing[residue_id] = "residue"
-
-        # add semantic relations of the node
-        if semantics:
-            for s in semantics:
-                self.add_ag_node_semantics(residue_id, s)
+            # add semantic relations of the node
+            if semantics:
+                for s in semantics:
+                    self.add_ag_node_semantics(residue_id, s)
 
         return residue_id
 
@@ -511,29 +494,23 @@ class KamiHierarchy(Hierarchy):
 
     def find_agent(self, agent):
         """Find corresponding agent in action graph."""
-        agents = self.get_agents()
+        agents = self.agents()
         for node in agents:
-            if agent.uniprotid in self.action_graph.node[node]["uniprotid"]:
+            if "uniprotid" in self.action_graph.node[node].keys() and\
+               agent.uniprotid in self.action_graph.node[node]["uniprotid"]:
                 return node
         return None
 
     def find_region(self, region, ref_agent):
         """Find corresponding region in action graph."""
-        found = False
-        agent_node = None
-        agent_nodes = self.get_agents()
-        for node in agent_nodes:
-            if ref_agent in self.action_graph.node[node]["uniprotid"]:
-                found = True
-                agent_node = node
-        if not found:
+        if ref_agent not in self.agents():
             raise KamiHierarchyError(
                 "Agent with UniProtID '%s' is not found in the action graph" %
                 ref_agent
             )
         else:
             # assume there is no nesting of regions for the moment
-            region_candidates = self.get_regions_of_agent(agent_node)
+            region_candidates = self.get_regions_of_agent(ref_agent)
             satifying_regions = []
             for reg in region_candidates:
                 start = None
@@ -590,19 +567,40 @@ class KamiHierarchy(Hierarchy):
         else:
             return None
 
-    def find_residue(self, residue, ref_agent):
+    def find_residue(self, residue, ref_agent, add_aa=False):
         """Find corresponding residue.
 
         `residue` -- input residue entity to search for
         `ref_agent` -- reference to an agent to which residue belongs.
         Can reference either to an agent or to a region
         in the action graph.
+        `add_aa` -- add aa value if location is found but aa not
         """
         residue_candidates = self.get_attached_residues(ref_agent)
-        for res in residue_candidates:
-            if residue.loc in self.action_graph.node[res]["loc"] and\
-               residue.aa <= self.action_graph.node[res]["aa"]:
-                return res
+        if residue.loc is not None:
+            for res in residue_candidates:
+                if "loc" in self.action_graph.node[res].keys():
+                    if residue.loc == int(list(self.action_graph.node[res]["loc"])[0]):
+                        if residue.aa <= self.action_graph.node[res]["aa"]:
+                            return res
+                        elif add_aa is True:
+                            self.action_graph.node[res]["aa"] =\
+                                self.action_graph.node[res]["aa"].union(
+                                    residue.aa
+                            )
+                            return res
+        else:
+            for res in residue_candidates:
+                if "loc" not in self.action_graph.node[res].keys() or\
+                   self.action_graph.node[res]["loc"].is_empty():
+                    if residue.aa <= self.action_graph.node[res]["aa"]:
+                        return res
+                    elif add_aa is True:
+                        self.action_graph.node[res]["aa"] =\
+                            self.action_graph.node[res]["aa"].union(
+                            residue.aa
+                        )
+                        return res
         return None
 
     def find_state(self, state, ref_agent):
@@ -819,3 +817,25 @@ class KamiHierarchy(Hierarchy):
                 if nugget.meta_typing[node] == "agent":
                     ref_id = _process_agent(node)
                     visited.add(node)
+
+    def ag_to_edge_list(self, agent_ids="hgnc_symbol"):
+        edge_list = []
+        for u, v in self.action_graph.edges():
+            if self.action_graph_typing[u] == "agent":
+                hgnc = list(self.action_graph.node[u]["hgnc_symbol"])[0]
+                if hgnc is not None:
+                    n1 = hgnc
+                else:
+                    n1 = u
+            else:
+                n1 = u
+            if self.action_graph_typing[v] == "agent":
+                hgnc = list(self.action_graph.node[v]["hgnc_symbol"])[0]
+                if hgnc is not None:
+                    n2 = hgnc
+                else:
+                    n2 = v
+            else:
+                n2 = v
+            edge_list.append((n1, n2))
+        return edge_list

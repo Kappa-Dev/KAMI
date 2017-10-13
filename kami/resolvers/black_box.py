@@ -1,5 +1,6 @@
 """Basic black box functionality."""
 import sys
+import time
 
 from kami.resolvers.generators import (ModGenerator,
                                        AutoModGenerator,
@@ -76,10 +77,13 @@ def create_nuggets(interactions, hierarchy=None, add_agents=True,
     if not hierarchy:
         hierarchy = KamiHierarchy()
 
-    for interaction in interactions:
+    time_to_generate_nugget = []
+    for i, interaction in enumerate(interactions):
+        print("Processing interaction %d..." % (i + 1))
         interaction_type = type(interaction).__name__.lower()
 
         # Dynamically call functions corresponding to an interaction type
+        start = time.time()
         getattr(sys.modules[__name__], "add_%s" % interaction_type)(
             interaction,
             hierarchy=hierarchy,
@@ -88,4 +92,7 @@ def create_nuggets(interactions, hierarchy=None, add_agents=True,
             merge_actions=merge_actions,
             apply_semantics=apply_semantics
         )
+        end = time.time() - start
+        time_to_generate_nugget.append(end - start)
+    print(time_to_generate_nugget)
     return hierarchy

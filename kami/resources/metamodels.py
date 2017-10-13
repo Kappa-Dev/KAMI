@@ -1,9 +1,10 @@
 """Collection of metamodels used in Kami."""
+import math
 import networkx as nx
 
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from)
-from regraph.attribute_sets import RegexSet
+from regraph.attribute_sets import RegexSet, IntegerSet, UniversalSet
 
 
 UNIPROT_REGEX =\
@@ -39,23 +40,33 @@ add_nodes_from(
     [
         ("agent", {
             "uniprotid": RegexSet(UNIPROT_REGEX),
-            "names": RegexSet.universal()
+            "hgnc_symbol": RegexSet.universal(),
+            "synonyms": RegexSet.universal(),
+            "xrefs": UniversalSet()
         }),
-        "region",
+        ("region", {
+            "start": IntegerSet([(1, math.inf)]),
+            "end": IntegerSet([(1, math.inf)]),
+            "name": RegexSet.universal(),
+            "order": IntegerSet([(1, math.inf)])
+        }),
         ("residue", {
             "aa": {
                 "G", "P", "A", "V", "L", "I", "M",
                 "C", "F", "Y", "W", "H", "K", "R",
                 "Q", "N", "E", "D", "S", "T"
-            }
+            },
+            "loc": IntegerSet([(1, math.inf)])
         }),
         "locus",
         ("state", {
             "activity": {True, False},
-            "phosphorylation": {True, False}
+            "phosphorylation": {True, False},
+            "acetylation": {True, False}
         }),
         ("mod", {
             "value": {True, False},
+            "direct": {True, False},
             "text": RegexSet.universal()
         }),
         "syn",

@@ -12,7 +12,7 @@ from regraph.primitives import (add_node,
 from kami.data_structures.entities import (Region, State, Residue,
                                            PhysicalAgent,
                                            PhysicalRegionAgent,
-                                           MotifAgent, Motif)
+                                           MotifAgent)
 from kami.exceptions import (KamiError,
                              NuggetGenerationError,
                              KamiWarning)
@@ -111,34 +111,35 @@ class Generator:
             agent.hgnc_symbol = anatomy.hgnc_symbol
             agent_id = self.hierarchy.add_agent(agent)
             for domain in anatomy.domains:
-                region = Region(
-                    domain.start,
-                    domain.end,
-                    ", ".join(domain.short_names)
-                )
-
-                semantics = domain.get_semantics()
-
-                region_id = self.hierarchy.find_region(region, agent_id)
-                if not region_id:
-                    region_id = self.hierarchy.add_region(
-                        region,
-                        agent_id,
-                        semantics=semantics
+                if domain.feature_type == "Domain":
+                    region = Region(
+                        domain.start,
+                        domain.end,
+                        " ".join(domain.short_names)
                     )
-                    if 'kinase' in semantics:
-                        state = State("activity", True)
-                        activity_id = self.hierarchy.add_state(
-                            state,
-                            region_id,
-                            semantics=["activity"]
+
+                    semantics = domain.get_semantics()
+
+                    region_id = self.hierarchy.find_region(region, agent_id)
+                    if not region_id:
+                        region_id = self.hierarchy.add_region(
+                            region,
+                            agent_id,
+                            semantics=semantics
                         )
-                        add_edge(
-                            self.hierarchy.action_graph,
-                            activity_id,
-                            region_id
-                        )
-                add_edge(self.hierarchy.action_graph, region_id, agent_id)
+                        if 'kinase' in semantics:
+                            state = State("activity", True)
+                            activity_id = self.hierarchy.add_state(
+                                state,
+                                region_id,
+                                semantics=["activity"]
+                            )
+                            add_edge(
+                                self.hierarchy.action_graph,
+                                activity_id,
+                                region_id
+                            )
+                    add_edge(self.hierarchy.action_graph, region_id, agent_id)
         else:
             agent_id = self.hierarchy.add_agent(agent)
         return agent_id
@@ -158,7 +159,6 @@ class Generator:
     def _identify_agent(self, agent, add_agents=True, anatomize=True):
         # try to identify an agent
         reference_id = self.hierarchy.find_agent(agent)
-
         if add_agents is True:
             if reference_id is not None:
                 # add new xrefs to AG agent
@@ -207,7 +207,9 @@ class Generator:
     def _identify_residue(self, residue, agent, add_agents=True):
         # try to identify an agent
         try:
-            reference_id = self.hierarchy.find_residue(residue, agent)
+            reference_id = self.hierarchy.find_residue(
+                residue, agent, add_agents
+            )
         except:
             if add_agents is False:
                 return None
