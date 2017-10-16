@@ -101,45 +101,70 @@ class Generator:
 
     def _add_agent_to_ag(self, agent, anatomize=True):
         if anatomize is True:
-            anatomy = GeneAnatomy(
-                agent.uniprotid,
-                merge_features=True,
-                nest_features=False,
-                merge_overlap=0.05,
-                offline=True
-            )
-            agent.hgnc_symbol = anatomy.hgnc_symbol
+            anatomy = None
+            if agent.uniprotid is not None:
+                anatomy = GeneAnatomy(
+                    agent.uniprotid,
+                    merge_features=True,
+                    nest_features=False,
+                    merge_overlap=0.05,
+                    offline=True
+                )
+            elif agent.hgnc_symbol is not None:
+                anatomy = GeneAnatomy(
+                    agent.hgnc_symbol,
+                    merge_features=True,
+                    nest_features=False,
+                    merge_overlap=0.05,
+                    offline=True
+                )
+            elif agent.synonyms is not None and\
+                    len(agent.synonyms) > 0:
+                anatomy = GeneAnatomy(
+                    agent.synonyms[0],
+                    merge_features=True,
+                    nest_features=False,
+                    merge_overlap=0.05,
+                    offline=True
+                )
+
+            if anatomy is not None:
+                agent.hgnc_symbol = anatomy.hgnc_symbol
             agent_id = self.hierarchy.add_agent(agent)
-            for domain in anatomy.domains:
-                if domain.feature_type == "Domain":
-                    region = Region(
-                        domain.start,
-                        domain.end,
-                        " ".join(domain.short_names)
-                    )
 
-                    semantics = domain.get_semantics()
-
-                    region_id = self.hierarchy.find_region(region, agent_id)
-                    if not region_id:
-                        region_id = self.hierarchy.add_region(
-                            region,
-                            agent_id,
-                            semantics=semantics
+            if anatomy is not None:
+                for domain in anatomy.domains:
+                    if domain.feature_type == "Domain":
+                        region = Region(
+                            domain.start,
+                            domain.end,
+                            " ".join(domain.short_names)
                         )
-                        if 'kinase' in semantics:
-                            state = State("activity", True)
-                            activity_id = self.hierarchy.add_state(
-                                state,
-                                region_id,
-                                semantics=["activity"]
+
+                        semantics = domain.get_semantics()
+
+                        region_id = self.hierarchy.find_region(
+                            region, agent_id)
+                        if not region_id:
+                            region_id = self.hierarchy.add_region(
+                                region,
+                                agent_id,
+                                semantics=semantics
                             )
-                            add_edge(
-                                self.hierarchy.action_graph,
-                                activity_id,
-                                region_id
-                            )
-                    add_edge(self.hierarchy.action_graph, region_id, agent_id)
+                            if 'kinase' in semantics:
+                                state = State("activity", True)
+                                activity_id = self.hierarchy.add_state(
+                                    state,
+                                    region_id,
+                                    semantics=["activity"]
+                                )
+                                add_edge(
+                                    self.hierarchy.action_graph,
+                                    activity_id,
+                                    region_id
+                                )
+                        add_edge(self.hierarchy.action_graph,
+                                 region_id, agent_id)
         else:
             agent_id = self.hierarchy.add_agent(agent)
         return agent_id

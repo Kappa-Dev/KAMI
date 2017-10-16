@@ -32,6 +32,7 @@ class KamiHierarchy(Hierarchy):
         self.semantic_action_graph = self.node["semantic_action_graph"].graph
 
     def create_empty_action_graph(self):
+        """Creat an empty action graph in the hierarchy."""
         self.add_graph(
             "action_graph",
             nx.DiGraph(),
@@ -133,7 +134,7 @@ class KamiHierarchy(Hierarchy):
         return
 
     @classmethod
-    def from_json(cls, json_data, directed=True):
+    def from_json(cls, json_data, ignore=None, directed=True):
         """Create hierarchy from json representation."""
         default_graphs = [graph_id for graph_id,
                           _, _ in default_components.GRAPHS]
@@ -145,35 +146,15 @@ class KamiHierarchy(Hierarchy):
                              for s, t, _ in default_components.RELATIONS]
 
         # filter nodes and edges of the hierarchy that are created by default
-        filtered_json_data = {
-            "graphs": [],
-            "typing": [],
-            "rules": [],
-            "rule_typing": [],
-            "relations": []
+        ignore_components = {
+            "graphs": default_graphs,
+            "typing": default_typings,
+            "rules": default_rules,
+            "rule_typing": default_rule_typings,
+            "relations": default_relations
         }
-        for graph_data in json_data["graphs"]:
-            if graph_data["id"] not in default_graphs:
-                filtered_json_data["graphs"].append(graph_data)
 
-        for rule_data in json_data["rules"]:
-            if rule_data["id"] not in default_rules:
-                filtered_json_data["rules"].append(rule_data)
-
-        for typing_data in json_data["typing"]:
-            if (typing_data["from"], typing_data["to"]) not in default_typings:
-                filtered_json_data["typing"].append(typing_data)
-
-        for rule_typing_data in json_data["rule_typing"]:
-            if (rule_typing_data["from"], rule_typing_data["to"]) not in default_rule_typings:
-                filtered_json_data["rule_typing"].append(rule_typing_data)
-
-        for relation_data in json_data["relations"]:
-            if (relation_data["from"], relation_data["to"]) not in default_relations and\
-               (relation_data["to"], relation_data["from"]) not in default_relations:
-                filtered_json_data["relations"].append(relation_data)
-
-        hierarchy = super().from_json(filtered_json_data, directed)
+        hierarchy = super().from_json(json_data, ignore_components, directed)
         hierarchy._init_shortcuts()
         return hierarchy
 
@@ -188,7 +169,7 @@ class KamiHierarchy(Hierarchy):
         """Get a list of nuggets in the hierarchy."""
         nuggets = []
         for node_id in self.nodes():
-            if self.node[node_id].attrs["type"] == "nugget":
+            if "nugget" in self.node[node_id].attrs["type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -196,7 +177,7 @@ class KamiHierarchy(Hierarchy):
         """Get a list of semantic nuggets in the hierarchy."""
         nuggets = []
         for node_id in self.nodes():
-            if self.node[node_id].attrs["type"] == "semantic_nugget":
+            if "semantic_nugget" in self.node[node_id].attrs["type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -204,7 +185,7 @@ class KamiHierarchy(Hierarchy):
         """Get a list of templates in the hierarchy."""
         templates = []
         for node_id in self.nodes():
-            if self.node[node_id].attrs["type"] == "template":
+            if "template" in self.node[node_id].attrs["type"]:
                 templates.append(node_id)
         return templates
 
@@ -212,8 +193,8 @@ class KamiHierarchy(Hierarchy):
         """Get a list of semantic nuggets related to mod interactions."""
         nuggets = []
         for node_id in self.nodes():
-            if self.node[node_id].attrs["type"] == "semantic_nugget" and\
-               self.node[node_id].attrs["interaction_type"] == "mod":
+            if "semantic_nugget" in self.node[node_id].attrs["type"] and\
+               "mod" in self.node[node_id].attrs["interaction_type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -221,8 +202,8 @@ class KamiHierarchy(Hierarchy):
         """Get a list of semantic nuggets related to bnd interactions."""
         nuggets = []
         for node_id in self.nodes():
-            if self.node[node_id].attrs["type"] == "semantic_nugget" and\
-               self.node[node_id].attrs["interaction_type"] == "bnd":
+            if "semantic_nugget" in self.node[node_id].attrs["type"] and\
+               "bnd" in self.node[node_id].attrs["interaction_type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -822,7 +803,9 @@ class KamiHierarchy(Hierarchy):
         edge_list = []
         for u, v in self.action_graph.edges():
             if self.action_graph_typing[u] == "agent":
-                hgnc = list(self.action_graph.node[u]["hgnc_symbol"])[0]
+                hgnc = None
+                if "hgnc_symbol" in self.action_graph.node[u].keys():
+                    hgnc = list(self.action_graph.node[u]["hgnc_symbol"])[0]
                 if hgnc is not None:
                     n1 = hgnc
                 else:
@@ -830,7 +813,9 @@ class KamiHierarchy(Hierarchy):
             else:
                 n1 = u
             if self.action_graph_typing[v] == "agent":
-                hgnc = list(self.action_graph.node[v]["hgnc_symbol"])[0]
+                hgnc = None
+                if "hgnc_symbol" in self.action_graph.node[v].keys():
+                    hgnc = list(self.action_graph.node[v]["hgnc_symbol"])[0]
                 if hgnc is not None:
                     n2 = hgnc
                 else:

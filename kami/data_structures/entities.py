@@ -141,6 +141,8 @@ class Residue(object):
         self.aa = aa
         if loc is not None:
             self.loc = int(loc)
+        else:
+            self.loc = None
         self.state = state
 
     def __str__(self):
@@ -154,7 +156,7 @@ class Residue(object):
         """Convert agent object to attrs."""
         res = dict()
         res["aa"] = self.aa
-        if "loc" is not None:
+        if self.loc is not None:
             res["loc"] = {int(self.loc)}
         return res
 
