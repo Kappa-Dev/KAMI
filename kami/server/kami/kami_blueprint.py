@@ -343,7 +343,7 @@ def anatomizer(path_to_graph=""):
     hie = kami_blueprint.hie()
 
     def anatomizer_aux(graph_id, parent_id):
-        uniprot_id = request.args.get("uniProtId")
+        uniprot_id = request.args.get("uniProtId").upper()
         if not uniprot_id:
             return ("argument uniProtId is required", 404)
         anatomizer_tools.anatomizer_add_agent(hie, graph_id, parent_id, uniprot_id)    
