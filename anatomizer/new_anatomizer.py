@@ -1144,6 +1144,7 @@ class GeneAnatomy:
         self.found = None
         self.domains = None
         self.offline = offline
+        query = query.upper()
 
         # 0. Read InterPro data.
         global ipr_loaded
