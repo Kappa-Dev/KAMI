@@ -910,7 +910,7 @@ define([
                 });
 
                 menu.push({
-                    title: "copy",
+                    title: "Copy",
                     action: function (_elm, _d, _i) {
                         let node_ids = selected.data().map(d => d.id);
                         copyNodes(node_ids);
@@ -921,7 +921,7 @@ define([
                 // if (g_id === nodeClipboard["path"] ||
                 //     nodeClipboard["path"] == g_id.substring(0, g_id.lastIndexOf("/"))) {
                 menu.push({
-                    title: "paste",
+                    title: "Paste",
                     action: pasteNode
                 });
 
@@ -986,11 +986,11 @@ define([
             },
 
             {
-                title: "remove value",
+                title: "Remove Value",
                 action: rmVal
             },
             {
-                title: "types",
+                title: "Types",
                 action: nodeTypesEditor
             },
 

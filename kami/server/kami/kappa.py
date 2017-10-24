@@ -71,7 +71,7 @@ class KappaRule(object):
         self.agents = agents
 
     def __str__(self):
-        return "'{}' {} @ '{}'".format(
+        return "'{}' {} @ {}".format(
             self.name,
             ",".join(map(str, self.agents)),
             self.rate)
@@ -351,13 +351,15 @@ def to_kappa(hie, ag_id, mm_id, nug_list=None):
             else:
                 name = hie.node[nug].attrs["name"]
 
-            rules_list.append(_rule_decl(ag_typing, mm_typing, graph, name,
-                                         "rate:"+name))
+            # Write rates directly on rule line, rather than 
+            # writing a variable that contains the value of the rate.
             if "rate" in hie.node[nug].attrs.keys():
-                value = hie.node[nug].attrs["rate"]
+                rate_value = hie.node[nug].attrs["rate"]
             else:
-                value = "undefined"
-            variables.append(Variable("rate:"+name, value))
+                rate_value = "undefined"
+            #variables.append(Variable("rate:"+name, rate_value))
+            rules_list.append(_rule_decl(ag_typing, mm_typing, graph, name,
+                                         rate_value))
 
     return str(KappaModel(agents_list, rules_list, variables))
 

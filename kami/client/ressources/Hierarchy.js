@@ -49,7 +49,7 @@ define([
             var selfHierarchy = this;
             let graph_context_menu = [
                 {
-                    title: "delete",
+                    title: "Delete",
                     action: function (elm, d, _i) {
                         if (confirm("Confirmation : remove " + d.path + " and all its children ?"))
                             factory.delHierarchy(d.path, function (e, r) {
@@ -61,60 +61,60 @@ define([
 
                 },
                 {
-                    title: "create identity rule from",
+                    title: "Create Identity Rule From",
                     action: createRule
                 },
                 {
-                    title: "merge selected graphs",
+                    title: "Merge Selected Graphs",
                     action: mergeGraphs
                 },
                 {
-                    title: "edit formulae",
+                    title: "Edit Formulae",
                     action: editFormulae
                 },
                 {
-                    title: "check formulae",
+                    title: "Check Formulae",
                     action: checkFormulae
                 },
-                {  title: "type selected graph by",
-                   action: typeSelected}
+                {   title: "Add selected nugget",
+                    action: typeSelected}
             ];
             let rule_context_menu = [
                 {
-                    title: "delete",
+                    title: "Delete",
                     action: deleteRule
 
                 },
                 {
-                    title: "apply rule on parent",
+                    title: "Apply Rule on Parent",
                     action: applyOnParent
                 }
             ];
             let nugget_context_menu = [
                 {
-                    title: "unfold nugget",
+                    title: "Unfold Nugget",
                     action: unfoldNugget
                 },
                 {
-                    title: "get kappa",
+                    title: "Get Kappa",
                     action: showKAppaExporter
                 },
                 {
-                    title: "set rate",
+                    title: "Enter Rate",
                     action: setRate
                 }
 
             ];
             let variant_context_menu = [
                 {
-                    title: "create splice rule",
+                    title: "Create Splice Rule",
                     action: createSplicesRule
                 }
             ];
 
             let all_context_menu = [
                 {
-                    title: "rename",
+                    title: "Rename",
                     action: renameChild
                 }
             ];
@@ -440,7 +440,7 @@ define([
             // }
 
             function setRate(elm, d, _i) {
-                var rate = prompt("Enter the rate", "");
+                var rate = prompt("Enter rate {unimolecular if ambiguous},  example:  0.1 {2}", "");
                 if (!rate) { return 0 }
                 var callback = function (err, _resp) {
                     if (err) {
@@ -630,7 +630,7 @@ define([
                         selectedGraphs.push(this.id)
                     });
                 if (selectedGraphs.length != 1) {
-                    alert("exactly one graph must be selected for typing");
+                    alert("Exactly one nugget must be selected");
                 }
                 else {
                     let path = current_metadata.path + "/";
