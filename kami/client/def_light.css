@@ -1,6 +1,6 @@
  :root{
 	 /*--global-bg-color: #fffeec;*/
-	 --global-bg-color: #E5E5D4;
+	 --global-bg-color: #F5F5F5; /*#E5E5D4;*/
 	 --top-chart-bg-color: #333333;
 	 --link-color: black;
 	 --node-default-fill: white;
@@ -8,7 +8,7 @@
 	 --node-default-select:red;
 	 --menu-color:rgb(251, 249, 200);
 	 --link-line-color: #222222;
-     --separation-line-color: #7B7162;
+     --separation-line-color: #000000; /*#7B7162;*/
 	 /*--node-label-color:#111111;*/
 	 --node-label-color:#000000;
  }

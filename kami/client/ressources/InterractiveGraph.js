@@ -218,32 +218,37 @@ define([
                 ) {
                     return d3.symbolCircle;
                 }
+		// Draw a star for states.
                 else if (ancestor == "state") {
-                    let pi = 3.14,
-                        tau = 6.28,
-                        ka = 0.89081309152928522810,
-                        kr = Math.sin(pi / 10) / Math.sin(1.5 * pi / 10),
-                        kx = Math.sin(tau / 10) * kr,
-                        ky = -Math.cos(tau / 10) * kr;
                     return {
                         draw: function (context, size) {
-                            let r = Math.sqrt(size * ka),
-                                x = kx * r,
-                                y = ky * r;
-                            context.moveTo(0, -r);
-                            context.lineTo(x, y);
-                            for (let i = 1; i < 7; ++i) {
-                                let a = tau * i / 7,
-                                    c = Math.cos(a),
-                                    s = Math.sin(a);
-                                context.lineTo(s * r, -c * r);
-                                context.lineTo(c * x - s * y, s * x + c * y);
+                            let n_arms = 18,
+                                long_arm_mult = 1.2,
+                                // delta is the angle that spans
+                                // one arm of the star.
+                                delta = (Math.PI * 2 / n_arms),
+				r_short = Math.sqrt(size/Math.PI),
+				r_long = r_short * long_arm_mult;
+                            context.moveTo(0, r_long);
+                            for (let arm = 1 ; arm <= n_arms ; ++arm) {
+                                let theta1 = arm * delta - delta / 2,
+                                    x_short = Math.sin(theta1) * r_short,
+                                    y_short = Math.cos(theta1) * r_short;
+                                context.lineTo(x_short, y_short);
+                                // Let the last arm get closed 
+                                // by context.closePath()
+                                if (arm != n_arms) {
+                                    let theta2 = arm * delta,
+                                        x_long = Math.sin(theta2) * r_long,
+                                        y_long = Math.cos(theta2) * r_long;
+                                    context.lineTo(x_long, y_long);
+                                }
                             }
                             context.closePath();
                         }
                     };
-                    //return d3.symbolStar;
                 }
+
                 else if (
                     ancestor == "mod" ||
                     ancestor == "syn" ||
@@ -256,7 +261,21 @@ define([
                     ancestor == "is_bnd" ||
                     ancestor == "is_equal" ||
                     ancestor == "is_free") {
-                    return d3.symbolDiamond;
+                    //return d3.symbolDiamond;
+		    // Draw a square diamond for tests.
+                    return {
+                        draw: function (context, size) {
+                            let side = Math.sqrt(size),
+				// Good old Pythagoras.
+				diagonal =  Math.sqrt(2*side*side),
+                                p = diagonal/2
+                            context.moveTo( 0,  p);
+                            context.lineTo( p,  0);
+			    context.lineTo( 0, -p);
+                            context.lineTo(-p,  0);
+			    context.closePath();
+                        }
+                    };
                 }
                 else {
                     return d3.symbolCircle;
@@ -269,23 +288,27 @@ define([
                     ancestor == "deg" ||
                     ancestor == "brk" ||
                     ancestor == "bnd"
-                ) { return 4000; }
+                ) { return 2000; }
                 else if (
                     ancestor == "is_bnd" ||
                     ancestor == "is_equal" ||
                     ancestor == "is_free"
-                ) { return 3000; }
+                ) { return 2500; }
                 else if (
-                    ancestor == "state" ||
-                    ancestor == "residue" ||
                     ancestor == "region"
-                ) { return 2000; }
+                ) { return 4000; }
+                else if (
+                    ancestor == "residue"
+                ) { return 2500; }
+                else if (
+                    ancestor == "state"
+                ) { return 2200; }
                 else if (
                     ancestor == "locus"
-                ) { return 1000; }
+                ) { return 2000; }
                 else if (
                     ancestor == "agent"
-                ) { return 5000; }
+                ) { return 6000; }
                 else {
                     return 4000;
                 }
@@ -293,19 +316,19 @@ define([
             var node_to_color = function (n) {
                 let ancestor = ancestorArray[n.id];
                 return ({
-                    "mod": "#77855C",
+                    "mod": "#3399ff", // "#77855C",
                     "is_equal": "#77855C",
                     "syn": "#55A485",
-                    "deg": "#A47066",
-                    "brk": "#B83319",
-                    "bnd": "#648226",
-                    "is_bnd": "#648226",
-                    "is_free": "#B83319",
-                    "state": "#77855C",
-                    "region": "#AB8472",
+                    "deg": "#8C501E", // "#A47066",
+                    "brk": "#E63234", // "#B83319",
+                    "bnd": "#82A532", // "#648226",
+                    "is_bnd": "#82A532", //"#648226",
+                    "is_free": "#E63234", // "#B83319",
+                    "state": "#FFD33D", // "#77855C",
+                    "region": "#C68482", // "#AB8472",
                     "agent": "#AB7372",
-                    "locus": "#718CC4",
-                    "residue": "#94716A"
+                    "locus": "#828282", // "#718CC4",
+                    "residue": "#CE9896" // "#94716A"
                 }[ancestor]);
 
             };
@@ -313,13 +336,20 @@ define([
             var link_to_dotStyle = function (l) {
                 var ancestorSource = ancestorArray[l.source.id];
                 var ancestorTarget = ancestorArray[l.target.id];
-                var components = ["state", "residue", "locus", "region", "agent"];
+                var components = ["residue", "region", "agent"];
+		var components2 = ["locus", "state"];
+		var components3 = ["bnd", "brk", "is_bnd", "is_free"];
                 if (components.indexOf(ancestorSource) > -1 &&
                     components.indexOf(ancestorTarget) > -1) {
-                    return ("notDotted");
+                        return ("Gray");
                     // return ("1,0");
-                }
-                else {
+                } else if (ancestorSource == "locus" &&
+		    components3.indexOf(ancestorTarget) > -1) {
+                        return ("Gray");
+                } else if (components2.indexOf(ancestorSource) > -1 &&
+                    components.indexOf(ancestorTarget) > -1) {
+                        return ("notDotted")
+                } else {
                     return ("Dotted");
                     //return ("3, 6")
                 }
@@ -341,7 +371,7 @@ define([
          */
         function initSvg() {
             //add drag/zoom behavior
-            zoom = d3.zoom().scaleExtent([0.02, 1.1]).on("zoom", zoomed);
+            zoom = d3.zoom().scaleExtent([0.02, 3]).on("zoom", zoomed);
             zoom.filter(function () { return !event.button && !event.shiftKey; });
             svg.classed("svg-content-responsive", true);
             svg.append("svg:defs").selectAll("marker")
@@ -440,7 +470,14 @@ define([
                             //return "M" + x1 + "," + y1 + "A" + drx + "," + dry + " " + xRotation + "," + largeArc + "," + sweep + " " + x2 + "," + y2;
                         }
                         //return "M" + x1 + "," + y1 + "C 1 1, 0 0,"+ x2+ "," + y2;
-                    });
+                    })
+                    .style("stroke", function (d) {
+                        if (shapeClassifier["dotStyle"](d) === "Gray") {
+			    return "gray"
+			} else {
+			    return "black"
+			}
+		    });
                 if (localDispatch) { localDispatch.call("move") };
             };
         }
@@ -679,7 +716,7 @@ define([
             node_g.insert("text")
                 .classed("nodeLabel", true)
                 .attr("x", 0)
-                .attr("dy", ".35em")
+                .attr("dy", ".3em")
                 .attr("text-anchor", "middle")
                 .text(function (d) {
                     let name = d.id.split(" ")[0]
@@ -701,7 +738,7 @@ define([
                 .insert("text")
                 .classed("nodeLabel", true)
                 .attr("x", 0)
-                .attr("dy", "1.35em")
+                .attr("dy", "1.3em")
                 .attr("text-anchor", "middle")
                 .text(d => {
                     const setString = setToString(d.attrs["val"]);
@@ -1498,7 +1535,7 @@ define([
                 .classed("lowlighted", function (d) { return !to_highlight(d.id) });
 
             svg.selectAll(".link")
-                .classed("lowlighted", true);
+                .classed("lowlighted", false);
         }
 
         //only highlights node among the already highlighted
