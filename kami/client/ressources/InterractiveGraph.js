@@ -1055,11 +1055,18 @@ define([
                         title: "Merge with selected nodes",
                         action: function (elm, d, i) {
                             locked = true;
+                            var svgmousepos = d3.mouse(svg_content.node());
                             inputMenu("New Name", [d.id + selected.datum().id], null, null, true, true, 'center', function (cb) {
                                 if (cb.line) {
                                     hideButtons();
                                     request.mergeNode(g_id, d.id, selected.datum().id, cb.line, true, function (e, r) {
-                                        if (!e) { console.log(r); disp.call("graphUpdate", this, g_id, true); }
+                                        if (!e) {
+                                            let req = {};
+                                            req[r] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
+                                            request.addAttr(g_id, JSON.stringify({ positions: req }),
+                                                function () { disp.call("graphUpdate", this, g_id, true); });
+                                            console.log(r);
+                                        }
                                         else console.error(e);
                                     });
                                 } locked = false;
@@ -1067,7 +1074,6 @@ define([
                         }
                     })
                 }
-
             }
             if (from_config !== undefined && nodeType === "locus") {
                 return menu.concat(from_config);

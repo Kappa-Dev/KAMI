@@ -495,8 +495,8 @@ def merge_nodes(graph_id, parent_id):
     if node1 == node2:
         return("You cannot merge a node with it self", 412)
     # force_flag = request.args.get("force") == "true"
-    tree.merge_nodes(app.hie(), graph_id, parent_id, node1, node2, new_node_id)
-    return("nodes merged", 200)
+    new_name = tree.merge_nodes(app.hie(), graph_id, parent_id, node1, node2, new_node_id)
+    return(new_name, 200)
 
 
 def clone_node(graph_id, parent_id):
