@@ -113,7 +113,7 @@ define([
             var size = d3.select("#graph_frame").node().getBoundingClientRect();
             var rule_pan = new RuleViewer("svg_rule", tab_frame, dispatch, server_url);
             var graph_pan = new InterractiveGraph("tab_frame", "sub_svg_graph", size.width, size.height, dispatch, factory);
-            var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width * 0.4, size.height / 3, dispatch, factory, true);
+            var preview_pan = new InterractiveGraph("tab_frame", "preview_graph", size.width * 0.333, size.height * 0.333, dispatch, factory, true);
             var merger_pan = new graphMerger("svg_merge", tab_frame, dispatch, server_url);
             tab_frame.selectAll("#svg_rule").remove();
             tab_frame.append(graph_pan.svg_result);

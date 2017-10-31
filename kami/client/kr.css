@@ -567,8 +567,12 @@ width: 90%;
 }
 
 .lowlighted{
-    opacity: 0.1;
+    opacity: 0.3;
     stroke: white;
+}
+
+.highlighted{
+	stroke-width: 5px;
 }
 
 .matched{
@@ -611,8 +615,8 @@ opacity: 0.1;
 
 #preview_graph{
     position: absolute;
-    right: 48vw;
-    bottom: 0vh;
+    right: 53.4%; /*48vw;*/
+    bottom: 0%; /*0vh;*/
     border: solid 2px var(--separation-line-color);
     background:rgba(230, 250, 255, 0.9);
     opacity: 1;

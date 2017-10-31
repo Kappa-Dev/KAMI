@@ -129,12 +129,12 @@ define([
                         "mod": { "state": 150 },
                         "is_equal": { "state": 150 },
                         "state": { "region": 50, "agent": 50, "residue": 50 },
-                        "residue": { "agent": 30, "region": 25 },
+                        "residue": { "agent": 30, "region": 30 },
                         "syn": { "agent": 150 },
                         "agent": { "mod": 150 },
-                        "deg": { "agent": 400 },
-                        "region": { "agent": 20 },
-                        "locus": { "agent": 150, "region": 150, "is_bnd": 150, "is_free": 150, "bnd": 150, "brk": 150 }
+                        "deg": { "agent": 150 },
+                        "region": { "agent": 30 },
+                        "locus": { "agent": 150, "region": 150, "is_bnd": 50, "is_free": 50, "bnd": 50, "brk": 50 }
                     };
                 let source_type = ancestorArray[l.source["id"]];
                 let target_type = ancestorArray[l.target["id"]];
@@ -218,7 +218,7 @@ define([
                 ) {
                     return d3.symbolCircle;
                 }
-		// Draw a star for states.
+                // Draw a star for states.
                 else if (ancestor == "state") {
                     return {
                         draw: function (context, size) {
@@ -227,8 +227,8 @@ define([
                                 // delta is the angle that spans
                                 // one arm of the star.
                                 delta = (Math.PI * 2 / n_arms),
-				r_short = Math.sqrt(size/Math.PI),
-				r_long = r_short * long_arm_mult;
+                                r_short = Math.sqrt(size/Math.PI),
+                                r_long = r_short * long_arm_mult;
                             context.moveTo(0, r_long);
                             for (let arm = 1 ; arm <= n_arms ; ++arm) {
                                 let theta1 = arm * delta - delta / 2,
@@ -293,7 +293,7 @@ define([
                     ancestor == "is_bnd" ||
                     ancestor == "is_equal" ||
                     ancestor == "is_free"
-                ) { return 2500; }
+                ) { return 2000; }
                 else if (
                     ancestor == "region"
                 ) { return 4000; }
@@ -699,6 +699,7 @@ define([
             });
             //add symbol
             node_g.append("path")
+                .classed("nodeSymbol", true)
                 .attr("d", d3.symbol()
                     .type(shapeClassifier.shape)
                     .size(shapeClassifier.size))
@@ -775,17 +776,18 @@ define([
                     var rep = getBounds();
                     simulation.alphaDecay(0.02);
                     if (rep) {
-                        var xrate = svg.attr("width") / (rep[0][1] - rep[0][0]);
-                        var yrate = svg.attr("height") / (rep[1][1] - rep[1][0]);
-                        var xorigine = rep[0][0]
-                        var yorigine = rep[1][0]
-                        var rate = Math.min(xrate, yrate);
-                        rate = Math.max(rate, 0.02);
-                        rate = Math.min(1.1, rate);
-                        rate = rate * 0.9;
-                        var centerX = (svg.attr("width") - (rep[0][1] - rep[0][0]) * rate) / 2;
-                        var centerY = (svg.attr("height") - (rep[1][1] - rep[1][0]) * rate) / 2;
-                        svg.call(zoom.transform, transform.translate(-xorigine * rate + centerX, -yorigine * rate + centerY).scale(rate));
+						var margin = 80;
+                        var xratio = svg.attr("width") / (rep[0][1] - rep[0][0] + 2*margin);
+                        var yratio = svg.attr("height") / (rep[1][1] - rep[1][0] + 2*margin);
+                        var xorigine = rep[0][0] - margin
+                        var yorigine = rep[1][0] - margin
+                        var ratio = Math.min(xratio, yratio);
+                        //rate = Math.max(rate, 0.02);
+                        //rate = Math.min(1.1, rate);
+                        //rate = rate * 0.9;
+                        var centerX = (svg.attr("width") - (rep[0][1] - rep[0][0] + 2*margin) * ratio) / 2;
+                        var centerY = (svg.attr("height") - (rep[1][1] - rep[1][0] + 2*margin) * ratio) / 2;
+                        svg.call(zoom.transform, transform.translate(-xorigine * ratio + centerX, -yorigine * ratio + centerY).scale(ratio));
                         svg_content.selectAll("g.node")
                             .attr("vx", 0)
                             .attr("vy", 0);
@@ -994,7 +996,7 @@ define([
                 title: "Clone",
                 action: function (elm, d, i) {
 
-                    let svgmousepos = d3.mouse(svg_content.node());
+                    //let svgmousepos = d3.mouse(svg_content.node());
                     console.log(elm, d, i);
                     locked = true;
                     inputMenu("New Name", [d.id + "copy"], null, null, true, true, 'center', function (cb) {
@@ -1003,7 +1005,8 @@ define([
                                 if (e) console.error(e);
                                 else {
                                     let req = {};
-                                    req[cb.line] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
+                                    //req[cb.line] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
+                                    req[cb.line] = { "x": d.x + 70, "y": d.y + 70 }
                                     request.addAttr(g_id, JSON.stringify({ positions: req }),
                                         function () { disp.call("graphUpdate", this, g_id, true); });
                                 }
@@ -1055,14 +1058,15 @@ define([
                         title: "Merge with selected nodes",
                         action: function (elm, d, i) {
                             locked = true;
-                            var svgmousepos = d3.mouse(svg_content.node());
+                            //var svgmousepos = d3.mouse(svg_content.node());
                             inputMenu("New Name", [d.id + selected.datum().id], null, null, true, true, 'center', function (cb) {
                                 if (cb.line) {
                                     hideButtons();
                                     request.mergeNode(g_id, d.id, selected.datum().id, cb.line, true, function (e, r) {
                                         if (!e) {
                                             let req = {};
-                                            req[r] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
+                                            //req[r] = { "x": svgmousepos[0] + 10, "y": svgmousepos[1] }
+                                            req[r] = { "x": ( d.x + selected.datum().x )/2, "y": ( d.y + selected.datum().y )/2 }
                                             request.addAttr(g_id, JSON.stringify({ positions: req }),
                                                 function () { disp.call("graphUpdate", this, g_id, true); });
                                             console.log(r);
@@ -1528,26 +1532,36 @@ define([
 
 
         function dehilightNodes() {
-            svg.selectAll(".node")
-                .classed("highlighted", false)
+            svg.selectAll(".nodeSymbol")
+                .classed("highlighted", false);
+			svg.selectAll(".node")
                 .classed("lowlighted", false);
+			svg.selectAll(".link")
+				.classed("highlighted", false);
             svg.selectAll(".link")
                 .classed("lowlighted", false);
 
         }
 
         function highlightNodes(to_highlight) {
-            svg.selectAll(".node")
-                .classed("lowlighted", function (d) { return !to_highlight(d.id) });
+            svg.selectAll(".nodeSymbol")
+                .classed("highlighted", function (d) { return to_highlight(d.id) });
+			svg.selectAll(".node")
+			    .classed("lowlighted", function (d) { return !to_highlight(d.id) });
 
+			svg.selectAll(".link")
+				.classed("highlighted", function (d) { return to_highlight(d.source.id) && to_highlight(d.target.id) });
             svg.selectAll(".link")
-                .classed("lowlighted", false);
+                .classed("lowlighted", function (d) { return !to_highlight(d.source.id) || !to_highlight(d.target.id) });
         }
 
         //only highlights node among the already highlighted
+		//That function is bugged at the moment. Don't use it for now.
         function highlightSubNodes(to_highlight) {
-            svg.selectAll(".node")
-                .classed("lowlighted", function (d) { return (d3.select(this).classed("lowlighted")) || !to_highlight(d.id) });
+            svg.selectAll(".nodeSymbol")
+				.classed("highlighted", function (d) { return (d3.select(this).classed("highlighted")) && to_highlight(d.id) });
+			svg.selectAll(".node")
+                .classed("lowlighted", function (d) { return (d3.select(this).classed("lowlighted")) && !to_highlight(d.id) });
 
             svg.selectAll(".link")
                 .classed("lowlighted", true);
