@@ -15,6 +15,10 @@ from kami.utils.id_generators import generate_new_id
 class KamiHierarchy(Hierarchy):
     """Kami-specific hierarchy class."""
 
+    # Similar to NetworkX node_dict_factory
+    nugget_dict_factory = dict
+    semantic_nugget_dict_factory = dict
+
     def _init_shortcuts(self):
         """Initialize kami-specific shortcuts."""
         if "action_graph" in self.nodes():
@@ -95,6 +99,10 @@ class KamiHierarchy(Hierarchy):
                 self.add_relation("action_graph", "semantic_action_graph",
                                   ag_semantics)
 
+        self.nugget_dict_factory = ndf = self.nugget_dict_factory
+
+        self.nugget = ndf()
+
         # Nuggets related init
         if nuggets is not None:
             for nugget_id, nugget_graph in nuggets:
@@ -103,6 +111,7 @@ class KamiHierarchy(Hierarchy):
                     nugget_graph,
                     {"type": "nugget"}
                 )
+                self.nugget[nugget_id] = self.node[nugget_id]
 
         if nuggets_ag_typing is not None:
             for nugget_id, typing in nuggets_ag_typing.items():
@@ -223,7 +232,7 @@ class KamiHierarchy(Hierarchy):
                     nodes.append(node)
         return nodes
 
-    def agents(self):
+    def genes(self):
         """Get a list of agent nodes in the action graph."""
         return self.nodes_of_type("agent")
 
@@ -279,22 +288,22 @@ class KamiHierarchy(Hierarchy):
             )
         return None
 
-    def add_agent(self, agent):
-        """Add agent node to action graph."""
+    def add_gene(self, gene):
+        """Add gene node to action graph."""
         if self.action_graph is None:
             self.create_empty_action_graph()
-        if agent.uniprotid:
-            agent_id = agent.uniprotid
+        if gene.uniprotid:
+            gene_id = gene.uniprotid
         else:
             i = 1
             name = "unkown_agent_"
             while name + str(i) in self.action_graph.nodes():
                 i += 1
-            agent_id = name + str(i)
+            gene_id = name + str(i)
 
-        add_node(self.action_graph, agent_id, agent.to_attrs())
-        self.action_graph_typing[agent_id] = "agent"
-        return agent_id
+        add_node(self.action_graph, gene_id, gene.to_attrs())
+        self.action_graph_typing[gene_id] = "agent"
+        return gene_id
 
     def add_mod(self, attrs=None, semantics=None):
         """Add mod node to the action graph."""
@@ -331,7 +340,7 @@ class KamiHierarchy(Hierarchy):
     def add_region(self, region, ref_agent, semantics=None):
         """Add region node to action graph connected to `ref_agent`."""
         # found node in AG corresponding to reference agent
-        if ref_agent not in self.agents():
+        if ref_agent not in self.genes():
             raise KamiHierarchyError(
                 "Agent '%s' is not found in the action graph" %
                 ref_agent
@@ -473,18 +482,17 @@ class KamiHierarchy(Hierarchy):
                 self.add_ag_node_semantics(state_id, s)
         return state_id
 
-    def find_agent(self, agent):
-        """Find corresponding agent in action graph."""
-        agents = self.agents()
-        for node in agents:
+    def find_gene(self, gene):
+        """Find corresponding gene in action graph."""
+        for node in self.genes():
             if "uniprotid" in self.action_graph.node[node].keys() and\
-               agent.uniprotid in self.action_graph.node[node]["uniprotid"]:
+               gene.uniprotid in self.action_graph.node[node]["uniprotid"]:
                 return node
         return None
 
     def find_region(self, region, ref_agent):
         """Find corresponding region in action graph."""
-        if ref_agent not in self.agents():
+        if ref_agent not in self.genes():
             raise KamiHierarchyError(
                 "Agent with UniProtID '%s' is not found in the action graph" %
                 ref_agent
@@ -547,6 +555,9 @@ class KamiHierarchy(Hierarchy):
                 # )
         else:
             return None
+
+    def find_site(self, site, ref_agent):
+        pass
 
     def find_residue(self, residue, ref_agent, add_aa=False):
         """Find corresponding residue.
@@ -623,6 +634,7 @@ class KamiHierarchy(Hierarchy):
             nugget,
             {"type": "nugget"}
         )
+        self.nugget[nugget_id] = self.node[nugget_id]
         return nugget_id
 
     def type_nugget_by_ag(self, nugget_id, typing):
@@ -648,156 +660,6 @@ class KamiHierarchy(Hierarchy):
     def merge_model(self, nugget, action_graph, ag_relation):
         """Merge hierarchy with an input model."""
         pass
-
-    def add_nugget_magical(self, nugget, identifier_cls, add_agents=True,
-                           anatomize=True, merge_actions=True,
-                           apply_semantics=True):
-        """Add nugget to the hierarchy + black box."""
-        def _process_state(node_id, father):
-            state_ref_id = identifier.identify_state(
-                nugget.graph.node[node_id], father
-            )
-            if not state_ref_id:
-                if add_agents:
-                    pass
-            else:
-                relation.add((node_id, state_ref_id))
-            return
-
-        def _process_residue(node_id, father):
-            residue_ref_id = identifier.identify_residue(
-                nugget.graph.node[node_id], father
-            )
-            if not residue_ref_id:
-                if add_agents:
-                    pass
-            else:
-                relation.add((node_id, residue_ref_id))
-            for pred in nugget.graph.predecessors(node_id):
-                _process_state(pred, father)
-                visited.add(pred)
-            return
-
-        def _process_is_bnd(locus_node, is_bnd_node, father):
-            # first identify partners that connect from
-            # the other side of locus
-            for suc in nugget.graph.successors(is_bnd_node):
-                if suc not in visited:
-                    partner_locus = suc
-                    for partner in nugget.graph.predecessors(suc):
-                        if nugget.meta_typing[partner] == "agent":
-
-                            partner_agent = _process_agent(partner)
-                            visited.add(partner)
-                            visited.add(partner_locus)
-                            locus_ref_id, is_bnd_ref_id = identifier.identify_binding(
-                                nugget.graph.node[locus_node],
-                                nugget.graph.node[is_bnd_node],
-                                nugget.graph.node[partner]
-                            )
-                            if not locus_ref_id:
-                                pass
-                            else:
-                                relation.add((locus_node, locus_ref_id))
-                                relation.add((is_bnd_node, is_bnd_ref_id))
-                        elif nugget.meta_typing[partner] == "region":
-                            partner_agent = nugget.graph.successors(partner)[0]
-                            partner_agent_ref = _process_agent(partner_agent)
-                            visited.add(partner_agent)
-                            _process_region(partner, partner_agent_ref)
-                            visited.add(partner)
-                            visited.add(partner_locus)
-                            locus_ref_id, is_bnd_ref_id = identifier.identify_binding(
-                                nugget.graph.node[locus_node],
-                                nugget.graph.node[is_bnd_node],
-                                nugget.graph.node[partner]
-                            )
-                            if not locus_ref_id:
-                                pass
-                            else:
-                                relation.add((locus_node, locus_ref_id))
-                                relation.add((is_bnd_node, is_bnd_ref_id))
-                        else:
-                            pass
-
-        def _process_region(node_id, father):
-            region_ref_id = identifier.identify_region(
-                nugget.graph.node[node_id], father
-            )
-            if not region_ref_id:
-                if add_agents:
-                    region_ref_id = "%s_region_%s_%s" %\
-                        (
-                            father,
-                            list(nugget.graph.node[node_id]["start"])[0],
-                            list(nugget.graph.node[node_id]["end"])[0]
-                        )
-                    add_node(self.action_graph, region_ref_id,
-                             nugget.graph.node[node_id])
-                    self.action_graph_typing[region_ref_id] = "region"
-            relation.add((node_id, region_ref_id))
-            for pred in nugget.graph.predecessors(node):
-                if nugget.meta_typing[pred] == "residue":
-                    _process_residue(pred, region_ref_id)
-                    visited.add(pred)
-                elif nugget.meta_typing[pred] == "state":
-                    _process_state(pred, region_ref_id)
-                    visited.add(pred)
-            for suc in nugget.graph.successors(node_id):
-                if nugget.meta_typing[suc] == "locus":
-                    if suc not in visited:
-                        visited.add(suc)
-                        for locus_pred in nugget.graph.predecessors(suc):
-                            if nugget.meta_typing[locus_pred] == "is_bnd":
-                                if locus_pred not in visited:
-                                    visited.add(locus_pred)
-                                    _process_is_bnd(
-                                        suc, locus_pred, region_ref_id)
-
-        def _process_agent(node_id):
-            ref_id = identifier.identify_agent(nugget.graph.node[node_id])
-            if not ref_id:
-                if add_agents:
-                    ref_id = list(nugget.graph.node[node_id]["uniprotid"])[0]
-                    add_node(self.action_graph, ref_id,
-                             nugget.graph.node[node_id])
-                    self.action_graph_typing[ref_id] = "agent"
-            relation.add((node_id, ref_id))
-            for pred in nugget.graph.predecessors(node):
-                if nugget.meta_typing[pred] == "region":
-                    if pred not in visited:
-                        visited.add(pred)
-                        _process_region(pred, ref_id)
-                elif nugget.meta_typing[pred] == "residue":
-                    if pred not in visited:
-                        visited.add(pred)
-                        _process_residue(pred, ref_id)
-                elif nugget.meta_typing[pred] == "state":
-                    if pred not in visited:
-                        visited.add(pred)
-                        _process_state(pred, ref_id)
-            for suc in nugget.graph.successors(node):
-                if nugget.meta_typing[suc] == "locus":
-                    if suc not in visited:
-                        visited.add(suc)
-                        for locus_pred in nugget.graph.predecessors(suc):
-                            if nugget.meta_typing[locus_pred] == "is_bnd":
-                                if locus_pred not in visited:
-                                    visited.add(locus_pred)
-                                    _process_is_bnd(suc, locus_pred, ref_id)
-            return ref_id
-
-        identifier = identifier_cls(
-            self.action_graph, self.action_graph_typing
-        )
-
-        relation = set()
-        visited = set()
-        for node in nugget.graph.nodes():
-            if node not in visited:
-                if nugget.meta_typing[node] == "agent":
-                    ref_id = _process_agent(node)
-                    visited.add(node)
 
     def ag_to_edge_list(self, agent_ids="hgnc_symbol"):
         edge_list = []
