@@ -1,16 +1,16 @@
 """."""
 from jpype import (java, startJVM, getDefaultJVMPath, JPackage)
 
-from kami.data_structures.entities import (Agent, Residue, State,
-                                           NuggetAnnotation,
-                                           PhysicalAgent)
+from kami.entities import (Agent, Residue, State,
+                           NuggetAnnotation,
+                           PhysicalAgent)
 from kami.exceptions import IndraImportError, IndraImportWarning
-from kami.data_structures.interactions import (Modification,
-                                               AutoModification,
-                                               TransModification,
-                                               BinaryBinding,
-                                               AnonymousModification,
-                                               Complex)
+from kami.interactions import (Modification,
+                               AutoModification,
+                               TransModification,
+                               BinaryBinding,
+                               AnonymousModification,
+                               Complex)
 from kami.utils.xrefs import (uniprot_from_xrefs,
                               names_from_uniprot,
                               uniprot_from_names

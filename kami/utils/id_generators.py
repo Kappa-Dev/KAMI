@@ -10,10 +10,10 @@ def generate_new_id(graph, base_name):
     return new_base_name
 
 
-def get_nugget_agent_id(nugget, agent):
+def get_nugget_gene_id(nugget, gene):
     """Generate agent id for an input nugget."""
-    if agent.uniprotid is not None:
-        agent_id = agent.uniprotid
+    if gene.uniprotid is not None:
+        agent_id = gene.uniprotid
     else:
         agent_id = "unknown_agent"
     if agent_id in nugget.nodes():
@@ -77,9 +77,9 @@ def get_nugget_is_free_id(nugget, agent_1, agent_2):
     return is_free_id
 
 
-def get_nugget_motif_id(nugget, motif, father):
+def get_nugget_site_id(nugget, site, father):
     """Generate motif-region node id."""
-    motif_id = "%s_motif" % motif
-    if motif_id in nugget.nodes():
-        motif_id = generate_new_id(nugget, motif_id)
-    return motif_id
+    site_id = "%s_motif" % str(site)
+    if site_id in nugget.nodes():
+        site_id = generate_new_id(nugget, site_id)
+    return site_id

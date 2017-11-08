@@ -50,6 +50,12 @@ add_nodes_from(
             "name": RegexSet.universal(),
             "order": IntegerSet([(1, math.inf)])
         }),
+        ("site", {
+            "start": IntegerSet([(1, math.inf)]),
+            "end": IntegerSet([(1, math.inf)]),
+            "name": RegexSet.universal(),
+            "order": IntegerSet([(1, math.inf)])
+        }),
         ("residue", {
             "aa": {
                 "G", "P", "A", "V", "L", "I", "M",
@@ -82,28 +88,35 @@ add_edges_from(
     kami,
     [
         ("region", "agent"),
+        ("site", "agent"),
+        ("site", "region"),
         ("residue", "agent"),
         ("residue", "region"),
+        ("residue", "site"),
         ("state", "agent"),
+        ("state", "region"),
+        ("state", "site"),
+        ("state", "residue"),
         ("syn", "agent"),
         ("deg", "agent"),
-        ("state", "region"),
-        ("state", "residue"),
         ("agent", "locus"),
         ("region", "locus"),
+        ("site", "locus"),
         ("mod", "state"),
         ("locus", "bnd"),
         ("locus", "brk"),
         ("locus", "is_bnd"),
         ("locus", "is_free"),
         ("agent", "mod"),
-        ("region", "mod")
+        ("region", "mod"),
+        ("site", "mod")
     ]
 )
 
 kami_base_kami_typing = {
     "agent": "component",
     "region": "component",
+    "site": "component",
     "residue": "component",
     "locus": "component",
     "state": "state",

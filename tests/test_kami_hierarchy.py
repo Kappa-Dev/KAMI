@@ -1,6 +1,6 @@
 """Tests related to KamiHierarchy data structure."""
-from kami.data_structures import entities, interactions
-from kami.data_structures.kami_hierarchy import KamiHierarchy
+from kami import entities, interactions
+from kami.hierarchy import KamiHierarchy
 from kami.resolvers.black_box import create_nuggets
 
 
@@ -34,12 +34,19 @@ class TestKamiHierarchy(object):
         """."""
         hierarchy = KamiHierarchy()
 
-        plcg1_pY1253 = entities.PhysicalAgent(entities.Agent("P19174", synonyms=["PLCG1"]), residues=[
-            entities.Residue("Y", 1253, state=entities.State("phosphorylation", True))])
-        sh2 = entities.PhysicalRegion(entities.Region(name="SH2"))
-        abl1 = entities.PhysicalAgent(
-            entities.Agent("P00519", synonyms=["ABL1"]))
-        abl1_sh2 = entities.PhysicalRegionAgent(sh2, abl1)
+        plcg1_pY1253 = entities.Gene(
+            "P19174",
+            synonyms=["PLCG1"],
+            residues=[entities.Residue(
+                "Y", 1253,
+                state=entities.State("phosphorylation", True)
+            )]
+        )
+        sh2 = entities.Region(name="SH2")
+        abl1 = entities.Gene(
+            "P00519", synonyms=["ABL1"]
+        )
+        abl1_sh2 = entities.RegionActor(abl1, sh2)
         bnd = interactions.BinaryBinding([plcg1_pY1253], [abl1_sh2])
 
         create_nuggets([bnd], hierarchy)

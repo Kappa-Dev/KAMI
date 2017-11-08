@@ -3,13 +3,11 @@
 from regraph.primitives import (print_graph)
 
 from kami.resolvers.black_box import create_nuggets
-from kami.data_structures.interactions import (Modification,
-                                               BinaryBinding,)
-from kami.data_structures.entities import (PhysicalAgent, Agent,
-                                           PhysicalRegion, Region,
-                                           PhysicalRegionAgent,
-                                           Residue, State,)
-from kami.data_structures.kami_hierarchy import KamiHierarchy
+from kami.interactions import (Modification,
+                               BinaryBinding)
+from kami.entities import (Gene, Region, RegionActor, Residue,
+                           Site, SiteActor, State)
+from kami.hierarchy import KamiHierarchy
 
 
 class TestBlackBox(object):
@@ -22,25 +20,17 @@ class TestBlackBox(object):
     def test_simple_mod_nugget(self):
         """Simple modification interaction example."""
         enz_res = Residue("S", 100, State("phospho", True))
-        enz_reg = PhysicalRegion(
-            Region(150, 170),
+        enz_reg = Region(
+            start=150,
+            end=170,
             states=[State("activity", True)]
         )
-        enzyme_entity = PhysicalAgent(Agent("P00533"), regions=[
-                                      enz_reg], residues=[enz_res])
+        enzyme_entity = Gene("P00533", regions=[enz_reg], residues=[enz_res])
 
-        sub_bound_1 = PhysicalAgent(
-            Agent("P28482"),
-            states=[State("activity", True)]
-        )
-        sub_bound_2 = PhysicalAgent(
-            Agent("P28482"),
-            states=[State("activity", True)]
-        )
-        substrate_entity = PhysicalAgent(
-            Agent("P04049"),
-            bounds=[[sub_bound_1], [sub_bound_2]]
-        )
+        sub_bound_1 = Gene("P28482", states=[State("activity", True)])
+        sub_bound_2 = Gene("P28482", states=[State("activity", True)])
+
+        substrate_entity = Gene("P04049", bounds=[[sub_bound_1], [sub_bound_2]])
 
         mod_state = State("activity", False)
         value = True
@@ -54,17 +44,15 @@ class TestBlackBox(object):
 
     def test_complex_mod_nugget(self):
         """Complex modification interaction example."""
-        enzyme_agent = Agent("P04049")
-        enzyme_ph_agent = PhysicalAgent(enzyme_agent)
-        enzyme_region = PhysicalRegion(Region(100, 200, "lala"))
-        enzyme = PhysicalRegionAgent(enzyme_region, enzyme_ph_agent)
-
-        substrate_agent = Agent("P00533")
+        enzyme_agent = Gene("P04049")
+        enzyme_region = Region(100, 200, "lala")
+        enzyme = RegionActor(enzyme_agent, enzyme_region)
 
         state = State("phosphorylation", True)
         reg_residue = Residue("S", 550, state)
-        substrate_region = PhysicalRegion(
-            Region(500, 600),
+        substrate_region = Region(
+            start=500,
+            end=600,
             residues=[reg_residue]
         )
 
@@ -75,22 +63,18 @@ class TestBlackBox(object):
 
         substrate_state = State("activity", True)
 
-        next_level_bound = PhysicalRegionAgent(
-            PhysicalRegion(
-                Region(224, 234)
-            ),
-            PhysicalAgent(
-                Agent("P04637")
-            )
+        next_level_bound = RegionActor(
+            Gene("P04637"),
+            Region(start=224, end=234)
         )
 
-        substrate_bound = PhysicalAgent(
-            Agent("P12931"),
+        substrate_bound = Gene(
+            "P12931",
             bounds=[next_level_bound]
         )
 
-        substrate = PhysicalAgent(
-            substrate_agent,
+        substrate = Gene(
+            "P00533",
             regions=[substrate_region],
             residues=substrate_residues,
             states=[substrate_state],
@@ -103,8 +87,8 @@ class TestBlackBox(object):
 
     def test_phospho_semantics(self):
         """Test black box processing using phosphorylation semantics."""
-        mek1 = PhysicalAgent(Agent("Q02750"))
-        stat3 = PhysicalAgent(Agent("P40763"))
+        mek1 = Gene("Q02750")
+        stat3 = Gene("P40763")
         mod_state = Residue("S", 727, State("phosphorylation", False))
         value = True
 
@@ -114,13 +98,13 @@ class TestBlackBox(object):
 
         mod2 = Modification(mek1, stat3, mod_state_1, value)
 
-        erk1 = PhysicalAgent(Agent("P27361"))
+        erk1 = Gene("P27361")
 
         mod_state_2 = Residue("T", 201, State("phosphorylation", False))
 
         mod3 = Modification(mek1, erk1, mod_state_2, value)
 
-        erk2 = PhysicalAgent(Agent("P28482"))
+        erk2 = Gene("P28482")
         mod_state_3 = Residue("T", 182, State("phosphorylation", False))
 
         mod4 = Modification(mek1, erk2, mod_state_3, value)
@@ -141,19 +125,16 @@ class TestBlackBox(object):
     def test_sh2_py_semantics(self):
         """."""
         phos = State("phosphorylation", True)
-        dok1_gene = Agent("Q99704", synonyms=["DOK1", "p62DOK1"])
-        dok1_py398 = (
-            PhysicalAgent(
-                dok1_gene,
-                residues=[Residue("Y", 398, phos)]
-            )
+        dok1_py398 = Gene(
+            "Q99704",
+            synonyms=["DOK1", "p62DOK1"],
+            residues=[Residue("Y", 398, phos)]
         )
 
-        abl2 = PhysicalAgent(Agent("P42684", synonyms=["ABL2"]))
-        sh2 = PhysicalRegion(Region(name="SH2"))
+        abl2 = Gene("P42684", synonyms=["ABL2"])
+        sh2 = Region(name="SH2")
 
-        abl2_sh2 = PhysicalRegionAgent(sh2, abl2)
-        # dok1_pY398_ptail = PhysicalRegionAgent(ptail, dok1_pY398)
+        abl2_sh2 = RegionActor(abl2, sh2)
 
         bnd527 = BinaryBinding([dok1_py398], [abl2_sh2])
         print(bnd527)
@@ -166,18 +147,23 @@ class TestBlackBox(object):
     def test_multiple_sh2(self):
         """."""
         phos = State("phosphorylation", True)
-        sh2n = PhysicalRegion(Region(name="SH2", order=1))
-        sh2c = PhysicalRegion(Region(name="SH2", order=2))
+        sh2n = Region(name="SH2", order=1)
+        sh2c = Region(name="SH2", order=2)
 
-        pik3r1 = PhysicalAgent(Agent("P27986", synonyms=["PIK3R1", "PI3K1"]))
-        pik3r1_sh2n = PhysicalRegionAgent(sh2n, pik3r1)
-        pik3r1_sh2c = PhysicalRegionAgent(sh2c, pik3r1)
+        pik3r1 = Gene("P27986", synonyms=["PIK3R1", "PI3K1"])
+        pik3r1_sh2n = RegionActor(pik3r1, sh2n)
+        pik3r1_sh2c = RegionActor(pik3r1, sh2c)
 
-        frs2_gene = Agent("Q8WU20", synonyms=["FRS2"])
-        frs2_py196 = PhysicalAgent(
-            frs2_gene, residues=[Residue("Y", 196, phos)])
-        frs2_py349 = PhysicalAgent(
-            frs2_gene, residues=[Residue("Y", 349, phos)])
+        frs2_py196 = Gene(
+            "Q8WU20",
+            synonyms=["FRS2"],
+            residues=[Residue("Y", 196, phos)]
+        )
+        frs2_py349 = Gene(
+            "Q8WU20",
+            synonyms=["FRS2"],
+            residues=[Residue("Y", 349, phos)]
+        )
 
         bnds = []
         bnds.append(BinaryBinding([frs2_py196], [pik3r1_sh2n]))

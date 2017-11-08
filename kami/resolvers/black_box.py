@@ -1,6 +1,6 @@
 """Basic black box functionality."""
 import sys
-import time
+# import time
 
 from kami.resolvers.generators import (ModGenerator,
                                        AutoModGenerator,
@@ -8,7 +8,7 @@ from kami.resolvers.generators import (ModGenerator,
                                        AnonymousModGenerator,
                                        BinaryBndGenerator,
                                        ComplexGenerator)
-from kami.data_structures.kami_hierarchy import KamiHierarchy
+from kami.hierarchy import KamiHierarchy
 
 
 def add_modification(mod, hierarchy, add_agents=True, anatomize=True,

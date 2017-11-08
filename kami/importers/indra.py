@@ -4,16 +4,16 @@ import warnings
 
 import indra.statements
 
-from kami.data_structures.entities import (Agent, Residue, State,
-                                           NuggetAnnotation,
-                                           PhysicalAgent)
+from kami.entities import (Gene, Region, RegionActor,
+                           Residue, Site, SiteActor, State,
+                           NuggetAnnotation)
 from kami.exceptions import IndraImportError, IndraImportWarning
-from kami.data_structures.interactions import (Modification,
-                                               AutoModification,
-                                               TransModification,
-                                               BinaryBinding,
-                                               AnonymousModification,
-                                               Complex)
+from kami.interactions import (Modification,
+                               AutoModification,
+                               TransModification,
+                               BinaryBinding,
+                               AnonymousModification,
+                               Complex)
 from kami.utils.xrefs import (uniprot_from_xrefs,
                               names_from_uniprot,
                               uniprot_from_names
@@ -26,47 +26,6 @@ class IndraImporter(object):
     def __init__(self):
         """Initialize INDRA importer object."""
         pass
-
-    def _agent_to_kami(self, agent):
-
-        uniprotid = None
-        names = None
-        xrefs = None
-        location = None
-
-        if agent.db_refs:
-            new_db_refs = dict()
-            for db, agent_id in agent.db_refs.items():
-                new_db_refs[db.lower()] = agent_id
-            if "uniprot" in new_db_refs.keys():
-                uniprotid = new_db_refs["uniprot"]
-                del new_db_refs["uniprot"]
-            xrefs = new_db_refs
-
-        # no UniProt id in db_refs of indra Agent
-        if uniprotid is None:
-            uniprotid = uniprot_from_xrefs(xrefs)
-
-        if agent.name:
-            names = [agent.name]
-            if uniprotid is None:
-                uniprotid = uniprot_from_names(uniprotid)
-        else:
-            if uniprotid is not None:
-                names = names_from_uniprot(uniprotid)
-            # here resolve name using xrefs
-            pass
-
-        if agent.location:
-            location = agent.location
-
-        kami_agent = Agent(
-            uniprotid,
-            synonyms=names,
-            xrefs=xrefs,
-            location=location
-        )
-        return kami_agent
 
     def _residue_to_kami(self, mod):
         state = State(mod.mod_type, mod.is_modified)
@@ -86,7 +45,38 @@ class IndraImporter(object):
         return mut_residue
 
     def _physical_agent_to_kami(self, agent):
-        kami_agent = self._agent_to_kami(agent)
+
+        # Retieve information about gene
+        uniprotid = None
+        synonyms = None
+        xrefs = None
+        location = None
+
+        if agent.db_refs:
+            new_db_refs = dict()
+            for db, agent_id in agent.db_refs.items():
+                new_db_refs[db.lower()] = agent_id
+            if "uniprot" in new_db_refs.keys():
+                uniprotid = new_db_refs["uniprot"]
+                del new_db_refs["uniprot"]
+            xrefs = new_db_refs
+
+        # no UniProt id in db_refs of indra Agent
+        if uniprotid is None:
+            uniprotid = uniprot_from_xrefs(xrefs)
+
+        if agent.name:
+            synonyms = [agent.name]
+            if uniprotid is None:
+                uniprotid = uniprot_from_names(uniprotid)
+        else:
+            if uniprotid is not None:
+                synonyms = names_from_uniprot(uniprotid)
+            # here resolve name using xrefs
+            pass
+
+        if agent.location:
+            location = agent.location
 
         residues = []
         states = []
@@ -108,13 +98,16 @@ class IndraImporter(object):
             if bnd.is_bound:
                 bounds.append(self._physical_agent_to_kami(bnd.agent))
 
-        physical_agent = PhysicalAgent(
-            kami_agent,
+        gene = Gene(
+            uniprotid,
+            synonyms=synonyms,
+            xrefs=xrefs,
+            location=location,
             residues=residues,
             states=states,
             bounds=bounds
         )
-        return physical_agent
+        return gene
 
     def _modification_to_state(self, statement):
         state_name = None

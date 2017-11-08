@@ -1,41 +1,45 @@
 """Collection of nugget generators."""
+
 import collections
 import copy
-import networkx as nx
 import warnings
 
-from regraph.primitives import (add_node,
-                                add_edge,
-                                remove_edge,
-                                add_node_attrs)
+import networkx as nx
 
-from kami.data_structures.entities import (Region, State, Residue,
-                                           PhysicalAgent,
-                                           PhysicalRegionAgent,
-                                           MotifAgent)
+from regraph.primitives import (add_edge,
+                                add_node,
+                                add_node_attrs,
+                                remove_edge)
+
+from kami.entities import (Gene, Region, RegionActor,
+                           Residue, SiteActor, State
+                           )
 from kami.exceptions import (KamiError,
+                             KamiWarning,
                              NuggetGenerationError,
-                             KamiWarning)
-# from kami.resolvers.identifiers import (identify_agent,
-#                                         identify_region,
-#                                         identify_residue,
-#                                         identify_mod,
-#                                         add_action_graph_agent
-#                                         )
-from kami.utils.id_generators import (get_nugget_agent_id,
+                             )
+from kami.utils.id_generators import (get_nugget_gene_id,
                                       get_nugget_region_id,
                                       get_nugget_residue_id,
                                       get_nugget_state_id,
                                       get_nugget_is_bnd_id,
                                       get_nugget_locus_id,
                                       get_nugget_bnd_id,
-                                      get_nugget_motif_id,
+                                      get_nugget_site_id,
                                       generate_new_id)
-from anatomizer.new_anatomizer import (GeneAnatomy, AnatomizerError)
+from anatomizer.new_anatomizer import GeneAnatomy
 
 
 class NuggetContainer:
-    """Nugget container data structure."""
+    """Nugget container data structure.
+
+    Contains the following fields:
+    - `graph` - nugget graph;
+    - `meta_typing` - typing of the nugget graph by the meta-model;
+    - `ag_typing` - typing of the nugget graph by the action graph;
+    - `template_rel` - relation of the nugget graph to the templates;
+    - `semantic_rels` - relation of the nugget graph to the semantic nuggets;
+    """
 
     def __init__(self, graph=None, meta_typing=None,
                  ag_typing=None, template_rel=None,
@@ -95,33 +99,32 @@ class Generator:
     """Base class for nugget generators."""
 
     def __init__(self, hierarchy):
-        """Initializer generator with a hierarchy."""
+        """Initialize generator with a hierarchy."""
         self.hierarchy = hierarchy
-        return
 
-    def _add_agent_to_ag(self, agent, anatomize=True):
+    def _add_gene_to_ag(self, gene, anatomize=True):
         if anatomize is True:
             anatomy = None
-            if agent.uniprotid is not None:
+            if gene.uniprotid is not None:
                 anatomy = GeneAnatomy(
-                    agent.uniprotid,
+                    gene.uniprotid,
                     merge_features=True,
                     nest_features=False,
                     merge_overlap=0.05,
                     offline=True
                 )
-            elif agent.hgnc_symbol is not None:
+            elif gene.hgnc_symbol is not None:
                 anatomy = GeneAnatomy(
-                    agent.hgnc_symbol,
+                    gene.hgnc_symbol,
                     merge_features=True,
                     nest_features=False,
                     merge_overlap=0.05,
                     offline=True
                 )
-            elif agent.synonyms is not None and\
-                    len(agent.synonyms) > 0:
+            elif gene.synonyms is not None and\
+                    len(gene.synonyms) > 0:
                 anatomy = GeneAnatomy(
-                    agent.synonyms[0],
+                    gene.synonyms[0],
                     merge_features=True,
                     nest_features=False,
                     merge_overlap=0.05,
@@ -129,8 +132,8 @@ class Generator:
                 )
 
             if anatomy is not None:
-                agent.hgnc_symbol = anatomy.hgnc_symbol
-            agent_id = self.hierarchy.add_agent(agent)
+                gene.hgnc_symbol = anatomy.hgnc_symbol
+            gene_id = self.hierarchy.add_gene(gene)
 
             if anatomy is not None:
                 for domain in anatomy.domains:
@@ -144,11 +147,11 @@ class Generator:
                         semantics = domain.get_semantics()
 
                         region_id = self.hierarchy.find_region(
-                            region, agent_id)
+                            region, gene_id)
                         if not region_id:
                             region_id = self.hierarchy.add_region(
                                 region,
-                                agent_id,
+                                gene_id,
                                 semantics=semantics
                             )
                             if 'kinase' in semantics:
@@ -164,10 +167,10 @@ class Generator:
                                     region_id
                                 )
                         add_edge(self.hierarchy.action_graph,
-                                 region_id, agent_id)
+                                 region_id, gene_id)
         else:
-            agent_id = self.hierarchy.add_agent(agent)
-        return agent_id
+            gene_id = self.hierarchy.add_gene(gene)
+        return gene_id
 
     def _add_region_to_ag(self, region, ref_agent, anatomize=True):
         region_id = self.hierarchy.add_region(region, ref_agent)
@@ -181,42 +184,42 @@ class Generator:
         state_id = self.hierarchy.add_state(state, ref_agent)
         return state_id
 
-    def _identify_agent(self, agent, add_agents=True, anatomize=True):
+    def _identify_gene(self, gene, add_agents=True, anatomize=True):
         # try to identify an agent
-        reference_id = self.hierarchy.find_agent(agent)
+        reference_id = self.hierarchy.find_gene(gene)
         if add_agents is True:
             if reference_id is not None:
                 # add new xrefs to AG agent
                 add_node_attrs(
                     self.hierarchy.action_graph,
                     reference_id,
-                    agent.to_attrs()
+                    gene.to_attrs()
                 )
             # if not found
             else:
-                reference_id = self._add_agent_to_ag(agent, anatomize)
+                reference_id = self._add_gene_to_ag(gene, anatomize)
 
         return reference_id
 
     def _identify_region(self, region, agent, add_agents=True, anatomize=True):
-        # try to identify an agent
+        """Identify a region in the action graph."""
         try:
-            reference_id = self.hierarchy.find_region(region.region, agent)
+            reference_id = self.hierarchy.find_region(region, agent)
         except Exception as e:
             print(e)
             if add_agents is False:
                 return None
             else:
                 raise NuggetGenerationError(
-                    "Cannot map a region '%s' from nugget "
-                    "to a region from action graph" %
-                    str(region.region)
+                    "Cannot map a region '%s' from the nugget "
+                    "to a region from the action graph" %
+                    str(region)
                 )
         # if not found
         if add_agents is True:
             if reference_id is None:
                 reference_id = self._add_region_to_ag(
-                    region.region,
+                    region,
                     agent,
                     anatomize
                 )
@@ -224,7 +227,38 @@ class Generator:
                 add_node_attrs(
                     self.hierarchy.action_graph,
                     reference_id,
-                    region.region.to_attrs()
+                    region.to_attrs()
+                )
+
+        return reference_id
+
+    def _identify_site(self, site, agent, add_agents=True, anatomize=True):
+        """Identify a site in the action graph."""
+        try:
+            reference_id = self.hierarchy.find_site(site, agent)
+        except Exception as e:
+            print(e)
+            if add_agents is False:
+                return None
+            else:
+                raise NuggetGenerationError(
+                    "Cannot map a site '%s' from the nugget "
+                    "to a site from the action graph" %
+                    str(site)
+                )
+        # if not found
+        if add_agents is True:
+            if reference_id is None:
+                reference_id = self._add_site_to_ag(
+                    site,
+                    agent,
+                    anatomize
+                )
+            else:
+                add_node_attrs(
+                    self.hierarchy.action_graph,
+                    reference_id,
+                    site.to_attrs()
                 )
 
         return reference_id
@@ -320,16 +354,16 @@ class Generator:
 
     def _generate_bound(self, nugget, partners, father,
                         add_agents=True, anatomize=True,
-                        merge_actions=True, apply_sematics=True):
+                        merge_actions=True, apply_semantics=True):
         is_bnd_ids = []
         partner_ids = []
         for partner in partners:
-            if isinstance(partner, PhysicalAgent):
-                partner_id = get_nugget_agent_id(nugget.graph, partner.agent)
-            elif isinstance(partner, PhysicalRegionAgent):
+            if isinstance(partner, Gene):
+                partner_id = get_nugget_gene_id(nugget.graph, partner)
+            elif isinstance(partner, RegionActor):
                 partner_id = get_nugget_region_id(
-                    nugget.graph, str(partner.physical_region.region),
-                    str(partner.physical_agent.agent)
+                    nugget.graph, str(partner.region),
+                    str(partner.gene)
                 )
 
             partner_ids.append(partner_id)
@@ -360,16 +394,16 @@ class Generator:
                 # meta_typing="locus"
             )
 
-            if isinstance(partner, PhysicalAgent):
-                partner_id = self._generate_agent_group(
+            if isinstance(partner, Gene):
+                partner_id = self._generate_gene_group(
                     nugget, partner,
                     add_agents, anatomize, merge_actions,
-                    apply_sematics
+                    apply_semantics
                 )
-            elif isinstance(partner, PhysicalRegionAgent):
-                (_, partner_id) = self._generate_agent_region_group(
+            elif isinstance(partner, RegionActor):
+                (_, partner_id) = self._generate_region_actor_group(
                     nugget, partner, add_agents, anatomize, merge_actions,
-                    apply_sematics
+                    apply_semantics
                 )
             else:
                 raise NuggetGenerationError(
@@ -390,47 +424,43 @@ class Generator:
             nugget.add_edge(bound_locus_id, is_bnd_id)
         return bound_locus_id
 
-    def _generate_motif(self, nugget, motif, father, add_agents=True, anatomize=True):
+    def _generate_site_group(self, nugget, site, father,
+                             add_agents=True, anatomize=True):
         # 1. create region node
         prefix = father
 
-        motif_id = get_nugget_motif_id(
-            nugget.graph, str(motif), prefix
+        site_id = get_nugget_site_id(
+            nugget.graph, str(site), prefix
         )
 
-        # convert to physical region (?) and identify a region to which it
-        # belongs (?)
-
-        region = motif.to_physical_region()
-
-        action_graph_region = None
+        action_graph_site = None
         if father in nugget.ag_typing.keys():
-            action_graph_region = self._identify_region(
-                region, nugget.ag_typing[father], add_agents, anatomize
+            action_graph_site = self._identify_site(
+                site, nugget.ag_typing[father], add_agents, anatomize
             )
 
         nugget.add_node(
-            motif_id, region.region.to_attrs(),
-            meta_typing="region",
-            ag_typing=action_graph_region,
+            site_id, site.to_attrs(),
+            meta_typing="site",
+            ag_typing=action_graph_site,
             # semantic_rels=semantic_rels
         )
 
         # create and attach residues
-        for residue in motif.residue_list:
+        for residue in site.residue_list:
             (residue_id, _) = self._generate_residue(
-                nugget, residue, motif_id, add_agents
+                nugget, residue, site_id, add_agents
             )
-            nugget.add_edge(residue_id, motif_id)
+            nugget.add_edge(residue_id, site_id)
 
-        return motif_id
+        return site_id
 
-    def _generate_agent_motif_group(self, nugget, agent,
-                                    add_agents=True, anatomize=True,
-                                    merge_actions=True, apply_sematics=True):
-        agent_id = self._generate_agent_group(
+    def _generate_site_actor_group(self, nugget, agent,
+                                   add_agents=True, anatomize=True,
+                                   merge_actions=True, apply_semantics=True):
+        agent_id = self._generate_gene_group(
             nugget, agent.physical_agent, add_agents, anatomize, merge_actions,
-            apply_sematics
+            apply_semantics
         )
         motif_id = self._generate_motif(
             nugget, agent.motif, agent_id, add_agents, anatomize
@@ -440,12 +470,12 @@ class Generator:
 
     def _generate_region_group(self, nugget, region, father,
                                add_agents=True, anatomize=True,
-                               merge_actions=True, apply_sematics=True):
+                               merge_actions=True, apply_semantics=True):
         # 1. create region node
         prefix = father
 
         region_id = get_nugget_region_id(
-            nugget.graph, str(region.region), prefix
+            nugget.graph, str(region), prefix
         )
 
         # identify region
@@ -458,7 +488,7 @@ class Generator:
         # find semantic relations
 
         nugget.add_node(
-            region_id, region.region.to_attrs(),
+            region_id, region.to_attrs(),
             meta_typing="region",
             ag_typing=action_graph_region,
             # semantic_rels=semantic_rels
@@ -482,74 +512,97 @@ class Generator:
         for partners in region.bounds:
             bound_locus_id = self._generate_bound(
                 nugget, partners, region_id, add_agents,
-                anatomize, merge_actions, apply_sematics
+                anatomize, merge_actions, apply_semantics
             )
             nugget.add_edge(region_id, bound_locus_id)
 
         return region_id
 
-    def _generate_agent_group(self, nugget, agent,
-                              add_agents=True, anatomize=True,
-                              merge_actions=True, apply_sematics=True):
+    def _generate_gene_group(self, nugget, gene,
+                             add_agents=True, anatomize=True,
+                             merge_actions=True, apply_semantics=True):
         """Generate agent group + indentify mapping."""
         # 1. create agent node
-        agent_id = get_nugget_agent_id(nugget.graph, agent.agent)
+        agent_id = get_nugget_gene_id(nugget.graph, gene)
 
         # 2. identify agent (map to a node in the action graph)
-        action_graph_agent = self._identify_agent(
-            agent.agent, add_agents, anatomize
+        action_graph_agent = self._identify_gene(
+            gene, add_agents, anatomize
         )
 
         nugget.add_node(
             agent_id,
-            agent.agent.to_attrs(),
+            gene.to_attrs(),
             meta_typing="agent",
             ag_typing=action_graph_agent
         )
         # 2. create and attach regions
-        for region in agent.regions:
+        for region in gene.regions:
             region_id = self._generate_region_group(
                 nugget, region, agent_id, add_agents, anatomize,
-                merge_actions, apply_sematics,
+                merge_actions, apply_semantics,
             )
             nugget.add_edge(region_id, agent_id)
 
         # 3. create and attach residues
-        for residue in agent.residues:
+        for residue in gene.residues:
             (residue_id, _) = self._generate_residue(
                 nugget, residue, agent_id, add_agents
             )
             nugget.add_edge(residue_id, agent_id)
 
         # 4. create and attach states
-        for state in agent.states:
+        for state in gene.states:
             state_id = self._generate_state(
                 nugget, state, agent_id, add_agents
             )
             nugget.add_edge(state_id, agent_id)
 
         # 5. create and attach bounds
-        for bnd in agent.bounds:
+        for bnd in gene.bounds:
             bound_locus_id = self._generate_bound(
                 nugget, bnd, agent_id, add_agents, anatomize,
-                merge_actions, apply_sematics
+                merge_actions, apply_semantics
             )
             nugget.add_edge(agent_id, bound_locus_id)
 
         return agent_id
 
-    def _generate_agent_region_group(self, nugget, agent,
+    def _generate_region_actor_group(self, nugget, region_actor,
                                      add_agents=True, anatomize=True,
-                                     merge_actions=True, apply_sematics=True):
-        agent_id = self._generate_agent_group(
-            nugget, agent.physical_agent, add_agents, anatomize, merge_actions,
-            apply_sematics
+                                     merge_actions=True, apply_semantics=True):
+        agent_id = self._generate_gene_group(
+            nugget, region_actor.gene, add_agents, anatomize, merge_actions,
+            apply_semantics
         )
         region_id = self._generate_region_group(
-            nugget, agent.physical_region, agent_id, add_agents, anatomize
+            nugget, region_actor.region, agent_id, add_agents, anatomize
         )
         nugget.add_edge(region_id, agent_id)
         return (agent_id, region_id)
+
+    def _generate_site_actor_group(self, nugget, site_actor,
+                                   add_agents=True, anatomize=True,
+                                   merge_actions=True, apply_semantics=True):
+        agent_id = self._generate_gene_group(
+            nugget, site_actor.gene, add_agents, anatomize, merge_actions,
+            apply_semantics
+        )
+
+        site_id = self._generate_site_group(
+            nugget, site_actor.site, add_agents, anatomize, merge_actions,
+            apply_semantics
+        )
+        nugget.add_edge(site_id, agent_id)
+
+        if site_actor.region is not None:
+            region_id = self._generate_region_group(
+                nugget, site_actor.region, agent_id, add_agents, anatomize
+            )
+            nugget.add_edge(region_id, agent_id)
+            nugget.add_edge(site_id, region_id)
+
+        return (agent_id, site_id)
 
     def generate(self, mod, add_agents=True, anatomize=True,
                  merge_actions=True, apply_semantics=True):
@@ -606,21 +659,21 @@ class ModGenerator(Generator):
 
     def _create_nugget(self, mod, add_agents=True, anatomize=True,
                        merge_actions=True, apply_semantics=True):
-        """Create mod nugget graph and find its typing."""
+        """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
         # 1. Process enzyme
-        if isinstance(mod.enzyme, PhysicalAgent):
-            enzyme = self._generate_agent_group(
+        if isinstance(mod.enzyme, Gene):
+            enzyme = self._generate_gene_group(
                 nugget, mod.enzyme, add_agents, anatomize
             )
             enzyme_region = None
-        elif isinstance(mod.enzyme, PhysicalRegionAgent):
-            (enzyme, enzyme_region) = self._generate_agent_region_group(
+        elif isinstance(mod.enzyme, RegionActor):
+            (enzyme, enzyme_region) = self._generate_region_actor_group(
                 nugget, mod.enzyme, add_agents, anatomize
             )
-        elif isinstance(mod.enzyme, MotifAgent):
-            (enzyme, enzyme_region) = self._generate_agent_motif_group(
+        elif isinstance(mod.enzyme, SiteActor):
+            (enzyme, enzyme_region) = self._generate_site_actor_group(
                 nugget, mod.enzyme, add_agents, anatomize
             )
         else:
@@ -632,17 +685,17 @@ class ModGenerator(Generator):
         if enzyme_region:
             nugget.template_rel.add((enzyme_region, "enzyme_region"))
 
-        if isinstance(mod.substrate, PhysicalAgent):
-            substrate = self._generate_agent_group(
+        if isinstance(mod.substrate, Gene):
+            substrate = self._generate_gene_group(
                 nugget, mod.substrate, add_agents, anatomize
             )
             substrate_region = None
-        elif isinstance(substrate, PhysicalRegionAgent):
-            (substrate, substrate_region) = self._generate_agent_region_group(
+        elif isinstance(substrate, RegionActor):
+            (substrate, substrate_region) = self._generate_region_actor_group(
                 nugget, mod.substrate, add_agents, anatomize
             )
-        elif isinstance(substrate, MotifAgent):
-            (substrate, substrate_region) = self._generate_agent_motif_group(
+        elif isinstance(substrate, SiteActor):
+            (substrate, substrate_region) = self._generate_site_actor_group(
                 nugget, mod.substrate, add_agents, anatomize
             )
         else:
@@ -881,14 +934,14 @@ class AutoModGenerator(Generator):
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
 
-        if not isinstance(mod.enzyme, PhysicalAgent):
+        if not isinstance(mod.enzyme, Gene):
             raise NuggetGenerationError(
                 "Automodification parameter 'enzyme_agent' "
                 "should be an instance of 'PhysicalAgent', "
                 "'%s' provided!" % type(mod.enzyme)
             )
 
-        enzyme = self._generate_agent_group(
+        enzyme = self._generate_gene_group(
             nugget, mod.enzyme, add_agents, anatomize,
             merge_actions, apply_semantics
         )
@@ -1050,16 +1103,16 @@ class AnonymousModGenerator(Generator):
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
 
-        if isinstance(mod.substrate, PhysicalAgent):
-            substrate = self._generate_agent_group(
+        if isinstance(mod.substrate, Gene):
+            substrate = self._generate_gene_group(
                 nugget, mod.substrate, add_agents, anatomize,
                 merge_actions, apply_semantics
             )
             substrate_region = None
             nugget.template_rel.add((substrate, "substrate"))
 
-        elif isinstance(mod.substrate, PhysicalRegionAgent):
-            (substrate, substrate_region) = self._generate_agent_region_group(
+        elif isinstance(mod.substrate, RegionActor):
+            (substrate, substrate_region) = self._generate_region_actor_group(
                 nugget, mod.substrate, add_agents, anatomize,
                 merge_actions, apply_semantics
             )
@@ -1385,18 +1438,18 @@ class BinaryBndGenerator(Generator):
 
         # 1. create physical agent nodes and conditions
         for member in bnd.left:
-            if isinstance(member, PhysicalAgent):
-                member_id = self._generate_agent_group(
+            if isinstance(member, Gene):
+                member_id = self._generate_gene_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
-            elif isinstance(member, PhysicalRegionAgent):
-                (_, member_id) = self._generate_agent_region_group(
+            elif isinstance(member, RegionActor):
+                (_, member_id) = self._generate_region_actor_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
-            elif isinstance(member, MotifAgent):
-                (_, member_id) = self._generate_agent_motif_group(
+            elif isinstance(member, SiteActor):
+                (_, member_id) = self._generate_site_actor_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
@@ -1408,18 +1461,18 @@ class BinaryBndGenerator(Generator):
             nugget.template_rel.add((member_id, "partner"))
 
         for member in bnd.right:
-            if isinstance(member, PhysicalAgent):
-                member_id = member_id = self._generate_agent_group(
+            if isinstance(member, Gene):
+                member_id = member_id = self._generate_gene_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
-            elif isinstance(member, PhysicalRegionAgent):
-                (_, member_id) = self._generate_agent_region_group(
+            elif isinstance(member, RegionActor):
+                (_, member_id) = self._generate_region_actor_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
-            elif isinstance(member, MotifAgent):
-                (_, member_id) = self._generate_agent_motif_group(
+            elif isinstance(member, SiteActor):
+                (_, member_id) = self._generate_site_actor_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
@@ -1481,7 +1534,7 @@ class BinaryBndGenerator(Generator):
 
         # a) Left partner is SH2
         if len(bnd.left) == 1:
-            if isinstance(bnd.left[0], PhysicalRegionAgent):
+            if isinstance(bnd.left[0], RegionActor):
                 if "sh2" in self.hierarchy.ag_node_semantics(
                         nugget.ag_typing[left[0]]):
                     self._apply_sh2_semantics(
@@ -1491,7 +1544,7 @@ class BinaryBndGenerator(Generator):
 
         # b) Right partner is SH2
         if len(bnd.right) == 1:
-            if isinstance(bnd.right[0], PhysicalRegionAgent):
+            if isinstance(bnd.right[0], RegionActor):
                 if "sh2" in self.hierarchy.ag_node_semantics(
                         nugget.ag_typing[right[0]]):
                     self._apply_sh2_semantics(
@@ -1513,18 +1566,21 @@ class ComplexGenerator(Generator):
 
         # create agents
         for member in complex.members:
-            if isinstance(member, PhysicalAgent):
-                member_id = self._generate_agent_group(
+            if isinstance(member, Gene):
+                member_id = self._generate_gene_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
                 members.append(member_id)
-            elif isinstance(member, PhysicalRegionAgent):
-                (member_id, region_id) = self._generate_agent_region_group(
+            elif isinstance(member, RegionActor):
+                (member_id, region_id) = self._generate_region_actor_group(
                     nugget, member, add_agents, anatomize,
                     merge_actions, apply_semantics
                 )
                 members.append(region_id)
+            elif isinstance(member, SiteActor):
+                # TODO
+                pass
 
         visited = set()
 
