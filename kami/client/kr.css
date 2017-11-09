@@ -502,8 +502,12 @@ svg{
     -webkit-filter:grayscale(100%) !important;
     filter:grayscale(100%) !important;
 }
-.node.selected{
+/*.node.selected{
     stroke:var(--node-default-select);
+}*/
+.selectedSymbol{
+    stroke: red;
+    stroke-width: 5px;
 }
 .nodeLabel{
   fill: var(--node-label-color);

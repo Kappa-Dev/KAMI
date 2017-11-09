@@ -900,12 +900,14 @@ define([
                 title: "Select all",
                 action: function (elm, d, i) {
                     svg_content.selectAll("g").classed("selected", true);
+                    svg_content.selectAll("g").select(".nodeSymbol").classed("selectedSymbol", true);
                     maybeDrawButtons();
                 }
             }, {
                 title: "Unselect all",
                 action: function (elm, d, i) {
                     svg_content.selectAll("g").classed("selected", false);
+                    svg_content.selectAll("g").select(".nodeSymbol").classed("selectedSymbol", false);
                     hideButtons();
                 }
             }, {
@@ -1223,10 +1225,12 @@ define([
             if (d3.event.shiftKey) {
                 if (d3.select(this).classed("selected")) {
                     d3.select(this).classed("selected", false);
+                    d3.select(this).select(".nodeSymbol").classed("selectedSymbol", false);
                     maybeDrawButtons();
                 }
                 else {
                     d3.select(this).classed("selected", true);
+                    d3.select(this).select(".nodeSymbol").classed("selectedSymbol", true);
                     drawButtons();
                 }
             }
@@ -1518,6 +1522,16 @@ define([
                                 n.y >= miny);
                         })
                         .classed("selected", true);
+                    svg_content.selectAll("g")
+                        .filter(function (n) {
+                            return (
+                                n.x <= maxx &&
+                                n.x >= minx &&
+                                n.y <= maxy &&
+                                n.y >= miny);
+                        })
+                        .select(".nodeSymbol")
+                        .classed("selectedSymbol", true);
                     maybeDrawButtons();
                 });
         }
@@ -1525,6 +1539,8 @@ define([
         function svgClickHandler() {
             svg_content.selectAll("g.selected")
                 .classed("selected", false);
+            svg_content.selectAll(".nodeSymbol")
+                .classed("selectedSymbol", false);
             hideButtons();
             dehilightNodes();
         }

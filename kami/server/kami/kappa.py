@@ -1,4 +1,8 @@
-""" represent a kappa model as python """
+""" 
+represent a kappa model as python
+!!! Forced binding [#] and bound to anything [_] are not implemented yet !!!
+(It seems like they were not implemented in the "to kasim 3" version either)
+"""
 import regraph.tree as tree
 
 from regraph.category_op import (pullback, pushout,
@@ -31,8 +35,8 @@ class KappaModel(object):
         self.variables = variables
 
     def __str__(self):
-        return "{}\n\n{}\n\n{}\n\n{}".format(
-            '%def: "syntaxVersion" "4"',
+        return "{}\n\n{}\n\n{}".format(
+            #'%def: "syntaxVersion" "4"',
             "\n".join(map(str, self.agent_decls)),
             "\n".join(map(str, self.rules)),
             "\n".join(map(str, self.variables)))
@@ -47,20 +51,22 @@ class AgentDecl(object):
     def __str__(self):
         return "%agent: {}({})".format(
             self.name.replace(" ", "_"), 
-            ",".join([s.replace(" ", "_") for s in map(str, self.sites_decl)]))
+            " ".join([s.replace(" ", "_") for s in map(str, self.sites_decl)]))
 
 
 class SiteDecl(object):
     """Site declaration"""
     def __init__(self, name, values=None):
         self.name = name
-        if values is None:
-            self.values = []
-        else:
-            self.values = values
+        self.values = values
 
     def __str__(self):
-        return "".join([self.name]+["~"+v for v in self.values])
+        if self.values is None:
+            return "{}".format(self.name)
+        else:
+            return "{}{{{}}}".format(
+                self.name,
+                ",".join([v for v in self.values]))
 
 
 class KappaRule(object):
@@ -73,7 +79,7 @@ class KappaRule(object):
     def __str__(self):
         return "'{}' {} @ {}".format(
             self.name,
-            ",".join(map(str, self.agents)),
+            ", ".join(map(str, self.agents)),
             self.rate)
 
 
@@ -88,7 +94,7 @@ class Agent(object):
         return "{}{}({})".format(
             self.prefix,
             self.name,
-            ",".join([s.replace(" ", "_") for s in map(str, self.sites)]))
+            " ".join([s.replace(" ", "_") for s in map(str, self.sites)]))
 
 
 class BindingSite(object):
@@ -100,9 +106,9 @@ class BindingSite(object):
 
     def __str__(self):
         if self.new_binding is None:
-            return "{}!{}".format(self.name, self.old_binding)
+            return "{}[{}]".format(self.name, self.old_binding)
         else:
-            return "{}!{}/!{}".format(self.name, self.old_binding,
+            return "{}[{}/{}]".format(self.name, self.old_binding,
                                       self.new_binding)
 
 
@@ -116,11 +122,11 @@ class StateSite(object):
     def __str__(self):
         # new and old should not both be None at the same time
         if self.old_state is None:
-            return "{}/~{}".format(self.name, self.new_state)
+            return "{}/{{{}}}".format(self.name, self.new_state)
         if self.new_state is None:
-            return "{}~{}".format(self.name, self.old_state)
+            return "{}{{{}}}".format(self.name, self.old_state)
         else:
-            return "{}~{}/~{}".format(self.name, self.old_state,
+            return "{}{{{}/{}}}".format(self.name, self.old_state,
                                       self.new_state)
 
 
