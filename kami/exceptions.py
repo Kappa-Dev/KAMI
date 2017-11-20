@@ -31,3 +31,11 @@ class KamiIndentifierError(KamiException):
 
 class IndraImportWarning(KamiWarning):
     """Class for INDRA import warnings."""
+
+
+class BiopaxImportError(KamiError):
+    """."""
+
+
+class BiopaxImportWarning(KamiWarning):
+    """."""

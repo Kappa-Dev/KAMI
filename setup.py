@@ -29,5 +29,6 @@ setup(name='kami',
           "indra",
           "flask",
           "flex",
-          "lxml"
+          "lxml",
+          "jpype1"
       ])

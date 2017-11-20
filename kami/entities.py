@@ -218,7 +218,7 @@ class Site(PhysicalEntity):
 
     def __str__(self):
         """String representation of the region."""
-        res = "region"
+        res = "site"
         if self.start:
             res += "_" + str(self.start)
         if self.end:
@@ -313,7 +313,7 @@ class RegionActor(Actor):
 
 
 class SiteActor(Actor):
-    def __init__(self, site, gene, region=None):
+    def __init__(self, gene, site, region=None):
         """."""
         self.site = site
         self.region = region
@@ -323,7 +323,7 @@ class SiteActor(Actor):
         """String representation of  region/agent."""
         res = str(self.gene)
         if self.region is not None:
-            res += "_region_" + str(self.region)
-        res += "_site_" + str(self.site)
+            res += "_" + str(self.region)
+        res += "_" + str(self.site)
 
         return res

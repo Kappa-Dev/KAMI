@@ -1,10 +1,11 @@
 """."""
+import warnings
+
 from jpype import (java, startJVM, getDefaultJVMPath, JPackage)
 
-from kami.entities import (Agent, Residue, State,
-                           NuggetAnnotation,
-                           PhysicalAgent)
-from kami.exceptions import IndraImportError, IndraImportWarning
+from kami.entities import (Gene, Region, RegionActor,
+                           Residue, Site, SiteActor, State)
+from kami.exceptions import BiopaxImportError, BiopaxImportWarning
 from kami.interactions import (Modification,
                                AutoModification,
                                TransModification,
@@ -26,7 +27,7 @@ class BioPAXModel():
             getDefaultJVMPath(),
             "-ea",
             "-Xmx1g",
-            "-Djava.class.path=paxtools.jar")
+            "-Djava.class.path=../../sources/biopax/paxtools.jar")
 
         self.java_io_ = JPackage("java.io")
         self.paxtools_ = JPackage("org.biopax.paxtools")
