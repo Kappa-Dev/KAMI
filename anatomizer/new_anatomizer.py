@@ -869,40 +869,114 @@ class DomainAnatomy:
             #     return True
         return False
 
-    def get_semantics(self):
-        """Dummy function which returns domain semantics.
+#    def get_semantics(self):
+#        """Dummy function which returns domain semantics.
+#
+#        If name or description of domain mentions
+#        one of the key words, assign the semantics.
+#        """
+#        semantics = []
+#        # Test if protein kinase region
+#        kinase = False
+#        key_words = ["protein kinase"]
+#        stop_words = ["phorbol ester"]
+#        for key_word in key_words:
+#            for name in self.ipr_names:
+#                if name and key_word in name.lower():
+#                    # check for stop words
+#                    for stop_word in stop_words:
+#                        if stop_word in name.lower():
+#                            break
+#                    # no stop words were found
+#                    else:
+#                        kinase = True
+#        if kinase:
+#            semantics.append("kinase")
+#
+#        # Test if SH2 region
+#        sh2 = False
+#        key_words = ["sh2"]
+#        stop_words = []
+#        for key_word in key_words:
+#            for name in self.ipr_names:
+#                if name and key_word in name.lower():
+#                    # check for stop words
+#                    for stop_word in stop_words:
+#                        if stop_word in name.lower():
+#                            break
+#                    # no stop words were found
+#                    else:
+#                        sh2 = True
+#        if sh2:
+#            semantics.append("sh2")
+#
+#        return semantics
 
-        If name or description of domain mentions
-        one of the key words, assign the semantics.
-        """
+    def get_semantics(self):
+        """ Domain semantics based on InterPro IDs. """
         semantics = []
         # Test if protein kinase region
-        kinase = False
-        key_words = ["protein kinase"]
-        stop_words = ["phorbol ester"]
-        for key_word in key_words:
-            for name in self.ipr_names:
-                if name and key_word in name.lower():
-                    # check for stop words
-                    for stop_word in stop_words:
-                        if stop_word in name.lower():
+        prot_kinase = False
+        key_iprs = ["IPR000719"]
+        stop_iprs = []
+        for key_ipr in key_iprs:
+            for ipr_id in self.ipr_ids:
+                if ipr_id and key_ipr in ipr_id:
+                    # check for stop InterPro IDs
+                    for stop_ipr in stop_iprs:
+                        if stop_ipr in ipr_id:
                             break
                     # no stop words were found
                     else:
-                        kinase = True
-        if kinase:
+                        prot_kinase = True
+        if prot_kinase:
             semantics.append("kinase")
+            semantics.append("protein kinase")
+
+        # Test if serine-threonine/tyrosine protein kinase region
+        sty_kinase = False
+        key_iprs = ["IPR001245"]
+        stop_iprs = []
+        for key_ipr in key_iprs:
+            for ipr_id in self.ipr_ids:
+                if ipr_id and key_ipr in ipr_id:
+                    # check for stop InterPro IDs
+                    for stop_ipr in stop_iprs:
+                        if stop_ipr in ipr_id:
+                            break
+                    # no stop words were found
+                    else:
+                        sty_kinase = True
+        if sty_kinase:
+            semantics.append("ser-thr/tyr protein kinase")
+
+        # Test if tyrosine protein kinase region
+        tyr_kinase = False
+        key_iprs = ["IPR020635"]
+        stop_iprs = []
+        for key_ipr in key_iprs:
+            for ipr_id in self.ipr_ids:
+                if ipr_id and key_ipr in ipr_id:
+                    # check for stop InterPro IDs
+                    for stop_ipr in stop_iprs:
+                        if stop_ipr in ipr_id:
+                            break
+                    # no stop words were found
+                    else:
+                        tyr_kinase = True
+        if tyr_kinase:
+            semantics.append("tyrosine protein kinase")
 
         # Test if SH2 region
         sh2 = False
-        key_words = ["sh2"]
-        stop_words = []
-        for key_word in key_words:
-            for name in self.ipr_names:
-                if name and key_word in name.lower():
-                    # check for stop words
-                    for stop_word in stop_words:
-                        if stop_word in name.lower():
+        key_iprs = ["IPR000980"]
+        stop_iprs = []
+        for key_ipr in key_iprs:
+            for ipr_id in self.ipr_ids:
+                if ipr_id and key_ipr in ipr_id:
+                    # check for stop InterPro IDs
+                    for stop_ipr in stop_iprs:
+                        if stop_ipr in ipr_id:
                             break
                     # no stop words were found
                     else:
