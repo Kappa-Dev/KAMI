@@ -58,9 +58,12 @@ def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
         update_ipr_verfile(local_dir, version, rem_version)
         # Check that download was successful.
         if version != rem_version:
-            raise AnatomizerWarning('Local version still does not match '
-                                    'that from http://perso.ens-lyon.fr/'
-                                    'sebastien.legare/%s/' % remote_dir)
+            warnings.warn(
+                'Local version still does not match '
+                'that from http://perso.ens-lyon.fr/'
+                'sebastien.legare/%s/' %
+                remote_dir, AnatomizerWarning
+            )
 
 
 def reporthook(blocknum, blocksize, totalsize):
@@ -125,23 +128,32 @@ def chk_ipr_verfile(local_dir):
         if len(date_infile) == 0:
             check_needed = True
         else:
-            # Get the date of last check.
-            date_line = date_infile[1].split()
-            date_tokens = date_line[4].split('/')
-            prev_month = int(date_tokens[0])
-            prev_day = int(date_tokens[1])
-            prev_year = int(date_tokens[2])
-            # Get today's date.
-            today = time.strftime('%x')
-            today_tokens = today.split('/')
-            month = int(today_tokens[0])
-            day = int(today_tokens[1])
-            year = int(today_tokens[2])
-            # Check if more than one day passed since last check.
-            if year == prev_year and month == prev_month and day == prev_day:
-                check_needed = False
-            else:
+            # Get local and remote version at last check.
+            version_tokens = date_infile[0].split()
+            loc_ver = int(version_tokens[3])
+            rem_ver = int(version_tokens[6])
+	    # Check if remote version was lower than local at last check.
+	    # (This likely means that there was no connection at last check.)
+            if rem_ver < loc_ver or loc_ver == 0:
                 check_needed = True
+            else:
+                # Get the date of last check.
+                date_line = date_infile[1].split()
+                date_tokens = date_line[4].split('/')
+                prv_month = int(date_tokens[0])
+                prv_day = int(date_tokens[1])
+                prv_year = int(date_tokens[2])
+                # Get today's date.
+                today = time.strftime('%x')
+                today_tokens = today.split('/')
+                month = int(today_tokens[0])
+                day = int(today_tokens[1])
+                year = int(today_tokens[2])
+                # Check if more than one day passed since last check.
+                if year == prv_year and month == prv_month and day == prv_day:
+                    check_needed = False
+                else:
+                    check_needed = True
 
     return check_needed
 
@@ -176,9 +188,11 @@ def check_local_ver(local_dir):
     # If the version of all 3 files does not match, return the one
     # with the oldest version.
     if mapping_ver != shrtnam_ver or mapping_ver != match_ver:
-        raise AnatomizerWarning('InterPro files versions do not match.\n'
-                                'Trying to resolve the issue using remote '
-                                'files.')
+        warnings.warn(
+            'InterPro files versions do not match.\n'
+            'Will try to resolve the issue using remote files.',
+            AnatomizerWarning
+        )
         ver_list = [mapping_ver, shortname_ver, match_ver]
         sorted_list = sorted(ver_list)
         loc_ver = sorted_list[0]
@@ -209,8 +223,10 @@ def check_remote_ver(remote_dir):
         rem_match_ver = latest_version(rem_match_files)
         rem_ver = rem_match_ver
     except:
-        raise AnatomizerWarning('Cannot access remote, giving '
-                                'up InterPro update for now.')
+        warnings.warn(
+            'Cannot access remote, giving up InterPro update for now.',
+            AnatomizerWarning
+        )
         rem_ver = 0
 
     return rem_ver
@@ -244,8 +260,10 @@ def fetch_ipr_new_ver(remote_dir, version, local_dir=RESOURCES):
             % (local_dir, version), reporthook
         )
     except:
-        raise AnatomizerWarning('Cannot access remote, giving '
-                                'up InterPro update for now.')
+        warnings.warn(
+            'Cannot access remote, giving up InterPro update for now.',
+            AnatomizerWarning
+        )
 # ---------------------------------------------------------------------------
 
 
@@ -258,6 +276,12 @@ def interpro_load(local_dir=RESOURCES):
     global ipr_loaded
 
     ipr_version = check_local_ver(local_dir)
+
+    if ipr_version == 0:
+        raise AnatomizerError(
+            'Need a working internet connection to download InterPro data '
+            'before the first use of the Anatomizer.'
+        )
 
     print('Loading InterPro Data version %i' % ipr_version)
 
