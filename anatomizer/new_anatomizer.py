@@ -224,9 +224,9 @@ def check_remote_ver(remote_dir):
         rem_ver = rem_match_ver
     except:
         warnings.warn(
-            'Cannot access remote, giving up InterPro update for now.',
-            AnatomizerWarning
-        )
+            'Cannot access remote, giving '
+            'up InterPro update for now.',
+            AnatomizerWarning)
         rem_ver = 0
 
     return rem_ver
@@ -1011,7 +1011,6 @@ class DomainAnatomy:
                         sh2 = True
         if sh2:
             semantics.append("sh2")
-
         return semantics
 
     def to_dict(self):
