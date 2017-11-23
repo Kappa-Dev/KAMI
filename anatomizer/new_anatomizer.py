@@ -614,8 +614,7 @@ def get_ipr_features(selected_ac, canon):
                     ipr_parent = ipr.get('parent_id')
                 except:
                     ipr_parent = None
-                feature_dict['ipr_parents'] = parent_chain(
-                    interpro_id, ipr_parent)
+                feature_dict['ipr_parents'] = parent_chain(ipr_parent)
 
                 feature_dict['ipr_name'] = ipr.get('name')
 
@@ -645,14 +644,14 @@ def find_shortname(ipr):
     return shortname
 
 
-def parent_chain(ipr, parent):
+def parent_chain(parent):
     """
     Build the chain of parents (as a list) from given InterPro ID
     to top of hierarchy.
     """
     parchain = []
     while parent is not None:
-        if parent is not 'None':
+        if parent != 'None':
             parchain.append(parent)
         # Find the entry of that parent
         ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % parent)
@@ -742,6 +741,83 @@ def _nest_overlap(f1, f2):
     return ratio
 
 
+def propose_name_label(ipr_list):
+    """
+    Propose a consensus name for a domain
+    based on InterPro IDs and trees.
+    """
+    # 1 Get the deepest InterPro ID and all his parents (longest branch).
+    branches = []
+    branch_lens = []
+    for ipr_id in ipr_list:
+        branch = parent_chain(ipr_id)
+        branches.append(branch)
+        branch_lens.append(len(branch))
+    longest_index = branch_lens.index(max(branch_lens))
+    longest_branch = branches[longest_index]
+    # Check that all ipr_ids are from a single branch.
+    # This is supposed to be so because I group fragments only if
+    # they are_parents().
+    single_branch = True
+    for branch in branches:
+        for ipr_id in branch:
+            if ipr_id not in longest_branch:
+                single_branch = False # Will use the longest branch anyway.
+
+    # 2 Custom name and label for some specific InterPro IDs.
+    # Right now there are 2 paterns that can be used to set proposed
+    # name and label (may have to make something more detailed in the future).
+    custom_found = False
+    # a) InterPro ID is found anywhere in longest_branch.
+    # (basically this is used to ignore deeper levels)
+    anywhere_dict = {
+        'IPR020635': {'name':'Tyrosine kinase', 'label':'Tyr_kin'}
+    }
+    for ipr_id in longest_branch:
+        if ipr_id in anywhere_dict.keys():
+            proposed_name = anywhere_dict[ipr_id]['name']
+            proposed_label = anywhere_dict[ipr_id]['label']
+            custom_found = True
+
+    # b) InterPro ID is found as tip of longest_branch.
+    tip_dict = {
+        'IPR001245': {'name':'Ser-thr/tyr kinase', 'label':'STY_kin'},
+        'IPR000719': {'name':'Protein kinase', 'label':'Prot_kin'}
+    }
+    tip_of_branch = longest_branch[0]
+    if tip_of_branch in tip_dict.keys():
+        proposed_name = tip_dict[tip_of_branch]['name']
+        proposed_label = tip_dict[tip_of_branch]['label']
+        custom_found = True
+
+    # 3 Default behavior if no custom name was specified for given InterPro ID.
+    if custom_found == False:
+       # Take the root of the InterPro branch.
+       interpro_id = longest_branch[-1]
+       ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % interpro_id)
+       ipr_short_name = ipr_entry.get('short_name')
+       ipr_name = ipr_entry.get('name')
+       # List of strings to remove from names.
+       name_rm_strings = [" domain", "-domain"]
+       tmp_name = ipr_name
+       for name_rm_string in name_rm_strings:
+           tmp_name = tmp_name.replace(name_rm_string, "")
+       proposed_name = tmp_name
+       # List of strings to remove from short names.
+       short_rm_strings = ["_domain", "_cat_dom", "_dom", "-dom", "_like", "-like"]
+       tmp_label = ipr_short_name
+       for short_rm_string in short_rm_strings:
+           tmp_label = tmp_label.replace(short_rm_string, "")
+       proposed_label = tmp_label
+
+    # Print a message if different InterPro branches were present.
+    if single_branch == False:
+        print('Domain "%s" made up of distinct InterPro branches, '
+            'its naming might be inconsistent.' % proposed_name)
+
+    return [proposed_name, proposed_label]
+
+
 class Fragment:
     """Class implementing raw domain fragment."""
 
@@ -820,6 +896,8 @@ class DomainAnatomy:
         self.length = length
         self.feature_type = feature_type
 
+        self.prop_name, self.prop_label = propose_name_label(self.ipr_ids)
+
         if subdomains:
             self.subdomains = subdomains
         else:
@@ -849,68 +927,18 @@ class DomainAnatomy:
         If name or description of domain mentions
         one of the key words, return True.
         """
-        key_words = ["protein kinase", "kinase"]
-        stop_words = ["phorbol ester"]
-        for key_word in key_words:
-            for name in self.ipr_names:
-                if name and key_word in name.lower():
-                    # check for stop words
-                    for stop_word in stop_words:
-                        if stop_word in name.lower():
+        key_iprs = ["IPR000719"]
+        stop_iprs = []
+        for key_ipr in key_iprs:
+            for ipr_id in self.ipr_ids:
+                if ipr_id and key_ipr in ipr_id:
+                    # check for stop InterPro IDs
+                    for stop_ipr in stop_iprs:
+                        if stop_ipr in ipr_id:
                             return False
-                    # no stop words were found
+                    # no stop IDs were found
                     return True
-            # if self.description and key_word in self.description.lower():
-            #     # check for stop words
-            #     for stop_word in stop_words:
-            #         if stop_word in name.lower():
-            #             return False
-            #     # no stop words were found
-            #     return True
         return False
-
-#    def get_semantics(self):
-#        """Dummy function which returns domain semantics.
-#
-#        If name or description of domain mentions
-#        one of the key words, assign the semantics.
-#        """
-#        semantics = []
-#        # Test if protein kinase region
-#        kinase = False
-#        key_words = ["protein kinase"]
-#        stop_words = ["phorbol ester"]
-#        for key_word in key_words:
-#            for name in self.ipr_names:
-#                if name and key_word in name.lower():
-#                    # check for stop words
-#                    for stop_word in stop_words:
-#                        if stop_word in name.lower():
-#                            break
-#                    # no stop words were found
-#                    else:
-#                        kinase = True
-#        if kinase:
-#            semantics.append("kinase")
-#
-#        # Test if SH2 region
-#        sh2 = False
-#        key_words = ["sh2"]
-#        stop_words = []
-#        for key_word in key_words:
-#            for name in self.ipr_names:
-#                if name and key_word in name.lower():
-#                    # check for stop words
-#                    for stop_word in stop_words:
-#                        if stop_word in name.lower():
-#                            break
-#                    # no stop words were found
-#                    else:
-#                        sh2 = True
-#        if sh2:
-#            semantics.append("sh2")
-#
-#        return semantics
 
     def get_semantics(self):
         """ Domain semantics based on InterPro IDs. """
@@ -926,7 +954,7 @@ class DomainAnatomy:
                     for stop_ipr in stop_iprs:
                         if stop_ipr in ipr_id:
                             break
-                    # no stop words were found
+                    # no stop IDs were found
                     else:
                         prot_kinase = True
         if prot_kinase:
@@ -944,11 +972,11 @@ class DomainAnatomy:
                     for stop_ipr in stop_iprs:
                         if stop_ipr in ipr_id:
                             break
-                    # no stop words were found
+                    # no stop IDs were found
                     else:
                         sty_kinase = True
         if sty_kinase:
-            semantics.append("ser-thr/tyr protein kinase")
+            semantics.append("ser-thr/tyr kinase")
 
         # Test if tyrosine protein kinase region
         tyr_kinase = False
@@ -961,11 +989,11 @@ class DomainAnatomy:
                     for stop_ipr in stop_iprs:
                         if stop_ipr in ipr_id:
                             break
-                    # no stop words were found
+                    # no stop IDs were found
                     else:
                         tyr_kinase = True
         if tyr_kinase:
-            semantics.append("tyrosine protein kinase")
+            semantics.append("tyrosine kinase")
 
         # Test if SH2 region
         sh2 = False
@@ -978,7 +1006,7 @@ class DomainAnatomy:
                     for stop_ipr in stop_iprs:
                         if stop_ipr in ipr_id:
                             break
-                    # no stop words were found
+                    # no stop IDs were found
                     else:
                         sh2 = True
         if sh2:
@@ -1023,13 +1051,15 @@ class DomainAnatomy:
             if len(self.ipr_names) == 0:
                 names = "None"
             else:
-                names = ", ".join(self.ipr_names)
+                names = '"%s"' % '", "'.join(self.ipr_names)
             if len(self.ipr_ids) == 0:
                 ids = "None"
             else:
                 ids = ", ".join(self.ipr_ids)
 
             print(prefix, "         ---> %s <---" % self.feature_type)
+            print(prefix, "  Proposed Label: %s" % self.prop_label)
+            print(prefix, "   Proposed Name: %s" % self.prop_name)
             print(prefix, "     Short Names: %s" % shorts)
             print(prefix, "  InterPro Names: %s" % names)
             print(prefix, "    InterPro IDs: %s" % ids)

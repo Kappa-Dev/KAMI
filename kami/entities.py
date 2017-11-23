@@ -133,12 +133,14 @@ class Gene(Actor, PhysicalEntity):
 class Region(PhysicalEntity):
 
     def __init__(self, start=None, end=None, name=None, order=None,
-                 sites=None, residues=None, states=None, bounds=None):
+                 sites=None, residues=None, states=None, bounds=None,
+                 label=None):
         """Initialize kami region object."""
         self.start = start
         self.end = end
         self.name = name
         self.order = order
+        self.label = label
 
         if sites is None:
             sites = []
@@ -181,6 +183,8 @@ class Region(PhysicalEntity):
             res["name"] = {self.name}
         if self.order:
             res["order"] = {self.order}
+        if self.label:
+            res["label"] = {self.label}
         return res
 
     def add_site(self, site):

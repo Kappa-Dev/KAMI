@@ -141,7 +141,8 @@ class Generator:
                         region = Region(
                             domain.start,
                             domain.end,
-                            " ".join(domain.short_names)
+                            " ".join(domain.short_names),
+			    label=domain.prop_label
                         )
 
                         semantics = domain.get_semantics()
@@ -424,8 +425,7 @@ class Generator:
             nugget.add_edge(bound_locus_id, is_bnd_id)
         return bound_locus_id
 
-    def _generate_site_group(self, nugget, site, father,
-                             add_agents=True, anatomize=True):
+    def _generate_site_group(self, nugget, site, father, add_agents=True, anatomize=True):
         # 1. create region node
         prefix = father
 
@@ -454,19 +454,6 @@ class Generator:
             nugget.add_edge(residue_id, site_id)
 
         return site_id
-
-    def _generate_site_actor_group(self, nugget, agent,
-                                   add_agents=True, anatomize=True,
-                                   merge_actions=True, apply_semantics=True):
-        agent_id = self._generate_gene_group(
-            nugget, agent.physical_agent, add_agents, anatomize, merge_actions,
-            apply_semantics
-        )
-        motif_id = self._generate_motif(
-            nugget, agent.motif, agent_id, add_agents, anatomize
-        )
-        nugget.add_edge(motif_id, agent_id)
-        return (agent_id, motif_id)
 
     def _generate_region_group(self, nugget, region, father,
                                add_agents=True, anatomize=True,
@@ -590,8 +577,7 @@ class Generator:
         )
 
         site_id = self._generate_site_group(
-            nugget, site_actor.site, add_agents, anatomize, merge_actions,
-            apply_semantics
+            nugget, site_actor.site, agent_id, add_agents, anatomize
         )
         nugget.add_edge(site_id, agent_id)
 
@@ -690,11 +676,11 @@ class ModGenerator(Generator):
                 nugget, mod.substrate, add_agents, anatomize
             )
             substrate_region = None
-        elif isinstance(substrate, RegionActor):
+        elif isinstance(mod.substrate, RegionActor):
             (substrate, substrate_region) = self._generate_region_actor_group(
                 nugget, mod.substrate, add_agents, anatomize
             )
-        elif isinstance(substrate, SiteActor):
+        elif isinstance(mod.substrate, SiteActor):
             (substrate, substrate_region) = self._generate_site_actor_group(
                 nugget, mod.substrate, add_agents, anatomize
             )
