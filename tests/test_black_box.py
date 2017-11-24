@@ -241,3 +241,27 @@ class TestBlackBox(object):
             mod_value=True)
         inters.append(m)
         hierarchy = create_nuggets(inters, anatomize=True)
+
+    def test_complicated_site_actor(self):
+        m = Modification(
+            enzyme=SiteActor(
+                gene=Gene("P00519",
+                          sites=[Site(name="bob", start=120, end=150)],
+                          regions=[Region(name="alice", start=100, end=200)],
+                          residues=[Residue("Y", 122)]
+                          ),
+                site=Site(name="jack", start=550, end=600,
+                          residues=[Residue("T")]),
+                region=Region(name="Pkinase",
+                              start=500, end=800,
+                              sites=[Site("billy")])
+            ),
+            substrate=SiteActor(gene=Gene("P00533"),
+                                site=Site("target"),
+                                region=Region("bla")),
+            mod_target=Residue("Y", 100, State("phosphorylation", False)),
+            mod_value=True
+        )
+        hierarchy = create_nuggets([m], anatomize=True)
+        print_graph(hierarchy.nugget["nugget_1"])
+        print(hierarchy.ag_to_edge_list())

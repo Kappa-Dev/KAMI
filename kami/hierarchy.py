@@ -5,7 +5,7 @@ import numpy as np
 
 from regraph.hierarchy import Hierarchy
 from regraph.primitives import (add_node,
-                                add_edge)
+                                add_edge, print_graph)
 
 from kami.exceptions import KamiHierarchyError
 from kami.resources import default_components
@@ -371,6 +371,7 @@ class KamiHierarchy(Hierarchy):
         """Add site node to the action graph."""
         ref_agent_in_genes = ref_agent in self.genes()
         ref_agent_in_regions = ref_agent in self.regions()
+
         if not ref_agent_in_genes and not ref_agent_in_regions:
             raise KamiHierarchyError(
                 "Neither agent nor region '%s' is not "
@@ -385,9 +386,11 @@ class KamiHierarchy(Hierarchy):
         assert(site_id in self.action_graph.nodes())
         self.action_graph_typing[site_id] = "site"
         add_edge(self.action_graph, site_id, ref_agent)
+        assert((site_id, ref_agent) in self.action_graph.edges())
 
         # find if there are regions to which it may be included
         if ref_agent_in_genes:
+
             for region in self.get_regions_of_agent(ref_agent):
                 if site.start and site.end:
                     if "start" in self.action_graph.node[region] and\

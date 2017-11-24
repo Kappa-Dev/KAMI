@@ -488,9 +488,8 @@ class Generator:
 
         # 2. create and attach sites
         for site in region.sites:
-            site_id = self._generate_region_group(
+            site_id = self._generate_site_group(
                 nugget, site, region_id, add_agents, anatomize,
-                merge_actions, apply_semantics,
             )
             nugget.add_edge(site_id, region_id)
 
@@ -548,7 +547,6 @@ class Generator:
         for site in gene.sites:
             site_id = self._generate_site_group(
                 nugget, site, agent_id, add_agents, anatomize,
-                merge_actions, apply_semantics,
             )
             nugget.add_edge(site_id, agent_id)
 
@@ -608,6 +606,7 @@ class Generator:
             )
             nugget.add_edge(region_id, agent_id)
             nugget.add_edge(site_id, region_id)
+            add_edge(self.hierarchy.action_graph, nugget.ag_typing[site_id], nugget.ag_typing[region_id])
 
         return (agent_id, site_id)
 
