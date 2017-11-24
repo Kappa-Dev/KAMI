@@ -546,7 +546,7 @@ class Generator:
 
         # 2. create and attach sites
         for site in gene.sites:
-            site_id = self._generate_region_group(
+            site_id = self._generate_site_group(
                 nugget, site, agent_id, add_agents, anatomize,
                 merge_actions, apply_semantics,
             )
