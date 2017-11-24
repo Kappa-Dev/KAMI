@@ -429,7 +429,8 @@ class Generator:
             nugget.add_edge(bound_locus_id, is_bnd_id)
         return bound_locus_id
 
-    def _generate_site_group(self, nugget, site, father, add_agents=True, anatomize=True):
+    def _generate_site_group(self, nugget, site, father,
+                             add_agents=True, anatomize=True):
         # 1. create region node
         prefix = father
 

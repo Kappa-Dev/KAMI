@@ -111,7 +111,7 @@ class KamiHierarchy(Hierarchy):
                     nugget_graph,
                     {"type": "nugget"}
                 )
-                self.nugget[nugget_id] = self.node[nugget_id]
+                self.nugget[nugget_id] = self.node[nugget_id].graph
 
         if nuggets_ag_typing is not None:
             for nugget_id, typing in nuggets_ag_typing.items():
@@ -371,7 +371,6 @@ class KamiHierarchy(Hierarchy):
         """Add site node to the action graph."""
         ref_agent_in_genes = ref_agent in self.genes()
         ref_agent_in_regions = ref_agent in self.regions()
-
         if not ref_agent_in_genes and not ref_agent_in_regions:
             raise KamiHierarchyError(
                 "Neither agent nor region '%s' is not "
@@ -382,8 +381,8 @@ class KamiHierarchy(Hierarchy):
 
         if site_id in self.action_graph.nodes():
             site_id = generate_new_id(self.action_graph, site_id)
-
         add_node(self.action_graph, site_id, site.to_attrs())
+        assert(site_id in self.action_graph.nodes())
         self.action_graph_typing[site_id] = "site"
         add_edge(self.action_graph, site_id, ref_agent)
 
@@ -401,6 +400,7 @@ class KamiHierarchy(Hierarchy):
                 self.relation["action_graph"]["semantic_action_graph"].rel.add(
                     (site_id, sem)
                 )
+        return site_id
 
     def add_residue(self, residue, ref_agent, semantics=None):
         """Add residue node to the action_graph."""
@@ -410,11 +410,12 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
         if self.action_graph_typing[ref_agent] != "agent" and\
-           self.action_graph_typing[ref_agent] != "region":
+           self.action_graph_typing[ref_agent] != "region" and\
+           self.action_graph_typing[ref_agent] != "site":
             raise KamiHierarchyError(
                 "Cannot add a residue to the node '%s', node kami type "
                 "is not valid (expected 'agent' or 'region', '%s' was provided)" %
-                self.action_graph_typing[ref_agent]
+                (ref_agent, self.action_graph_typing[ref_agent])
             )
 
         # try to find an existing residue with this
@@ -669,7 +670,7 @@ class KamiHierarchy(Hierarchy):
             nugget,
             {"type": "nugget"}
         )
-        self.nugget[nugget_id] = self.node[nugget_id]
+        self.nugget[nugget_id] = self.node[nugget_id].graph
         return nugget_id
 
     def type_nugget_by_ag(self, nugget_id, typing):

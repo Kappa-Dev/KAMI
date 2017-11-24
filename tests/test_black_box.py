@@ -185,7 +185,7 @@ class TestBlackBox(object):
         inters.append(BinaryBinding([egfr], [grb2_site]))
 
         hierarchy = create_nuggets(inters, anatomize=True)
-        print_graph(hierarchy.nugget["nugget_1"].graph)
+        print_graph(hierarchy.nugget["nugget_1"])
 
     def test_regionactor(self):
         # Phosphorylated and unphosphrylated states.
@@ -209,4 +209,35 @@ class TestBlackBox(object):
         inters.append(m)
 
         hierarchy = create_nuggets(inters, anatomize=True)
-        print_graph(hierarchy.nugget["nugget_1"].graph)
+        print_graph(hierarchy.nugget["nugget_1"])
+
+    def test_siteactor(self):
+        """Generate sh2 pY bnd interactions."""
+        # General phosphorylation state.
+        phos = State("phosphorylation", True)
+        unphos = State("phosphorylation", False)
+
+        # General SH2 regions.
+        sh2 = Region(name="SH2")
+        sh2n = Region(name="SH2", order=1)
+        sh2c = Region(name="SH2", order=2)
+
+        inters = []
+
+        enz_uniprot = 'P00519'
+        sub_uniprot = 'P00533'
+        rsd = 'Y1092'
+        location = int(rsd[1:])
+        strt = location - 4
+        stop = location + 4
+        site_name = 'b%i' % location
+
+        m = Modification(
+            enzyme=Gene(enz_uniprot),
+            substrate=SiteActor(
+                gene=Gene(sub_uniprot),
+                site=Site(name=site_name, start=strt, end=stop)),
+            mod_target=Residue(aa="Y", loc=location, state=unphos),
+            mod_value=True)
+        inters.append(m)
+        hierarchy = create_nuggets(inters, anatomize=True)
