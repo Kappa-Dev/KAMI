@@ -168,3 +168,45 @@ class TestBlackBox(object):
         bnds = []
         bnds.append(BinaryBinding([frs2_py196], [pik3r1_sh2n]))
         bnds.append(BinaryBinding([frs2_py349], [pik3r1_sh2c]))
+
+    def test_sites(self):
+        # Create genes.
+        egfr = Gene("P00533")
+        grb2 = Gene("P62993")
+
+        # Create a RegionActor and a SiteActor fo GRB2.
+        grb2_sh2 = RegionActor(gene=grb2, region=Region(name="SH2"))
+        grb2_site = SiteActor(gene=grb2, site=Site(name="pY"))
+
+        inters = []
+        # This works (RegionActor).
+        # inters.append(BinaryBinding([egfr], [grb2_sh2]))
+        # This does not work (SiteActor)
+        inters.append(BinaryBinding([egfr], [grb2_site]))
+
+        hierarchy = create_nuggets(inters, anatomize=True)
+        print_graph(hierarchy.nugget["nugget_1"].graph)
+
+    def test_regionactor(self):
+        # Phosphorylated and unphosphrylated states.
+        phos = State("phosphorylation", True)
+        unphos = State("phosphorylation", False)
+
+        inters = []
+        # Phosphorylation with RegionActor as substrate.
+        m = Modification(
+            enzyme=Gene("P00519"),
+            substrate=RegionActor(
+                Gene("P00533", regions=[
+                    Region(name='PVPEyINQS',
+                           start=280, end=290),
+                    Region(name="L receptor",
+                           start=57, end=167, states=[phos])]),
+                Region(start=1000, end=1500)),
+            mod_target=Residue(aa="Y", loc=1092, state=unphos),
+            mod_value=True
+        )
+        inters.append(m)
+
+        hierarchy = create_nuggets(inters, anatomize=True)
+        print_graph(hierarchy.nugget["nugget_1"].graph)
