@@ -486,21 +486,29 @@ class Generator:
             # semantic_rels=semantic_rels
         )
 
-        # 2. create and attach residues
+        # 2. create and attach sites
+        for site in region.sites:
+            site_id = self._generate_region_group(
+                nugget, site, region_id, add_agents, anatomize,
+                merge_actions, apply_semantics,
+            )
+            nugget.add_edge(site_id, region_id)
+
+        # 3. create and attach residues
         for residue in region.residues:
             (residue_id, _) = self._generate_residue(
                 nugget, residue, region_id, add_agents
             )
             nugget.add_edge(residue_id, region_id)
 
-        # 3. create and attach states
+        # 4. create and attach states
         for state in region.states:
             state_id = self._generate_state(
                 nugget, state, region_id, add_agents
             )
             nugget.add_edge(state_id, region_id)
 
-        # 4. create and attach bounds
+        # 5. create and attach bounds
         for partners in region.bounds:
             bound_locus_id = self._generate_bound(
                 nugget, partners, region_id, add_agents,
@@ -536,21 +544,29 @@ class Generator:
             )
             nugget.add_edge(region_id, agent_id)
 
-        # 3. create and attach residues
+        # 2. create and attach sites
+        for site in gene.sites:
+            site_id = self._generate_region_group(
+                nugget, site, agent_id, add_agents, anatomize,
+                merge_actions, apply_semantics,
+            )
+            nugget.add_edge(site_id, agent_id)
+
+        # 4. create and attach residues
         for residue in gene.residues:
             (residue_id, _) = self._generate_residue(
                 nugget, residue, agent_id, add_agents
             )
             nugget.add_edge(residue_id, agent_id)
 
-        # 4. create and attach states
+        # 5. create and attach states
         for state in gene.states:
             state_id = self._generate_state(
                 nugget, state, agent_id, add_agents
             )
             nugget.add_edge(state_id, agent_id)
 
-        # 5. create and attach bounds
+        # 6. create and attach bounds
         for bnd in gene.bounds:
             bound_locus_id = self._generate_bound(
                 nugget, bnd, agent_id, add_agents, anatomize,
