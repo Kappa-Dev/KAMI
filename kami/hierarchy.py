@@ -367,6 +367,41 @@ class KamiHierarchy(Hierarchy):
                 )
         return region_id
 
+    def add_site(self, site, ref_agent, semantics=None):
+        """Add site node to the action graph."""
+        ref_agent_in_genes = ref_agent in self.genes()
+        ref_agent_in_regions = ref_agent in self.regions()
+
+        if not ref_agent_in_genes and not ref_agent_in_regions:
+            raise KamiHierarchyError(
+                "Neither agent nor region '%s' is not "
+                "found in the action graph" %
+                ref_agent
+            )
+        site_id = "%s_%s" % (ref_agent, str(site))
+
+        if site_id in self.action_graph.nodes():
+            site_id = generate_new_id(self.action_graph, site_id)
+
+        add_node(self.action_graph, site_id, site.to_attrs())
+        self.action_graph_typing[site_id] = "site"
+        add_edge(self.action_graph, site_id, ref_agent)
+
+        # find if there are regions to which it may be included
+        if ref_agent_in_genes:
+            for region in self.get_regions_of_agent(ref_agent):
+                if site.start and site.end:
+                    if "start" in self.action_graph.node[region] and\
+                       "end" in self.action_graph.node[region]:
+                        if int(site.start) >= list(self.action_graph.node[region]["start"])[0] and\
+                           int(site.end) <= list(self.action_graph.node[region]["end"])[0]:
+                            add_edge(self.action_graph, site_id, region)
+        if semantics is not None:
+            for sem in semantics:
+                self.relation["action_graph"]["semantic_action_graph"].rel.add(
+                    (site_id, sem)
+                )
+
     def add_residue(self, residue, ref_agent, semantics=None):
         """Add residue node to the action_graph."""
         if ref_agent not in self.action_graph.nodes():

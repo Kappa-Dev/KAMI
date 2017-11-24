@@ -177,6 +177,10 @@ class Generator:
         region_id = self.hierarchy.add_region(region, ref_agent)
         return region_id
 
+    def _add_site_to_ag(self, site, ref_agent, anatomize=True):
+        site_id = self.hierarchy.add_site(site, ref_agent)
+        return site_id
+
     def _add_residue_to_ag(self, residue, ref_agent):
         residue_id = self.hierarchy.add_residue(residue, ref_agent)
         return residue_id
@@ -447,7 +451,7 @@ class Generator:
         )
 
         # create and attach residues
-        for residue in site.residue_list:
+        for residue in site.residues:
             (residue_id, _) = self._generate_residue(
                 nugget, residue, site_id, add_agents
             )
@@ -709,7 +713,7 @@ class ModGenerator(Generator):
         )
 
         # 3. create state related nodes subject to modification
-        if substrate_region and substrate_region in self:
+        if substrate_region:
             attached_to = substrate_region
         else:
             attached_to = substrate

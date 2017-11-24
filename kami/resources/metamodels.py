@@ -48,13 +48,15 @@ add_nodes_from(
             "start": IntegerSet([(1, math.inf)]),
             "end": IntegerSet([(1, math.inf)]),
             "name": RegexSet.universal(),
-            "order": IntegerSet([(1, math.inf)])
+            "order": IntegerSet([(1, math.inf)]),
+            "label": RegexSet.universal()
         }),
         ("site", {
             "start": IntegerSet([(1, math.inf)]),
             "end": IntegerSet([(1, math.inf)]),
             "name": RegexSet.universal(),
-            "order": IntegerSet([(1, math.inf)])
+            "order": IntegerSet([(1, math.inf)]),
+            "label": RegexSet.universal()
         }),
         ("residue", {
             "aa": {
