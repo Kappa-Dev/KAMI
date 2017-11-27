@@ -254,11 +254,11 @@ class TestBlackBox(object):
                           residues=[Residue("T")]),
                 region=Region(name="Pkinase",
                               start=500, end=800,
-                              sites=[Site("billy")])
+                              sites=[Site(name="billy")])
             ),
             substrate=SiteActor(gene=Gene("P00533"),
-                                site=Site("target"),
-                                region=Region("bla")),
+                                site=Site(name="target"),
+                                region=Region(name="bla")),
             mod_target=Residue("Y", 100, State("phosphorylation", False)),
             mod_value=True
         )
