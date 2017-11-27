@@ -268,6 +268,10 @@ class KamiHierarchy(Hierarchy):
         """Get a list of regions belonging to a specified agent."""
         return self.ag_predecessors_of_type(agent_id, "region")
 
+    def get_sites_of_agent(self, agent_id):
+        """Get a list of sites belonging to a specified agent."""
+        return self.ag_predecessors_of_type(agent_id, "site")
+
     def get_attached_residues(self, agent_id):
         """Get a list of residues attached to a node with `agent_id`."""
         return self.ag_predecessors_of_type(agent_id, "residue")
@@ -547,17 +551,19 @@ class KamiHierarchy(Hierarchy):
                     start = list(self.action_graph.node[reg]["start"])[0]
                 if "end" in self.action_graph.node[reg].keys():
                     end = list(self.action_graph.node[reg]["end"])[0]
-                if region.start is not None and region.end is not None:
-                    if region.start >= start and region.end <= end:
+                if region.start is not None and region.end is not None and\
+                   start is not None and end is not None:
+                    if int(region.start) >= int(start) and int(region.end) <= int(end):
                         satifying_regions.append(reg)
                 else:
                     if region.name is not None:
                         normalized_name = region.name.lower()
-                        ag_region_name =\
-                            list(self.action_graph.node[
-                                 reg]["name"])[0].lower()
-                        if normalized_name in ag_region_name:
-                            satifying_regions.append(reg)
+                        if "name" in self.action_graph.node[reg].keys():
+                            ag_region_name =\
+                                list(self.action_graph.node[
+                                     reg]["name"])[0].lower()
+                            if normalized_name in ag_region_name:
+                                satifying_regions.append(reg)
 
         if len(satifying_regions) == 1:
             return satifying_regions[0]
@@ -596,7 +602,65 @@ class KamiHierarchy(Hierarchy):
             return None
 
     def find_site(self, site, ref_agent):
-        pass
+        """Find corresponding site in action graph."""
+        if ref_agent not in self.genes() and ref_agent not in self.regions():
+            raise KamiHierarchyError(
+                "Agent with UniProtID '%s' is not found in the action graph" %
+                ref_agent
+            )
+        else:
+            # assume there is no nesting of regions for the moment
+            site_candidates = self.get_sites_of_agent(ref_agent)
+            satifying_sites = []
+            for s in site_candidates:
+                start = None
+                end = None
+                if "start" in self.action_graph.node[s].keys():
+                    start = list(self.action_graph.node[s]["start"])[0]
+                if "end" in self.action_graph.node[s].keys():
+                    end = list(self.action_graph.node[s]["end"])[0]
+                if site.start is not None and site.end is not None and\
+                   start is not None and end is not None:
+                    print("a", site.start, site.end, type(site.start))
+                    print("b", start, end, type(start))
+                    if int(site.start) >= int(start) and int(site.end) <= int(end):
+                        satifying_sites.append(s)
+                else:
+                    if site.name is not None:
+                        normalized_name = site.name.lower()
+                        if "name" in self.action_graph.node[s].keys():
+                            ag_region_name =\
+                                list(self.action_graph.node[
+                                     s]["name"])[0].lower()
+                            if normalized_name in ag_region_name:
+                                satifying_sites.append(s)
+
+        if len(satifying_sites) == 1:
+            return satifying_sites[0]
+        elif len(satifying_sites) > 1:
+            # Try to find if there is a unique region in a list of
+            # satisfying regions with the same order number
+            if site.order is not None:
+                same_order_sites = []
+                for s in satifying_sites:
+                    if "order" in self.action_graph.node[s].keys():
+                        if site.order in self.action_graph.node[s]["order"]:
+                            same_order_sites.append(s)
+                # if not explicit order number was found
+                if len(same_order_sites) == 0:
+                    try:
+                        start_orders = np.argsort([
+                            list(self.action_graph.node[s]["start"])[0] for s in satifying_sites
+                        ])
+                        return satifying_sites[start_orders[site.order - 1]]
+                    except:
+                        return None
+                elif len(same_order_sites) == 1:
+                    return same_order_sites[0]
+                else:
+                    return None
+        else:
+            return None
 
     def find_residue(self, residue, ref_agent, add_aa=False):
         """Find corresponding residue.

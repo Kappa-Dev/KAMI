@@ -238,18 +238,18 @@ class Generator:
 
     def _identify_site(self, site, agent, add_agents=True, anatomize=True):
         """Identify a site in the action graph."""
-        try:
-            reference_id = self.hierarchy.find_site(site, agent)
-        except Exception as e:
-            print(e)
-            if add_agents is False:
-                return None
-            else:
-                raise NuggetGenerationError(
-                    "Cannot map a site '%s' from the nugget "
-                    "to a site from the action graph" %
-                    str(site)
-                )
+        # try:
+        reference_id = self.hierarchy.find_site(site, agent)
+        # except Exception as e:
+        #     print(e)
+        #     if add_agents is False:
+        #         return None
+        #     else:
+        #         raise NuggetGenerationError(
+        #             "Cannot map a site '%s' from the nugget "
+        #             "to a site from the action graph" %
+        #             str(site)
+        #         )
         # if not found
         if add_agents is True:
             if reference_id is None:
