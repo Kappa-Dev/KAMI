@@ -264,11 +264,11 @@ class KamiHierarchy(Hierarchy):
                 preds.append(pred)
         return preds
 
-    def get_regions_of_agent(self, agent_id):
+    def get_attached_regions(self, agent_id):
         """Get a list of regions belonging to a specified agent."""
         return self.ag_predecessors_of_type(agent_id, "region")
 
-    def get_sites_of_agent(self, agent_id):
+    def get_attached_sites(self, agent_id):
         """Get a list of sites belonging to a specified agent."""
         return self.ag_predecessors_of_type(agent_id, "site")
 
@@ -280,7 +280,7 @@ class KamiHierarchy(Hierarchy):
         """Get a list of states attached to a node with `agent_id`."""
         return self.ag_predecessors_of_type(agent_id, "state")
 
-    def get_agent_by_region(self, region_id):
+    def get_gene_by_region(self, region_id):
         """Get agent id conntected to the region."""
         agents = self.ag_successors_of_type(region_id, "agent")
         if len(agents) == 1:
@@ -369,6 +369,24 @@ class KamiHierarchy(Hierarchy):
                 self.relation["action_graph"]["semantic_action_graph"].rel.add(
                     (region_id, sem)
                 )
+
+        # reconnect all the residues & sites of the corresponding gene
+        # that lie in the region range
+        if region.start is not None and region.end is not None:
+            for residue in self.get_attached_residues(ref_agent):
+                if "loc" in self.action_graph.node[residue].keys():
+                    loc = list(self.action_graph.node[residue]["loc"])[0]
+                    if loc >= region.start and loc <= region.end:
+                        add_edge(self.action_graph, residue, region_id)
+
+            for site in self.get_attached_sites(ref_agent):
+                if "start" in self.action_graph.node[site].keys() and\
+                   "end" in self.action_graph.node[site].keys():
+                    start = list(self.action_graph.node[site]["start"])[0]
+                    end = list(self.action_graph.node[site]["end"])[0]
+                    if start >= region.start and end <= region.end:
+                        add_edge(self.action_graph, site, region_id)
+
         return region_id
 
     def add_site(self, site, ref_agent, semantics=None):
@@ -392,21 +410,44 @@ class KamiHierarchy(Hierarchy):
         add_edge(self.action_graph, site_id, ref_agent)
         assert((site_id, ref_agent) in self.action_graph.edges())
 
-        # find if there are regions to which it may be included
-        if ref_agent_in_genes:
-
-            for region in self.get_regions_of_agent(ref_agent):
-                if site.start and site.end:
-                    if "start" in self.action_graph.node[region] and\
-                       "end" in self.action_graph.node[region]:
-                        if int(site.start) >= list(self.action_graph.node[region]["start"])[0] and\
-                           int(site.end) <= list(self.action_graph.node[region]["end"])[0]:
-                            add_edge(self.action_graph, site_id, region)
         if semantics is not None:
             for sem in semantics:
                 self.relation["action_graph"]["semantic_action_graph"].rel.add(
                     (site_id, sem)
                 )
+
+        # find if there are regions to which it may be included
+        if ref_agent_in_genes:
+            for region in self.get_attached_regions(ref_agent):
+                if site.start and site.end:
+                    if "start" in self.action_graph.node[region] and\
+                       "end" in self.action_graph.node[region]:
+                        if int(site.start) >= list(self.action_graph.node[
+                            region]["start"])[0] and\
+                           int(site.end) <= list(self.action_graph.node[
+                                region]["end"])[0]:
+                            add_edge(self.action_graph, site_id, region)
+            # reconnect all the residues of the corresponding gene
+            # that lie in the region range
+            if site.start is not None and site.end is not None:
+                for residue in self.get_attached_residues(ref_agent):
+                    if "loc" in self.action_graph.node[residue].keys():
+                        loc = list(self.action_graph.node[residue]["loc"])[0]
+                        if loc >= site.start and loc <= site.end:
+                            add_edge(self.action_graph, residue, site_id)
+
+        elif ref_agent_in_regions:
+            gene_id = self.get_gene_by_region(ref_agent)
+            add_edge(self.action_graph, site_id, gene_id)
+            # reconnect all the residues of the corresponding gene
+            # that lie in the region range
+            if site.start is not None and site.end is not None:
+                for residue in self.get_attached_residues(gene_id):
+                    if "loc" in self.action_graph.node[residue].keys():
+                        loc = list(self.action_graph.node[residue]["loc"])[0]
+                        if loc >= site.start and loc <= site.end:
+                            add_edge(self.action_graph, residue, site_id)
+
         return site_id
 
     def add_residue(self, residue, ref_agent, semantics=None):
@@ -438,7 +479,7 @@ class KamiHierarchy(Hierarchy):
                     residue_id = generate_new_id(self.action_graph, residue_id)
                 add_node(self.action_graph, residue_id, residue.to_attrs())
                 self.action_graph_typing[residue_id] = "residue"
-                for region in self.get_regions_of_agent(ref_agent):
+                for region in self.get_attached_regions(ref_agent):
                     if residue.loc:
                         if "start" in self.action_graph.node[region] and\
                            "end" in self.action_graph.node[region]:
@@ -448,7 +489,7 @@ class KamiHierarchy(Hierarchy):
                 add_edge(self.action_graph, residue_id, ref_agent)
 
             else:
-                agent = self.get_agent_by_region(ref_agent)
+                agent = self.get_gene_by_region(ref_agent)
                 residue_id = "%s_residue" % agent
                 if residue.loc is not None:
                     residue_id += "_%s" % residue.loc

@@ -49,6 +49,10 @@ class NuggetContainer:
             self.graph = copy.deepcopy(graph)
         else:
             self.graph = nx.DiGraph()
+
+        self.node = self.graph.node
+        self.edge = self.graph.edge
+
         if meta_typing:
             self.meta_typing = copy.deepcopy(meta_typing)
         else:
@@ -93,6 +97,14 @@ class NuggetContainer:
         """Add edge between the nodes of a nugget."""
         add_edge(self.graph, node_1, node_2, attrs)
         return
+
+    def nodes(self):
+        """Return a list of nodes of the nugget graph."""
+        return self.graph.nodes()
+
+    def edges(self):
+        """Return a list of edges of the nugget graph."""
+        return self.graph.edges()
 
 
 class Generator:
@@ -457,7 +469,6 @@ class Generator:
                        add_agents=True, anatomize=True):
         # 1. create region node
         prefix = father
-
         site_id = get_nugget_site_id(
             nugget.graph, str(site), prefix
         )
@@ -533,23 +544,7 @@ class Generator:
             # semantic_rels=semantic_rels
         )
 
-        # 2. create and attach sites
-        for site in region.sites:
-            if site.start is not None and site.end is not None and\
-               region.start is not None and region.end is not None:
-                if site.start < region.start or site.end > region.end:
-                    raise KamiError(
-                        "Site '%s' of a region '%s' is not valid: site "
-                        "range (%d-%d) is out of the region range (%d-%d)" %
-                        (str(site), str(region),
-                         site.start, site.end, region.start, region.end)
-                    )
-            site_id = self._generate_site(
-                nugget, site, region_id, add_agents, anatomize,
-            )
-            nugget.add_edge(site_id, region_id)
-
-        # 3. create and attach residues
+        # 2. create and attach residues
         for residue in region.residues:
             if residue.loc is not None and region.start is not None and\
                region.end is not None:
@@ -564,6 +559,22 @@ class Generator:
                 nugget, residue, region_id, add_agents
             )
             nugget.add_edge(residue_id, region_id)
+
+        # 3. create and attach sites
+        for site in region.sites:
+            if site.start is not None and site.end is not None and\
+               region.start is not None and region.end is not None:
+                if site.start < region.start or site.end > region.end:
+                    raise KamiError(
+                        "Site '%s' of a region '%s' is not valid: site "
+                        "range (%d-%d) is out of the region range (%d-%d)" %
+                        (str(site), str(region),
+                         site.start, site.end, region.start, region.end)
+                    )
+            site_id = self._generate_site(
+                nugget, site, region_id, add_agents, anatomize,
+            )
+            nugget.add_edge(site_id, region_id)
 
         # 4. create and attach states
         for state in region.states:

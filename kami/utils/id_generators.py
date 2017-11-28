@@ -79,7 +79,7 @@ def get_nugget_is_free_id(nugget, agent_1, agent_2):
 
 def get_nugget_site_id(nugget, site, father):
     """Generate site-region node id."""
-    site_id = "%s" % str(site)
+    site_id = "%s_%s" % (str(father), str(site))
     if site_id in nugget.nodes():
         site_id = generate_new_id(nugget, site_id)
     return site_id
