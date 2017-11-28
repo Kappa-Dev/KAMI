@@ -419,14 +419,15 @@ class KamiHierarchy(Hierarchy):
         if self.action_graph_typing[ref_agent] != "agent" and\
            self.action_graph_typing[ref_agent] != "region" and\
            self.action_graph_typing[ref_agent] != "site":
+            print(self.action_graph_typing[ref_agent])
             raise KamiHierarchyError(
-                "Cannot add a residue to the node '%s', node kami type "
-                "is not valid (expected 'agent' or 'region', '%s' was provided)" %
+                "Cannot add a residue to the node '%s', node type "
+                "is not valid (expected 'agent', 'region' or 'site', '%s' was provided)" %
                 (ref_agent, self.action_graph_typing[ref_agent])
             )
 
         # try to find an existing residue with this
-        res = self.find_residue(residue, ref_agent, True)
+        res = self.identify_residue(residue, ref_agent, True)
         # if residue with this loc does not exist: create one
         if res is None:
             if self.action_graph_typing[ref_agent] == "agent":
@@ -501,10 +502,11 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
         if self.action_graph_typing[ref_agent] not in \
-           ["agent", "region", "residue"]:
+           ["agent", "region", "site", "residue"]:
             raise KamiHierarchyError(
-                "Cannot add a residue to the node '%s', node kami type "
-                "is not valid (expected 'agent' or 'region', '%s' was provided)" %
+                "Cannot add a residue to the node '%s', node type "
+                "is not valid (expected 'agent', 'region', 'site' "
+                "or 'residue', '%s' was provided)" %
                 (ref_agent, self.action_graph_typing[ref_agent])
             )
 
@@ -525,7 +527,7 @@ class KamiHierarchy(Hierarchy):
                 self.add_ag_node_semantics(state_id, s)
         return state_id
 
-    def find_gene(self, gene):
+    def identify_gene(self, gene):
         """Find corresponding gene in action graph."""
         for node in self.genes():
             if "uniprotid" in self.action_graph.node[node].keys() and\
@@ -533,7 +535,61 @@ class KamiHierarchy(Hierarchy):
                 return node
         return None
 
-    def find_region(self, region, ref_agent):
+    def _identify_fragment(self, fragment, ref_agent, fragment_type):
+        fragment_candidates = self.ag_predecessors_of_type(
+            ref_agent, fragment_type)
+        satifying_fragments = []
+        for f in fragment_candidates:
+            start = None
+            end = None
+            if "start" in self.action_graph.node[f].keys():
+                start = list(self.action_graph.node[f]["start"])[0]
+            if "end" in self.action_graph.node[f].keys():
+                end = list(self.action_graph.node[f]["end"])[0]
+            if fragment.start is not None and fragment.end is not None and\
+               start is not None and end is not None:
+                if int(fragment.start) >= int(start) and\
+                   int(fragment.end) <= int(end):
+                    satifying_fragments.append(f)
+            else:
+                if fragment.name is not None:
+                    normalized_name = fragment.name.lower()
+                    if "name" in self.action_graph.node[f].keys():
+                        ag_fragment_name =\
+                            list(self.action_graph.node[
+                                 f]["name"])[0].lower()
+                        if normalized_name in ag_fragment_name:
+                            satifying_fragments.append(f)
+        if len(satifying_fragments) == 1:
+            return satifying_fragments[0]
+        elif len(satifying_fragments) > 1:
+            # Try to find if there is a unique region in a list of
+            # satisfying regions with the same order number
+            if fragment.order is not None:
+                same_order_fragments = []
+                for f in satifying_fragments:
+                    if "order" in self.action_graph.node[f].keys():
+                        if fragment.order in self.action_graph.node[f]["order"]:
+                            same_order_fragments.append(f)
+                # if not explicit order number was found
+                if len(same_order_fragments) == 0:
+                    try:
+                        start_orders = np.argsort([
+                            list(self.action_graph.node[f]["start"])[0]
+                            for f in satifying_fragments
+                        ])
+                        return satifying_fragments[
+                            start_orders[fragment.order - 1]]
+                    except:
+                        return None
+                elif len(same_order_fragments) == 1:
+                    return same_order_fragments[0]
+                else:
+                    return None
+        else:
+            return None
+
+    def identify_region(self, region, ref_agent):
         """Find corresponding region in action graph."""
         if ref_agent not in self.genes():
             raise KamiHierarchyError(
@@ -541,67 +597,9 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
         else:
-            # assume there is no nesting of regions for the moment
-            region_candidates = self.get_regions_of_agent(ref_agent)
-            satifying_regions = []
-            for reg in region_candidates:
-                start = None
-                end = None
-                if "start" in self.action_graph.node[reg].keys():
-                    start = list(self.action_graph.node[reg]["start"])[0]
-                if "end" in self.action_graph.node[reg].keys():
-                    end = list(self.action_graph.node[reg]["end"])[0]
-                if region.start is not None and region.end is not None and\
-                   start is not None and end is not None:
-                    if int(region.start) >= int(start) and int(region.end) <= int(end):
-                        satifying_regions.append(reg)
-                else:
-                    if region.name is not None:
-                        normalized_name = region.name.lower()
-                        if "name" in self.action_graph.node[reg].keys():
-                            ag_region_name =\
-                                list(self.action_graph.node[
-                                     reg]["name"])[0].lower()
-                            if normalized_name in ag_region_name:
-                                satifying_regions.append(reg)
+            return self._identify_fragment(region, ref_agent, "region")
 
-        if len(satifying_regions) == 1:
-            return satifying_regions[0]
-        elif len(satifying_regions) > 1:
-            # Try to find if there is a unique region in a list of
-            # satisfying regions with the same order number
-            if region.order is not None:
-                same_order_regions = []
-                for reg in satifying_regions:
-                    if "order" in self.action_graph.node[reg].keys():
-                        if region.order in self.action_graph.node[reg]["order"]:
-                            same_order_regions.append(reg)
-                # if not explicit order number was found
-                if len(same_order_regions) == 0:
-                    try:
-                        start_orders = np.argsort([
-                            list(self.action_graph.node[reg]["start"])[0] for reg in satifying_regions
-                        ])
-                        return satifying_regions[start_orders[region.order - 1]]
-                    except:
-                        return None
-                elif len(same_order_regions) == 1:
-                    return same_order_regions[0]
-                else:
-                    return None
-                # raise KamiHierarchyError(
-                #     "Agent with UniProtID '%s' has more than one regions (%s) that"
-                #     " may correspond to the region of interest '%s'" %
-                #     (
-                #         ref_agent,
-                #         ", ".join([str(r) for r in satifying_regions]),
-                #         str(region)
-                #     )
-                # )
-        else:
-            return None
-
-    def find_site(self, site, ref_agent):
+    def identify_site(self, site, ref_agent):
         """Find corresponding site in action graph."""
         if ref_agent not in self.genes() and ref_agent not in self.regions():
             raise KamiHierarchyError(
@@ -609,60 +607,9 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
         else:
-            # assume there is no nesting of regions for the moment
-            site_candidates = self.get_sites_of_agent(ref_agent)
-            satifying_sites = []
-            for s in site_candidates:
-                start = None
-                end = None
-                if "start" in self.action_graph.node[s].keys():
-                    start = list(self.action_graph.node[s]["start"])[0]
-                if "end" in self.action_graph.node[s].keys():
-                    end = list(self.action_graph.node[s]["end"])[0]
-                if site.start is not None and site.end is not None and\
-                   start is not None and end is not None:
-                    print("a", site.start, site.end, type(site.start))
-                    print("b", start, end, type(start))
-                    if int(site.start) >= int(start) and int(site.end) <= int(end):
-                        satifying_sites.append(s)
-                else:
-                    if site.name is not None:
-                        normalized_name = site.name.lower()
-                        if "name" in self.action_graph.node[s].keys():
-                            ag_region_name =\
-                                list(self.action_graph.node[
-                                     s]["name"])[0].lower()
-                            if normalized_name in ag_region_name:
-                                satifying_sites.append(s)
+            return self._identify_fragment(site, ref_agent, "site")
 
-        if len(satifying_sites) == 1:
-            return satifying_sites[0]
-        elif len(satifying_sites) > 1:
-            # Try to find if there is a unique region in a list of
-            # satisfying regions with the same order number
-            if site.order is not None:
-                same_order_sites = []
-                for s in satifying_sites:
-                    if "order" in self.action_graph.node[s].keys():
-                        if site.order in self.action_graph.node[s]["order"]:
-                            same_order_sites.append(s)
-                # if not explicit order number was found
-                if len(same_order_sites) == 0:
-                    try:
-                        start_orders = np.argsort([
-                            list(self.action_graph.node[s]["start"])[0] for s in satifying_sites
-                        ])
-                        return satifying_sites[start_orders[site.order - 1]]
-                    except:
-                        return None
-                elif len(same_order_sites) == 1:
-                    return same_order_sites[0]
-                else:
-                    return None
-        else:
-            return None
-
-    def find_residue(self, residue, ref_agent, add_aa=False):
+    def identify_residue(self, residue, ref_agent, add_aa=False):
         """Find corresponding residue.
 
         `residue` -- input residue entity to search for
@@ -698,7 +645,7 @@ class KamiHierarchy(Hierarchy):
                         return res
         return None
 
-    def find_state(self, state, ref_agent):
+    def identify_state(self, state, ref_agent):
         """Find corresponding state of reference agent."""
         for pred in self.action_graph.predecessors(ref_agent):
             if pred in self.action_graph_typing.keys() and\

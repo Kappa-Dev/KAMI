@@ -8,6 +8,7 @@ from kami.interactions import (Modification,
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.hierarchy import KamiHierarchy
+from kami.exceptions import KamiError
 
 
 class TestBlackBox(object):
@@ -160,7 +161,7 @@ class TestBlackBox(object):
 
     def test_site_generator(self):
         """Test site generation."""
-
+        # Test site identification
         site_bob = Site(name="bob")
         site100_200 = Site(start="100", end="200")
         site110_150 = Site(start="110", end="150")
@@ -169,9 +170,6 @@ class TestBlackBox(object):
         site_bob_800_1000 = Site(name="bob", start=800, end=1000)
         site_bob_1 = Site(name="bob", order=1)
         site_bob_2 = Site(name="bob", order=2)
-
-        # start=None, end=None, name=None, order=None,
-        #          residues=None, states=None, bounds=None):
 
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
@@ -196,24 +194,118 @@ class TestBlackBox(object):
         site110_150_id =\
             self.generator._generate_site(
                 nugget, site110_150, self.default_ag_gene, add_agents=True)
-        print(nugget.ag_typing[site110_150_id])
-        print(nugget.ag_typing[site100_200_id])
-        assert(nugget.ag_typing[site110_150_id] == nugget.ag_typing[site100_200_id])
+        assert(
+            nugget.ag_typing[site110_150_id] ==
+            nugget.ag_typing[site100_200_id])
 
         site_bob_500_600_id =\
             self.generator._generate_site(
-                nugget, site_bob_500_600, self.default_ag_gene, add_agents=True)
+                nugget, site_bob_500_600,
+                self.default_ag_gene, add_agents=True)
         site_bob_800_1000_id =\
             self.generator._generate_site(
-                nugget, site_bob_800_1000, self.default_ag_gene, add_agents=True)
+                nugget, site_bob_800_1000,
+                self.default_ag_gene, add_agents=True)
         site_bob_1_id =\
             self.generator._generate_site(
                 nugget, site_bob_1, self.default_ag_gene, add_agents=True)
         site_bob_2_id =\
             self.generator._generate_site(
                 nugget, site_bob_2, self.default_ag_gene, add_agents=True)
-        assert(nugget.ag_typing[site_bob_1_id] == nugget.ag_typing[site_bob_500_600_id])
-        assert(nugget.ag_typing[site_bob_2_id] == nugget.ag_typing[site_bob_800_1000_id])
+        assert(
+            nugget.ag_typing[site_bob_1_id] ==
+            nugget.ag_typing[site_bob_500_600_id])
+        assert(
+            nugget.ag_typing[site_bob_2_id] ==
+            nugget.ag_typing[site_bob_800_1000_id])
+
+        assert(len(nugget.graph.nodes()) == 8)
+        assert(
+            len(self.generator.hierarchy.action_graph.nodes()) ==
+            old_ag_size + 3)
+
+        # Test generation of the site conditions
+        complex_site = Site(
+            start=500, end=600,
+            states=[State('active', True)],
+            residues=[Residue("Y", 1000, State('phosphorylation', True))],
+        )
+        try:
+            self.generator._generate_site(
+                nugget, complex_site, self.default_ag_gene, add_agents=True)
+            raise ValueError("Invalid residue was not caught!")
+        except:
+            pass
+
+        complex_site = Site(
+            start=500, end=600,
+            states=[State('active', True)],
+            residues=[Residue("Y", 505, State('phosphorylation', True))]
+        )
+        complex_site_id = self.generator._generate_site(
+            nugget, complex_site, self.default_ag_gene, add_agents=True
+        )
+        assert(
+            nugget.ag_typing[complex_site_id] ==
+            nugget.ag_typing[site_bob_500_600_id])
+        assert(len(nugget.graph.nodes()) == 13)
+        assert(len(nugget.graph.edges()) == 3)
+
+    def test_region_generator(self):
+        """Test region generation."""
+        kinase_region = Region(
+            name="Pkinase",
+            start=300,
+            end=500,
+            states=[State("activity", True)],
+            residues=[Residue("Y", 1000)],
+            # sites=[]
+        )
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+
+        old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
+
+        try:
+            self.generator._generate_region(
+                nugget, kinase_region, self.default_ag_gene, add_agents=False)
+            raise ValueError("Invalid residue was not caught!")
+        except KamiError:
+            pass
+
+        kinase_region = Region(
+            name="Pkinase",
+            start=300,
+            end=500,
+            states=[State("activity", True)],
+            residues=[Residue("Y", 350, State("phosphorylation", True))],
+            sites=[
+                # Site(name="bob", residues=[Residue("Y", 350)]),
+                Site(name="alice", start=1000, end=2000)
+            ]
+        )
+        try:
+            self.generator._generate_region(
+                nugget, kinase_region, self.default_ag_gene, add_agents=False)
+            raise ValueError("Invalid site was not caught!")
+        except KamiError:
+            pass
+        # assert(kinase_region_id_1 in nugget.graph.nodes())
+        # assert(kinase_region_id_1 not in nugget.ag_typing.keys())
+
+        # kinase_region_id_2 =\
+        #     self.generator._generate_region(
+        #         nugget, kinase_region, self.default_ag_gene, add_agents=True)
+        # assert(kinase_region_id_2 in nugget.graph.nodes())
+        # assert(kinase_region_id_2 in nugget.ag_typing.keys())
+
+
+        # assert(len(nugget.graph.nodes()) == 8)
+        # assert(
+        #     len(self.generator.hierarchy.action_graph.nodes()) ==
+        #     old_ag_size + 3)
+
 
     # def test_gene_generator(self):
     #     """Test gene genaration."""

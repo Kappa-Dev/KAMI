@@ -146,7 +146,7 @@ class Generator:
 
                         semantics = domain.get_semantics()
 
-                        region_id = self.hierarchy.find_region(
+                        region_id = self.hierarchy.identify_region(
                             region, gene_id)
                         if not region_id:
                             region_id = self.hierarchy.add_region(
@@ -190,7 +190,7 @@ class Generator:
 
     def _identify_gene(self, gene, add_agents=True, anatomize=True):
         # try to identify an agent
-        reference_id = self.hierarchy.find_gene(gene)
+        reference_id = self.hierarchy.identify_gene(gene)
         if add_agents is True:
             if reference_id is not None:
                 # add new xrefs to AG agent
@@ -208,7 +208,7 @@ class Generator:
     def _identify_region(self, region, agent, add_agents=True, anatomize=True):
         """Identify a region in the action graph."""
         try:
-            reference_id = self.hierarchy.find_region(region, agent)
+            reference_id = self.hierarchy.identify_region(region, agent)
         except Exception as e:
             print(e)
             if add_agents is False:
@@ -239,7 +239,7 @@ class Generator:
     def _identify_site(self, site, agent, add_agents=True, anatomize=True):
         """Identify a site in the action graph."""
         # try:
-        reference_id = self.hierarchy.find_site(site, agent)
+        reference_id = self.hierarchy.identify_site(site, agent)
         # except Exception as e:
         #     print(e)
         #     if add_agents is False:
@@ -270,7 +270,7 @@ class Generator:
     def _identify_residue(self, residue, agent, add_agents=True):
         # try to identify an agent
         try:
-            reference_id = self.hierarchy.find_residue(
+            reference_id = self.hierarchy.identify_residue(
                 residue, agent, add_agents
             )
         except:
@@ -289,7 +289,7 @@ class Generator:
 
     def _identify_state(self, state, agent, add_agents=True):
         try:
-            reference_id = self.hierarchy.find_state(state, agent)
+            reference_id = self.hierarchy.identify_state(state, agent)
         except:
             if add_agents is False:
                 return None
@@ -369,6 +369,18 @@ class Generator:
                     nugget.graph, str(partner.region),
                     str(partner.gene)
                 )
+            elif isinstance(partner, SiteActor):
+                partner_id = get_nugget_site_id(
+                    nugget.graph, str(partner.site),
+                    str(partner.gene)
+                )
+            else:
+                raise KamiError(
+                    "Invalid type of binding partner in bound conditions: "
+                    "type '%s' is received ('Gene', "
+                    "'RegionActor' or 'SiteActor' are expected)" %
+                    (type(partner))
+                )
 
             partner_ids.append(partner_id)
 
@@ -379,6 +391,14 @@ class Generator:
             elif nugget.meta_typing[father] == "region":
                 for succ in nugget.graph.successors(father):
                     if nugget.meta_typing[succ] == "agent":
+                        prefix += succ
+                prefix += "_" + father
+            elif nugget.meta_typing[father] == "site":
+                for succ in nugget.graph.successors(father):
+                    if nugget.meta_typing[succ] == "agent":
+                        prefix += succ
+                for succ in nugget.graph.successors(father):
+                    if nugget.meta_typing[succ] == "region":
                         prefix += succ
                 prefix += "_" + father
 
@@ -406,6 +426,11 @@ class Generator:
                 )
             elif isinstance(partner, RegionActor):
                 (_, partner_id) = self._generate_region_actor(
+                    nugget, partner, add_agents, anatomize, merge_actions,
+                    apply_semantics
+                )
+            elif isinstance(partner, SiteActor):
+                (_, partner_id) = self._generate_site_actor(
                     nugget, partner, add_agents, anatomize, merge_actions,
                     apply_semantics
                 )
@@ -452,10 +477,34 @@ class Generator:
 
         # create and attach residues
         for residue in site.residues:
+            if residue.loc is not None and site.start is not None and\
+               site.end is not None:
+                if residue.loc < site.start or residue.loc > site.end:
+                    raise KamiError(
+                        "Residue '%s' of a site '%s' is not valid: "
+                        "residue loc (%d) is out of the site range (%d-%d)" %
+                        (str(residue), str(site),
+                         residue.loc, site.start, site.end)
+                    )
             (residue_id, _) = self._generate_residue(
                 nugget, residue, site_id, add_agents
             )
             nugget.add_edge(residue_id, site_id)
+
+        # create and attach states
+        for state in site.states:
+            state_id = self._generate_state(
+                nugget, state, site_id, add_agents
+            )
+            nugget.add_edge(state_id, site_id)
+
+        # 5. create and attach bounds
+        for partners in site.bounds:
+            bound_locus_id = self._generate_bound(
+                nugget, partners, site_id, add_agents,
+                anatomize
+            )
+            nugget.add_edge(site_id, bound_locus_id)
 
         return site_id
 
@@ -477,7 +526,6 @@ class Generator:
             )
 
         # find semantic relations
-
         nugget.add_node(
             region_id, region.to_attrs(),
             meta_typing="region",
@@ -487,6 +535,15 @@ class Generator:
 
         # 2. create and attach sites
         for site in region.sites:
+            if site.start is not None and site.end is not None and\
+               region.start is not None and region.end is not None:
+                if site.start < region.start or site.end > region.end:
+                    raise KamiError(
+                        "Site '%s' of a region '%s' is not valid: site "
+                        "range (%d-%d) is out of the region range (%d-%d)" %
+                        (str(site), str(region),
+                         site.start, site.end, region.start, region.end)
+                    )
             site_id = self._generate_site(
                 nugget, site, region_id, add_agents, anatomize,
             )
@@ -494,6 +551,15 @@ class Generator:
 
         # 3. create and attach residues
         for residue in region.residues:
+            if residue.loc is not None and region.start is not None and\
+               region.end is not None:
+                if residue.loc < region.start or residue.loc > region.end:
+                    raise KamiError(
+                        "Residue '%s' of a region '%s' is not valid: "
+                        "residue loc (%d) is out of the region range (%d-%d)" %
+                        (str(residue), str(region),
+                         residue.loc, region.start, region.end)
+                    )
             (residue_id, _) = self._generate_residue(
                 nugget, residue, region_id, add_agents
             )
