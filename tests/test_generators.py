@@ -2,7 +2,8 @@
 
 from regraph.primitives import (print_graph)
 
-from kami.resolvers.generators import NuggetContainer, Generator
+from kami.resolvers.generators import (NuggetContainer, Generator,
+                                       ModGenerator)
 from kami.interactions import (Modification,
                                BinaryBinding)
 from kami.entities import (Gene, Region, RegionActor, Residue,
@@ -515,7 +516,6 @@ class TestBlackBox(object):
         site_id =\
             self.generator._generate_site(nugget, site, self.default_ag_gene)
 
-
         # region = Region(
         #     "sh2",
         #     bounds=[]
@@ -524,10 +524,61 @@ class TestBlackBox(object):
         #     "P00519",
         #     bounds=[]
         # )
-        print_graph(nugget.graph)
 
-    # def test_mod_generator(self):
-    #     pass
+    def test_mod_generator(self):
+        enzyme_gene = Gene("Q07890")
+        enzyme_region_actor = RegionActor(
+            gene=enzyme_gene,
+            region=Region("Pkinase"))
+        enzyme_site_actor = SiteActor(
+            gene=enzyme_gene,
+            region=Region("Pkinase"),
+            site=Site("tail"))
 
+        substrate_gene = Gene("P00519")
+        substrate_region_actor = RegionActor(
+            gene=substrate_gene,
+            region=Region("SH2"))
+        substrate_site_actor = SiteActor(
+            gene=substrate_gene,
+            region=Region("SH2"),
+            site=Site("finger"))
+
+        residue_mod_target = Residue("Y", 100, State("activity", False))
+        state_mod_target = State("activity", False)
+
+        mod1 = Modification(
+            enzyme=enzyme_gene,
+            substrate=substrate_gene,
+            mod_target=state_mod_target
+        )
+
+        mod2 = Modification(
+            enzyme=enzyme_region_actor,
+            substrate=substrate_gene,
+            mod_target=state_mod_target
+        )
+
+        mod3 = Modification(
+            enzyme=enzyme_site_actor,
+            substrate=substrate_gene,
+            mod_target=state_mod_target
+        )
+
+        mod4 = Modification(
+            enzyme=enzyme_site_actor,
+            substrate=substrate_region_actor,
+            mod_target=state_mod_target
+        )
+
+        mod5 = Modification(
+            enzyme=enzyme_site_actor,
+            substrate=substrate_site_actor,
+            mod_target=residue_mod_target
+        )
+        hierarchy = KamiHierarchy()
+        generator = ModGenerator(hierarchy)
+        n = generator._create_nugget(mod5)
+        print_graph(n.graph)
     # def test_bnd_generator(self):
     #     pass
