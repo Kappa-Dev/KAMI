@@ -314,8 +314,7 @@ class TestBlackBox(object):
         # This names may be changed if the procedures of id generation will change
         site_id = "P00533_region_300_500_Pkinase_site_350_450_alice"
         residue_id = "P00533_region_300_500_Pkinase_Y350"
-        residue_state_id = "P00533_region_300_500_Pkinase_Y350_phosphorylation"
-        state_id = "P00533_region_300_500_Pkinase_activity"
+
         assert(
             (nugget.ag_typing[kinase_region_id], self.default_ag_gene) in
             self.generator.hierarchy.action_graph.edges()
@@ -335,43 +334,68 @@ class TestBlackBox(object):
             (nugget.ag_typing[residue_id], nugget.ag_typing[site_id]) in
             self.generator.hierarchy.action_graph.edges()
         )
+        assert(
+            len(self.generator.hierarchy.action_graph.nodes()) ==
+            old_ag_size + 5
+        )
 
-    # def test_gene_generator(self):
-    #     """Test gene genaration."""
+    def test_gene_generator(self):
+        """Test gene genaration."""
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
 
-    #     hierarchy = KamiHierarchy()
-    #     generator = Generator(hierarchy)
+        gene1 = Gene("Q07890")
 
-    #     nugget = NuggetContainer()
+        old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
+        self.generator._generate_gene(
+            nugget, gene1, add_agents=False, anatomize=False)
+        assert(
+            old_ag_size == len(self.generator.hierarchy.action_graph.nodes()))
+        self.generator._generate_gene(
+            nugget, gene1, anatomize=False)
+        assert(
+            old_ag_size + 1 ==
+            len(self.generator.hierarchy.action_graph.nodes()))
 
-    #     gene = Gene(
-    #         "P00519",
-    #         synonyms=["ABL1"],
-    #         states=[State("active", True), State("active", False)],
-    #         residues=[
-    #             Residue("Y", 100, State("phosphorylation", True)),
-    #             Residue("S", 500),
-    #             Residue("T")
-    #         ],
-    #         sites=[],
-    #         regions=[],
-    #         bounds=[],
-    #     )
+        gene2 = Gene(
+            "P00519",
+            synonyms=["ABL1"],
+            states=[State("active", True), State("active", False)],
+            residues=[
+                Residue("Y", 100, State("phosphorylation", True)),
+                Residue("T", 100, State("phosphorylation", True)),
+                Residue("S", 500),
+                Residue("T")
+            ],
+            sites=[
+                Site("bob"),
+                Site(start=100, end=300,
+                     name="super_site", residues=[Residue("T", 150)])
+            ],
+            regions=[
+                Region(name="sh2"),
+                Region(
+                    start=0, end=1000, name="big_region",
+                    states=[State("activity", True)])
+            ],
+            bounds=[gene1],
+        )
 
-    #     nugget_gene_id = generator._generate_gene(
-    #         nugget, gene
-    #     )
+        gene_id = self.generator._generate_gene(
+            nugget, gene2, anatomize=True)
 
-    #     # check it is consistent
-    #     assert(len(nugget.graph.nodes()) == 7)
-    #     assert(len(nugget.graph.edges()) == 6)
-    #     assert(nugget_gene_id in nugget.graph.nodes())
-    #     assert("P00519" in nugget.graph.node[nugget_gene_id]['uniprotid'])
-    #     assert(nugget.ag_typing["P00519_active"] == nugget.ag_typing["P00519_active_1"])
+        print_graph(self.generator.hierarchy.action_graph)
 
-    #     print(nugget.meta_typing)
-    #     print_graph(nugget.graph)
-    #     print_graph(hierarchy.action_graph)
+        # # check it is consistent
+        # assert(len(nugget.nodes()) == 9)
+        # assert(len(nugget.edges()) == 8)
+        # assert(nugget_gene_id in nugget.graph.nodes())
+        # assert("P00519" in nugget.graph.node[nugget_gene_id]['uniprotid'])
+        # assert(nugget.ag_typing["P00519_active"] == nugget.ag_typing["P00519_active_1"])
+
+        # print(nugget.meta_typing)
+        # print_graph(nugget.graph)
+        # print_graph(self.generator.hierarchy.action_graph)
 
     # def test_region_actor_generator(self):
     #     pass

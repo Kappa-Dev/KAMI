@@ -250,18 +250,9 @@ class Generator:
 
     def _identify_site(self, site, agent, add_agents=True, anatomize=True):
         """Identify a site in the action graph."""
-        # try:
+
         reference_id = self.hierarchy.identify_site(site, agent)
-        # except Exception as e:
-        #     print(e)
-        #     if add_agents is False:
-        #         return None
-        #     else:
-        #         raise NuggetGenerationError(
-        #             "Cannot map a site '%s' from the nugget "
-        #             "to a site from the action graph" %
-        #             str(site)
-        #         )
+
         # if not found
         if add_agents is True:
             if reference_id is None:
@@ -611,7 +602,22 @@ class Generator:
             meta_typing="agent",
             ag_typing=action_graph_agent
         )
-        # 2. create and attach regions
+
+        # 2. create and attach residues
+        for residue in gene.residues:
+            (residue_id, _) = self._generate_residue(
+                nugget, residue, agent_id, add_agents
+            )
+            nugget.add_edge(residue_id, agent_id)
+
+        # 3. create and attach states
+        for state in gene.states:
+            state_id = self._generate_state(
+                nugget, state, agent_id, add_agents
+            )
+            nugget.add_edge(state_id, agent_id)
+
+        # 4. create and attach regions
         for region in gene.regions:
             region_id = self._generate_region(
                 nugget, region, agent_id, add_agents, anatomize,
@@ -619,26 +625,12 @@ class Generator:
             )
             nugget.add_edge(region_id, agent_id)
 
-        # 2. create and attach sites
+        # 5. create and attach sites
         for site in gene.sites:
             site_id = self._generate_site(
                 nugget, site, agent_id, add_agents, anatomize,
             )
             nugget.add_edge(site_id, agent_id)
-
-        # 4. create and attach residues
-        for residue in gene.residues:
-            (residue_id, _) = self._generate_residue(
-                nugget, residue, agent_id, add_agents
-            )
-            nugget.add_edge(residue_id, agent_id)
-
-        # 5. create and attach states
-        for state in gene.states:
-            state_id = self._generate_state(
-                nugget, state, agent_id, add_agents
-            )
-            nugget.add_edge(state_id, agent_id)
 
         # 6. create and attach bounds
         for bnd in gene.bounds:
