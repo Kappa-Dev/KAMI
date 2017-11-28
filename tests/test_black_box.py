@@ -45,7 +45,7 @@ class TestBlackBox(object):
     def test_complex_mod_nugget(self):
         """Complex modification interaction example."""
         enzyme_agent = Gene("P04049")
-        enzyme_region = Region(100, 200, "lala")
+        enzyme_region = Region(start=100, end=200, name="lala")
         enzyme = RegionActor(enzyme_agent, enzyme_region)
 
         state = State("phosphorylation", True)

@@ -132,13 +132,13 @@ class Gene(Actor, PhysicalEntity):
 
 class Region(PhysicalEntity):
 
-    def __init__(self, start=None, end=None, name=None, order=None,
+    def __init__(self, name=None, start=None, end=None, order=None,
                  sites=None, residues=None, states=None, bounds=None,
                  label=None):
         """Initialize kami region object."""
+        self.name = name
         self.start = start
         self.end = end
-        self.name = name
         self.order = order
         self.label = label
 
@@ -162,12 +162,12 @@ class Region(PhysicalEntity):
     def __str__(self):
         """String representation of the region."""
         res = "region"
+        if self.name:
+            res += "_%s" % self.name
         if self.start:
             res += "_" + str(self.start)
         if self.end:
             res += "_" + str(self.end)
-        if self.name:
-            res += "_%s" % self.name
         if self.order:
             res += "_%s" % str(self.order)
         return res
@@ -195,12 +195,12 @@ class Region(PhysicalEntity):
 
 class Site(PhysicalEntity):
 
-    def __init__(self, start=None, end=None, name=None, order=None,
+    def __init__(self, name=None, start=None, end=None, order=None,
                  residues=None, states=None, bounds=None):
         """Initialize kami site object."""
+        self.name = name
         self.start = start
         self.end = end
-        self.name = name
         self.order = order
 
         if residues is None:
@@ -219,12 +219,12 @@ class Site(PhysicalEntity):
     def __str__(self):
         """String representation of the region."""
         res = "site"
+        if self.name:
+            res += "_%s" % self.name
         if self.start:
             res += "_" + str(self.start)
         if self.end:
             res += "_" + str(self.end)
-        if self.name:
-            res += "_%s" % self.name
         if self.order:
             res += "_%s" % str(self.order)
         return res

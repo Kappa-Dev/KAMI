@@ -368,12 +368,7 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
 
-        region_id = "%s_region" % ref_agent
-        if region.start is not None and region.end is not None:
-            region_id += "_%s_%s" % (region.start, region.end)
-        if region.name is not None:
-            region_id += "_%s" % region.name.replace(
-                " ", "_").replace(",", "")
+        region_id = "%s_region_%s" % (ref_agent, str(region))
 
         if region_id in self.action_graph.nodes():
             region_id = generate_new_id(self.action_graph, region_id)
@@ -811,6 +806,8 @@ class KamiHierarchy(Hierarchy):
     def ag_to_edge_list(self, agent_ids="hgnc_symbol"):
         edge_list = []
         for u, v in self.action_graph.edges():
+            u = u.replace(",", "").replace(" ", "")
+            v = v.replace(",", "").replace(" ", "")
             if self.action_graph_typing[u] == "agent":
                 hgnc = None
                 if "hgnc_symbol" in self.action_graph.node[u].keys():
@@ -820,7 +817,7 @@ class KamiHierarchy(Hierarchy):
                 else:
                     n1 = u
             else:
-                n1 = u
+                n1 = u.replace(",", "").replace(" ", "")
             if self.action_graph_typing[v] == "agent":
                 hgnc = None
                 if "hgnc_symbol" in self.action_graph.node[v].keys():

@@ -151,9 +151,9 @@ class Generator:
                 for domain in anatomy.domains:
                     if domain.feature_type == "Domain":
                         region = Region(
-                            domain.start,
-                            domain.end,
-                            " ".join(domain.short_names),
+                            name=" ".join(domain.short_names),
+                            start=domain.start,
+                            end=domain.end,
                             label=domain.prop_label)
 
                         semantics = domain.get_semantics()
@@ -388,22 +388,24 @@ class Generator:
             partner_ids.append(partner_id)
 
             # generate prefix for is_bnd_id
-            prefix = ""
-            if nugget.meta_typing[father] == "agent":
-                prefix = father
-            elif nugget.meta_typing[father] == "region":
-                for succ in nugget.graph.successors(father):
-                    if nugget.meta_typing[succ] == "agent":
-                        prefix += succ
-                prefix += "_" + father
-            elif nugget.meta_typing[father] == "site":
-                for succ in nugget.graph.successors(father):
-                    if nugget.meta_typing[succ] == "agent":
-                        prefix += succ
-                for succ in nugget.graph.successors(father):
-                    if nugget.meta_typing[succ] == "region":
-                        prefix += succ
-                prefix += "_" + father
+            prefix = father
+            # prefix = ""
+            # if nugget.meta_typing[father] == "agent":
+            #     prefix = father
+            # elif nugget.meta_typing[father] == "region":
+            #     for succ in nugget.graph.successors(father):
+            #         if nugget.meta_typing[succ] == "agent":
+            #             prefix += succ
+            #     prefix += "_" + father
+            # elif nugget.meta_typing[father] == "site":
+            #     print(nugget.graph.successors(father))
+            #     for succ in nugget.graph.successors(father):
+            #         if nugget.meta_typing[succ] == "agent":
+            #             prefix += succ
+            #     for succ in nugget.graph.successors(father):
+            #         if nugget.meta_typing[succ] == "region":
+            #             prefix += succ
+            #     prefix += "_" + father
 
             is_bnd_id = get_nugget_is_bnd_id(nugget.graph, prefix, partner_id)
             # !TODO! add identification in ag
@@ -881,7 +883,7 @@ class ModGenerator(Generator):
             else:
                 # Find the unique kinase region
                 ag_node = nugget.ag_typing[enzyme]
-                regions = self.hierarchy.get_regions_of_agent(ag_node)
+                regions = self.hierarchy.get_attached_regions(ag_node)
                 kinase_regions = set()
                 for region in regions:
                     if 'kinase' in self.hierarchy.ag_node_semantics(region):

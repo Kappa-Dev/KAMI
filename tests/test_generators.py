@@ -23,7 +23,7 @@ class TestBlackBox(object):
         self.default_ag_gene = gene_id
 
     def test_state_generator(self):
-        """Test state generation."""
+        """Testing State generation."""
         state_true = State("activity", True)
         state_false = State("activity", False)
 
@@ -88,7 +88,7 @@ class TestBlackBox(object):
         return
 
     def test_residue_generator(self):
-        """Test residue generation."""
+        """Testing Residue generation."""
         t = Residue("T")
         t100 = Residue("T", 100)
         y100_phospho = Residue("Y", 100, State("phosphorylation", True))
@@ -160,7 +160,7 @@ class TestBlackBox(object):
         )
 
     def test_site_generator(self):
-        """Test site generation."""
+        """Testing Site generation."""
         # Test site identification
         site_bob = Site(name="bob")
         site100_200 = Site(start="100", end="200")
@@ -252,7 +252,7 @@ class TestBlackBox(object):
         assert(len(nugget.edges()) == 3)
 
     def test_region_generator(self):
-        """Test region generation."""
+        """Testing Region generation."""
         kinase_region = Region(
             name="Pkinase",
             start=300,
@@ -312,8 +312,8 @@ class TestBlackBox(object):
         assert(len(nugget.nodes()) == 5)
 
         # This names may be changed if the procedures of id generation will change
-        site_id = "P00533_region_300_500_Pkinase_site_350_450_alice"
-        residue_id = "P00533_region_300_500_Pkinase_Y350"
+        site_id = "P00533_region_Pkinase_300_500_site_alice_350_450"
+        residue_id = "P00533_region_Pkinase_300_500_Y350"
 
         assert(
             (nugget.ag_typing[kinase_region_id], self.default_ag_gene) in
@@ -340,7 +340,7 @@ class TestBlackBox(object):
         )
 
     def test_gene_generator(self):
-        """Test gene genaration."""
+        """Testing Gene genaration."""
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
 
@@ -356,6 +356,9 @@ class TestBlackBox(object):
         assert(
             old_ag_size + 1 ==
             len(self.generator.hierarchy.action_graph.nodes()))
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
 
         gene2 = Gene(
             "P00519",
@@ -384,27 +387,144 @@ class TestBlackBox(object):
         gene_id = self.generator._generate_gene(
             nugget, gene2, anatomize=True)
 
-        print_graph(self.generator.hierarchy.action_graph)
+        # check it is consistent
+        assert(len(nugget.nodes()) == 19)
+        assert(len(nugget.edges()) == 18)
+        assert(gene_id in nugget.graph.nodes())
+        assert("P00519" in nugget.graph.node[gene_id]['uniprotid'])
+        assert(
+            nugget.ag_typing["P00519_active"] ==
+            nugget.ag_typing["P00519_active_1"])
+        big_region_id = "P00519_region_big_region_1000"
+        super_site_id = "P00519_site_super_site_100_300"
+        y100_res_id = "P00519_Y100"
+        t100_res_id = "P00519_T100"
+        s500_res_id = "P00519_S500"
+        assert(nugget.ag_typing[y100_res_id] == nugget.ag_typing[t100_res_id])
+        assert(
+            (nugget.ag_typing[super_site_id], nugget.ag_typing[big_region_id]) in
+            self.generator.hierarchy.action_graph.edges())
+        assert(
+            (nugget.ag_typing[y100_res_id], nugget.ag_typing[super_site_id]) in
+            self.generator.hierarchy.action_graph.edges())
+        assert(
+            (nugget.ag_typing[y100_res_id], nugget.ag_typing[big_region_id]) in
+            self.generator.hierarchy.action_graph.edges())
+        assert(
+            (nugget.ag_typing[s500_res_id], nugget.ag_typing[big_region_id]) in
+            self.generator.hierarchy.action_graph.edges())
 
-        # # check it is consistent
-        # assert(len(nugget.nodes()) == 9)
-        # assert(len(nugget.edges()) == 8)
-        # assert(nugget_gene_id in nugget.graph.nodes())
-        # assert("P00519" in nugget.graph.node[nugget_gene_id]['uniprotid'])
-        # assert(nugget.ag_typing["P00519_active"] == nugget.ag_typing["P00519_active_1"])
+    def test_region_actor_generator(self):
+        """Testing RegionActor generation."""
+        region_actor = RegionActor(
+            gene=Gene("P00519"), region=Region("SH2"))
 
-        # print(nugget.meta_typing)
-        # print_graph(nugget.graph)
-        # print_graph(self.generator.hierarchy.action_graph)
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
 
-    # def test_region_actor_generator(self):
-    #     pass
+        (gene_id, region_id) =\
+            self.generator._generate_region_actor(nugget, region_actor)
 
-    # def test_site_actor_generator(self):
-    #     pass
+        assert((region_id, gene_id) in nugget.edges())
+        assert(
+            (nugget.ag_typing[region_id], nugget.ag_typing[gene_id]) in
+            self.generator.hierarchy.action_graph.edges())
 
-    # def test_is_bnd_generator(self):
-    #     pass
+    def test_site_actor_generator(self):
+        """Testing SiteActor generation."""
+        # no region
+        site_actor = SiteActor(
+            gene=Gene("P00519"), site=Site("pY"))
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+
+        (gene_id, site_id) =\
+            self.generator._generate_site_actor(nugget, site_actor)
+
+        assert((site_id, gene_id) in nugget.edges())
+        assert(
+            (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
+            self.generator.hierarchy.action_graph.edges())
+        # with a region in the middle
+        site_actor_with_region = SiteActor(
+            gene=Gene("P00519"), site=Site("pY"), region=Region("kinase"))
+
+        (gene_id, site_id) =\
+            self.generator._generate_site_actor(nugget, site_actor_with_region)
+
+        assert((site_id, gene_id) in nugget.edges())
+        assert(
+            (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
+            self.generator.hierarchy.action_graph.edges())
+        assert((site_id, "P00519_1_region_kinase") in nugget.edges())
+        assert(("P00519_1_region_kinase", gene_id) in nugget.edges())
+        assert(
+            (nugget.ag_typing[site_id],
+                nugget.ag_typing["P00519_1_region_kinase"]) in
+            self.generator.hierarchy.action_graph.edges())
+        assert(
+            (nugget.ag_typing["P00519_1_region_kinase"],
+                nugget.ag_typing[gene_id]) in
+            self.generator.hierarchy.action_graph.edges())
+
+    def test_is_bnd_generator(self):
+
+        gene = Gene("Q07890")
+        site_actor = SiteActor(gene=Gene("Q07890"), site=Site("pY"))
+        region_actor = RegionActor(
+            gene=Gene("Q07890"), region=Region("Pkinase"))
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+
+        site = Site(
+            "lala",
+            bounds=[gene, gene]
+        )
+        site_id =\
+            self.generator._generate_site(nugget, site, self.default_ag_gene)
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+
+        site = Site(
+            "lala",
+            bounds=[[gene, gene]]
+        )
+        site_id =\
+            self.generator._generate_site(nugget, site, self.default_ag_gene)
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+
+        site = Site(
+            "lala",
+            bounds=[site_actor]
+        )
+        site_id =\
+            self.generator._generate_site(nugget, site, self.default_ag_gene)
+
+        nugget = NuggetContainer()
+        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+
+        site = Site(
+            "lala",
+            bounds=[region_actor]
+        )
+        site_id =\
+            self.generator._generate_site(nugget, site, self.default_ag_gene)
+
+
+        # region = Region(
+        #     "sh2",
+        #     bounds=[]
+        # )
+        # gene = Gene(
+        #     "P00519",
+        #     bounds=[]
+        # )
+        print_graph(nugget.graph)
 
     # def test_mod_generator(self):
     #     pass
