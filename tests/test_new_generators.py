@@ -21,20 +21,21 @@ class TestNewGenerators:
             RegionActor(
                 gene=Gene("P00533"),
                 region=Region(name="Kinase_region", start=750, end=850)),
-            Gene("Q07890"),
+            Gene("P12931"),
             Residue("T", 100, State("phosphorylation", False)),
             True
         )
         n_id = modgen.generate(mod)
 
-        # mod = Modification(
-        #     RegionActor(
-        #         gene=Gene("P00533"),
-        #         region=Region(name="Kinase_region", start=750, end=850)),
-        #     Gene("P00519"),
-        #     Residue("Y", 500, State("phosphorylation", False)),
-        #     True
-        # )
-        # n_id = modgen.generate(mod)
+        mod = Modification(
+            RegionActor(
+                gene=Gene("P00533"),
+                region=Region(name="Kinase_region", start=750, end=850)),
+            Gene("P00519"),
+            Residue("Y", 500, State("phosphorylation", False)),
+            True
+        )
+        n_id = modgen.generate(mod)
         print_graph(hie.action_graph)
         print_graph(hie.nugget[n_id])
+        print(hie.relation["action_graph"]["semantic_action_graph"].rel)

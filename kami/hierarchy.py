@@ -888,6 +888,7 @@ class KamiHierarchy(Hierarchy):
                 "kami": {}
             }
             # Build a rule that adds all regions and sites
+            semantic_relations = dict()
             for domain in anatomy.domains:
                 if domain.feature_type == "Domain":
                     region = Region(
@@ -951,32 +952,36 @@ class KamiHierarchy(Hierarchy):
                                 region_id, {"end": {new_end}})
 
                     anatomization_rule_typing["kami"][region_id] = "region"
-                    # TODO resolve semantics
-                    # if semantics is not None:
-                    #     for sem in semantics:
-                    #         self.relation["action_graph"]["semantic_action_graph"].rel.add(
-                    #             (region_id, sem)
-                    #         )
-                    #     if 'kinase' in semantics:
-                    #         state = State("activity", True)
-                    #         activity_id = self.hierarchy.add_state(
-                    #             state,
-                    #             region_id,
-                    #             semantics=["activity"]
-                    #         )
-                    #         add_edge(
-                    #             self.hierarchy.action_graph,
-                    #             activity_id,
-                    #             region_id
-                    #         )
-                    # add_edge(self.hierarchy.action_graph,
-                    #          region_id, gene_id)
-            print(anatomization_rule)
-            print(instance)
-            self.rewrite(
+
+                    # Resolve semantics
+                    semantic_relations[region_id] = set()
+                    if "IPR000719" in domain.ipr_ids:
+                        semantic_relations[region_id].add("protein_kinase")
+                        # autocomplete with activity
+                        activity_state_id = "%s_%s" % (region_id, "activity")
+                        if activity_state_id in self.action_graph.nodes():
+                            activity_state_id = generate_new_id(
+                                self.action_graph, activity_state_id)
+                        anatomization_rule.inject_add_node(
+                            activity_state_id, {"activity": {True}})
+                        anatomization_rule.inject_add_edge(
+                            activity_state_id, region_id)
+                        semantic_relations[activity_state_id] =\
+                            set(["activity"])
+                        anatomization_rule_typing["kami"][
+                            activity_state_id] = "state"
+                    if "IPR000980" in domain.ipr_ids:
+                        semantic_relations[region_id].add("sh2_domain")
+
+            _, rhs_g = self.rewrite(
                 "action_graph", anatomization_rule,
                 instance, rhs_typing=anatomization_rule_typing,
                 strict=True, inplace=True)
+            for new_node_id, semantics in semantic_relations.items():
+                for s in semantics:
+                    self.relation["action_graph"][
+                        "semantic_action_graph"].rel.add(
+                        (rhs_g[new_node_id], s))
         else:
             warnings.warn(
                 "Unable to anatomize gene node '%s'" % gene,

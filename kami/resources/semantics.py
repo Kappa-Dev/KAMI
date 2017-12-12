@@ -7,7 +7,7 @@ from regraph.primitives import (add_nodes_from,
 
 action_graph = nx.DiGraph()
 add_nodes_from(action_graph, [
-    "kinase",
+    "protein_kinase",
     ("activity", {"activity": {True}}),
     ("phospho", {"value": {True}}),
     ("phosphorylation_state", {"phosphorylation": {True, False}}),
@@ -16,14 +16,14 @@ add_nodes_from(action_graph, [
     ("dephospho", {"value": {False}}),
     "pY_motif",
     "pY_locus",
-    ("sh2_pY_bnd", {"direct": True}),
-    "sh2_locus",
-    "sh2",
+    ("sh2_domain_pY_bnd", {"direct": True}),
+    "sh2_domain_locus",
+    "sh2_domain",
 ])
 
 add_edges_from(action_graph, [
-    ("activity", "kinase"),
-    ("kinase", "phospho"),
+    ("activity", "protein_kinase"),
+    ("protein_kinase", "phospho"),
     ("phospho", "phosphorylation_state"),
     ("phosphorylation_state", "phospho_target_residue"),
     ("activity", "phosphatase"),
@@ -31,13 +31,13 @@ add_edges_from(action_graph, [
     ("dephospho", "phosphorylation_state"),
     ("phospho_target_residue", "pY_motif"),
     ("pY_motif", "pY_locus"),
-    ("pY_locus", "sh2_pY_bnd"),
-    ("sh2_locus", "sh2_pY_bnd"),
-    ("sh2", "sh2_locus"),
+    ("pY_locus", "sh2_domain_pY_bnd"),
+    ("sh2_domain_locus", "sh2_domain_pY_bnd"),
+    ("sh2_domain", "sh2_domain_locus"),
 ])
 
 sag_kami_typing = {
-    "kinase": "region",
+    "protein_kinase": "region",
     "activity": "state",
     "phospho": "mod",
     "phosphorylation_state": "state",
@@ -46,17 +46,17 @@ sag_kami_typing = {
     "dephospho": "mod",
     "pY_motif": "region",
     "pY_locus": "locus",
-    "sh2_pY_bnd": "bnd",
-    "sh2_locus": "locus",
-    "sh2": "region",
+    "sh2_domain_pY_bnd": "bnd",
+    "sh2_domain_locus": "locus",
+    "sh2_domain": "region",
 }
 
 # Phosphorylation semantic nugget
 phosphorylation = nx.DiGraph()
 add_nodes_from(
     phosphorylation,
-    ["kinase",
-     ("kinase_activity", {"activity": {True}}),
+    ["protein_kinase",
+     ("protein_kinase_activity", {"activity": {True}}),
      ("phospho", {"value": {True}}),
      ("target_state", {"phosphorylation": {False}}),
      ("target_residue", {"aa": {"S", "T", "Y"}})]
@@ -64,23 +64,23 @@ add_nodes_from(
 
 add_edges_from(
     phosphorylation,
-    [("kinase_activity", "kinase"),
-     ("kinase", "phospho"),
+    [("protein_kinase_activity", "protein_kinase"),
+     ("protein_kinase", "phospho"),
      ("phospho", "target_state"),
      ("target_state", "target_residue")]
 )
 
 phosphorylation_kami_typing = {
-    "kinase": "region",
-    "kinase_activity": "state",
+    "protein_kinase": "region",
+    "protein_kinase_activity": "state",
     "phospho": "mod",
     "target_state": "state",
     "target_residue": "residue"
 }
 
 phosphorylation_semantic_AG = {
-    "kinase": "kinase",
-    "kinase_activity": "activity",
+    "protein_kinase": "protein_kinase",
+    "protein_kinase_activity": "activity",
     "phospho": "phospho",
     "target_state": "phosphorylation_state",
     "target_residue": "phospho_target_residue"
@@ -130,9 +130,9 @@ sh2_pY_binding = nx.DiGraph()
 add_nodes_from(
     sh2_pY_binding,
     [
-        "sh2",
-        "sh2_locus",
-        ("sh2_pY_bnd", {"direct": True}),
+        "sh2_domain",
+        "sh2_domain_locus",
+        ("sh2_domain_pY_bnd", {"direct": True}),
         "pY_locus",
         "pY_motif",
         ("pY_residue", {"aa": "Y"}),
@@ -142,18 +142,18 @@ add_nodes_from(
 
 add_edges_from(
     sh2_pY_binding,
-    [("sh2", "sh2_locus"),
-     ("sh2_locus", "sh2_pY_bnd"),
-     ("pY_locus", "sh2_pY_bnd"),
+    [("sh2_domain", "sh2_domain_locus"),
+     ("sh2_domain_locus", "sh2_domain_pY_bnd"),
+     ("pY_locus", "sh2_domain_pY_bnd"),
      ("pY_motif", "pY_locus"),
      ("pY_residue", "pY_motif"),
      ("phosphorylation", "pY_residue")]
 )
 
 sh2_pY_kami_typing = {
-    "sh2": "region",
-    "sh2_locus": "locus",
-    "sh2_pY_bnd": "bnd",
+    "sh2_domain": "region",
+    "sh2_domain_locus": "locus",
+    "sh2_domain_pY_bnd": "bnd",
     "pY_locus": "locus",
     "pY_motif": "region",
     "pY_residue": "residue",
@@ -161,9 +161,9 @@ sh2_pY_kami_typing = {
 }
 
 sh2_pY_semantic_AG = {
-    "sh2": "sh2",
-    "sh2_locus": "sh2_locus",
-    "sh2_pY_bnd": "sh2_pY_bnd",
+    "sh2_domain": "sh2_domain",
+    "sh2_domain_locus": "sh2_domain_locus",
+    "sh2_domain_pY_bnd": "sh2_domain_pY_bnd",
     "pY_locus": "pY_locus",
     "pY_motif": "pY_motif",
     "pY_residue": "phospho_target_residue",
