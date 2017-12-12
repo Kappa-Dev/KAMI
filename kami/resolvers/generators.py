@@ -685,7 +685,7 @@ class Generator:
 
     def generate(self, mod, add_agents=True, anatomize=True,
                  merge_actions=True, apply_semantics=True):
-        """Generate modification nugget."""
+        """Generate nugget."""
         # 1. Create a nugget graph and make respective changes to the AG
         # try:
         if True:

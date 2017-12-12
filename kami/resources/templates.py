@@ -32,9 +32,9 @@ add_edges_from(mod_nugget, [
 ])
 
 mod_kami_typing = {
-    "enzyme": "agent",
+    "enzyme": "gene",
     "enzyme_region": "region",
-    "substrate": "agent",
+    "substrate": "gene",
     "substrate_region": "region",
     "substrate_residue": "residue",
     "mod_state": "state",
@@ -56,7 +56,7 @@ add_edges_from(bnd_nugget, [
 ])
 
 bnd_kami_typing = {
-    "partner": "agent",
+    "partner": "gene",
     "partner_region": "region",
     "partner_locus": "locus",
     "bnd": "bnd"

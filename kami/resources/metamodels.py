@@ -38,7 +38,7 @@ kami = nx.DiGraph()
 add_nodes_from(
     kami,
     [
-        ("agent", {
+        ("gene", {
             "uniprotid": RegexSet(UNIPROT_REGEX),
             "hgnc_symbol": RegexSet.universal(),
             "synonyms": RegexSet.universal(),
@@ -89,19 +89,19 @@ add_nodes_from(
 add_edges_from(
     kami,
     [
-        ("region", "agent"),
-        ("site", "agent"),
+        ("region", "gene"),
+        ("site", "gene"),
         ("site", "region"),
-        ("residue", "agent"),
+        ("residue", "gene"),
         ("residue", "region"),
         ("residue", "site"),
-        ("state", "agent"),
+        ("state", "gene"),
         ("state", "region"),
         ("state", "site"),
         ("state", "residue"),
-        ("syn", "agent"),
-        ("deg", "agent"),
-        ("agent", "locus"),
+        ("syn", "gene"),
+        ("deg", "gene"),
+        ("gene", "locus"),
         ("region", "locus"),
         ("site", "locus"),
         ("mod", "state"),
@@ -109,14 +109,14 @@ add_edges_from(
         ("locus", "brk"),
         ("locus", "is_bnd"),
         ("locus", "is_free"),
-        ("agent", "mod"),
+        ("gene", "mod"),
         ("region", "mod"),
         ("site", "mod")
     ]
 )
 
 kami_base_kami_typing = {
-    "agent": "component",
+    "gene": "component",
     "region": "component",
     "site": "component",
     "residue": "component",

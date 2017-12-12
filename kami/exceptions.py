@@ -25,6 +25,10 @@ class KamiHierarchyError(KamiException):
     """Class for errors in Kami hierarchy."""
 
 
+class KamiHierarchyWarning(KamiWarning):
+    """Class for warnings in Kami hierarchy."""
+
+
 class KamiIndentifierError(KamiException):
     """Class for errors in Kami identification."""
 

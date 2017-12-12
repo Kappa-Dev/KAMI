@@ -2,14 +2,17 @@
 import copy
 import networkx as nx
 import numpy as np
+import warnings
 
+from regraph.rules import Rule
 from regraph.hierarchy import Hierarchy
-from regraph.primitives import (add_node,
-                                add_edge, print_graph)
+from regraph.primitives import *
 
-from kami.exceptions import KamiHierarchyError
+from anatomizer.new_anatomizer import GeneAnatomy
+from kami.exceptions import KamiHierarchyError, KamiHierarchyWarning
 from kami.resources import default_components
 from kami.utils.id_generators import generate_new_id
+from kami.entities import Region
 
 
 class KamiHierarchy(Hierarchy):
@@ -34,6 +37,17 @@ class KamiHierarchy(Hierarchy):
         self.mod_template = self.node["mod_template"].graph
         self.bnd_template = self.node["bnd_template"].graph
         self.semantic_action_graph = self.node["semantic_action_graph"].graph
+
+    def rewrite(self, graph_id, rule, instance,
+                lhs_typing=None, rhs_typing=None,
+                strict=True, inplace=True):
+        """."""
+        g_prime, r_g_prime = super().rewrite(
+            graph_id, rule, instance,
+            lhs_typing, rhs_typing,
+            strict, inplace)
+        self._init_shortcuts()
+        return (g_prime, r_g_prime)
 
     def create_empty_action_graph(self):
         """Creat an empty action graph in the hierarchy."""
@@ -234,7 +248,7 @@ class KamiHierarchy(Hierarchy):
 
     def genes(self):
         """Get a list of agent nodes in the action graph."""
-        return self.nodes_of_type("agent")
+        return self.nodes_of_type("gene")
 
     def regions(self):
         """Get a list of region nodes in the action graph."""
@@ -286,7 +300,7 @@ class KamiHierarchy(Hierarchy):
 
     def get_gene_of(self, element_id):
         """Get agent id conntected to the element."""
-        agents = self.ag_successors_of_type(element_id, "agent")
+        agents = self.ag_successors_of_type(element_id, "gene")
         if len(agents) == 1:
             return agents[0]
         elif len(agents) > 1:
@@ -324,7 +338,7 @@ class KamiHierarchy(Hierarchy):
             gene_id = name + str(i)
 
         add_node(self.action_graph, gene_id, gene.to_attrs())
-        self.action_graph_typing[gene_id] = "agent"
+        self.action_graph_typing[gene_id] = "gene"
         return gene_id
 
     def add_mod(self, attrs=None, semantics=None):
@@ -594,7 +608,7 @@ class KamiHierarchy(Hierarchy):
                 ref_agent
             )
         if self.action_graph_typing[ref_agent] not in \
-           ["agent", "region", "site", "residue"]:
+           ["gene", "region", "site", "residue"]:
             raise KamiHierarchyError(
                 "Cannot add a residue to the node '%s', node type "
                 "is not valid (expected 'agent', 'region', 'site' "
@@ -642,6 +656,9 @@ class KamiHierarchy(Hierarchy):
                start is not None and end is not None:
                 if int(fragment.start) >= int(start) and\
                    int(fragment.end) <= int(end):
+                    satifying_fragments.append(f)
+                elif int(start) >= int(fragment.start) and\
+                        int(end) <= int(fragment.end):
                     satifying_fragments.append(f)
             else:
                 if fragment.name is not None:
@@ -768,16 +785,269 @@ class KamiHierarchy(Hierarchy):
                 nugget_id = name + "_" + str(i)
         return nugget_id
 
-    def add_nugget(self, nugget, name=None):
+    def add_nugget(self, nugget, add_agents=True,
+                   anatomize=True, name=None):
         """Add nugget to the hierarchy."""
         nugget_id = self._generate_nugget_id()
+
+        p = nx.DiGraph()
+        lhs = nx.DiGraph()
+
+        # 2. Create a generation rule for this nugget
+        generation_rule = Rule(p, lhs, nugget.graph)
+        rhs_typing = {
+            "action_graph": nugget.ag_typing,
+            "kami": nugget.meta_typing
+        }
+
+        # 3. Add empty graph as a nugget to the hierarchy
         self.add_graph(
             nugget_id,
-            nugget,
+            lhs,
             {"type": "nugget"}
         )
         self.nugget[nugget_id] = self.node[nugget_id].graph
+        self.add_typing(nugget_id, "action_graph", {})
+
+        # 4. Apply nugget generation rule
+        g_prime, r_g_prime = self.rewrite(
+            nugget_id, rule=generation_rule, instance={},
+            lhs_typing={}, rhs_typing=rhs_typing,
+            strict=(not add_agents), inplace=True)
+
+        self.add_template_rel(
+            nugget_id, nugget.template_id, nugget.template_rel)
+
+        # add semantic relations found for the nugget
+        for semantic_nugget, rel in nugget.semantic_rels.items():
+            self.add_semantic_nugget_rel(
+                nugget_id, semantic_nugget, rel
+            )
+        if anatomize is True:
+            # Get a set of genes added by the nugget
+            new_gene_nodes = set()
+            for node in self.nugget[nugget_id].nodes():
+                ag_node = self.typing[nugget_id]["action_graph"][node]
+                if self.action_graph_typing[ag_node] ==\
+                   "gene":
+                    if node not in nugget.ag_typing:
+                        new_gene_nodes.add(ag_node)
+            for gene in new_gene_nodes:
+                self.anatomize_gene(gene)
         return nugget_id
+
+    def anatomize_gene(self, gene):
+        """Anatomize existing gene node in the action graph."""
+        if gene not in self.action_graph.nodes() or\
+           self.action_graph_typing[gene] != "gene":
+            raise KamiHierarchyError(
+                "Gene node '%s' does not exist in the hierarchy!" % gene)
+
+        anatomy = None
+        if "uniprotid" in self.action_graph.node[gene] and\
+           len(self.action_graph.node[gene]["uniprotid"]) == 1:
+            anatomy = GeneAnatomy(
+                list(
+                    self.action_graph.node[gene]["uniprotid"])[0],
+                merge_features=True,
+                nest_features=False,
+                merge_overlap=0.05,
+                offline=True
+            )
+        elif "hgnc_symbol" in self.action_graph.node[gene] and\
+             len(self.action_graph.node[gene]["hgnc_symbol"]) == 1:
+            anatomy = GeneAnatomy(
+                list(
+                    self.action_graph.node[gene]["hgnc_symbol"])[0],
+                merge_features=True,
+                nest_features=False,
+                merge_overlap=0.05,
+                offline=True
+            )
+        elif "synonyms" in self.action_graph.node[gene] and\
+             len(self.action_graph.node[gene]["synonyms"]) > 0:
+            for s in self.action_graph.node[gene]["synonyms"]:
+                anatomy = GeneAnatomy(
+                    s,
+                    merge_features=True,
+                    nest_features=False,
+                    merge_overlap=0.05,
+                    offline=True
+                )
+                if anatomy is not None:
+                    break
+        if anatomy is not None:
+            # Generate an update rule to add
+            # entities fetched by the anatomizer
+            lhs = nx.DiGraph()
+            add_nodes_from(lhs, ["gene"])
+            instance = {"gene": gene}
+
+            anatomization_rule = Rule.from_transform(lhs)
+            anatomization_rule_typing = {
+                "kami": {}
+            }
+            # Build a rule that adds all regions and sites
+            for domain in anatomy.domains:
+                if domain.feature_type == "Domain":
+                    region = Region(
+                        name=" ".join(domain.short_names),
+                        start=domain.start,
+                        end=domain.end,
+                        label=domain.prop_label)
+
+                    region_id = "%s_%s" % (gene, str(region))
+                    if region_id in self.action_graph.nodes():
+                        region_id = generate_new_id(
+                            self.action_graph, region_id)
+                    anatomization_rule.inject_add_node(
+                        region_id, region.to_attrs())
+                    anatomization_rule.inject_add_edge(
+                        region_id, "gene")
+                    existing_region_id = self.identify_region(
+                        region, gene)
+                    if existing_region_id is not None:
+                        anatomization_rule._add_node_lhs(existing_region_id)
+                        instance[existing_region_id] = existing_region_id
+                        region_id = anatomization_rule.inject_merge_nodes(
+                            [region_id, existing_region_id])
+                        # recompute new start/end for the resulting region
+                        existing_start = None
+                        if "start" in self.action_graph.node[existing_region_id].keys() and\
+                           len(self.action_graph.node[existing_region_id]["start"]) > 0:
+                            existing_start =\
+                                int(list(
+                                    self.action_graph.node[
+                                        existing_region_id]["start"])[0])
+                        existing_end = None
+                        if "end" in self.action_graph.node[existing_region_id].keys() and\
+                           len(self.action_graph.node[existing_region_id]["end"]) > 0:
+                            existing_end =\
+                                int(list(
+                                    self.action_graph.node[
+                                        existing_region_id]["end"])[0])
+                        new_start = None
+                        new_end = None
+                        if existing_start is not None and region.start is not None:
+                            new_start = min(existing_start, region.start)
+                        if existing_end is not None and region.end is not None:
+                            new_end = max(existing_end, region.end)
+
+                        if new_start is not None:
+                            anatomization_rule._add_node_attrs_lhs(
+                                existing_region_id, {"start": {existing_start}})
+                            anatomization_rule.inject_remove_node_attrs(
+                                existing_region_id,
+                                {"start": {existing_start}})
+                            anatomization_rule.inject_add_node_attrs(
+                                region_id, {"start": {new_start}})
+                        if new_end is not None:
+                            anatomization_rule._add_node_attrs_lhs(
+                                existing_region_id, {"end": {existing_end}})
+                            anatomization_rule.inject_remove_node_attrs(
+                                existing_region_id,
+                                {"end": {existing_end}})
+                            anatomization_rule.inject_add_node_attrs(
+                                region_id, {"end": {new_end}})
+
+                    anatomization_rule_typing["kami"][region_id] = "region"
+                    # TODO resolve semantics
+                    # if semantics is not None:
+                    #     for sem in semantics:
+                    #         self.relation["action_graph"]["semantic_action_graph"].rel.add(
+                    #             (region_id, sem)
+                    #         )
+                    #     if 'kinase' in semantics:
+                    #         state = State("activity", True)
+                    #         activity_id = self.hierarchy.add_state(
+                    #             state,
+                    #             region_id,
+                    #             semantics=["activity"]
+                    #         )
+                    #         add_edge(
+                    #             self.hierarchy.action_graph,
+                    #             activity_id,
+                    #             region_id
+                    #         )
+                    # add_edge(self.hierarchy.action_graph,
+                    #          region_id, gene_id)
+            print(anatomization_rule)
+            print(instance)
+            self.rewrite(
+                "action_graph", anatomization_rule,
+                instance, rhs_typing=anatomization_rule_typing,
+                strict=True, inplace=True)
+        else:
+            warnings.warn(
+                "Unable to anatomize gene node '%s'" % gene,
+                KamiHierarchyWarning)
+
+    # def _regions_included(self, r1, r2, gene):
+    #     name = None
+    #     if "name" in self.action_graph.node[r1].keys() and\
+    #        len(self.action_graph.node[r1]["name"]) > 0:
+    #         start = list(self.action_graph.node[r1]["name"])[0]
+
+    #     start = None
+    #     if "start" in self.action_graph.node[r1].keys() and\
+    #        len(self.action_graph.node[r1]["start"]) > 0:
+    #         start = list(self.action_graph.node[r1]["start"])[0]
+
+    #     end = None
+    #     if "end" in self.action_graph.node[r1].keys() and\
+    #        len(self.action_graph.node[r1]["end"]) > 0:
+    #         start = list(self.action_graph.node[r1]["end"])[0]
+
+    #     order = None
+    #     if "order" in self.action_graph.node[r1].keys() and\
+    #        len(self.action_graph.node[r1]["order"]) > 0:
+    #         start = list(self.action_graph.node[r1]["order"])[0]
+
+    #     label = None
+    #     if "label" in self.action_graph.node[r1].keys() and\
+    #        len(self.action_graph.node[r1]["label"]) > 0:
+    #         start = list(self.action_graph.node[r1]["label"])[0]
+
+    #     r1_obj = Region(
+    #         name=name, start=start, end=end, order=order,
+    #         label=label)
+
+    #     name = None
+    #     if "name" in self.action_graph.node[r2].keys() and\
+    #        len(self.action_graph.node[r2]["name"]) > 0:
+    #         start = list(self.action_graph.node[r2]["name"])[0]
+
+    #     start = None
+    #     if "start" in self.action_graph.node[r2].keys() and\
+    #        len(self.action_graph.node[r2]["start"]) > 0:
+    #         start = list(self.action_graph.node[r2]["start"])[0]
+
+    #     end = None
+    #     if "end" in self.action_graph.node[r2].keys() and\
+    #        len(self.action_graph.node[r2]["end"]) > 0:
+    #         start = list(self.action_graph.node[r2]["end"])[0]
+
+    #     order = None
+    #     if "order" in self.action_graph.node[r2].keys() and\
+    #        len(self.action_graph.node[r2]["order"]) > 0:
+    #         start = list(self.action_graph.node[r2]["order"])[0]
+
+    #     label = None
+    #     if "label" in self.action_graph.node[r2].keys() and\
+    #        len(self.action_graph.node[r2]["label"]) > 0:
+    #         start = list(self.action_graph.node[r2]["label"])[0]
+
+    #     r2_obj = Region(
+    #         name=name, start=start, end=end, order=order,
+    #         label=label)
+
+    #     ref1_id = self.identify_region(r1_obj, gene)
+    #     if ref1_id == r2:
+    #         return True
+
+    #     ref2_id = self.identify_region(r2_obj, gene)
+    #     if ref2_id == r1:
+    #         return True
 
     def type_nugget_by_ag(self, nugget_id, typing):
         """Type nugget by the action graph."""
@@ -808,7 +1078,7 @@ class KamiHierarchy(Hierarchy):
         for u, v in self.action_graph.edges():
             u = u.replace(",", "").replace(" ", "")
             v = v.replace(",", "").replace(" ", "")
-            if self.action_graph_typing[u] == "agent":
+            if self.action_graph_typing[u] == "gene":
                 hgnc = None
                 if "hgnc_symbol" in self.action_graph.node[u].keys():
                     hgnc = list(self.action_graph.node[u]["hgnc_symbol"])[0]
@@ -818,7 +1088,7 @@ class KamiHierarchy(Hierarchy):
                     n1 = u
             else:
                 n1 = u.replace(",", "").replace(" ", "")
-            if self.action_graph_typing[v] == "agent":
+            if self.action_graph_typing[v] == "gene":
                 hgnc = None
                 if "hgnc_symbol" in self.action_graph.node[v].keys():
                     hgnc = list(self.action_graph.node[v]["hgnc_symbol"])[0]
