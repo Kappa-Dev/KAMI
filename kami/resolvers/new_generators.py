@@ -4,7 +4,9 @@ import warnings
 
 import networkx as nx
 
-from regraph.primitives import (add_edge,
+from regraph.primitives import (add_nodes_from,
+                                add_edges_from,
+                                add_edge,
                                 add_node,
                                 add_node_attrs,
                                 remove_edge)
@@ -21,7 +23,8 @@ from kami.utils.id_generators import (get_nugget_gene_id,
                                       get_nugget_state_id,
                                       get_nugget_is_bnd_id,
                                       get_nugget_locus_id,
-                                      get_nugget_site_id)
+                                      get_nugget_site_id,
+                                      get_nugget_bnd_id,)
 
 
 class NuggetContainer:
@@ -56,12 +59,9 @@ class NuggetContainer:
         else:
             self.ag_typing = dict()
         if template_rel:
-            if isinstance(template_rel, collections.Iterable):
-                self.template_rel = copy.deepcopy(template_rel)
-            else:
-                self.template_rel = set([template_rel])
+            self.template_rel = copy.deepcopy(template_rel)
         else:
-            self.template_rel = set()
+            self.template_rel = dict()
         if semantic_rels:
             self.semantic_rels = copy.deepcopy(semantic_rels)
         else:
@@ -76,15 +76,16 @@ class NuggetContainer:
             self.meta_typing[node_id] = meta_typing
         if ag_typing:
             self.ag_typing[node_id] = ag_typing
+        self.template_rel[node_id] = set()
         if template_rel:
             for el in template_rel:
-                self.template_rel.add((node_id, el))
+                self.template_rel[node_id].add(el)
         if semantic_rels:
             for key, value in semantic_rels.items():
                 if key not in self.semantic_rels.keys():
-                    self.semantic_rels[key] = set()
+                    self.semantic_rels[key] = dict()
                 for v in value:
-                    self.semantic_rels[key].add((node_id, v))
+                    self.semantic_rels[key][node_id].add(v)
         return
 
     def add_edge(self, node_1, node_2, attrs=None):
@@ -111,9 +112,12 @@ class Generator(object):
     def generate(self, mod, add_agents=True, anatomize=True,
                  merge_actions=True, apply_semantics=True):
         """Generate a nuggert generation rule."""
-        nugget = self._create_nugget(mod)
+        nugget, nugget_type = self._create_nugget(mod)
         nugget_id = self.hierarchy.add_nugget(
-            nugget, add_agents=add_agents, anatomize=anatomize)
+            nugget, nugget_type,
+            add_agents=add_agents,
+            anatomize=anatomize,
+            apply_semantics=apply_semantics)
         return nugget_id
 
     def _generate_state(self, nugget, state, father,
@@ -452,20 +456,17 @@ class Generator(object):
         site_id = self._generate_site(
             nugget, site_actor.site, agent_id, add_agents, anatomize
         )
-        nugget.add_edge(site_id, agent_id)
-
+        region_id = None
         if site_actor.region is not None:
             region_id = self._generate_region(
                 nugget, site_actor.region, agent_id, add_agents, anatomize
             )
             nugget.add_edge(region_id, agent_id)
             nugget.add_edge(site_id, region_id)
-            add_edge(
-                self.hierarchy.action_graph,
-                nugget.ag_typing[site_id],
-                nugget.ag_typing[region_id])
+        else:
+            nugget.add_edge(site_id, agent_id)
 
-        return (agent_id, site_id)
+        return (agent_id, site_id, region_id)
 
 
 class ModGenerator(Generator):
@@ -476,18 +477,20 @@ class ModGenerator(Generator):
         """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
+
         # 1. Process enzyme
+        enzyme_region = None
+        enzyme_site = None
         if isinstance(mod.enzyme, Gene):
             enzyme = self._generate_gene(
                 nugget, mod.enzyme, add_agents, anatomize
             )
-            enzyme_region = None
         elif isinstance(mod.enzyme, RegionActor):
             (enzyme, enzyme_region) = self._generate_region_actor(
                 nugget, mod.enzyme, add_agents, anatomize
             )
         elif isinstance(mod.enzyme, SiteActor):
-            (enzyme, enzyme_region) = self._generate_site_actor(
+            (enzyme, enzyme_site, enzyme_region) = self._generate_site_actor(
                 nugget, mod.enzyme, add_agents, anatomize
             )
         else:
@@ -495,31 +498,56 @@ class ModGenerator(Generator):
                 "Unkown type of an enzyme: '%s'" % type(mod.enzyme)
             )
 
-        nugget.template_rel.add((enzyme, "enzyme"))
-        if enzyme_region:
-            nugget.template_rel.add((enzyme_region, "enzyme_region"))
+        nugget.template_rel[enzyme].add("enzyme")
 
+        # ag_mod = None
+        if enzyme_region:
+            nugget.template_rel[enzyme_region] = {"enzyme_region"}
+            # if enzyme_region in nugget.ag_typing.keys():
+            #     ag_enzyme_region = nugget.ag_typing[enzyme_region]
+            #     ag_enzyme_region_semantics =\
+            #         self.hierarchy.relation["action_graph"][
+            #             "semantic_action_graph"].rel[ag_enzyme_region]
+            #     if "protein_kinase" in ag_enzyme_region_semantics:
+            #         nugget.semantic_rels["phosphorylation"] = dict()
+            #         nugget.semantic_rels["phosphorylation"][
+            #             enzyme_region] = {"protein_kinase"}
+            #         ag_mods = self.hierarchy.ag_successors_of_type(
+            #             ag_enzyme_region, "mod")
+            #         if len(ag_mods) > 1:
+            #             warnings.warn(
+            #                 "More than one modification is associated with "
+            #                 "kinase region '%s' in the action graph" %
+            #                 ag_enzyme_region,
+            #                 KamiWarning)
+            #         elif len(ag_mods) == 1:
+            #             ag_mod = ag_mods[0]
+        if enzyme_site:
+            nugget.template_rel[enzyme_site] = {"enzyme_site"}
+
+        # Process substrate
+        substrate_region = None
+        substrate_site = None
         if isinstance(mod.substrate, Gene):
             substrate = self._generate_gene(
-                nugget, mod.substrate, add_agents, anatomize
-            )
-            substrate_region = None
+                nugget, mod.substrate, add_agents, anatomize)
         elif isinstance(mod.substrate, RegionActor):
             (substrate, substrate_region) = self._generate_region_actor(
-                nugget, mod.substrate, add_agents, anatomize
-            )
+                nugget, mod.substrate, add_agents, anatomize)
         elif isinstance(mod.substrate, SiteActor):
-            (substrate, substrate_region) = self._generate_site_actor(
-                nugget, mod.substrate, add_agents, anatomize
-            )
+            (substrate, substrate_site, substrate_region) =\
+                self._generate_site_actor(
+                    nugget, mod.substrate, add_agents, anatomize)
         else:
             raise NuggetGenerationError(
                 "Unkown type of a substrate: '%s'" % type(mod.substrate)
             )
 
-        nugget.template_rel.add((substrate, "substrate"))
+        nugget.template_rel[substrate].add("substrate")
         if substrate_region:
-            nugget.template_rel.add((substrate_region, "substrate_region"))
+            nugget.template_rel[substrate_region] = {"substrate_region"}
+        if substrate_site:
+            nugget.template_rel[substrate_site] = {"substrate_site"}
 
         # 2. create mod node
         mod_attrs = {
@@ -532,6 +560,7 @@ class ModGenerator(Generator):
         nugget.add_node(
             "mod",
             mod_attrs,
+            # ag_typing=ag_mod,
             meta_typing="mod",
             template_rel=["mod"]
         )
@@ -554,13 +583,17 @@ class ModGenerator(Generator):
                 nugget, mod.target, attached_to, add_agents
             )
             nugget.add_edge(mod_state_id, attached_to)
-            nugget.template_rel.add((mod_state_id, "mod_state"))
+            if mod_state_id in nugget.template_rel.keys():
+                nugget.template_rel[mod_state_id].add("mod_state")
+            else:
+                nugget.template_rel[mod_state_id] = {"mod_state"}
+
         elif isinstance(mod.target, Residue):
             if mod.target.state:
                 if mod.target.state.value == mod.value:
                     warnings.warn(
                         "Modification does not change the state's value!",
-                        UserWarning
+                        KamiWarning
                     )
                 (mod_residue_id, mod_state_id) = self._generate_residue(
                     nugget,
@@ -569,8 +602,8 @@ class ModGenerator(Generator):
                     add_agents
                 )
                 nugget.add_edge(mod_residue_id, attached_to)
-                nugget.template_rel.add((mod_state_id, "mod_state"))
-                nugget.template_rel.add((mod_residue_id, "substrate_residue"))
+                nugget.template_rel[mod_state_id].add("mod_state")
+                nugget.template_rel[mod_residue_id].add("substrate_residue")
             else:
                 raise KamiError(
                     "Target of modification is required to be either "
@@ -588,152 +621,133 @@ class ModGenerator(Generator):
         else:
             nugget.add_edge(enzyme, "mod")
         nugget.add_edge("mod", mod_state_id)
+        return nugget, "mod"
 
-        # Attempt to autocomplete the nugget
-        # using semantics
-        # 1. PHOSPHORYLATION
 
-        # phospho = False
-        # if isinstance(mod.target, State):
-        #     if mod.target.name == "phosphorylation":
-        #         phospho = True
-        # else:
-        #     if mod.target.state and mod.target.state.name == "phosphorylation":
-        #         phospho = True
+class BndGenerator(Generator):
+    """Binding nugget generator."""
 
-        # if phospho:
-        #     kinase_region = None
-        #     if enzyme_region:
-        #         ag_region = nugget.ag_typing[enzyme_region]
-        #         if 'kinase' in self.hierarchy.ag_node_semantics(ag_region):
-        #             kinase_region = enzyme_region
-        #         else:
-        #             warnings.warn(
-        #                 "Cannot resolve phospho modification: "
-        #                 "action graph region `%s` corresponding to "
-        #                 "enzyme region `%s` is not a protein kinase. " %
-        #                 (ag_region, enzyme_region),
-        #                 KamiWarning
-        #             )
-        #     else:
-        #         # Find the unique kinase region
-        #         ag_node = nugget.ag_typing[enzyme]
-        #         regions = self.hierarchy.get_attached_regions(ag_node)
-        #         kinase_regions = set()
-        #         for region in regions:
-        #             if 'kinase' in self.hierarchy.ag_node_semantics(region):
-        #                 kinase_regions.add(region)
+    def _create_nugget(self, bnd, add_agents=True, anatomize=True,
+                       merge_actions=True, apply_semantics=True):
 
-        #         # if there is only one kinase region
-        #         if len(kinase_regions) == 1:
-        #             kinase_region = list(kinase_regions)[0]
-        #         elif len(kinase_regions) > 1:
-        #             warnings.warn(
-        #                 "Cannot resolve phospho modification: "
-        #                 "multiple protein kinase regions (%s) are associated "
-        #                 "with a single protein in the action graph: %s" %
-        #                 (", ".join(kinase_regions), enzyme),
-        #                 KamiWarning
-        #             )
-        #         else:
-        #             warnings.warn(
-        #                 "Cannot resolve phospho modification: "
-        #                 "no protein kinase region is associated "
-        #                 "with the protein in the action graph: %s" % enzyme,
-        #                 KamiWarning
-        #             )
-        #     if kinase_region:
+        nugget = NuggetContainer()
+        nugget.template_id = "bnd_template"
 
-        #         # if kinase_region was not in the nugget
-        #         if kinase_region not in nugget.graph.nodes():
-        #             # autocomplete nugget by inserting kinase region
-        #             nugget.add_node(
-        #                 kinase_region,
-        #                 self.hierarchy.action_graph.node[kinase_region],
-        #                 meta_typing="region",
-        #                 ag_typing=kinase_region,
-        #                 semantic_rels={
-        #                     "phosphorylation": ['kinase']
-        #                 }
-        #             )
-        #             remove_edge(nugget.graph, enzyme, "mod")
-        #             nugget.add_edge(kinase_region, "mod")
-        #             nugget.add_edge(kinase_region, enzyme)
-        #         else:
-        #             nugget.semantic_rels["phosphorylation"] = set()
-        #             nugget.semantic_rels["phosphorylation"].add(
-        #                 (kinase_region, 'kinase')
-        #             )
+        left = []
+        right = []
 
-        #         ag_region = nugget.ag_typing[kinase_region]
-        #         mods = self.hierarchy.ag_successors_of_type(ag_region, "mod")
+        # 1. create bnd actors
+        for member in bnd.left:
+            region_id = None
+            site_id = None
+            if isinstance(member, Gene):
+                gene_id = self._generate_gene(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            elif isinstance(member, RegionActor):
+                (gene_id, region_id) = self._generate_region_actor(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            elif isinstance(member, SiteActor):
+                (gene_id, site_id, region_id) = self._generate_site_actor(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            else:
+                raise NuggetGenerationError(
+                    "Unkown type of an agent: '%s'" % type(member)
+                )
 
-        #         # if mod associated with
-        #         # protein kinase region already exists
-        #         if len(mods) == 1:
-        #             nugget.ag_typing["mod"] = mods[0]
-        #             add_node_attrs(
-        #                 self.hierarchy.action_graph,
-        #                 mods[0],
-        #                 mod_attrs
-        #             )
-        #             if (mods[0], nugget.ag_typing[mod_state_id]) not \
-        #                in self.hierarchy.action_graph.edges():
-        #                 add_edge(
-        #                     self.hierarchy.action_graph, mods[0],
-        #                     nugget.ag_typing[mod_state_id]
-        #                 )
+            nugget.template_rel[gene_id] = {"left_partner"}
+            if site_id is not None:
+                left.append(site_id)
+                nugget.template_rel[site_id] = {"left_partner_site"}
+            if region_id is not None:
+                nugget.template_rel[region_id] = {"left_partner_region"}
+                if site_id is None:
+                    left.append(region_id)
+            if site_id is None and region_id is None:
+                left.append(gene_id)
 
-        #         # if no mod associated with protein kinase exists
-        #         elif len(mods) == 0:
-        #             # add new mod and associated with phospho
-        #             mod_id = self.hierarchy.add_mod(
-        #                 mod_attrs,
-        #                 semantics=["phospho"]
-        #             )
+        for member in bnd.right:
+            region_id = None
+            site_id = None
+            if isinstance(member, Gene):
+                gene_id = self._generate_gene(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            elif isinstance(member, RegionActor):
+                (gene_id, region_id) = self._generate_region_actor(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            elif isinstance(member, SiteActor):
+                (gene_id, site_id, region_id) = self._generate_site_actor(
+                    nugget, member, add_agents, anatomize,
+                    merge_actions, apply_semantics
+                )
+            else:
+                raise NuggetGenerationError(
+                    "Unkown type of an agent: '%s'" % type(member)
+                )
 
-        #             nugget.ag_typing["mod"] = mod_id
+            nugget.template_rel[gene_id] = {"right_partner"}
+            if site_id is not None:
+                right.append(site_id)
+                nugget.template_rel[site_id] = {"right_partner_site"}
+            if region_id is not None:
+                nugget.template_rel[region_id] = {"right_partner_region"}
+                if site_id is None:
+                    right.append(region_id)
+            if site_id is None and region_id is None:
+                right.append(gene_id)
 
-        #             # add edge `kinase -> mod` and `mod -> mod_state`
-        #             add_edge(
-        #                 self.hierarchy.action_graph,
-        #                 kinase_region,
-        #                 mod_id
-        #             )
-        #             add_edge(
-        #                 self.hierarchy.action_graph,
-        #                 mod_id,
-        #                 nugget.ag_typing[mod_state_id]
-        #             )
-        #         else:
-        #             warnings.warn(
-        #                 "Cannot resolve phospho modification: "
-        #                 "multiple modifications are associated "
-        #                 "with a single protein kinase domain "
-        #                 "in the action graph: %s" % region,
-        #                 KamiWarning
-        #             )
-        #         nugget.semantic_rels["phosphorylation"].add(
-        #             ("mod", "phospho")
-        #         )
-        #         nugget.semantic_rels["phosphorylation"].add(
-        #             (mod_state_id, "target_state")
-        #         )
+        # 2. create binding action
+        left_ids = "_".join(left)
+        right_ids = "_".join(right)
+        bnd_id = get_nugget_bnd_id(nugget.graph, left_ids, right_ids)
 
-        #         self.hierarchy.add_ag_node_semantics(
-        #             nugget.ag_typing[mod_state_id],
-        #             "phosphorylation_state"
-        #         )
+        bnd_attrs = {
+            "direct": bnd.direct
+        }
+        if bnd.annotation:
+            bnd_attrs.update(bnd.annotation.to_attrs())
 
-        #         if mod_residue_id:
-        #             nugget.semantic_rels["phosphorylation"].add(
-        #                 (mod_residue_id, "target_residue")
-        #             )
-        #             self.hierarchy.add_ag_node_semantics(
-        #                 nugget.ag_typing[mod_residue_id],
-        #                 "phospho_target_residue"
-        #             )
+        nugget.add_node(
+            bnd_id, bnd_attrs,
+            meta_typing="bnd",
+            template_rel=["bnd"]
+        )
 
-        # 2. DEPHOSPHORYLATION
+        # 3. create loci
+        left_locus = get_nugget_locus_id(nugget.graph, left_ids, bnd_id)
+        nugget.add_node(
+            left_locus,
+            meta_typing="locus",
+            template_rel=["left_partner_locus"]
+        )
+        nugget.add_edge(left_locus, bnd_id)
 
-        return nugget
+        right_locus = get_nugget_locus_id(
+            nugget.graph, right_ids, bnd_id
+        )
+        nugget.add_node(
+            right_locus,
+            meta_typing="locus",
+            template_rel=["right_partner_locus"]
+        )
+        nugget.add_edge(right_locus, bnd_id)
+
+        # 4. connect left/right members to the respective loci
+        for member in left:
+            nugget.add_edge(member, left_locus)
+
+        for member in right:
+            nugget.add_edge(member, right_locus)
+
+        # try to find if some bnd in ag corresponds to our bnd
+
+        return nugget, "bnd"

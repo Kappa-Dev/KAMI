@@ -38,7 +38,7 @@ class KamiHierarchy(Hierarchy):
         self.bnd_template = self.node["bnd_template"].graph
         self.semantic_action_graph = self.node["semantic_action_graph"].graph
 
-    def rewrite(self, graph_id, rule, instance,
+    def rewrite(self, graph_id, rule, instance=None,
                 lhs_typing=None, rhs_typing=None,
                 strict=True, inplace=True):
         """."""
@@ -64,7 +64,7 @@ class KamiHierarchy(Hierarchy):
         self.add_relation(
             "action_graph",
             "semantic_action_graph",
-            set()
+            dict()
         )
         self.action_graph = self.node["action_graph"].graph
         self.action_graph_typing = self.edge["action_graph"]["kami"].mapping
@@ -121,28 +121,19 @@ class KamiHierarchy(Hierarchy):
         if nuggets is not None:
             for nugget_id, nugget_graph in nuggets:
                 self.add_graph(
-                    nugget_id,
-                    nugget_graph,
-                    {"type": "nugget"}
-                )
+                    nugget_id, nugget_graph, {"type": "nugget"})
                 self.nugget[nugget_id] = self.node[nugget_id].graph
 
         if nuggets_ag_typing is not None:
             for nugget_id, typing in nuggets_ag_typing.items():
                 self.add_typing(
-                    nugget_id,
-                    "action_graph",
-                    typing
-                )
+                    nugget_id, "action_graph", typing)
 
         if nuggets_template_rels is not None:
             for nugget_id, nugget_rels in nuggets_template_rels.items():
                 for template_id, rel in nugget_rels.items():
                     self.add_relation(
-                        nugget_id,
-                        template_id,
-                        rel
-                    )
+                        nugget_id, template_id, rel)
 
         if nuggets_semantic_rels is not None:
             for nugget_id, nugget_rels in nuggets_semantic_rels.items():
@@ -409,8 +400,8 @@ class KamiHierarchy(Hierarchy):
             for site in self.get_attached_sites(ref_agent):
                 if "start" in self.action_graph.node[site].keys() and\
                    "end" in self.action_graph.node[site].keys():
-                    start = list(self.action_graph.node[site]["start"])[0]
-                    end = list(self.action_graph.node[site]["end"])[0]
+                    start = min(self.action_graph.node[site]["start"])
+                    end = max(self.action_graph.node[site]["end"])
                     if start >= region.start and end <= region.end:
                         add_edge(self.action_graph, site, region_id)
 
@@ -449,10 +440,10 @@ class KamiHierarchy(Hierarchy):
                 if site.start and site.end:
                     if "start" in self.action_graph.node[region] and\
                        "end" in self.action_graph.node[region]:
-                        if int(site.start) >= list(self.action_graph.node[
-                            region]["start"])[0] and\
-                           int(site.end) <= list(self.action_graph.node[
-                                region]["end"])[0]:
+                        if int(site.start) >= min(self.action_graph.node[
+                            region]["start"]) and\
+                           int(site.end) <= max(self.action_graph.node[
+                                region]["end"]):
                             add_edge(self.action_graph, site_id, region)
             # reconnect all the residues of the corresponding gene
             # that lie in the region range
@@ -516,10 +507,10 @@ class KamiHierarchy(Hierarchy):
                     if residue.loc:
                         if "start" in self.action_graph.node[region] and\
                            "end" in self.action_graph.node[region]:
-                            start = list(
-                                self.action_graph.node[region]["start"])[0]
-                            end = list(
-                                self.action_graph.node[region]["end"])[0]
+                            start = min(
+                                self.action_graph.node[region]["start"])
+                            end = max(
+                                self.action_graph.node[region]["end"])
                             if int(residue.loc) >= start and\
                                int(residue.loc) <= end:
                                 add_edge(self.action_graph, residue_id, region)
@@ -528,10 +519,10 @@ class KamiHierarchy(Hierarchy):
                     if residue.loc:
                         if "start" in self.action_graph.node[site] and\
                            "end" in self.action_graph.node[site]:
-                            start = list(
-                                self.action_graph.node[site]["start"])[0]
-                            end = list(
-                                self.action_graph.node[site]["end"])[0]
+                            start = min(
+                                self.action_graph.node[site]["start"])
+                            end = max(
+                                self.action_graph.node[site]["end"])
                             if int(residue.loc) >= start and\
                                int(residue.loc) <= end:
                                 add_edge(self.action_graph, residue_id, site)
@@ -553,10 +544,10 @@ class KamiHierarchy(Hierarchy):
                         if residue.loc:
                             if "start" in self.action_graph.node[site] and\
                                "end" in self.action_graph.node[site]:
-                                start = list(
-                                    self.action_graph.node[site]["start"])[0]
-                                end = list(
-                                    self.action_graph.node[site]["end"])[0]
+                                start = min(
+                                    self.action_graph.node[site]["start"])
+                                end = max(
+                                    self.action_graph.node[site]["end"])
                                 if int(residue.loc) >= start and\
                                    int(residue.loc) <= end:
                                     add_edge(self.action_graph, residue_id, site)
@@ -649,9 +640,9 @@ class KamiHierarchy(Hierarchy):
             start = None
             end = None
             if "start" in self.action_graph.node[f].keys():
-                start = list(self.action_graph.node[f]["start"])[0]
+                start = min(self.action_graph.node[f]["start"])
             if "end" in self.action_graph.node[f].keys():
-                end = list(self.action_graph.node[f]["end"])[0]
+                end = max(self.action_graph.node[f]["end"])
             if fragment.start is not None and fragment.end is not None and\
                start is not None and end is not None:
                 if int(fragment.start) >= int(start) and\
@@ -684,7 +675,7 @@ class KamiHierarchy(Hierarchy):
                 if len(same_order_fragments) == 0:
                     try:
                         start_orders = np.argsort([
-                            list(self.action_graph.node[f]["start"])[0]
+                            min(self.action_graph.node[f]["start"])
                             for f in satifying_fragments
                         ])
                         return satifying_fragments[
@@ -785,8 +776,8 @@ class KamiHierarchy(Hierarchy):
                 nugget_id = name + "_" + str(i)
         return nugget_id
 
-    def add_nugget(self, nugget, add_agents=True,
-                   anatomize=True, name=None):
+    def add_nugget(self, nugget, nugget_type, add_agents=True,
+                   anatomize=True, apply_semantics=True, name=None):
         """Add nugget to the hierarchy."""
         nugget_id = self._generate_nugget_id()
 
@@ -804,10 +795,13 @@ class KamiHierarchy(Hierarchy):
         self.add_graph(
             nugget_id,
             lhs,
-            {"type": "nugget"}
+            {
+                "type": "nugget",
+                "interaction_type": nugget_type
+            }
         )
         self.nugget[nugget_id] = self.node[nugget_id].graph
-        self.add_typing(nugget_id, "action_graph", {})
+        self.add_typing(nugget_id, "action_graph", dict())
 
         # 4. Apply nugget generation rule
         g_prime, r_g_prime = self.rewrite(
@@ -818,11 +812,7 @@ class KamiHierarchy(Hierarchy):
         self.add_template_rel(
             nugget_id, nugget.template_id, nugget.template_rel)
 
-        # add semantic relations found for the nugget
-        for semantic_nugget, rel in nugget.semantic_rels.items():
-            self.add_semantic_nugget_rel(
-                nugget_id, semantic_nugget, rel
-            )
+        # 5. Anatomize new genes added as the result of nugget creation
         if anatomize is True:
             # Get a set of genes added by the nugget
             new_gene_nodes = set()
@@ -833,10 +823,24 @@ class KamiHierarchy(Hierarchy):
                     if node not in nugget.ag_typing:
                         new_gene_nodes.add(ag_node)
             for gene in new_gene_nodes:
-                self.anatomize_gene(gene)
+                self.anatomize_gene(gene, nugget_id)
+
+        # 6. Apply semantics to the nugget
+        if apply_semantics is True:
+            if "mod" in self.node[nugget_id].attrs["interaction_type"]:
+                self.apply_mod_semantics(nugget_id)
+            elif "bnd" in self.node[nugget_id].attrs["interaction_type"]:
+                self.apply_bnd_semantics(nugget_id)
+
+        # 7. Add semantic relations found for the nugget
+        for semantic_nugget, rel in nugget.semantic_rels.items():
+            self.add_semantic_nugget_rel(
+                nugget_id, semantic_nugget, rel
+            )
+
         return nugget_id
 
-    def anatomize_gene(self, gene):
+    def anatomize_gene(self, gene, nugget_id):
         """Anatomize existing gene node in the action graph."""
         if gene not in self.action_graph.nodes() or\
            self.action_graph_typing[gene] != "gene":
@@ -917,16 +921,16 @@ class KamiHierarchy(Hierarchy):
                         if "start" in self.action_graph.node[existing_region_id].keys() and\
                            len(self.action_graph.node[existing_region_id]["start"]) > 0:
                             existing_start =\
-                                int(list(
+                                int(min(
                                     self.action_graph.node[
-                                        existing_region_id]["start"])[0])
+                                        existing_region_id]["start"]))
                         existing_end = None
                         if "end" in self.action_graph.node[existing_region_id].keys() and\
                            len(self.action_graph.node[existing_region_id]["end"]) > 0:
                             existing_end =\
-                                int(list(
+                                int(max(
                                     self.action_graph.node[
-                                        existing_region_id]["end"])[0])
+                                        existing_region_id]["end"]))
                         new_start = None
                         new_end = None
                         if existing_start is not None and region.start is not None:
@@ -972,87 +976,147 @@ class KamiHierarchy(Hierarchy):
                             activity_state_id] = "state"
                     if "IPR000980" in domain.ipr_ids:
                         semantic_relations[region_id].add("sh2_domain")
-
             _, rhs_g = self.rewrite(
                 "action_graph", anatomization_rule,
                 instance, rhs_typing=anatomization_rule_typing,
                 strict=True, inplace=True)
             for new_node_id, semantics in semantic_relations.items():
                 for s in semantics:
-                    self.relation["action_graph"][
-                        "semantic_action_graph"].rel.add(
-                        (rhs_g[new_node_id], s))
+                    if rhs_g[new_node_id] in self.relation["action_graph"][
+                            "semantic_action_graph"].rel.keys():
+                        self.relation["action_graph"][
+                            "semantic_action_graph"].rel[rhs_g[new_node_id]].add(s)
+                    else:
+                        self.relation["action_graph"][
+                            "semantic_action_graph"].rel[rhs_g[new_node_id]] = {s}
         else:
             warnings.warn(
                 "Unable to anatomize gene node '%s'" % gene,
                 KamiHierarchyWarning)
 
-    # def _regions_included(self, r1, r2, gene):
-    #     name = None
-    #     if "name" in self.action_graph.node[r1].keys() and\
-    #        len(self.action_graph.node[r1]["name"]) > 0:
-    #         start = list(self.action_graph.node[r1]["name"])[0]
+    def apply_mod_semantics(self, nugget_id):
+        """Apply mod semantics to the created nugget."""
+        template_rel = self.relation["mod_template"][nugget_id].rel
+        enzyme = list(template_rel["enzyme"])[0]
+        mod_state = list(template_rel["mod_state"])[0]
+        mod_node = list(template_rel["mod"])[0]
+        enzyme_ag = self.typing[nugget_id]["action_graph"][enzyme]
+        mod_node_ag = self.typing[nugget_id]["action_graph"]["mod"]
 
-    #     start = None
-    #     if "start" in self.action_graph.node[r1].keys() and\
-    #        len(self.action_graph.node[r1]["start"]) > 0:
-    #         start = list(self.action_graph.node[r1]["start"])[0]
+        dephospho = False
+        phospho = False
 
-    #     end = None
-    #     if "end" in self.action_graph.node[r1].keys() and\
-    #        len(self.action_graph.node[r1]["end"]) > 0:
-    #         start = list(self.action_graph.node[r1]["end"])[0]
+        if "phosphorylation" in self.nugget[nugget_id].node[mod_state].keys():
+            if True in self.nugget[nugget_id].node[
+                    mod_node]["value"]:
+                phospho = True
+            elif False in self.nugget[nugget_id].node[mod_node]["value"]:
+                dephospho = True
 
-    #     order = None
-    #     if "order" in self.action_graph.node[r1].keys() and\
-    #        len(self.action_graph.node[r1]["order"]) > 0:
-    #         start = list(self.action_graph.node[r1]["order"])[0]
+        # 1. Phospho semantics
+        autocompletion_rule = None
 
-    #     label = None
-    #     if "label" in self.action_graph.node[r1].keys() and\
-    #        len(self.action_graph.node[r1]["label"]) > 0:
-    #         start = list(self.action_graph.node[r1]["label"])[0]
+        if phospho:
+            if "enzyme_region" in template_rel.keys():
+                enz_region = list(template_rel["enzyme_region"])[0]
+                ag_enz_region = self.typing[nugget_id][
+                    "action_graph"][enz_region]
+                ag_enz_region_semantics =\
+                    self.relation["action_graph"][
+                        "semantic_action_graph"].rel[ag_enz_region]
+                if 'protein_kinase' in ag_enz_region_semantics:
+                    # TODO: Search for kinase activity in the nugget
+                    enz_region_predecessors = self.nugget[
+                        nugget_id].predecessors(enz_region)
+                    for pred in enz_region_predecessors:
+                        self.typing[nugget_id]["action_graph"][pred]
+                    # add kinase activity to the nugget
 
-    #     r1_obj = Region(
-    #         name=name, start=start, end=end, order=order,
-    #         label=label)
+                    # kinase_states = self.ag_predecessors_of_type("state")
+                    # TODO: Check the phosphotelated residue
+                    pass
+            else:
+                enz_region = None
+                unique_kinase_region =\
+                    self.unique_kinase_region(enzyme_ag)
+                if unique_kinase_region is not None:
+                    kinase_mods =\
+                        self.ag_successors_of_type(unique_kinase_region, "mod")
+                    # generate a rule that merges mods
+                    pattern = nx.DiGraph()
+                    add_nodes_from(
+                        pattern,
+                        [mod_node_ag, enzyme_ag] + kinase_mods)
+                    add_edges_from(pattern, [(enzyme_ag, mod_node_ag)])
+                    mod_merge_rule = Rule.from_transform(pattern)
+                    mod_merge_rule.inject_remove_edge(enzyme_ag, mod_node_ag)
+                    new_mod_id = mod_merge_rule.inject_merge_nodes(
+                        [mod_node_ag] + kinase_mods,
+                        node_id="mod_" + unique_kinase_region)
 
-    #     name = None
-    #     if "name" in self.action_graph.node[r2].keys() and\
-    #        len(self.action_graph.node[r2]["name"]) > 0:
-    #         start = list(self.action_graph.node[r2]["name"])[0]
+                    _, rhs_ag = self.rewrite("action_graph", mod_merge_rule)
 
-    #     start = None
-    #     if "start" in self.action_graph.node[r2].keys() and\
-    #        len(self.action_graph.node[r2]["start"]) > 0:
-    #         start = list(self.action_graph.node[r2]["start"])[0]
+                    new_ag_mod = rhs_ag[new_mod_id]
 
-    #     end = None
-    #     if "end" in self.action_graph.node[r2].keys() and\
-    #        len(self.action_graph.node[r2]["end"]) > 0:
-    #         start = list(self.action_graph.node[r2]["end"])[0]
+                    autocompletion_rule = Rule.from_transform(
+                        self.nugget[nugget_id])
+                    autocompletion_rule.inject_add_node(
+                        unique_kinase_region,
+                        self.action_graph.node[unique_kinase_region])
+                    autocompletion_rule.inject_add_edge(
+                        unique_kinase_region, enzyme)
+                    autocompletion_rule.inject_add_edge(
+                        unique_kinase_region, mod_node)
+                    rhs_typing = {
+                        "action_graph": {
+                            unique_kinase_region: unique_kinase_region,
+                            mod_node: new_ag_mod
+                        }
+                    }
 
-    #     order = None
-    #     if "order" in self.action_graph.node[r2].keys() and\
-    #        len(self.action_graph.node[r2]["order"]) > 0:
-    #         start = list(self.action_graph.node[r2]["order"])[0]
+                    _, rhs_nugget = self.rewrite(
+                        nugget_id, autocompletion_rule,
+                        rhs_typing=rhs_typing)
+                    enz_region = rhs_nugget[unique_kinase_region]
+                else:
+                    warnings.warn(
+                        "Could not find the unique protein kinase "
+                        "region associated with the gene '%s'" % enzyme_ag,
+                        KamiHierarchyWarning)
 
-    #     label = None
-    #     if "label" in self.action_graph.node[r2].keys() and\
-    #        len(self.action_graph.node[r2]["label"]) > 0:
-    #         start = list(self.action_graph.node[r2]["label"])[0]
+            self.add_semantic_nugget_rel(
+                nugget_id,
+                "phosphorylation",
+                {
+                    enz_region: "protein_kinase",
+                    "mod": "phospho",
+                    mod_state: "target_state",
+                }
+            )
 
-    #     r2_obj = Region(
-    #         name=name, start=start, end=end, order=order,
-    #         label=label)
+    def apply_bnd_semantics(self, nugget_id):
+        """Apply bnd semantics to the created nugget."""
+        # 1. SH2 - pY binding
 
-    #     ref1_id = self.identify_region(r1_obj, gene)
-    #     if ref1_id == r2:
-    #         return True
+        # a) Left partner is SH2
+        # if len(bnd.left) == 1:
+        #     if isinstance(bnd.left[0], RegionActor):
+        #         if "sh2" in self.hierarchy.ag_node_semantics(
+        #                 nugget.ag_typing[left[0]]):
+        #             self._apply_sh2_semantics(
+        #                 nugget, left[0], left_locus, bnd_id,
+        #                 right, right_locus, bnd_attrs
+        #             )
 
-    #     ref2_id = self.identify_region(r2_obj, gene)
-    #     if ref2_id == r1:
-    #         return True
+        # # b) Right partner is SH2
+        # if len(bnd.right) == 1:
+        #     if isinstance(bnd.right[0], RegionActor):
+        #         if "sh2" in self.hierarchy.ag_node_semantics(
+        #                 nugget.ag_typing[right[0]]):
+        #             self._apply_sh2_semantics(
+        #                 nugget, right[0], right_locus, bnd_id, left,
+        #                 left_locus, bnd_attrs
+        #             )
 
     def type_nugget_by_ag(self, nugget_id, typing):
         """Type nugget by the action graph."""
@@ -1074,15 +1138,9 @@ class KamiHierarchy(Hierarchy):
         self.add_relation(nugget_id, semantic_nugget_id, rel)
         return
 
-    def merge_model(self, nugget, action_graph, ag_relation):
-        """Merge hierarchy with an input model."""
-        pass
-
     def ag_to_edge_list(self, agent_ids="hgnc_symbol"):
         edge_list = []
         for u, v in self.action_graph.edges():
-            u = u.replace(",", "").replace(" ", "")
-            v = v.replace(",", "").replace(" ", "")
             if self.action_graph_typing[u] == "gene":
                 hgnc = None
                 if "hgnc_symbol" in self.action_graph.node[u].keys():
@@ -1102,6 +1160,20 @@ class KamiHierarchy(Hierarchy):
                 else:
                     n2 = v
             else:
-                n2 = v
+                n2 = v.replace(",", "").replace(" ", "")
             edge_list.append((n1, n2))
         return edge_list
+
+    def unique_kinase_region(self, gene):
+        """Get the unique kinase region of the gene."""
+        ag_sag_relation = self.relation[
+            "action_graph"]["semantic_action_graph"].rel
+        kinase = None
+        for node in self.action_graph.predecessors(gene):
+            if node in ag_sag_relation.keys() and\
+               "protein_kinase" in ag_sag_relation[node]:
+                    if kinase is None:
+                        kinase = node
+                    else:
+                        return None
+        return kinase

@@ -11,53 +11,84 @@ add_nodes_from(
     [
         "enzyme",
         "enzyme_region",
+        "enzyme_site",
         "substrate",
         "substrate_region",
+        "substrate_site",
         "substrate_residue",
         "mod_state",
         "mod"
     ]
 )
 add_edges_from(mod_nugget, [
+    ("enzyme_site", "enzyme"),
+    ("enzyme_site", "enzyme_region"),
+    ("enzyme_site", "mod"),
     ("enzyme_region", "enzyme"),
     ("enzyme", "mod"),
     ("enzyme_region", "mod"),
     ("mod", "mod_state"),
     ("mod_state", "substrate"),
+    ("mod_state", "substrate_site"),
     ("mod_state", "substrate_region"),
     ("mod_state", "substrate_residue"),
     ("substrate_region", "substrate"),
     ("substrate_residue", "substrate"),
-    ("substrate_residue", "substrate_region")
+    ("substrate_residue", "substrate_region"),
+    ("substrate_site", "substrate"),
+    ("substrate_site", "substrate_region"),
+    ("substrate_residue", "substrate_site")
 ])
 
 mod_kami_typing = {
     "enzyme": "gene",
     "enzyme_region": "region",
+    "enzyme_site": "site",
     "substrate": "gene",
     "substrate_region": "region",
     "substrate_residue": "residue",
+    "substrate_site": "site",
     "mod_state": "state",
     "mod": "mod"
 }
 
 bnd_nugget = nx.DiGraph()
 add_nodes_from(bnd_nugget, [
-    "partner",
-    "partner_region",
-    "partner_locus",
+    "left_partner",
+    "right_partner",
+    "left_partner_region",
+    "right_partner_region",
+    "left_partner_site",
+    "right_partner_site",
+    "left_partner_locus",
+    "right_partner_locus",
     "bnd"
 ])
 add_edges_from(bnd_nugget, [
-    ("partner_region", "partner"),
-    ("partner_region", "partner_locus"),
-    ("partner", "partner_locus"),
-    ("partner_locus", "bnd")
+    ("left_partner_site", "left_partner"),
+    ("left_partner_site", "left_partner_region"),
+    ("right_partner_site", "right_partner"),
+    ("right_partner_site", "right_partner_region"),
+    ("left_partner_region", "left_partner"),
+    ("right_partner_region", "right_partner"),
+    ("left_partner_site", "left_partner_locus"),
+    ("right_partner_site", "right_partner_locus"),
+    ("left_partner_region", "left_partner_locus"),
+    ("right_partner_region", "right_partner_locus"),
+    ("left_partner", "left_partner_locus"),
+    ("right_partner", "right_partner_locus"),
+    ("left_partner_locus", "bnd"),
+    ("right_partner_locus", "bnd")
 ])
 
 bnd_kami_typing = {
-    "partner": "gene",
-    "partner_region": "region",
-    "partner_locus": "locus",
-    "bnd": "bnd"
+    "left_partner": "gene",
+    "right_partner": "gene",
+    "left_partner_region": "region",
+    "right_partner_region": "region",
+    "left_partner_site": "site",
+    "right_partner_site": "site",
+    "left_partner_locus": "locus",
+    "right_partner_locus": "locus",
+    "bnd": "bnd",
 }

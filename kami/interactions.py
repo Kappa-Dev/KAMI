@@ -1,4 +1,6 @@
 """Collection of classes implementing interactions."""
+from kami.entities import (Gene, SiteActor, RegionActor, Actor)
+from kami.exceptions import KamiError
 
 
 class Interaction:
@@ -11,6 +13,16 @@ class Modification(Interaction):
     def __init__(self, enzyme, substrate, mod_target,
                  mod_value=True, annotation=None, direct=False):
         """Initialize modification."""
+        if not isinstance(enzyme, Actor):
+            raise KamiError(
+                "Enzyme of Modification interaction should be "
+                "an instance of 'kami.entities.Actor' class: "
+                "'%s' received instead" % type(enzyme))
+        if not isinstance(substrate, Actor):
+            raise KamiError(
+                "Substrate of Modification interaction should be "
+                "an instance of 'kami.entities.Actor' class: "
+                "'%s' received instead" % type(substrate))
         self.enzyme = enzyme
         self.substrate = substrate
         self.target = mod_target
@@ -28,6 +40,18 @@ class Modification(Interaction):
         res += "\tValue: %s\n" % self.value
         res += "\tDirect? %s\n" % self.direct
         return res
+
+    def enzyme_site(self):
+        """Test if the enzyme actor is a SiteActor."""
+        return isinstance(self.enzyme, SiteActor)
+
+    def enzyme_region(self):
+        """Test if the enzyme actor is a RegionActor."""
+        return isinstance(self.enzyme, RegionActor)
+
+    def enzyme_gene(self):
+        """Test if the enzyme actor is a Gene."""
+        return isinstance(self.enzyme, Gene)
 
 
 class AutoModification(Modification):
@@ -76,11 +100,11 @@ class AnonymousModification(Modification):
         self.direct = direct
 
 
-class BinaryBinding:
+class Binding:
     """Class for Kami binary binding interaction."""
 
     def __init__(self, left_members, right_members,
-                 annotation=None, direct=False):
+                 annotation=None, direct=True):
         """Initialize binary binding."""
         self.left = left_members
         self.right = right_members
