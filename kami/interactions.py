@@ -62,7 +62,7 @@ class AutoModification(Modification):
                  direct=False):
         """Initialize modification."""
         self.enzyme = enzyme_agent
-        self.enz_region = enz_region
+        self.enzyme_region = enz_region
         self.substrate_region = sub_region
         self.target = mod_target
         self.value = mod_value

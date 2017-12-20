@@ -25,7 +25,7 @@ class TestNewGenerators:
             Residue("T", 100, State("phosphorylation", False)),
             True
         )
-        n_id = modgen.generate(mod)
+        n1_id = modgen.generate(mod)
 
         mod = Modification(
             RegionActor(
@@ -35,7 +35,7 @@ class TestNewGenerators:
             Residue("Y", 500, State("phosphorylation", False)),
             True
         )
-        n_id = modgen.generate(mod)
+        n2_id = modgen.generate(mod)
 
         mod = Modification(
             Gene("P00533"),
@@ -43,26 +43,30 @@ class TestNewGenerators:
             State("phosphorylation", False),
             True
         )
-        n_id = modgen.generate(mod)
-        # print_graph(hie.action_graph)
-        # print_graph(hie.nugget[n_id])
+        n3_id = modgen.generate(mod)
 
     # def test_bnd_generation(self):
-        # hie = KamiHierarchy()
-        # hie.create_empty_action_graph()
+    #     hie = KamiHierarchy()
+    #     hie.create_empty_action_graph()
 
         bndgen = BndGenerator(hie)
+        bnd = Binding(
+            [RegionActor(gene=Gene("P62993"), region=Region(name="SH2"))],
+            [Gene("Q8WU20",
+                  synonyms=["FRS2"],
+                  residues=[Residue("Y", 196, State("phosphorylation", True))])]
+        )
+        n_id = bndgen.generate(bnd)
 
         bnd = Binding(
             [RegionActor(gene=Gene("P62993"), region=Region(name="SH2"))],
             [SiteActor(gene=Gene("P00533"), site=Site(name="pY"))]
         )
         n_id = bndgen.generate(bnd)
-        print_graph(hie.action_graph)
-        print(hie.relation["action_graph"]["semantic_action_graph"].rel)
-        print_graph(hie.nugget[n_id])
 
-        edge_list = hie.ag_to_edge_list()
-        with open("lala.csv", "w+") as f:
-            for u, v in edge_list:
-                f.write("%s, %s\n" % (u, v))
+        # print_graph(hie.action_graph)
+        # edge_list = hie.ag_to_edge_list()
+        # with open("lala.csv", "w+") as f:
+        #     for u, v in edge_list:
+        #         f.write("%s, %s\n" % (u, v))
+        print(hie.relation["action_graph"]["semantic_action_graph"].rel)

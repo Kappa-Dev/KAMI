@@ -47,7 +47,7 @@ class TestKamiHierarchy(object):
             "P00519", synonyms=["ABL1"]
         )
         abl1_sh2 = entities.RegionActor(abl1, sh2)
-        bnd = interactions.BinaryBinding([plcg1_pY1253], [abl1_sh2])
+        bnd = interactions.Binding([plcg1_pY1253], [abl1_sh2])
 
         create_nuggets([bnd], hierarchy)
         assert(hierarchy.empty() is False)

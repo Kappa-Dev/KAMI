@@ -2,10 +2,10 @@
 
 from regraph.primitives import (print_graph)
 
-from kami.resolvers.generators import (NuggetContainer, Generator,
-                                       ModGenerator)
+from kami.resolvers.new_generators import (NuggetContainer, Generator,
+                                           ModGenerator)
 from kami.interactions import (Modification,
-                               BinaryBinding)
+                               Binding)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.hierarchy import KamiHierarchy
@@ -34,32 +34,32 @@ class TestBlackBox(object):
         # If the parameter 'add_agents' is set to false
         # this should raise an exception as there is no
         # corresponding state in the ag yet
-        # try:
-        old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
+
+        # old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
         state1 = self.generator._generate_state(
-            nugget, state_true,
-            self.default_ag_gene, add_agents=False)
+            nugget, state_true, self.default_ag_gene)
 
         state2 =\
             self.generator._generate_state(
                 nugget, state_true, self.default_ag_gene)
         state3 =\
             self.generator._generate_state(
-                nugget, state_false, self.default_ag_gene, add_agents=False)
-        assert(
-            False not in
-            self.generator.hierarchy.action_graph.node[
-                nugget.ag_typing[state2]]['activity'])
+                nugget, state_false, self.default_ag_gene)
+
+        # assert(
+        #     False not in
+        #     self.generator.hierarchy.action_graph.node[
+        #         nugget.ag_typing[state2]]['activity'])
 
         state4 =\
             self.generator._generate_state(
-                nugget, state_false, self.default_ag_gene, add_agents=True)
+                nugget, state_false, self.default_ag_gene)
 
         assert(len(nugget.graph.nodes()) == 4)
         # only one node was added to the action graph
-        assert(
-            len(self.generator.hierarchy.action_graph.nodes()) ==
-            old_ag_size + 1)
+        # assert(
+        #     len(self.generator.hierarchy.action_graph.nodes()) ==
+        #     old_ag_size + 1)
 
         assert("activity" in nugget.graph.node[state1].keys())
         assert("activity" in nugget.graph.node[state2].keys())
@@ -71,21 +71,21 @@ class TestBlackBox(object):
         assert(nugget.meta_typing[state3] == "state")
         assert(nugget.meta_typing[state4] == "state")
 
-        assert(state1 not in nugget.ag_typing.keys())
-        assert(state3 not in nugget.ag_typing.keys())
-        assert(nugget.ag_typing[state2] == nugget.ag_typing[state4])
-        assert(
-            nugget.ag_typing[state2] in
-            self.generator.hierarchy.action_graph.nodes())
-        assert(
-            nugget.ag_typing[state4] in
-            self.generator.hierarchy.action_graph.nodes())
-        assert(
-            (nugget.ag_typing[state2], self.default_ag_gene) in
-            self.generator.hierarchy.action_graph.edges())
-        assert(
-            (nugget.ag_typing[state4], self.default_ag_gene) in
-            self.generator.hierarchy.action_graph.edges())
+        # assert(state1 not in nugget.ag_typing.keys())
+        # assert(state3 not in nugget.ag_typing.keys())
+        # assert(nugget.ag_typing[state2] == nugget.ag_typing[state4])
+        # assert(
+        #     nugget.ag_typing[state2] in
+        #     self.generator.hierarchy.action_graph.nodes())
+        # assert(
+        #     nugget.ag_typing[state4] in
+        #     self.generator.hierarchy.action_graph.nodes())
+        # assert(
+        #     (nugget.ag_typing[state2], self.default_ag_gene) in
+        #     self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[state4], self.default_ag_gene) in
+        #     self.generator.hierarchy.action_graph.edges())
         return
 
     def test_residue_generator(self):
@@ -101,46 +101,46 @@ class TestBlackBox(object):
         old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
         residue1, state1 =\
             self.generator._generate_residue(
-                nugget, t, self.default_ag_gene, add_agents=False)
+                nugget, t, self.default_ag_gene)
         assert(state1 is None)
-        assert(residue1 not in nugget.ag_typing.keys())
+        # assert(residue1 not in nugget.ag_typing.keys())
         assert(residue1 in nugget.nodes())
 
         residue2, _ =\
             self.generator._generate_residue(
-                nugget, t, self.default_ag_gene, add_agents=True)
-        assert(residue2 in nugget.ag_typing.keys())
+                nugget, t, self.default_ag_gene)
+        # assert(residue2 in nugget.ag_typing.keys())
 
         residue3, _ =\
             self.generator._generate_residue(
                 nugget, t100, self.default_ag_gene)
-        assert(nugget.ag_typing[residue2] != nugget.ag_typing[residue3])
+        # assert(nugget.ag_typing[residue2] != nugget.ag_typing[residue3])
 
         residue4, state4 =\
             self.generator._generate_residue(
                 nugget, y100_phospho, self.default_ag_gene)
         assert(state4 is not None)
-        assert(nugget.ag_typing[residue4] == nugget.ag_typing[residue3])
+        # assert(nugget.ag_typing[residue4] == nugget.ag_typing[residue3])
 
         residue5, state5 =\
             self.generator._generate_residue(
                 nugget, y100_active, self.default_ag_gene)
 
         assert(len(nugget.nodes()) == 7)
-        assert(
-            len(self.generator.hierarchy.action_graph.nodes()) ==
-            old_ag_size + 4)
+        # assert(
+        #     len(self.generator.hierarchy.action_graph.nodes()) ==
+        #     old_ag_size + 4)
 
         assert("T" in nugget.graph.node[residue1]["aa"])
         assert("T" in nugget.graph.node[residue2]["aa"])
         assert("T" in nugget.graph.node[residue3]["aa"])
-        assert(
-            "T" in self.generator.hierarchy.action_graph.node[
-                nugget.ag_typing[residue2]]["aa"])
+        # assert(
+        #     "T" in self.generator.hierarchy.action_graph.node[
+        #         nugget.ag_typing[residue2]]["aa"])
         assert(100 in nugget.graph.node[residue3]["loc"])
-        assert(
-            100 in self.generator.hierarchy.action_graph.node[
-                nugget.ag_typing[residue3]]["loc"])
+        # assert(
+        #     100 in self.generator.hierarchy.action_graph.node[
+        #         nugget.ag_typing[residue3]]["loc"])
 
         assert(nugget.meta_typing[residue1] == "residue")
         assert(nugget.meta_typing[residue2] == "residue")
@@ -148,17 +148,17 @@ class TestBlackBox(object):
         assert(nugget.meta_typing[residue4] == "residue")
         assert(nugget.meta_typing[residue5] == "residue")
 
-        assert(
-            nugget.ag_typing[residue3] ==
-            nugget.ag_typing[residue4] ==
-            nugget.ag_typing[residue5])
+        # assert(
+        #     nugget.ag_typing[residue3] ==
+        #     nugget.ag_typing[residue4] ==
+        #     nugget.ag_typing[residue5])
 
-        assert(
-            (nugget.ag_typing[state5], nugget.ag_typing[residue3]) in
-            self.generator.hierarchy.action_graph.edges() and
-            (nugget.ag_typing[state4], nugget.ag_typing[residue3]) in
-            self.generator.hierarchy.action_graph.edges()
-        )
+        # assert(
+        #     (nugget.ag_typing[state5], nugget.ag_typing[residue3]) in
+        #     self.generator.hierarchy.action_graph.edges() and
+        #     (nugget.ag_typing[state4], nugget.ag_typing[residue3]) in
+        #     self.generator.hierarchy.action_graph.edges()
+        # )
 
     def test_site_generator(self):
         """Testing Site generation."""
@@ -179,51 +179,51 @@ class TestBlackBox(object):
 
         site_bob_id_1 =\
             self.generator._generate_site(
-                nugget, site_bob, self.default_ag_gene, add_agents=False)
+                nugget, site_bob, self.default_ag_gene)
         assert(site_bob_id_1 in nugget.nodes())
-        assert(site_bob_id_1 not in nugget.ag_typing.keys())
+        # assert(site_bob_id_1 not in nugget.ag_typing.keys())
 
         site_bob_id_2 =\
             self.generator._generate_site(
-                nugget, site_bob, self.default_ag_gene, add_agents=True)
+                nugget, site_bob, self.default_ag_gene)
         assert(site_bob_id_2 in nugget.nodes())
-        assert(site_bob_id_2 in nugget.ag_typing.keys())
+        # assert(site_bob_id_2 in nugget.ag_typing.keys())
 
         site100_200_id =\
             self.generator._generate_site(
-                nugget, site100_200, self.default_ag_gene, add_agents=True)
+                nugget, site100_200, self.default_ag_gene)
         site110_150_id =\
             self.generator._generate_site(
-                nugget, site110_150, self.default_ag_gene, add_agents=True)
-        assert(
-            nugget.ag_typing[site110_150_id] ==
-            nugget.ag_typing[site100_200_id])
+                nugget, site110_150, self.default_ag_gene)
+        # assert(
+        #     nugget.ag_typing[site110_150_id] ==
+        #     nugget.ag_typing[site100_200_id])
 
         site_bob_500_600_id =\
             self.generator._generate_site(
                 nugget, site_bob_500_600,
-                self.default_ag_gene, add_agents=True)
+                self.default_ag_gene)
         site_bob_800_1000_id =\
             self.generator._generate_site(
                 nugget, site_bob_800_1000,
-                self.default_ag_gene, add_agents=True)
+                self.default_ag_gene)
         site_bob_1_id =\
             self.generator._generate_site(
-                nugget, site_bob_1, self.default_ag_gene, add_agents=True)
+                nugget, site_bob_1, self.default_ag_gene)
         site_bob_2_id =\
             self.generator._generate_site(
-                nugget, site_bob_2, self.default_ag_gene, add_agents=True)
-        assert(
-            nugget.ag_typing[site_bob_1_id] ==
-            nugget.ag_typing[site_bob_500_600_id])
-        assert(
-            nugget.ag_typing[site_bob_2_id] ==
-            nugget.ag_typing[site_bob_800_1000_id])
+                nugget, site_bob_2, self.default_ag_gene)
+        # assert(
+        #     nugget.ag_typing[site_bob_1_id] ==
+        #     nugget.ag_typing[site_bob_500_600_id])
+        # assert(
+        #     nugget.ag_typing[site_bob_2_id] ==
+        #     nugget.ag_typing[site_bob_800_1000_id])
 
         assert(len(nugget.nodes()) == 8)
-        assert(
-            len(self.generator.hierarchy.action_graph.nodes()) ==
-            old_ag_size + 3)
+        # assert(
+        #     len(self.generator.hierarchy.action_graph.nodes()) ==
+        #     old_ag_size + 3)
 
         # Test generation of the site conditions
         complex_site = Site(
@@ -233,7 +233,7 @@ class TestBlackBox(object):
         )
         try:
             self.generator._generate_site(
-                nugget, complex_site, self.default_ag_gene, add_agents=True)
+                nugget, complex_site, self.default_ag_gene)
             raise ValueError("Invalid residue was not caught!")
         except:
             pass
@@ -244,11 +244,10 @@ class TestBlackBox(object):
             residues=[Residue("Y", 505, State('phosphorylation', True))]
         )
         complex_site_id = self.generator._generate_site(
-            nugget, complex_site, self.default_ag_gene, add_agents=True
-        )
-        assert(
-            nugget.ag_typing[complex_site_id] ==
-            nugget.ag_typing[site_bob_500_600_id])
+            nugget, complex_site, self.default_ag_gene)
+        # assert(
+        #     nugget.ag_typing[complex_site_id] ==
+        #     nugget.ag_typing[site_bob_500_600_id])
         assert(len(nugget.nodes()) == 13)
         assert(len(nugget.edges()) == 3)
 
@@ -260,7 +259,6 @@ class TestBlackBox(object):
             end=500,
             states=[State("activity", True)],
             residues=[Residue("Y", 1000)],
-            # sites=[]
         )
 
         nugget = NuggetContainer()
@@ -270,7 +268,7 @@ class TestBlackBox(object):
 
         try:
             self.generator._generate_region(
-                nugget, kinase_region, self.default_ag_gene, add_agents=False)
+                nugget, kinase_region, self.default_ag_gene)
             raise ValueError("Invalid residue was not caught!")
         except KamiError:
             pass
@@ -288,7 +286,7 @@ class TestBlackBox(object):
         )
         try:
             self.generator._generate_region(
-                nugget, kinase_region, self.default_ag_gene, add_agents=False)
+                nugget, kinase_region, self.default_ag_gene)
             raise ValueError("Invalid site was not caught!")
         except KamiError:
             pass
@@ -308,7 +306,7 @@ class TestBlackBox(object):
         )
 
         kinase_region_id = self.generator._generate_region(
-            nugget, kinase_region, self.default_ag_gene, add_agents=True)
+            nugget, kinase_region, self.default_ag_gene)
 
         assert(len(nugget.nodes()) == 5)
 
@@ -316,29 +314,29 @@ class TestBlackBox(object):
         site_id = "P00533_region_Pkinase_300_500_site_alice_350_450"
         residue_id = "P00533_region_Pkinase_300_500_Y350"
 
-        assert(
-            (nugget.ag_typing[kinase_region_id], self.default_ag_gene) in
-            self.generator.hierarchy.action_graph.edges()
-        )
-        assert(
-            (nugget.ag_typing[site_id], self.default_ag_gene) in
-            self.generator.hierarchy.action_graph.edges() and
-            (nugget.ag_typing[site_id], nugget.ag_typing[kinase_region_id]) in
-            self.generator.hierarchy.action_graph.edges()
-        )
+        # assert(
+        #     (nugget.ag_typing[kinase_region_id], self.default_ag_gene) in
+        #     self.generator.hierarchy.action_graph.edges()
+        # )
+        # assert(
+        #     (nugget.ag_typing[site_id], self.default_ag_gene) in
+        #     self.generator.hierarchy.action_graph.edges() and
+        #     (nugget.ag_typing[site_id], nugget.ag_typing[kinase_region_id]) in
+        #     self.generator.hierarchy.action_graph.edges()
+        # )
 
-        assert(
-            (nugget.ag_typing[residue_id], self.default_ag_gene) in
-            self.generator.hierarchy.action_graph.edges() and
-            (nugget.ag_typing[residue_id], nugget.ag_typing[kinase_region_id]) in
-            self.generator.hierarchy.action_graph.edges() and
-            (nugget.ag_typing[residue_id], nugget.ag_typing[site_id]) in
-            self.generator.hierarchy.action_graph.edges()
-        )
-        assert(
-            len(self.generator.hierarchy.action_graph.nodes()) ==
-            old_ag_size + 5
-        )
+        # assert(
+        #     (nugget.ag_typing[residue_id], self.default_ag_gene) in
+        #     self.generator.hierarchy.action_graph.edges() and
+        #     (nugget.ag_typing[residue_id], nugget.ag_typing[kinase_region_id]) in
+        #     self.generator.hierarchy.action_graph.edges() and
+        #     (nugget.ag_typing[residue_id], nugget.ag_typing[site_id]) in
+        #     self.generator.hierarchy.action_graph.edges()
+        # )
+        # assert(
+        #     len(self.generator.hierarchy.action_graph.nodes()) ==
+        #     old_ag_size + 5
+        # )
 
     def test_gene_generator(self):
         """Testing Gene genaration."""
@@ -348,15 +346,14 @@ class TestBlackBox(object):
         gene1 = Gene("Q07890")
 
         old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
+        self.generator._generate_gene(nugget, gene1)
+        # assert(
+        #     old_ag_size == len(self.generator.hierarchy.action_graph.nodes()))
         self.generator._generate_gene(
-            nugget, gene1, add_agents=False, anatomize=False)
-        assert(
-            old_ag_size == len(self.generator.hierarchy.action_graph.nodes()))
-        self.generator._generate_gene(
-            nugget, gene1, anatomize=False)
-        assert(
-            old_ag_size + 1 ==
-            len(self.generator.hierarchy.action_graph.nodes()))
+            nugget, gene1)
+        # assert(
+        #     old_ag_size + 1 ==
+        #     len(self.generator.hierarchy.action_graph.nodes()))
 
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
@@ -385,35 +382,34 @@ class TestBlackBox(object):
             bounds=[gene1],
         )
 
-        gene_id = self.generator._generate_gene(
-            nugget, gene2, anatomize=True)
+        gene_id = self.generator._generate_gene(nugget, gene2)
 
         # check it is consistent
         assert(len(nugget.nodes()) == 19)
         assert(len(nugget.edges()) == 18)
         assert(gene_id in nugget.graph.nodes())
         assert("P00519" in nugget.graph.node[gene_id]['uniprotid'])
-        assert(
-            nugget.ag_typing["P00519_active"] ==
-            nugget.ag_typing["P00519_active_1"])
-        big_region_id = "P00519_region_big_region_1000"
-        super_site_id = "P00519_site_super_site_100_300"
-        y100_res_id = "P00519_Y100"
-        t100_res_id = "P00519_T100"
-        s500_res_id = "P00519_S500"
-        assert(nugget.ag_typing[y100_res_id] == nugget.ag_typing[t100_res_id])
-        assert(
-            (nugget.ag_typing[super_site_id], nugget.ag_typing[big_region_id]) in
-            self.generator.hierarchy.action_graph.edges())
-        assert(
-            (nugget.ag_typing[y100_res_id], nugget.ag_typing[super_site_id]) in
-            self.generator.hierarchy.action_graph.edges())
-        assert(
-            (nugget.ag_typing[y100_res_id], nugget.ag_typing[big_region_id]) in
-            self.generator.hierarchy.action_graph.edges())
-        assert(
-            (nugget.ag_typing[s500_res_id], nugget.ag_typing[big_region_id]) in
-            self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     nugget.ag_typing["P00519_active"] ==
+        #     nugget.ag_typing["P00519_active_1"])
+        # big_region_id = "P00519_region_big_region_1000"
+        # super_site_id = "P00519_site_super_site_100_300"
+        # y100_res_id = "P00519_Y100"
+        # t100_res_id = "P00519_T100"
+        # s500_res_id = "P00519_S500"
+        # assert(nugget.ag_typing[y100_res_id] == nugget.ag_typing[t100_res_id])
+        # assert(
+        #     (nugget.ag_typing[super_site_id], nugget.ag_typing[big_region_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[y100_res_id], nugget.ag_typing[super_site_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[y100_res_id], nugget.ag_typing[big_region_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[s500_res_id], nugget.ag_typing[big_region_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
 
     def test_region_actor_generator(self):
         """Testing RegionActor generation."""
@@ -427,9 +423,9 @@ class TestBlackBox(object):
             self.generator._generate_region_actor(nugget, region_actor)
 
         assert((region_id, gene_id) in nugget.edges())
-        assert(
-            (nugget.ag_typing[region_id], nugget.ag_typing[gene_id]) in
-            self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[region_id], nugget.ag_typing[gene_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
 
     def test_site_actor_generator(self):
         """Testing SiteActor generation."""
@@ -440,34 +436,31 @@ class TestBlackBox(object):
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
 
-        (gene_id, site_id) =\
+        (gene_id, site_id, region_id) =\
             self.generator._generate_site_actor(nugget, site_actor)
-
         assert((site_id, gene_id) in nugget.edges())
-        assert(
-            (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
-            self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
         # with a region in the middle
         site_actor_with_region = SiteActor(
             gene=Gene("P00519"), site=Site("pY"), region=Region("kinase"))
 
-        (gene_id, site_id) =\
+        (gene_id, site_id, region_id) =\
             self.generator._generate_site_actor(nugget, site_actor_with_region)
-
-        assert((site_id, gene_id) in nugget.edges())
-        assert(
-            (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
-            self.generator.hierarchy.action_graph.edges())
-        assert((site_id, "P00519_1_region_kinase") in nugget.edges())
-        assert(("P00519_1_region_kinase", gene_id) in nugget.edges())
-        assert(
-            (nugget.ag_typing[site_id],
-                nugget.ag_typing["P00519_1_region_kinase"]) in
-            self.generator.hierarchy.action_graph.edges())
-        assert(
-            (nugget.ag_typing["P00519_1_region_kinase"],
-                nugget.ag_typing[gene_id]) in
-            self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
+        assert((site_id, region_id) in nugget.edges())
+        assert((region_id, gene_id) in nugget.edges())
+        # assert(
+        #     (nugget.ag_typing[site_id],
+        #         nugget.ag_typing["P00519_1_region_kinase"]) in
+        #     self.generator.hierarchy.action_graph.edges())
+        # assert(
+        #     (nugget.ag_typing["P00519_1_region_kinase"],
+        #         nugget.ag_typing[gene_id]) in
+        #     self.generator.hierarchy.action_graph.edges())
 
     def test_is_bnd_generator(self):
 
@@ -578,7 +571,7 @@ class TestBlackBox(object):
         )
         hierarchy = KamiHierarchy()
         generator = ModGenerator(hierarchy)
-        n = generator._create_nugget(mod5)
-        print_graph(n.graph)
+        n, t = generator._create_nugget(mod5)
+
     # def test_bnd_generator(self):
     #     pass

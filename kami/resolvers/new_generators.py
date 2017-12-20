@@ -1,15 +1,11 @@
-import collections
+"""Collection of data structures for nugget generation."""
 import copy
 import warnings
 
 import networkx as nx
 
-from regraph.primitives import (add_nodes_from,
-                                add_edges_from,
-                                add_edge,
-                                add_node,
-                                add_node_attrs,
-                                remove_edge)
+from regraph.primitives import (add_edge,
+                                add_node)
 
 from kami.entities import (Gene, RegionActor,
                            Residue, SiteActor, State
@@ -30,12 +26,18 @@ from kami.utils.id_generators import (get_nugget_gene_id,
 class NuggetContainer:
     """Nugget container data structure.
 
-    Contains the following fields:
-    - `graph` - nugget graph;
-    - `meta_typing` - typing of the nugget graph by the meta-model;
-    - `ag_typing` - typing of the nugget graph by the action graph;
-    - `template_rel` - relation of the nugget graph to the templates;
-    - `semantic_rels` - relation of the nugget graph to the semantic nuggets;
+    Attributes
+    ----------
+    graph : nx.(Di)Graph
+        Nugget graph
+    meta_typing : dict
+        Typing of the nugget graph by the meta-model
+    ag_typing : dict
+        Typing of the nugget graph by the action graph
+    template_rel : dict
+        Relation of the nugget graph to the templates
+    semantic_rels : dict
+        Relation of the nugget graph to the semantic nuggets
     """
 
     def __init__(self, graph=None, meta_typing=None,
@@ -110,7 +112,7 @@ class Generator(object):
         self.hierarchy = hierarchy
 
     def generate(self, mod, add_agents=True, anatomize=True,
-                 merge_actions=True, apply_semantics=True):
+                 apply_semantics=True):
         """Generate a nuggert generation rule."""
         nugget, nugget_type = self._create_nugget(mod)
         nugget_id = self.hierarchy.add_nugget(
@@ -118,10 +120,10 @@ class Generator(object):
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
+        print("Generated nugget '%s'..." % nugget_id)
         return nugget_id
 
-    def _generate_state(self, nugget, state, father,
-                        add_agents=True):
+    def _generate_state(self, nugget, state, father):
         prefix = father
 
         state_id = get_nugget_state_id(nugget.graph, state, prefix)
@@ -139,8 +141,7 @@ class Generator(object):
         )
         return state_id
 
-    def _generate_residue(self, nugget, residue, father,
-                          add_agents=True):
+    def _generate_residue(self, nugget, residue, father):
         prefix = father
 
         residue_id = get_nugget_residue_id(nugget.graph, residue, prefix)
@@ -160,16 +161,13 @@ class Generator(object):
             state_id = self._generate_state(
                 nugget,
                 residue.state,
-                residue_id,
-                add_agents
+                residue_id
             )
             nugget.add_edge(state_id, residue_id)
 
         return (residue_id, state_id)
 
-    def _generate_bound(self, nugget, partners, father,
-                        add_agents=True, anatomize=True,
-                        merge_actions=True, apply_semantics=True):
+    def _generate_bound(self, nugget, partners, father):
         is_bnd_ids = []
         partner_ids = []
         for partner in partners:
@@ -217,20 +215,13 @@ class Generator(object):
 
             if isinstance(partner, Gene):
                 partner_id = self._generate_gene(
-                    nugget, partner,
-                    add_agents, anatomize, merge_actions,
-                    apply_semantics
-                )
+                    nugget, partner)
             elif isinstance(partner, RegionActor):
                 (_, partner_id) = self._generate_region_actor(
-                    nugget, partner, add_agents, anatomize, merge_actions,
-                    apply_semantics
-                )
+                    nugget, partner)
             elif isinstance(partner, SiteActor):
-                (_, partner_id) = self._generate_site_actor(
-                    nugget, partner, add_agents, anatomize, merge_actions,
-                    apply_semantics
-                )
+                (_, partner_id, _) = self._generate_site_actor(
+                    nugget, partner)
             else:
                 raise NuggetGenerationError(
                     "Invalid type of binding partner: '%s'" % type(partner)
@@ -250,8 +241,7 @@ class Generator(object):
             nugget.add_edge(bound_locus_id, is_bnd_id)
         return bound_locus_id
 
-    def _generate_site(self, nugget, site, father,
-                       add_agents=True, anatomize=True):
+    def _generate_site(self, nugget, site, father):
         # 1. create region node
         prefix = father
         site_id = get_nugget_site_id(
@@ -282,30 +272,24 @@ class Generator(object):
                          residue.loc, site.start, site.end)
                     )
             (residue_id, _) = self._generate_residue(
-                nugget, residue, site_id, add_agents
-            )
+                nugget, residue, site_id)
             nugget.add_edge(residue_id, site_id)
 
         # create and attach states
         for state in site.states:
             state_id = self._generate_state(
-                nugget, state, site_id, add_agents
-            )
+                nugget, state, site_id)
             nugget.add_edge(state_id, site_id)
 
         # 5. create and attach bounds
         for partners in site.bounds:
             bound_locus_id = self._generate_bound(
-                nugget, partners, site_id, add_agents,
-                anatomize
-            )
+                nugget, partners, site_id)
             nugget.add_edge(site_id, bound_locus_id)
 
         return site_id
 
-    def _generate_region(self, nugget, region, father,
-                         add_agents=True, anatomize=True,
-                         merge_actions=True, apply_semantics=True):
+    def _generate_region(self, nugget, region, father):
         # 1. create region node
         prefix = father
 
@@ -339,8 +323,7 @@ class Generator(object):
                          residue.loc, region.start, region.end)
                     )
             (residue_id, _) = self._generate_residue(
-                nugget, residue, region_id, add_agents
-            )
+                nugget, residue, region_id)
             nugget.add_edge(residue_id, region_id)
 
         # 3. create and attach sites
@@ -355,30 +338,24 @@ class Generator(object):
                          site.start, site.end, region.start, region.end)
                     )
             site_id = self._generate_site(
-                nugget, site, region_id, add_agents, anatomize,
-            )
+                nugget, site, region_id)
             nugget.add_edge(site_id, region_id)
 
         # 4. create and attach states
         for state in region.states:
             state_id = self._generate_state(
-                nugget, state, region_id, add_agents
-            )
+                nugget, state, region_id)
             nugget.add_edge(state_id, region_id)
 
         # 5. create and attach bounds
         for partners in region.bounds:
             bound_locus_id = self._generate_bound(
-                nugget, partners, region_id, add_agents,
-                anatomize, merge_actions, apply_semantics
-            )
+                nugget, partners, region_id)
             nugget.add_edge(region_id, bound_locus_id)
 
         return region_id
 
-    def _generate_gene(self, nugget, gene,
-                       add_agents=True, anatomize=True,
-                       merge_actions=True, apply_semantics=True):
+    def _generate_gene(self, nugget, gene):
         """Generate agent group + indentify mapping."""
         # 1. create agent node
         agent_id = get_nugget_gene_id(nugget.graph, gene)
@@ -396,71 +373,53 @@ class Generator(object):
         # 2. create and attach residues
         for residue in gene.residues:
             (residue_id, _) = self._generate_residue(
-                nugget, residue, agent_id, add_agents
-            )
+                nugget, residue, agent_id)
             nugget.add_edge(residue_id, agent_id)
 
         # 3. create and attach states
         for state in gene.states:
             state_id = self._generate_state(
-                nugget, state, agent_id, add_agents
-            )
+                nugget, state, agent_id)
             nugget.add_edge(state_id, agent_id)
 
         # 4. create and attach regions
         for region in gene.regions:
             region_id = self._generate_region(
-                nugget, region, agent_id, add_agents, anatomize,
-                merge_actions, apply_semantics,
-            )
+                nugget, region, agent_id)
             nugget.add_edge(region_id, agent_id)
 
         # 5. create and attach sites
         for site in gene.sites:
             site_id = self._generate_site(
-                nugget, site, agent_id, add_agents, anatomize,
-            )
+                nugget, site, agent_id)
             nugget.add_edge(site_id, agent_id)
 
         # 6. create and attach bounds
         for bnd in gene.bounds:
             bound_locus_id = self._generate_bound(
-                nugget, bnd, agent_id, add_agents, anatomize,
-                merge_actions, apply_semantics
-            )
+                nugget, bnd, agent_id)
             nugget.add_edge(agent_id, bound_locus_id)
 
         return agent_id
 
-    def _generate_region_actor(self, nugget, region_actor,
-                               add_agents=True, anatomize=True,
-                               merge_actions=True, apply_semantics=True):
+    def _generate_region_actor(self, nugget, region_actor):
         agent_id = self._generate_gene(
-            nugget, region_actor.gene, add_agents, anatomize, merge_actions,
-            apply_semantics
-        )
+            nugget, region_actor.gene)
         region_id = self._generate_region(
-            nugget, region_actor.region, agent_id, add_agents, anatomize
-        )
+            nugget, region_actor.region, agent_id)
         nugget.add_edge(region_id, agent_id)
         return (agent_id, region_id)
 
-    def _generate_site_actor(self, nugget, site_actor,
-                             add_agents=True, anatomize=True,
-                             merge_actions=True, apply_semantics=True):
+    def _generate_site_actor(self, nugget, site_actor):
         agent_id = self._generate_gene(
-            nugget, site_actor.gene, add_agents, anatomize, merge_actions,
-            apply_semantics
-        )
+            nugget, site_actor.gene)
 
         site_id = self._generate_site(
-            nugget, site_actor.site, agent_id, add_agents, anatomize
-        )
+            nugget, site_actor.site, agent_id)
         region_id = None
         if site_actor.region is not None:
             region_id = self._generate_region(
-                nugget, site_actor.region, agent_id, add_agents, anatomize
-            )
+                nugget, site_actor.region, agent_id)
             nugget.add_edge(region_id, agent_id)
             nugget.add_edge(site_id, region_id)
         else:
@@ -472,8 +431,7 @@ class Generator(object):
 class ModGenerator(Generator):
     """Modification nugget generator."""
 
-    def _create_nugget(self, mod, add_agents=True, anatomize=True,
-                       merge_actions=True, apply_semantics=True):
+    def _create_nugget(self, mod):
         """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
@@ -483,16 +441,13 @@ class ModGenerator(Generator):
         enzyme_site = None
         if isinstance(mod.enzyme, Gene):
             enzyme = self._generate_gene(
-                nugget, mod.enzyme, add_agents, anatomize
-            )
+                nugget, mod.enzyme)
         elif isinstance(mod.enzyme, RegionActor):
             (enzyme, enzyme_region) = self._generate_region_actor(
-                nugget, mod.enzyme, add_agents, anatomize
-            )
+                nugget, mod.enzyme)
         elif isinstance(mod.enzyme, SiteActor):
             (enzyme, enzyme_site, enzyme_region) = self._generate_site_actor(
-                nugget, mod.enzyme, add_agents, anatomize
-            )
+                nugget, mod.enzyme)
         else:
             raise NuggetGenerationError(
                 "Unkown type of an enzyme: '%s'" % type(mod.enzyme)
@@ -500,28 +455,9 @@ class ModGenerator(Generator):
 
         nugget.template_rel[enzyme].add("enzyme")
 
-        # ag_mod = None
         if enzyme_region:
             nugget.template_rel[enzyme_region] = {"enzyme_region"}
-            # if enzyme_region in nugget.ag_typing.keys():
-            #     ag_enzyme_region = nugget.ag_typing[enzyme_region]
-            #     ag_enzyme_region_semantics =\
-            #         self.hierarchy.relation["action_graph"][
-            #             "semantic_action_graph"].rel[ag_enzyme_region]
-            #     if "protein_kinase" in ag_enzyme_region_semantics:
-            #         nugget.semantic_rels["phosphorylation"] = dict()
-            #         nugget.semantic_rels["phosphorylation"][
-            #             enzyme_region] = {"protein_kinase"}
-            #         ag_mods = self.hierarchy.ag_successors_of_type(
-            #             ag_enzyme_region, "mod")
-            #         if len(ag_mods) > 1:
-            #             warnings.warn(
-            #                 "More than one modification is associated with "
-            #                 "kinase region '%s' in the action graph" %
-            #                 ag_enzyme_region,
-            #                 KamiWarning)
-            #         elif len(ag_mods) == 1:
-            #             ag_mod = ag_mods[0]
+
         if enzyme_site:
             nugget.template_rel[enzyme_site] = {"enzyme_site"}
 
@@ -529,15 +465,14 @@ class ModGenerator(Generator):
         substrate_region = None
         substrate_site = None
         if isinstance(mod.substrate, Gene):
-            substrate = self._generate_gene(
-                nugget, mod.substrate, add_agents, anatomize)
+            substrate = self._generate_gene(nugget, mod.substrate)
         elif isinstance(mod.substrate, RegionActor):
             (substrate, substrate_region) = self._generate_region_actor(
-                nugget, mod.substrate, add_agents, anatomize)
+                nugget, mod.substrate)
         elif isinstance(mod.substrate, SiteActor):
             (substrate, substrate_site, substrate_region) =\
                 self._generate_site_actor(
-                    nugget, mod.substrate, add_agents, anatomize)
+                    nugget, mod.substrate)
         else:
             raise NuggetGenerationError(
                 "Unkown type of a substrate: '%s'" % type(mod.substrate)
@@ -560,7 +495,6 @@ class ModGenerator(Generator):
         nugget.add_node(
             "mod",
             mod_attrs,
-            # ag_typing=ag_mod,
             meta_typing="mod",
             template_rel=["mod"]
         )
@@ -580,8 +514,7 @@ class ModGenerator(Generator):
                     UserWarning
                 )
             mod_state_id = self._generate_state(
-                nugget, mod.target, attached_to, add_agents
-            )
+                nugget, mod.target, attached_to)
             nugget.add_edge(mod_state_id, attached_to)
             if mod_state_id in nugget.template_rel.keys():
                 nugget.template_rel[mod_state_id].add("mod_state")
@@ -596,11 +529,7 @@ class ModGenerator(Generator):
                         KamiWarning
                     )
                 (mod_residue_id, mod_state_id) = self._generate_residue(
-                    nugget,
-                    mod.target,
-                    attached_to,
-                    add_agents
-                )
+                    nugget, mod.target, attached_to)
                 nugget.add_edge(mod_residue_id, attached_to)
                 nugget.template_rel[mod_state_id].add("mod_state")
                 nugget.template_rel[mod_residue_id].add("substrate_residue")
@@ -627,8 +556,7 @@ class ModGenerator(Generator):
 class BndGenerator(Generator):
     """Binding nugget generator."""
 
-    def _create_nugget(self, bnd, add_agents=True, anatomize=True,
-                       merge_actions=True, apply_semantics=True):
+    def _create_nugget(self, bnd):
 
         nugget = NuggetContainer()
         nugget.template_id = "bnd_template"
@@ -641,20 +569,13 @@ class BndGenerator(Generator):
             region_id = None
             site_id = None
             if isinstance(member, Gene):
-                gene_id = self._generate_gene(
-                    nugget, member, add_agents, anatomize,
-                    merge_actions, apply_semantics
-                )
+                gene_id = self._generate_gene(nugget, member)
             elif isinstance(member, RegionActor):
                 (gene_id, region_id) = self._generate_region_actor(
-                    nugget, member, add_agents, anatomize,
-                    merge_actions, apply_semantics
-                )
+                    nugget, member)
             elif isinstance(member, SiteActor):
                 (gene_id, site_id, region_id) = self._generate_site_actor(
-                    nugget, member, add_agents, anatomize,
-                    merge_actions, apply_semantics
-                )
+                    nugget, member)
             else:
                 raise NuggetGenerationError(
                     "Unkown type of an agent: '%s'" % type(member)
@@ -675,20 +596,13 @@ class BndGenerator(Generator):
             region_id = None
             site_id = None
             if isinstance(member, Gene):
-                gene_id = self._generate_gene(
-                    nugget, member, add_agents, anatomize,
-                    merge_actions, apply_semantics
-                )
+                gene_id = self._generate_gene(nugget, member)
             elif isinstance(member, RegionActor):
                 (gene_id, region_id) = self._generate_region_actor(
-                    nugget, member, add_agents, anatomize,
-                    merge_actions, apply_semantics
-                )
+                    nugget, member)
             elif isinstance(member, SiteActor):
                 (gene_id, site_id, region_id) = self._generate_site_actor(
-                    nugget, member, add_agents, anatomize,
-                    merge_actions, apply_semantics
-                )
+                    nugget, member)
             else:
                 raise NuggetGenerationError(
                     "Unkown type of an agent: '%s'" % type(member)
@@ -751,3 +665,128 @@ class BndGenerator(Generator):
         # try to find if some bnd in ag corresponds to our bnd
 
         return nugget, "bnd"
+
+
+# class AutoModGenerator(Generator):
+#     """Generator class for auto modification nugget."""
+
+#     def _create_nugget(self, mod):
+#         """Create a mod nugget graph and find its typing."""
+#         nugget = NuggetContainer()
+#         nugget.template_id = "mod_template"
+
+#         # 1. Process enzyme
+#         enzyme_region = None
+#         enzyme_site = None
+#         if isinstance(mod.enzyme, Gene):
+#             enzyme = self._generate_gene(
+#                 nugget, mod.enzyme)
+#         elif isinstance(mod.enzyme, RegionActor):
+#             (enzyme, enzyme_region) = self._generate_region_actor(
+#                 nugget, mod.enzyme)
+#         elif isinstance(mod.enzyme, SiteActor):
+#             (enzyme, enzyme_site, enzyme_region) = self._generate_site_actor(
+#                 nugget, mod.enzyme)
+#         else:
+#             raise NuggetGenerationError(
+#                 "Unkown type of an enzyme: '%s'" % type(mod.enzyme)
+#             )
+
+#         nugget.template_rel[enzyme].add("enzyme")
+
+#         if enzyme_region:
+#             nugget.template_rel[enzyme_region] = {"enzyme_region"}
+
+#         if enzyme_site:
+#             nugget.template_rel[enzyme_site] = {"enzyme_site"}
+
+#         # Process substrate
+#         substrate_region = None
+#         substrate_site = None
+#         if isinstance(mod.substrate, Gene):
+#             substrate = self._generate_gene(nugget, mod.substrate)
+#         elif isinstance(mod.substrate, RegionActor):
+#             (substrate, substrate_region) = self._generate_region_actor(
+#                 nugget, mod.substrate)
+#         elif isinstance(mod.substrate, SiteActor):
+#             (substrate, substrate_site, substrate_region) =\
+#                 self._generate_site_actor(
+#                     nugget, mod.substrate)
+#         else:
+#             raise NuggetGenerationError(
+#                 "Unkown type of a substrate: '%s'" % type(mod.substrate)
+#             )
+
+#         nugget.template_rel[substrate].add("substrate")
+#         if substrate_region:
+#             nugget.template_rel[substrate_region] = {"substrate_region"}
+#         if substrate_site:
+#             nugget.template_rel[substrate_site] = {"substrate_site"}
+
+#         # 2. create mod node
+#         mod_attrs = {
+#             "value": mod.value,
+#             "direct": mod.direct
+#         }
+#         if mod.annotation:
+#             mod_attrs.update(mod.annotation.to_attrs())
+
+#         nugget.add_node(
+#             "mod",
+#             mod_attrs,
+#             meta_typing="mod",
+#             template_rel=["mod"]
+#         )
+
+#         # 3. create state related nodes subject to modification
+#         if substrate_region:
+#             attached_to = substrate_region
+#         else:
+#             attached_to = substrate
+
+#         mod_residue_id = None
+#         if isinstance(mod.target, State):
+#             mod.target.name
+#             if mod.target.value == mod.value:
+#                 warnings.warn(
+#                     "Modification does not change the state's value!",
+#                     UserWarning
+#                 )
+#             mod_state_id = self._generate_state(
+#                 nugget, mod.target, attached_to)
+#             nugget.add_edge(mod_state_id, attached_to)
+#             if mod_state_id in nugget.template_rel.keys():
+#                 nugget.template_rel[mod_state_id].add("mod_state")
+#             else:
+#                 nugget.template_rel[mod_state_id] = {"mod_state"}
+
+#         elif isinstance(mod.target, Residue):
+#             if mod.target.state:
+#                 if mod.target.state.value == mod.value:
+#                     warnings.warn(
+#                         "Modification does not change the state's value!",
+#                         KamiWarning
+#                     )
+#                 (mod_residue_id, mod_state_id) = self._generate_residue(
+#                     nugget, mod.target, attached_to)
+#                 nugget.add_edge(mod_residue_id, attached_to)
+#                 nugget.template_rel[mod_state_id].add("mod_state")
+#                 nugget.template_rel[mod_residue_id].add("substrate_residue")
+#             else:
+#                 raise KamiError(
+#                     "Target of modification is required to be either "
+#                     "`State` or `Residue` with non-empty state: state "
+#                     "of residue is empty"
+#                 )
+#         else:
+#             raise KamiError(
+#                 "Target of modification is required to be either "
+#                 "`State` or `Residue` with non-empty state: %s "
+#                 "is provided" % type(mod.target)
+#             )
+#         if enzyme_region:
+#             nugget.add_edge(enzyme_region, "mod")
+#         else:
+#             nugget.add_edge(enzyme, "mod")
+#         nugget.add_edge("mod", mod_state_id)
+#         return nugget, "mod"

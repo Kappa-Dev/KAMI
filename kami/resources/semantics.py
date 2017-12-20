@@ -10,11 +10,11 @@ add_nodes_from(action_graph, [
     "protein_kinase",
     ("activity", {"activity": {True}}),
     ("phospho", {"value": {True}}),
-    ("phosphorylation_state", {"phosphorylation": {True, False}}),
+    ("phospho_state", {"phosphorylation": {True, False}}),
     ("phospho_target_residue", {"aa": {"S", "T", "Y"}}),
     "phosphatase",
     ("dephospho", {"value": {False}}),
-    "pY_motif",
+    "pY_site",
     "pY_locus",
     ("sh2_domain_pY_bnd", {"direct": True}),
     "sh2_domain_locus",
@@ -24,13 +24,13 @@ add_nodes_from(action_graph, [
 add_edges_from(action_graph, [
     ("activity", "protein_kinase"),
     ("protein_kinase", "phospho"),
-    ("phospho", "phosphorylation_state"),
-    ("phosphorylation_state", "phospho_target_residue"),
+    ("phospho", "phospho_state"),
+    ("phospho_state", "phospho_target_residue"),
     ("activity", "phosphatase"),
     ("phosphatase", "dephospho"),
-    ("dephospho", "phosphorylation_state"),
-    ("phospho_target_residue", "pY_motif"),
-    ("pY_motif", "pY_locus"),
+    ("dephospho", "phospho_state"),
+    ("phospho_target_residue", "pY_site"),
+    ("pY_site", "pY_locus"),
     ("pY_locus", "sh2_domain_pY_bnd"),
     ("sh2_domain_locus", "sh2_domain_pY_bnd"),
     ("sh2_domain", "sh2_domain_locus"),
@@ -40,11 +40,11 @@ sag_kami_typing = {
     "protein_kinase": "region",
     "activity": "state",
     "phospho": "mod",
-    "phosphorylation_state": "state",
+    "phospho_state": "state",
     "phospho_target_residue": "residue",
     "phosphatase": "region",
     "dephospho": "mod",
-    "pY_motif": "region",
+    "pY_site": "site",
     "pY_locus": "locus",
     "sh2_domain_pY_bnd": "bnd",
     "sh2_domain_locus": "locus",
@@ -82,7 +82,7 @@ phosphorylation_semantic_AG = {
     "protein_kinase": "protein_kinase",
     "protein_kinase_activity": "activity",
     "phospho": "phospho",
-    "target_state": "phosphorylation_state",
+    "target_state": "phospho_state",
     "target_residue": "phospho_target_residue"
 }
 
@@ -121,7 +121,7 @@ dephosphorylation_semantic_AG = {
     "phosphatase": "phosphatase",
     "phosphatase_activity": "activity",
     "dephospho": "dephospho",
-    "target_state": "phosphorylation_state",
+    "target_state": "phospho_state",
     "target_residue": "phospho_target_residue"
 }
 
@@ -134,7 +134,7 @@ add_nodes_from(
         "sh2_domain_locus",
         ("sh2_domain_pY_bnd", {"direct": True}),
         "pY_locus",
-        "pY_motif",
+        "pY_site",
         ("pY_residue", {"aa": "Y"}),
         ("phosphorylation", {"phosphorylation": True})
     ]
@@ -145,8 +145,8 @@ add_edges_from(
     [("sh2_domain", "sh2_domain_locus"),
      ("sh2_domain_locus", "sh2_domain_pY_bnd"),
      ("pY_locus", "sh2_domain_pY_bnd"),
-     ("pY_motif", "pY_locus"),
-     ("pY_residue", "pY_motif"),
+     ("pY_site", "pY_locus"),
+     ("pY_residue", "pY_site"),
      ("phosphorylation", "pY_residue")]
 )
 
@@ -155,7 +155,7 @@ sh2_pY_kami_typing = {
     "sh2_domain_locus": "locus",
     "sh2_domain_pY_bnd": "bnd",
     "pY_locus": "locus",
-    "pY_motif": "region",
+    "pY_site": "site",
     "pY_residue": "residue",
     "phosphorylation": "state",
 }
@@ -165,7 +165,7 @@ sh2_pY_semantic_AG = {
     "sh2_domain_locus": "sh2_domain_locus",
     "sh2_domain_pY_bnd": "sh2_domain_pY_bnd",
     "pY_locus": "pY_locus",
-    "pY_motif": "pY_motif",
+    "pY_site": "pY_site",
     "pY_residue": "phospho_target_residue",
-    "phosphorylation": "phosphorylation_state"
+    "phosphorylation": "phospho_state"
 }

@@ -4,7 +4,7 @@ from regraph.primitives import (print_graph)
 
 from kami.resolvers.black_box import create_nuggets
 from kami.interactions import (Modification,
-                               BinaryBinding)
+                               Binding)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.hierarchy import KamiHierarchy
@@ -136,7 +136,7 @@ class TestBlackBox(object):
 
         abl2_sh2 = RegionActor(abl2, sh2)
 
-        bnd527 = BinaryBinding([dok1_py398], [abl2_sh2])
+        bnd527 = Binding([dok1_py398], [abl2_sh2])
         print(bnd527)
 
         hierarchy = create_nuggets([bnd527])
@@ -166,8 +166,8 @@ class TestBlackBox(object):
         )
 
         bnds = []
-        bnds.append(BinaryBinding([frs2_py196], [pik3r1_sh2n]))
-        bnds.append(BinaryBinding([frs2_py349], [pik3r1_sh2c]))
+        bnds.append(Binding([frs2_py196], [pik3r1_sh2n]))
+        bnds.append(Binding([frs2_py349], [pik3r1_sh2c]))
 
     def test_sites(self):
         # Create genes.
@@ -182,7 +182,7 @@ class TestBlackBox(object):
         # This works (RegionActor).
         # inters.append(BinaryBinding([egfr], [grb2_sh2]))
         # This does not work (SiteActor)
-        inters.append(BinaryBinding([egfr], [grb2_site]))
+        inters.append(Binding([egfr], [grb2_site]))
 
         hierarchy = create_nuggets(inters, anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
