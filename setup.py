@@ -21,7 +21,7 @@ setup(name='kami',
       package_dir={'kami.server': 'kami/server'},
       package_data={
           'kami.server': ['iRegraph_api.yaml'],
-          'anatomizer': ['resources/*']
+          'anatomizer': ['resources/*'],
       },
       include_package_data=True,
       zip_safe=False,

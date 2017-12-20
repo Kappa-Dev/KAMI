@@ -5,13 +5,12 @@ import warnings
 import indra.statements
 
 from kami.entities import (Gene, Region, RegionActor,
-                           Residue, Site, SiteActor, State,
-                           NuggetAnnotation)
+                           Residue, Site, SiteActor, State)
 from kami.exceptions import IndraImportError, IndraImportWarning
 from kami.interactions import (Modification,
                                AutoModification,
                                TransModification,
-                               BinaryBinding,
+                               Binding,
                                AnonymousModification,
                                Complex)
 from kami.utils.xrefs import (uniprot_from_xrefs,
@@ -202,8 +201,8 @@ class IndraImporter(object):
                 statement.supported_by,
                 statement.evidence
             )
-
-        annotation = NuggetAnnotation(text=text)
+        annotation = None
+        # annotation = NuggetAnnotation(text=text)
 
         return annotation
 
