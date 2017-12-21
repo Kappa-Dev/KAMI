@@ -3,6 +3,7 @@ import copy
 import warnings
 
 import networkx as nx
+import time
 
 from regraph.primitives import (add_edge,
                                 add_node)
@@ -114,7 +115,10 @@ class Generator(object):
     def generate(self, mod, add_agents=True, anatomize=True,
                  apply_semantics=True):
         """Generate a nuggert generation rule."""
+        start = time.time()
         nugget, nugget_type = self._create_nugget(mod)
+        end = time.time() - start
+        print("\tTime to create nugget: ", end)
         nugget_id = self.hierarchy.add_nugget(
             nugget, nugget_type,
             add_agents=add_agents,

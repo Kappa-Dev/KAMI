@@ -3,6 +3,7 @@ import copy
 import networkx as nx
 import numpy as np
 import warnings
+import time
 
 from regraph.rules import Rule
 from regraph.hierarchy import Hierarchy
@@ -798,6 +799,7 @@ class KamiHierarchy(Hierarchy):
     def add_nugget(self, nugget, nugget_type, add_agents=True,
                    anatomize=True, apply_semantics=True, name=None):
         """Add nugget to the hierarchy."""
+        start = time.time()
         nugget_id = self._generate_nugget_id()
 
         p = nx.DiGraph()
@@ -831,9 +833,12 @@ class KamiHierarchy(Hierarchy):
         self.add_template_rel(
             nugget_id, nugget.template_id, nugget.template_rel)
 
+        end = time.time() - start
+        print("\tTime to add nugget to the hierarchy: ", end)
         # 5. Anatomize new genes added as the result of nugget creation
         if anatomize is True:
             # Get a set of genes added by the nugget
+            start = time.time()
             new_gene_nodes = set()
             for node in self.nugget[nugget_id].nodes():
                 ag_node = self.typing[nugget_id]["action_graph"][node]
@@ -843,13 +848,18 @@ class KamiHierarchy(Hierarchy):
                         new_gene_nodes.add(ag_node)
             for gene in new_gene_nodes:
                 self.anatomize_gene(gene)
+            end = time.time() - start
+            print("\tTime to anatomize gene: ", end)
 
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
+            start = time.time()
             if "mod" in self.node[nugget_id].attrs["interaction_type"]:
                 apply_mod_semantics(self, nugget_id)
             elif "bnd" in self.node[nugget_id].attrs["interaction_type"]:
                 apply_bnd_semantics(self, nugget_id)
+            end = time.time() - start
+            print("\tTime to apply semantics: ", end)
 
         # 7. Add semantic relations found for the nugget
         for semantic_nugget, rel in nugget.semantic_rels.items():
@@ -867,6 +877,7 @@ class KamiHierarchy(Hierarchy):
                 "Gene node '%s' does not exist in the hierarchy!" % gene)
         print("Anatomizing '%s'..." % gene)
         anatomy = None
+        start = time.time()
         if "uniprotid" in self.action_graph.node[gene] and\
            len(self.action_graph.node[gene]["uniprotid"]) == 1:
             anatomy = GeneAnatomy(
@@ -899,7 +910,10 @@ class KamiHierarchy(Hierarchy):
                 )
                 if anatomy is not None:
                     break
+        end = time.time() - start
+        print("\t\tTime to get anatomy from anatomizer: ", end)
         if anatomy is not None:
+            start = time.time()
             # Generate an update rule to add
             # entities fetched by the anatomizer
             lhs = nx.DiGraph()
@@ -967,11 +981,15 @@ class KamiHierarchy(Hierarchy):
                     del semantic_relations[matching_region]
                     new_regions.remove(matching_region)
                     new_regions.append(new_name)
-
+            end = time.time() - start
+            print("\t\tTime to create anatomization rule: ", end)
+            start = time.time()
             _, rhs_g = self.rewrite(
                 "action_graph", anatomization_rule,
                 instance, rhs_typing=anatomization_rule_typing,
                 strict=True, inplace=True)
+            end = time.time() - start
+            print("\t\tTime to apply anatomization rule: ", end)
             for new_node_id, semantics in semantic_relations.items():
                 for s in semantics:
                     if rhs_g[new_node_id] in self.relation["action_graph"][
