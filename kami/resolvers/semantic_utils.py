@@ -1,3 +1,4 @@
+import time
 import networkx as nx
 import warnings
 
@@ -26,7 +27,7 @@ def _propagate_semantics_to_ag(hierarchy, nugget_id,
 
 def apply_mod_semantics(hierarchy, nugget_id):
     """Apply mod semantics to the created nugget."""
-    # TODO: Check the phosphotelated residue
+    # TODO: Check the phosphorylated residue
     template_rel = hierarchy.relation["mod_template"][nugget_id].rel
     enzyme = list(template_rel["enzyme"])[0]
     mod_state = list(template_rel["mod_state"])[0]
@@ -103,25 +104,45 @@ def apply_mod_semantics(hierarchy, nugget_id):
             unique_kinase_region =\
                 hierarchy.unique_kinase_region(ag_enzyme)
             if unique_kinase_region is not None:
+
+                # print("\t\tAutocompleting nugget with kinase region...")
+
+                # start = time.time()
+
+                # start1 = time.time()
                 kinase_mods =\
                     hierarchy.ag_successors_of_type(unique_kinase_region, "mod")
-                if len(kinase_mods) > 1:
+                pattern = nx.DiGraph()
+                add_nodes_from(
+                    pattern,
+                    [ag_mod_node, ag_enzyme])
+                add_edges_from(pattern, [(ag_enzyme, ag_mod_node)])
+                mod_merge_rule = Rule.from_transform(pattern)
+                mod_merge_rule.inject_remove_edge(ag_enzyme, ag_mod_node)
+
+                if len(kinase_mods) > 0:
                     # generate a rule that merges mods
-                    pattern = nx.DiGraph()
-                    add_nodes_from(
-                        pattern,
-                        [ag_mod_node, ag_enzyme] + kinase_mods)
-                    add_edges_from(pattern, [(ag_enzyme, ag_mod_node)])
-                    mod_merge_rule = Rule.from_transform(pattern)
-                    mod_merge_rule.inject_remove_edge(ag_enzyme, ag_mod_node)
+                    for n in kinase_mods:
+                        mod_merge_rule._add_node_lhs(n)
                     new_mod_id = mod_merge_rule.inject_merge_nodes(
                         [ag_mod_node] + kinase_mods)
-                    _, rhs_ag = hierarchy.rewrite("action_graph", mod_merge_rule)
+                # end = time.time() - start1
+                # print("\t\t\tTime to genereate rule: ", end)
 
+                # start1 = time.time()
+                _, rhs_ag = hierarchy.rewrite("action_graph", mod_merge_rule)
+                # end = time.time() - start1
+                # print("\t\t\tTime to apply rule: ", end)
+
+                # end = time.time() - start
+                # print("\t\tTime to merge actions in the ag: ", end)
+
+                # start = time.time()
+                # start1 = time.time()
+                if len(kinase_mods) > 0:
                     new_ag_mod = rhs_ag[new_mod_id]
                 else:
                     new_ag_mod = ag_mod_node
-
                 autocompletion_rule = Rule.from_transform(
                     hierarchy.nugget[nugget_id])
                 autocompletion_rule.inject_add_node(
@@ -143,10 +164,16 @@ def apply_mod_semantics(hierarchy, nugget_id):
                         ag_activity: ag_activity
                     }
                 }
-
+                # end = time.time() - start1
+                # print("\t\t\tTime to genereate rule: ", end)
+                # start1 = time.time()
                 _, rhs_nugget = hierarchy.rewrite(
                     nugget_id, autocompletion_rule,
                     rhs_typing=rhs_typing)
+                # end = time.time() - start1
+                # print("\t\t\tTime to apply rule: ", end)
+                # end = time.time() - start
+                # print("\t\tTime to autocomplete nugget:", end)
                 enz_region = rhs_nugget[unique_kinase_region]
                 phospho_semantic_rel[rhs_nugget[unique_kinase_region]] =\
                     "protein_kinase"
