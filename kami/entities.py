@@ -27,7 +27,6 @@ import collections
 
 class Actor():
     """Base class for actors of interaction."""
-
     pass
 
 
