@@ -420,15 +420,19 @@ class KamiHierarchy(Hierarchy):
 
     def add_ag_node_semantics(self, node_id, semantic_node):
         """Add relation of `node_id` with `semantic_node`."""
-        self.relation["action_graph"]["semantic_action_graph"].rel.add(
-            (node_id, semantic_node)
-        )
+        if node_id in self.relation["action_graph"][
+                "semantic_action_graph"].keys():
+            self.relation["action_graph"]["semantic_action_graph"][
+                node_id].add(semantic_node)
+        else:
+            self.relation["action_graph"]["semantic_action_graph"][
+                node_id] = {semantic_node}
         return
 
     def ag_node_semantics(self, node_id):
         """Get semantic nodes related to the `node_id`."""
         result = []
-        pairs = self.relation["action_graph"]["semantic_action_graph"].rel
+        pairs = self.relation["action_graph"]["semantic_action_graph"]
         for node, semantic_node in pairs:
             if node == node_id:
 
@@ -456,7 +460,7 @@ class KamiHierarchy(Hierarchy):
         if semantics is not None:
             for sem in semantics:
                 self.relation["action_graph"][
-                    "semantic_action_graph"].rel[region_id] = sem
+                    "semantic_action_graph"][region_id] = sem
 
         # reconnect all the residues & sites of the corresponding gene
         # that lie in the region range
@@ -500,7 +504,7 @@ class KamiHierarchy(Hierarchy):
 
         if semantics is not None:
             for sem in semantics:
-                self.relation["action_graph"]["semantic_action_graph"].rel.add(
+                self.relation["action_graph"]["semantic_action_graph"].add(
                     (site_id, sem)
                 )
 
@@ -1000,12 +1004,12 @@ class KamiHierarchy(Hierarchy):
             for new_node_id, semantics in semantic_relations.items():
                 for s in semantics:
                     if rhs_g[new_node_id] in self.relation["action_graph"][
-                            "semantic_action_graph"].rel.keys():
+                            "semantic_action_graph"].keys():
                         self.relation["action_graph"][
-                            "semantic_action_graph"].rel[rhs_g[new_node_id]].add(s)
+                            "semantic_action_graph"][rhs_g[new_node_id]].add(s)
                     else:
                         self.relation["action_graph"][
-                            "semantic_action_graph"].rel[rhs_g[new_node_id]] = {s}
+                            "semantic_action_graph"][rhs_g[new_node_id]] = {s}
         else:
             warnings.warn(
                 "Unable to anatomize gene node '%s'" % gene,
@@ -1060,7 +1064,7 @@ class KamiHierarchy(Hierarchy):
     def unique_kinase_region(self, gene):
         """Get the unique kinase region of the gene."""
         ag_sag_relation = self.relation[
-            "action_graph"]["semantic_action_graph"].rel
+            "action_graph"]["semantic_action_graph"]
         kinase = None
         for node in self.action_graph.predecessors(gene):
             if node in ag_sag_relation.keys() and\

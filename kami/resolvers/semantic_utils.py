@@ -13,9 +13,9 @@ def _propagate_semantics_to_ag(hierarchy, nugget_id,
                                semantic_nugget_id):
     """."""
     ag_sag_rel = hierarchy.relation["action_graph"][
-        "semantic_action_graph"].rel
+        "semantic_action_graph"]
     for nugget_node, semantics in hierarchy.relation[nugget_id][
-            semantic_nugget_id].rel.items():
+            semantic_nugget_id].items():
         ag_node = hierarchy.typing[nugget_id]["action_graph"][nugget_node]
         if ag_node not in ag_sag_rel.keys():
             ag_sag_rel[ag_node] = set()
@@ -28,7 +28,7 @@ def _propagate_semantics_to_ag(hierarchy, nugget_id,
 def apply_mod_semantics(hierarchy, nugget_id):
     """Apply mod semantics to the created nugget."""
     # TODO: Check the phosphorylated residue
-    template_rel = hierarchy.relation["mod_template"][nugget_id].rel
+    template_rel = hierarchy.relation["mod_template"][nugget_id]
     enzyme = list(template_rel["enzyme"])[0]
     mod_state = list(template_rel["mod_state"])[0]
     mod_residue = None
@@ -61,9 +61,9 @@ def apply_mod_semantics(hierarchy, nugget_id):
             ag_enz_region = hierarchy.typing[nugget_id][
                 "action_graph"][enz_region]
             if ag_enz_region in hierarchy.relation["action_graph"][
-               "semantic_action_graph"].rel.keys() and\
+               "semantic_action_graph"].keys() and\
                     "protein_kinase" in hierarchy.relation["action_graph"][
-                    "semantic_action_graph"].rel[ag_enz_region]:
+                    "semantic_action_graph"][ag_enz_region]:
                 phospho_semantic_rel[enz_region] = "protein_kinase"
                 enz_region_predecessors = hierarchy.nugget[
                     nugget_id].predecessors(enz_region)
@@ -179,7 +179,7 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     "protein_kinase"
                 phospho_semantic_rel[rhs_nugget[ag_activity]] =\
                     "protein_kinase_activity"
-                hierarchy.relation[nugget_id]["mod_template"].rel[enz_region] =\
+                hierarchy.relation[nugget_id]["mod_template"][enz_region] =\
                     {"enzyme_region"}
             else:
                 warnings.warn(
@@ -204,9 +204,9 @@ def apply_bnd_semantics(hierarchy, nugget_id):
         ag_region_node =\
             hierarchy.typing[nugget_id]["action_graph"][region_node]
         if ag_region_node in hierarchy.relation["action_graph"][
-            "semantic_action_graph"].rel.keys() and\
+            "semantic_action_graph"].keys() and\
             "sh2_domain" in hierarchy.relation["action_graph"][
-                "semantic_action_graph"].rel[ag_region_node]:
+                "semantic_action_graph"][ag_region_node]:
             sh2_semantic_rel = {
                 region_node: "sh2_domain",
                 region_locus: "sh2_domain_locus",
@@ -248,7 +248,8 @@ def apply_bnd_semantics(hierarchy, nugget_id):
                         # add semantics of this site to the ag
                         ag_site = hierarchy.typing[nugget_id]["action_graph"][site]
                         ag_sag_rel =\
-                            hierarchy.relation["action_graph"]["semantic_action_graph"].rel
+                            hierarchy.relation["action_graph"][
+                                "semantic_action_graph"]
                         if ag_site in ag_sag_rel.keys():
                             ag_sag_rel[ag_site].add("pY_site")
                         else:
@@ -268,7 +269,7 @@ def apply_bnd_semantics(hierarchy, nugget_id):
             return sh2_semantic_rel
         return None
 
-    template_rel = hierarchy.relation["bnd_template"][nugget_id].rel
+    template_rel = hierarchy.relation["bnd_template"][nugget_id]
 
     if "left_partner_region" in template_rel.keys():
         if len(template_rel["left_partner_region"]) == 1:

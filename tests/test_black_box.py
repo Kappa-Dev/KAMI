@@ -117,10 +117,10 @@ class TestBlackBox(object):
             anatomize=True
         )
         print(hierarchy.action_graph.nodes())
-        print(hierarchy.relation["action_graph"]["semantic_action_graph"].rel)
+        print(hierarchy.relation["action_graph"]["semantic_action_graph"])
         print(hierarchy)
         print_graph(hierarchy.action_graph)
-        print(hierarchy.relation["action_graph"]["semantic_action_graph"].rel)
+        print(hierarchy.relation["action_graph"]["semantic_action_graph"])
 
     def test_sh2_py_semantics(self):
         """."""

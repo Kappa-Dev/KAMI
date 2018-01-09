@@ -67,5 +67,5 @@ class TestNewGenerators:
         # with open("lala.csv", "w+") as f:
         #     for u, v in edge_list:
         #         f.write("%s, %s\n" % (u, v))
-        print(hie.relation["action_graph"]["semantic_action_graph"].rel)
+        print(hie.relation["action_graph"]["semantic_action_graph"])
         print(hie.action_graph.edges())
