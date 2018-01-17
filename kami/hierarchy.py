@@ -160,7 +160,7 @@ class KamiHierarchy(Hierarchy):
         for graph_id, graph, attrs in default_components.GRAPHS:
             self.add_graph(graph_id, graph, attrs)
         for s, t, mapping, attrs in default_components.TYPING:
-            self.add_typing(s, t, mapping, total=True, attrs=attrs)
+            self.add_typing(s, t, mapping, attrs=attrs)
         for rule_id, rule, attrs in default_components.RULES:
             self.add_rule(rule_id, rule, attrs)
         for s, t, (lhs_mapping, rhs_mapping), attrs in default_components.RULE_TYPING:
