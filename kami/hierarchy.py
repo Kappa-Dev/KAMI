@@ -1018,11 +1018,14 @@ class KamiHierarchy(Hierarchy):
 
             # Generate an update rule to add
             # entities fetched by the anatomizer
+
             lhs = nx.DiGraph()
             add_nodes_from(lhs, ["gene"])
             instance = {"gene": gene}
 
             anatomization_rule = Rule.from_transform(lhs)
+            anatomization_rule.inject_add_node_attrs(
+                "gene", {"hgnc_symbol": anatomy.hgnc_symbol})
             anatomization_rule_typing = {
                 "kami": {}
             }
