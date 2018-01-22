@@ -860,6 +860,17 @@ class KamiHierarchy(Hierarchy):
                     self.anatomize_gene(gene)
                 # end = time.time() - start
                 # print("\tTime to anatomize: ", end)
+        self._connect_transitive_components([
+            self.typing[nugget_id]["action_graph"][n]
+            for n in self.nugget[nugget_id].nodes()
+            if n not in nugget.ag_typing
+        ])
+
+        self._connect_nested_fragments(
+            [self.typing[nugget_id]["action_graph"][node]
+             for node in self.nugget[nugget_id].nodes()
+             if self.action_graph_typing[
+                self.typing[nugget_id]["action_graph"][node]] == "gene"])
 
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
@@ -878,6 +889,77 @@ class KamiHierarchy(Hierarchy):
             )
 
         return nugget_id
+
+    def _connect_transitive_components(self, new_nodes):
+        """Add edges between components connected transitively."""
+        connecting_rules = []
+
+        gene_region_site = nx.DiGraph()
+        add_nodes_from(gene_region_site, ["gene", "region", "site"])
+        add_edges_from(
+            gene_region_site, [("region", "gene"), ("site", "region")])
+        gene_region_site_rule = Rule.from_transform(gene_region_site)
+        gene_region_site_rule.inject_add_edge("site", "gene")
+        lhs_typing = {
+            "kami": {"gene": "gene", "region": "region", "site": "site"}
+        }
+        connecting_rules.append((gene_region_site_rule, lhs_typing))
+
+        region_site_residue = nx.DiGraph()
+        add_nodes_from(region_site_residue, ["region", "site", "residue"])
+        add_edges_from(
+            region_site_residue, [("site", "region"), ("residue", "site")])
+        region_site_residue_rule = Rule.from_transform(region_site_residue)
+        region_site_residue_rule.inject_add_edge("residue", "region")
+        lhs_typing = {
+            "kami": {"region": "region", "site": "site", "residue": "residue"}
+        }
+        connecting_rules.append((region_site_residue_rule, lhs_typing))
+
+        # Create a rule that for a pattent 'gene'<-'region'<-'residue'
+        # adds an edge 'gene'<-'residue'
+        # TODO: what if such residue already existed (maybe need to merge smth)
+        gene_region_residue = nx.DiGraph()
+        add_nodes_from(gene_region_residue, ["gene", "region", "residue"])
+        add_edges_from(
+            gene_region_residue, [("region", "gene"), ("residue", "region")])
+        gene_region_residue_rule = Rule.from_transform(gene_region_residue)
+        gene_region_residue_rule.inject_add_edge("residue", "gene")
+        lhs_typing = {
+            "kami": {"gene": "gene", "region": "region", "residue": "residue"}
+        }
+        connecting_rules.append((gene_region_residue_rule, lhs_typing))
+
+        gene_site_residue = nx.DiGraph()
+        add_nodes_from(gene_site_residue, ["gene", "site", "residue"])
+        add_edges_from(
+            gene_site_residue, [("site", "gene"), ("residue", "site")])
+        gene_site_residue_rule = Rule.from_transform(gene_site_residue)
+        gene_site_residue_rule.inject_add_edge("residue", "gene")
+        lhs_typing = {
+            "kami": {"gene": "gene", "site": "site", "residue": "residue"}
+        }
+        connecting_rules.append((gene_site_residue_rule, lhs_typing))
+
+        for rule, lhs_typing in connecting_rules:
+            # print(rule.lhs.nodes(), lhs_typing, new_nodes)
+            instances = self.find_matching(
+                "action_graph", rule.lhs, pattern_typing=lhs_typing,
+                nodes=new_nodes)
+            for instance in instances:
+                self.rewrite("action_graph", rule, instance)
+
+    def _connect_nested_fragments(self, genes):
+        for gene in genes:
+            regions = self.get_attached_regions(gene)
+            for site in self.get_attached_sites(gene):
+                f = find_fragment(
+                    self.action_graph.node[site],
+                    {r: self.action_graph.node[r] for r in regions})
+                if f is not None:
+                    if self.action_graph_typing[f] == "region" and\
+                       (site, f) not in self.action_graph.edges():
+                        add_edge(self.action_graph, site, f)
 
     def anatomize_gene(self, gene):
         """Anatomize existing gene node in the action graph."""
