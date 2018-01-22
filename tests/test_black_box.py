@@ -265,3 +265,53 @@ class TestBlackBox(object):
         hierarchy = create_nuggets([m], anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
         print(hierarchy.ag_to_edge_list())
+
+    def test_advanced_site_actor(self):
+        # General phosphorylation state.
+        phos = State("phosphorylation", True)
+        unphos = State("phosphorylation", False)
+
+        # General SH2 regions.
+        sh2 = Region(name="SH2")
+        sh2n = Region(name="SH2", order=1)
+        sh2c = Region(name="SH2", order=2)
+
+        # Test site.
+        s1 = Site(name="test_site")
+
+        inters = []
+        
+        # Modification using SiteActor.
+        m = Modification(
+            enzyme=Gene("P00519", hgnc_symbol="ABL1"),
+            #substrate=RegionActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
+            #                    region=Region(name="region800", start=796, end=804)),
+            substrate=SiteActor(gene=Gene("P00519", hgnc_symbol="ABL1"),
+                                site=Site(name="site800", start=796, end=804)),
+            mod_target=Residue("Y", 800, State("phosphorylation", False)),
+            mod_value=True
+        )
+        inters.append(m)
+        m = Modification(
+            enzyme=Gene("P00519", hgnc_symbol="ABL1"),
+            #substrate=RegionActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
+            #                    region=Region(name="region800", start=796, end=804)),
+            substrate=SiteActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
+                                site=Site(name="site800", start=796, end=804)),
+            mod_target=Residue("Y", 800, State("phosphorylation", False)),
+            mod_value=True
+        )
+        inters.append(m)
+
+
+        # Binding using SiteActor.
+        b = Binding(
+            #[RegionActor(gene=Gene("P00533",  hgnc_symbol="EGFR"),
+            #           region=Region(name="region800", start=796, end=804))],
+            [SiteActor(gene=Gene("P00533",  hgnc_symbol="EGFR"),
+                       site=Site(name="site800", start=796, end=804))],
+            [RegionActor(gene=Gene("P62993",  hgnc_symbol="GRB2"), region=sh2)]
+        )
+        inters.append(b)
+        hierarchy = create_nuggets(inters, anatomize=True)
+        

@@ -841,30 +841,39 @@ class KamiHierarchy(Hierarchy):
         self.add_template_rel(
             nugget_id, nugget.template_id, nugget.template_rel)
 
-        # end = time.time() - start
-        # print("\tTime to add nugget to the hierarchy: ", end)
+        # Get a set of genes added by the nugget
+        new_gene_nodes = set()
+        for node in self.nugget[nugget_id].nodes():
+            ag_node = self.typing[nugget_id]["action_graph"][node]
+            if self.action_graph_typing[ag_node] == "gene":
+                if node not in nugget.ag_typing:
+                    new_gene_nodes.add(ag_node)
+
+        # Check if all new genes agents from the nugget should be
+        # distinct in the action graph
+        genes_to_merge = {
+            list(self.action_graph.node[gene]["uniprotid"])[0]: set() for gene in new_gene_nodes
+        }
+        for gene in new_gene_nodes:
+            genes_to_merge[list(self.action_graph.node[gene]["uniprotid"])[0]].add(gene) 
+        for k, v in genes_to_merge.items():
+            if len(v) > 1:
+                pattern = nx.DiGraph()
+                add_nodes_from(pattern, v)
+                rule = Rule.from_transform(pattern)
+                rule.inject_merge_nodes(v, node_id=k)
+                _, rhs_instance = self.rewrite("action_graph", rule)
+                self.rename_node("action_graph", rhs_instance[k], k)
+                for vv in v:
+                    if vv != k:
+                        new_gene_nodes.remove(vv)
+
         # 5. Anatomize new genes added as the result of nugget creation
+        new_ag_regions = []
         if anatomize is True:
-            # Get a set of genes added by the nugget
-            new_gene_nodes = set()
-            for node in self.nugget[nugget_id].nodes():
-                ag_node = self.typing[nugget_id]["action_graph"][node]
-                if self.action_graph_typing[ag_node] ==\
-                   "gene":
-                    if node not in nugget.ag_typing:
-                        new_gene_nodes.add(ag_node)
             if len(new_gene_nodes) > 0:
-                # print("\tAnatomizing %d genes..." % len(new_gene_nodes))
-                # start = time.time()
                 for gene in new_gene_nodes:
-                    self.anatomize_gene(gene)
-                # end = time.time() - start
-                # print("\tTime to anatomize: ", end)
-        self._connect_transitive_components([
-            self.typing[nugget_id]["action_graph"][n]
-            for n in self.nugget[nugget_id].nodes()
-            if n not in nugget.ag_typing
-        ])
+                    new_ag_regions += self.anatomize_gene(gene)
 
         self._connect_nested_fragments(
             [self.typing[nugget_id]["action_graph"][node]
@@ -872,15 +881,18 @@ class KamiHierarchy(Hierarchy):
              if self.action_graph_typing[
                 self.typing[nugget_id]["action_graph"][node]] == "gene"])
 
+        self._connect_transitive_components([
+            self.typing[nugget_id]["action_graph"][n]
+            for n in self.nugget[nugget_id].nodes()
+            if n not in nugget.ag_typing
+        ] + new_ag_regions)
+
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
-            # start = time.time()
             if "mod" in self.node[nugget_id].attrs["interaction_type"]:
                 apply_mod_semantics(self, nugget_id)
             elif "bnd" in self.node[nugget_id].attrs["interaction_type"]:
                 apply_bnd_semantics(self, nugget_id)
-            # end = time.time() - start
-            # print("\tTime to apply semantics: ", end)
 
         # 7. Add semantic relations found for the nugget
         for semantic_nugget, rel in nugget.semantic_rels.items():
@@ -942,7 +954,6 @@ class KamiHierarchy(Hierarchy):
         connecting_rules.append((gene_site_residue_rule, lhs_typing))
 
         for rule, lhs_typing in connecting_rules:
-            # print(rule.lhs.nodes(), lhs_typing, new_nodes)
             instances = self.find_matching(
                 "action_graph", rule.lhs, pattern_typing=lhs_typing,
                 nodes=new_nodes)
@@ -963,13 +974,14 @@ class KamiHierarchy(Hierarchy):
 
     def anatomize_gene(self, gene):
         """Anatomize existing gene node in the action graph."""
+        new_regions = list()
         if gene not in self.action_graph.nodes() or\
            self.action_graph_typing[gene] != "gene":
             raise KamiHierarchyError(
                 "Gene node '%s' does not exist in the hierarchy!" % gene)
-        # print("Anatomizing '%s'..." % gene)
+
         anatomy = None
-        # start = time.time()
+
         if "uniprotid" in self.action_graph.node[gene] and\
            len(self.action_graph.node[gene]["uniprotid"]) == 1:
             anatomy = GeneAnatomy(
@@ -1002,10 +1014,8 @@ class KamiHierarchy(Hierarchy):
                 )
                 if anatomy is not None:
                     break
-        # end = time.time() - start
-        # print("\t\tTime to get anatomy from anatomizer: ", end)
         if anatomy is not None:
-            # start = time.time()
+
             # Generate an update rule to add
             # entities fetched by the anatomizer
             lhs = nx.DiGraph()
@@ -1073,15 +1083,12 @@ class KamiHierarchy(Hierarchy):
                     del semantic_relations[matching_region]
                     new_regions.remove(matching_region)
                     new_regions.append(new_name)
-            # end = time.time() - start
-            # print("\t\tTime to create anatomization rule: ", end)
-            # start = time.time()
+
             _, rhs_g = self.rewrite(
                 "action_graph", anatomization_rule,
                 instance, rhs_typing=anatomization_rule_typing,
                 strict=True, inplace=True)
-            # end = time.time() - start
-            # print("\t\tTime to apply anatomization rule: ", end)
+
             for new_node_id, semantics in semantic_relations.items():
                 for s in semantics:
                     if rhs_g[new_node_id] in self.relation["action_graph"][
@@ -1095,6 +1102,7 @@ class KamiHierarchy(Hierarchy):
             warnings.warn(
                 "Unable to anatomize gene node '%s'" % gene,
                 KamiHierarchyWarning)
+        return new_regions
 
     def type_nugget_by_ag(self, nugget_id, typing):
         """Type nugget by the action graph."""
