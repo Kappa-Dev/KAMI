@@ -5,8 +5,8 @@ import warnings
 import networkx as nx
 import time
 
-from regraph.primitives import (add_edge,
-                                add_node)
+from regraph import (add_edge,
+                     add_node)
 
 from kami.entities import (Gene, RegionActor,
                            Residue, SiteActor, State
@@ -501,7 +501,9 @@ class ModGenerator(Generator):
         )
 
         # 3. create state related nodes subject to modification
-        if substrate_region:
+        if substrate_site:
+            attached_to = substrate_site
+        elif substrate_region:
             attached_to = substrate_region
         else:
             attached_to = substrate
@@ -546,7 +548,9 @@ class ModGenerator(Generator):
                 "`State` or `Residue` with non-empty state: %s "
                 "is provided" % type(mod.target)
             )
-        if enzyme_region:
+        if enzyme_site:
+            nugget.add_edge(enzyme_site, "mod")
+        elif enzyme_region:
             nugget.add_edge(enzyme_region, "mod")
         else:
             nugget.add_edge(enzyme, "mod")

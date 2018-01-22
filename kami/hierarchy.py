@@ -5,8 +5,7 @@ import numpy as np
 import warnings
 import time
 
-from regraph.rules import Rule
-from regraph.hierarchy import Hierarchy
+from regraph import Rule, Hierarchy
 from regraph.primitives import *
 
 from anatomizer.new_anatomizer import GeneAnatomy

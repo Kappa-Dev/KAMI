@@ -1,6 +1,6 @@
 """Unit testing of nugget generators functionality."""
 
-from regraph.primitives import (print_graph)
+from regraph import print_graph
 
 from kami.resolvers.new_generators import (NuggetContainer, Generator,
                                            ModGenerator)
@@ -439,28 +439,16 @@ class TestBlackBox(object):
         (gene_id, site_id, region_id) =\
             self.generator._generate_site_actor(nugget, site_actor)
         assert((site_id, gene_id) in nugget.edges())
-        # assert(
-        #     (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
-        #     self.generator.hierarchy.action_graph.edges())
+
         # with a region in the middle
         site_actor_with_region = SiteActor(
             gene=Gene("P00519"), site=Site("pY"), region=Region("kinase"))
 
         (gene_id, site_id, region_id) =\
             self.generator._generate_site_actor(nugget, site_actor_with_region)
-        # assert(
-        #     (nugget.ag_typing[site_id], nugget.ag_typing[gene_id]) in
-        #     self.generator.hierarchy.action_graph.edges())
+
         assert((site_id, region_id) in nugget.edges())
         assert((region_id, gene_id) in nugget.edges())
-        # assert(
-        #     (nugget.ag_typing[site_id],
-        #         nugget.ag_typing["P00519_1_region_kinase"]) in
-        #     self.generator.hierarchy.action_graph.edges())
-        # assert(
-        #     (nugget.ag_typing["P00519_1_region_kinase"],
-        #         nugget.ag_typing[gene_id]) in
-        #     self.generator.hierarchy.action_graph.edges())
 
     def test_is_bnd_generator(self):
 
@@ -569,9 +557,11 @@ class TestBlackBox(object):
             substrate=substrate_site_actor,
             mod_target=residue_mod_target
         )
+        print(mod5)
         hierarchy = KamiHierarchy()
         generator = ModGenerator(hierarchy)
         n, t = generator._create_nugget(mod5)
+        print_graph(n.graph)
 
     # def test_bnd_generator(self):
     #     pass
