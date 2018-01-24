@@ -38,7 +38,7 @@ def find_fragment(a, dict_of_b):
         b_name = None
         if "start" in b.keys():
             b_start = int(min(b["start"]))
-        if "end" in a.keys():
+        if "end" in b.keys():
             b_end = int(max(b["end"]))
         if "name" in b.keys():
             b_name = list(b["name"])[0].lower()

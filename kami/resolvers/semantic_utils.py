@@ -105,11 +105,6 @@ def apply_mod_semantics(hierarchy, nugget_id):
                 hierarchy.unique_kinase_region(ag_enzyme)
             if unique_kinase_region is not None:
 
-                # print("\t\tAutocompleting nugget with kinase region...")
-
-                # start = time.time()
-
-                # start1 = time.time()
                 kinase_mods =\
                     hierarchy.ag_successors_of_type(unique_kinase_region, "mod")
                 pattern = nx.DiGraph()
@@ -126,19 +121,9 @@ def apply_mod_semantics(hierarchy, nugget_id):
                         mod_merge_rule._add_node_lhs(n)
                     new_mod_id = mod_merge_rule.inject_merge_nodes(
                         [ag_mod_node] + kinase_mods)
-                # end = time.time() - start1
-                # print("\t\t\tTime to genereate rule: ", end)
 
-                # start1 = time.time()
                 _, rhs_ag = hierarchy.rewrite("action_graph", mod_merge_rule)
-                # end = time.time() - start1
-                # print("\t\t\tTime to apply rule: ", end)
 
-                # end = time.time() - start
-                # print("\t\tTime to merge actions in the ag: ", end)
-
-                # start = time.time()
-                # start1 = time.time()
                 if len(kinase_mods) > 0:
                     new_ag_mod = rhs_ag[new_mod_id]
                 else:
