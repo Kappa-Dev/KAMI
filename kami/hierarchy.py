@@ -361,14 +361,24 @@ class KamiHierarchy(Hierarchy):
 
     def get_gene_of(self, element_id):
         """Get agent id conntected to the element."""
-        agents = self.ag_successors_of_type(element_id, "gene")
-        if len(agents) == 1:
-            return agents[0]
-        elif len(agents) > 1:
-            raise KamiHierarchyError(
-                "More than one agents ('%s') are associated "
-                "with a single region '%s'" % (", ".join(agents), element_id)
-            )
+        if self.action_graph_typing[element_id] == "gene":
+            return element_id
+        else:
+            # bfs to find a gene
+            visited = set()
+            next_level_to_visit = self.action_graph.successors(element_id)
+            while len(next_level_to_visit) > 0: 
+                new_level_to_visit = set()
+                for n in next_level_to_visit:
+                    if n not in visited:
+                        visited.add(n)
+                        if self.action_graph_typing[n] == "gene":
+                            return n
+                    new_level_to_visit.update(
+                        self.action_graph.successors(n))
+                next_level_to_visit = new_level_to_visit
+        raise KamiHierarchyError(
+            "No gene node is associated with an element '{}'".fromat(element_id))
         return None
 
     def get_region_of(self, element_id):
@@ -741,7 +751,8 @@ class KamiHierarchy(Hierarchy):
         in the action graph.
         `add_aa` -- add aa value if location is found but aa not
         """
-        residue_candidates = self.get_attached_residues(ref_agent)
+        ref_gene = self.get_gene_of(ref_agent)
+        residue_candidates = self.get_attached_residues(ref_gene)
         if residue.loc is not None:
             for res in residue_candidates:
                 if "loc" in self.action_graph.node[res].keys():
@@ -807,7 +818,7 @@ class KamiHierarchy(Hierarchy):
     def add_nugget(self, nugget, nugget_type, add_agents=True,
                    anatomize=True, apply_semantics=True, name=None):
         """Add nugget to the hierarchy."""
-        # start = time.time()
+
         nugget_id = self._generate_nugget_id()
 
         p = nx.DiGraph()
@@ -875,17 +886,22 @@ class KamiHierarchy(Hierarchy):
                 for gene in new_gene_nodes:
                     new_ag_regions += self.anatomize_gene(gene)
 
-        self._connect_nested_fragments(
-            [self.typing[nugget_id]["action_graph"][node]
+        all_genes = [
+            self.typing[nugget_id]["action_graph"][node]
              for node in self.nugget[nugget_id].nodes()
              if self.action_graph_typing[
-                self.typing[nugget_id]["action_graph"][node]] == "gene"])
+                self.typing[nugget_id]["action_graph"][node]] == "gene"]
 
+        self._connect_nested_fragments(all_genes)
         self._connect_transitive_components([
             self.typing[nugget_id]["action_graph"][n]
             for n in self.nugget[nugget_id].nodes()
-            if n not in nugget.ag_typing
-        ] + new_ag_regions)
+            ] + new_ag_regions)
+        # Merge sites
+        for g in all_genes: 
+            residues = self.get_attached_residues(g)
+            sites = self.get_attached_sites(g)
+            self._merge_sites(residues + sites)
 
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
@@ -901,6 +917,28 @@ class KamiHierarchy(Hierarchy):
             )
 
         return nugget_id
+
+    def _merge_sites(self, nodes):
+        pattern = nx.DiGraph()
+        pattern.add_edges_from([("residue", "site1"), ("residue", "site2")])
+        site_merging_rule = Rule.from_transform(pattern)
+        site_merging_rule.inject_merge_nodes(["site1", "site2"])
+        lhs_typing = {
+            "kami": {
+                "residue": "residue",
+                "site1": "site",
+                "site2": "site"
+            }
+        }
+        instances = self.find_matching(
+            "action_graph", pattern, pattern_typing=lhs_typing,
+            nodes=nodes)
+        visited_sites = set()
+        for instance in instances:
+            if instance["site1"] not in visited_sites or instance["site2"] not in visited_sites:
+                self.rewrite("action_graph", site_merging_rule, instance)
+                visited_sites.add(instance["site1"])
+                visited_sites.add(instance["site2"])
 
     def _connect_transitive_components(self, new_nodes):
         """Add edges between components connected transitively."""
