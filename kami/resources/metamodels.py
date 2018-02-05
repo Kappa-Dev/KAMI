@@ -4,7 +4,7 @@ import networkx as nx
 
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from)
-from regraph.attribute_sets import RegexSet, IntegerSet, UniversalSet
+from regraph import RegexSet, IntegerSet, UniversalSet
 
 
 UNIPROT_REGEX =\
@@ -75,12 +75,22 @@ add_nodes_from(
         ("mod", {
             "value": {True, False},
             "direct": {True, False},
-            "text": RegexSet.universal()
+            "text": RegexSet.universal(),
+            "rate": UniversalSet(),
+            "unimolecular_rate": UniversalSet()
         }),
         "syn",
         "deg",
-        ("bnd", {"direct": {True, False}}),
-        "brk",
+        ("bnd", {
+            "direct": {True, False},
+            "text": RegexSet.universal(),
+            "rate": UniversalSet(),
+            "unimolecular_rate": UniversalSet()
+        }),
+        ("brk", {
+            "rate": UniversalSet(),
+            "unimolecular_rate": UniversalSet()
+        }),
         "is_bnd",
         "is_free",
     ]
