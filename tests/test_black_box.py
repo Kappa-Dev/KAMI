@@ -314,4 +314,30 @@ class TestBlackBox(object):
         )
         inters.append(b)
         hierarchy = create_nuggets(inters, anatomize=True)
-        
+    
+    def test_site_merge(self):
+        enzyme_site_actor1 =\
+            SiteActor(
+                gene=Gene("P00533"),
+                site=Site("unknown", residues=[Residue("Y", 100)]))
+        substrate = Gene("P62993")
+        mod1 = Modification(
+            enzyme_site_actor1, substrate,
+            State("phosphorylation", False), True)
+
+        enzyme_site_actor2 =\
+            SiteActor(
+                gene=Gene("P00533"),
+                site=Site("noname", residues=[Residue("Y", 100)]),
+                region=Region("PK", start=720, end=950))
+        mod2 = Modification(
+            enzyme_site_actor2, substrate,
+            State("phosphorylation", False), True)
+        mod3 = Modification(
+            enzyme_site_actor2,
+            Gene("P00519"),
+            Residue("Y", 354, State("phosphorylation", False)), True)
+        hierarchy = KamiHierarchy()
+        hierarchy = create_nuggets([mod1, mod2])
+        # hierarchy = create_nuggets([mod2, mod3])
+        print_graph(hierarchy.action_graph)

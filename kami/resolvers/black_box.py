@@ -2,12 +2,12 @@
 import sys
 import time
 
-from kami.resolvers.new_generators import (ModGenerator,
-                                           # AutoModGenerator,
-                                           # TransModGenerator,
-                                           # AnonymousModGenerator,
-                                           BndGenerator)
-                                           # ComplexGenerator)
+from kami.resolvers.generators import (ModGenerator,
+                                       # AutoModGenerator,
+                                       # TransModGenerator,
+                                       # AnonymousModGenerator,
+                                       BndGenerator)
+                                       # ComplexGenerator)
 from kami.hierarchy import KamiHierarchy
 
 

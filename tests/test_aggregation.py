@@ -1,5 +1,5 @@
 """."""
-from kami.resolvers.new_generators import ModGenerator, BndGenerator
+from kami.resolvers.generators import ModGenerator, BndGenerator
 from kami.hierarchy import KamiHierarchy
 from kami.entities import *
 from kami.interactions import *

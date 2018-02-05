@@ -32,8 +32,10 @@ def apply_mod_semantics(hierarchy, nugget_id):
     enzyme = list(template_rel["enzyme"])[0]
     mod_state = list(template_rel["mod_state"])[0]
     mod_residue = None
+
     if "substrate_residue" in template_rel.keys():
         mod_residue = list(template_rel["substrate_residue"])[0]
+
     mod_node = list(template_rel["mod"])[0]
     ag_enzyme = hierarchy.typing[nugget_id]["action_graph"][enzyme]
     ag_mod_node = hierarchy.typing[nugget_id]["action_graph"]["mod"]
@@ -56,6 +58,7 @@ def apply_mod_semantics(hierarchy, nugget_id):
         }
         if mod_residue is not None:
             phospho_semantic_rel[mod_residue] = "target_residue"
+
         if "enzyme_region" in template_rel.keys():
             enz_region = list(template_rel["enzyme_region"])[0]
             ag_enz_region = hierarchy.typing[nugget_id][
@@ -99,6 +102,8 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     "Region '%s' performing phosphorylation is not "
                     "a protein kinase region" % ag_enz_region,
                     KamiHierarchyWarning)
+        elif "enzyme_site" in template_rel:
+            pass
         else:
             enz_region = None
             unique_kinase_region =\
@@ -149,16 +154,11 @@ def apply_mod_semantics(hierarchy, nugget_id):
                         ag_activity: ag_activity
                     }
                 }
-                # end = time.time() - start1
-                # print("\t\t\tTime to genereate rule: ", end)
-                # start1 = time.time()
+
                 _, rhs_nugget = hierarchy.rewrite(
                     nugget_id, autocompletion_rule,
                     rhs_typing=rhs_typing)
-                # end = time.time() - start1
-                # print("\t\t\tTime to apply rule: ", end)
-                # end = time.time() - start
-                # print("\t\tTime to autocomplete nugget:", end)
+
                 enz_region = rhs_nugget[unique_kinase_region]
                 phospho_semantic_rel[rhs_nugget[unique_kinase_region]] =\
                     "protein_kinase"

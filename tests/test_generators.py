@@ -2,7 +2,7 @@
 
 from regraph import print_graph
 
-from kami.resolvers.new_generators import (NuggetContainer, Generator,
+from kami.resolvers.generators import (NuggetContainer, Generator,
                                            ModGenerator)
 from kami.interactions import (Modification,
                                Binding)
@@ -101,30 +101,30 @@ class TestBlackBox(object):
         old_ag_size = len(self.generator.hierarchy.action_graph.nodes())
         residue1, state1 =\
             self.generator._generate_residue(
-                nugget, t, self.default_ag_gene)
+                nugget, t, self.default_ag_gene, self.default_ag_gene)
         assert(state1 is None)
         # assert(residue1 not in nugget.ag_typing.keys())
         assert(residue1 in nugget.nodes())
 
         residue2, _ =\
             self.generator._generate_residue(
-                nugget, t, self.default_ag_gene)
+                nugget, t, self.default_ag_gene, self.default_ag_gene)
         # assert(residue2 in nugget.ag_typing.keys())
 
         residue3, _ =\
             self.generator._generate_residue(
-                nugget, t100, self.default_ag_gene)
+                nugget, t100, self.default_ag_gene, self.default_ag_gene)
         # assert(nugget.ag_typing[residue2] != nugget.ag_typing[residue3])
 
         residue4, state4 =\
             self.generator._generate_residue(
-                nugget, y100_phospho, self.default_ag_gene)
+                nugget, y100_phospho, self.default_ag_gene, self.default_ag_gene)
         assert(state4 is not None)
         # assert(nugget.ag_typing[residue4] == nugget.ag_typing[residue3])
 
         residue5, state5 =\
             self.generator._generate_residue(
-                nugget, y100_active, self.default_ag_gene)
+                nugget, y100_active, self.default_ag_gene, self.default_ag_gene)
 
         assert(len(nugget.nodes()) == 7)
         # assert(
@@ -179,22 +179,22 @@ class TestBlackBox(object):
 
         site_bob_id_1 =\
             self.generator._generate_site(
-                nugget, site_bob, self.default_ag_gene)
+                nugget, site_bob, self.default_ag_gene, self.default_ag_gene)
         assert(site_bob_id_1 in nugget.nodes())
         # assert(site_bob_id_1 not in nugget.ag_typing.keys())
 
         site_bob_id_2 =\
             self.generator._generate_site(
-                nugget, site_bob, self.default_ag_gene)
+                nugget, site_bob, self.default_ag_gene, self.default_ag_gene)
         assert(site_bob_id_2 in nugget.nodes())
         # assert(site_bob_id_2 in nugget.ag_typing.keys())
 
         site100_200_id =\
             self.generator._generate_site(
-                nugget, site100_200, self.default_ag_gene)
+                nugget, site100_200, self.default_ag_gene, self.default_ag_gene)
         site110_150_id =\
             self.generator._generate_site(
-                nugget, site110_150, self.default_ag_gene)
+                nugget, site110_150, self.default_ag_gene, self.default_ag_gene)
         # assert(
         #     nugget.ag_typing[site110_150_id] ==
         #     nugget.ag_typing[site100_200_id])
@@ -202,17 +202,17 @@ class TestBlackBox(object):
         site_bob_500_600_id =\
             self.generator._generate_site(
                 nugget, site_bob_500_600,
-                self.default_ag_gene)
+                self.default_ag_gene, self.default_ag_gene)
         site_bob_800_1000_id =\
             self.generator._generate_site(
                 nugget, site_bob_800_1000,
-                self.default_ag_gene)
+                self.default_ag_gene, self.default_ag_gene)
         site_bob_1_id =\
             self.generator._generate_site(
-                nugget, site_bob_1, self.default_ag_gene)
+                nugget, site_bob_1, self.default_ag_gene, self.default_ag_gene)
         site_bob_2_id =\
             self.generator._generate_site(
-                nugget, site_bob_2, self.default_ag_gene)
+                nugget, site_bob_2, self.default_ag_gene, self.default_ag_gene)
         # assert(
         #     nugget.ag_typing[site_bob_1_id] ==
         #     nugget.ag_typing[site_bob_500_600_id])
@@ -233,7 +233,7 @@ class TestBlackBox(object):
         )
         try:
             self.generator._generate_site(
-                nugget, complex_site, self.default_ag_gene)
+                nugget, complex_site, self.default_ag_gene, self.default_ag_gene)
             raise ValueError("Invalid residue was not caught!")
         except:
             pass
@@ -244,7 +244,7 @@ class TestBlackBox(object):
             residues=[Residue("Y", 505, State('phosphorylation', True))]
         )
         complex_site_id = self.generator._generate_site(
-            nugget, complex_site, self.default_ag_gene)
+            nugget, complex_site, self.default_ag_gene, self.default_ag_gene)
         # assert(
         #     nugget.ag_typing[complex_site_id] ==
         #     nugget.ag_typing[site_bob_500_600_id])
@@ -465,7 +465,9 @@ class TestBlackBox(object):
             bounds=[gene, gene]
         )
         site_id =\
-            self.generator._generate_site(nugget, site, self.default_ag_gene)
+            self.generator._generate_site(
+                nugget, site,
+                self.default_ag_gene, self.default_ag_gene)
 
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
@@ -475,7 +477,8 @@ class TestBlackBox(object):
             bounds=[[gene, gene]]
         )
         site_id =\
-            self.generator._generate_site(nugget, site, self.default_ag_gene)
+            self.generator._generate_site(nugget, site, self.default_ag_gene,
+                self.default_ag_gene)
 
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
@@ -485,7 +488,9 @@ class TestBlackBox(object):
             bounds=[site_actor]
         )
         site_id =\
-            self.generator._generate_site(nugget, site, self.default_ag_gene)
+            self.generator._generate_site(
+                nugget, site, self.default_ag_gene,
+                self.default_ag_gene)
 
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
@@ -495,7 +500,8 @@ class TestBlackBox(object):
             bounds=[region_actor]
         )
         site_id =\
-            self.generator._generate_site(nugget, site, self.default_ag_gene)
+            self.generator._generate_site(
+                nugget, site, self.default_ag_gene, self.default_ag_gene)
 
         # region = Region(
         #     "sh2",
