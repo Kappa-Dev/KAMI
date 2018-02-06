@@ -122,6 +122,28 @@ class Binding:
         return res
 
 
+class Unbinding:
+    """Class for Kami binary unbinding interaction."""
+
+    def __init__(self, left_members, right_members,
+                 annotation=None, direct=True):
+        """Initialize binary binding."""
+        self.left = left_members
+        self.right = right_members
+        self.annotation = annotation
+        self.direct = direct
+
+    def __str__(self):
+        """String representation of Binding class."""
+        res = "Unbinding:\n"
+        res += "\tLeft members: %s\n" %\
+            ", ".join([str(m) for m in self.left])
+        res += "\tRight members: %s\n" %\
+            ", ".join([str(m) for m in self.right])
+        res += "\tDirect? %s\n" % self.direct
+        return res
+
+
 class Complex:
     """Class for Kami representation of complex."""
 
