@@ -6,7 +6,8 @@ SPHINXOPTS    =
 SPHINXBUILD   = python -msphinx
 SPHINXPROJ    = KAMIKnowledgeAggregatorandModelInstantiator
 SOURCEDIR     = source
-BUILDDIR      = build
+BUILDDIR      = ../../KAMI-docs
+PDFBUILDDIR   = /tmp
 
 # Put it first so that "make" without argument is like "make help".
 help:
