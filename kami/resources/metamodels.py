@@ -4,7 +4,7 @@ import networkx as nx
 
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from)
-from regraph import RegexSet, IntegerSet, UniversalSet
+from regraph.attribute_sets import RegexSet, IntegerSet, UniversalSet
 
 
 UNIPROT_REGEX =\
