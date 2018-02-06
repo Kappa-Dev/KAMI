@@ -23,7 +23,6 @@ Using knowledge aggregated by a user in a KAMI model, the library allows to auto
 
 * :ref:`installation` 
 * :ref:`entities`
-* :ref:`interactions`
 * :ref:`kami_hierarchy`
 * :ref:`black_box`  
 * :ref:`instantiation`

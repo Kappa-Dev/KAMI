@@ -43,12 +43,13 @@
 <span id="id1"></span><h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">
 <li><a class="reference internal" href="#installation"><span class="std std-ref">Installation</span></a></li>
-<li><a class="reference internal" href="#entities"><span class="std std-ref">KAMI entities</span></a></li>
-<li><a class="reference internal" href="#interactions"><span class="std std-ref">KAMI interactions</span></a></li>
+<li><a class="reference internal" href="#entities"><span class="std std-ref">KAMI entities and interactions</span></a></li>
 <li><a class="reference internal" href="#kami-hierarchy"><span class="std std-ref">Hierarchies: KAMI models</span></a></li>
 <li><a class="reference internal" href="#black-box"><span class="std std-ref">Black box</span></a></li>
 <li><a class="reference internal" href="#instantiation"><span class="std std-ref">Concrete model instantiation</span></a></li>
 </ul>
+<p><strong>DISCLAIMER</strong>
+All PPI examples presented in this tutorial are created by computer scientist, do not make any sense, but serve purely illustrative purpose.</p>
 <div class="section" id="installation">
 <span id="id2"></span><h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
 <blockquote>
@@ -67,37 +68,51 @@
 </div>
 </div></blockquote>
 </div>
-<div class="section" id="kami-entities">
-<span id="entities"></span><h2>KAMI entities<a class="headerlink" href="#kami-entities" title="Permalink to this headline">¶</a></h2>
-<p>KAMI entites specify an intermediary representation format for defining
-agents of PPIs and their components such as regions, sites, residues etc.</p>
-<p>The implemented data structures include:</p>
-<ul class="simple">
-<li><cite>Actor</cite> base class for an actor of PPIs. Such actors include genes (see <cite>Gene</cite>),
-regions of genes (see <cite>RegionActor</cite>), sites of genes or sites of regions of genes
-(see <cite>SiteActor</cite>).</li>
-<li><cite>PhysicalEntity</cite> base class for physical entities in KAMI. Physical
-entities in KAMI include genes, regions, sites and they are able to encapsulate info
-about PTMs (such as residues with their states, states, bounds).</li>
-<li><dl class="first docutils">
-<dt><cite>Gene</cite>  represents a gene defined by the UniProt accession number and a</dt>
-<dd>set of regions, sites, residues, states and bounds (possible PTMs).</dd>
-</dl>
-</li>
-<li><cite>Region</cite> represents a physical region (can be seen as protein dimain) defined by a region
-and a set of its sites, residues, states and bounds.</li>
-<li><cite>Site</cite> represents a physical site (usually binding site etc) defined by some
-short sequence interval and a its residues, states and bounds (PTMs).</li>
-<li><cite>Residue</cite> represents a residue defined by an amino acid and
-(optionally) its location, it also encapsulates a <cite>State</cite> object
-corresponding to a state of this residue.</li>
-<li><cite>State</cite> represents a state given by its name and value (value assumed to be boolean).</li>
-<li><cite>RegionActor</cite> represents an actor</li>
-<li><cite>SiteActor</cite></li>
-</ul>
+<div class="section" id="kami-entities-and-interactions">
+<span id="entities"></span><h2>KAMI entities and interactions<a class="headerlink" href="#kami-entities-and-interactions" title="Permalink to this headline">¶</a></h2>
+<p>Similarly to such representations in <a class="reference external" href="http://www.biopax.org/">BioPAX</a> or <a class="reference external" href="http://indra.readthedocs.io/en/latest/modules/statements.html">INDRA</a>, KAMI entites and interactions specify an intermediary representation format for defining protein-protein interactions (PPIs), their agents (roughly speaking proteins) and agents’ components such as regions, sites, residues etc.</p>
+<div class="section" id="genes-in-kami">
+<h3>Genes in KAMI<a class="headerlink" href="#genes-in-kami" title="Permalink to this headline">¶</a></h3>
+<p>In KAMI the basic agent of a PPI is a <em>gene</em>, from which we can further define its products (i.e. proteins) by providing specific regions, sites, residues, states and bounds. Therefore, in our system an agent corresponding to a gene actually represents not a single protein, but a feasible ‘neighbourhood in the sequence space’ of gene products.</p>
+<p>Genes are defined by their Uniprot accession numbers. For example, we can define an object corresponding to the <a class="reference external" href="http://www.uniprot.org/uniprot/P00533">EGFR</a> gene as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">egfr</span> <span class="o">=</span> <span class="n">Gene</span><span class="p">(</span><span class="s2">&quot;P00533&quot;</span><span class="p">)</span>
+</pre></div>
 </div>
-<div class="section" id="kami-interactions">
-<span id="interactions"></span><h2>KAMI interactions<a class="headerlink" href="#kami-interactions" title="Permalink to this headline">¶</a></h2>
+<p>Now we would like to define <em>EGFR</em> who has key residue <em>Y</em> at the location <em>155</em> and, moreover, this residue should be phosphorylated:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">egfr_Y155</span> <span class="o">=</span> <span class="n">Gene</span><span class="p">(</span><span class="s2">&quot;P00533&quot;</span><span class="p">,</span> <span class="n">residues</span><span class="o">=</span><span class="p">[</span><span class="n">Residue</span><span class="p">(</span><span class="s2">&quot;Y&quot;</span><span class="p">,</span> <span class="mi">155</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;phosphorylation&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">))])</span>
+</pre></div>
+</div>
+<p>Define the gene _MAPK1_ who has protein kinase region:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mapk1_PK</span> <span class="o">=</span> <span class="n">Gene</span><span class="p">(</span><span class="s2">&quot;P28482&quot;</span><span class="p">,</span> <span class="n">regions</span><span class="o">=</span><span class="p">[</span><span class="n">Region</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Protein kinase&quot;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">313</span><span class="p">)])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="sites-and-regions-as-agents-of-interactions">
+<h3>Sites and Regions as agents of interactions<a class="headerlink" href="#sites-and-regions-as-agents-of-interactions" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="modification-interactions">
+<h3>Modification interactions<a class="headerlink" href="#modification-interactions" title="Permalink to this headline">¶</a></h3>
+<p>Modifications in KAMI are defined as follows:</p>
+<p><cite>Modification(enzyme, substrate, mod_target, mod_value=True, annotation=None, direct=False)</cite>,</p>
+<p>where <cite>enzyme</cite> and <cite>substrate</cite> are instances of the base <cite>Actor</cite> class, <cite>mod_target</cite> is either an object of the <cite>Residue</cite> or the <cite>State</cite> class (represents an object of modification), <cite>mod_value</cite> is a boolean flag which says whether the state of the target is being set to True or Flase.</p>
+<p>Example statement: <em>“Active MEK1 phosphorylates residue S727 of STAT3”</em></p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mek1</span> <span class="o">=</span> <span class="n">Gene</span><span class="p">(</span><span class="s2">&quot;Q02750&quot;</span><span class="p">,</span> <span class="n">states</span><span class="o">=</span><span class="p">[</span><span class="n">State</span><span class="p">(</span><span class="s2">&quot;activity&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stat3</span> <span class="o">=</span> <span class="n">Gene</span><span class="p">(</span><span class="s2">&quot;P40763&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mod_target</span> <span class="o">=</span> <span class="n">Residue</span><span class="p">(</span><span class="s2">&quot;S&quot;</span><span class="p">,</span> <span class="mi">727</span><span class="p">,</span> <span class="n">State</span><span class="p">(</span><span class="s2">&quot;phosphorylation&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mod1</span> <span class="o">=</span> <span class="n">Modification</span><span class="p">(</span><span class="n">mek1</span><span class="p">,</span> <span class="n">stat3</span><span class="p">,</span> <span class="n">mod_target</span><span class="p">,</span> <span class="n">mod_state</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">mod1</span><span class="p">)</span>
+<span class="go">Modification:</span>
+<span class="go">        Enzyme: Q02750</span>
+<span class="go">        Substrate: P40763</span>
+<span class="go">        Mod target: S727</span>
+<span class="go">        Value: True</span>
+<span class="go">        Direct? True</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="binding-interactions">
+<h3>Binding interactions<a class="headerlink" href="#binding-interactions" title="Permalink to this headline">¶</a></h3>
+</div>
 </div>
 <div class="section" id="hierarchies-kami-models">
 <span id="kami-hierarchy"></span><h2>Hierarchies: KAMI models<a class="headerlink" href="#hierarchies-kami-models" title="Permalink to this headline">¶</a></h2>
