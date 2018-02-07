@@ -107,6 +107,47 @@ Binding interactions
 ^^^^^^^^^^^^^^^^^^^^
 
 
+
+
+
+For example, we can specify an interaction, for which a particular gene product should have a specific mutation of some residue, by attaching a Residue node with a fixed value of amino acid corresponding to the mutation. More examples of
+the biological facts expressed with graphs typed by the meta-model M will follow.
+
+So, before defining a physical agent we actually need to define objects correspodning to regions, residues, states and bounds. Consider an example below where we define a state object (State) corresponding to activity state of a protein and pass it to the list of states of a physical agent, we also specify two residues (1) Residue T222 (whithout state it means that we just require that there is this particular amino acid at this particular location) (2) Phosphorylated residue S121 (here we require that this particular location with this amino acid is phosphorylated):
+
+
+
+Actor vs Physical entity
+
+
+
+The implemented data structures include:
+
+* `Actor` base class for an actor of PPIs. Such actors include genes (see `Gene`),
+  regions of genes (see `RegionActor`), sites of genes or sites of regions of genes
+  (see `SiteActor`).
+* `PhysicalEntity` base class for physical entities in KAMI. Physical
+  entities in KAMI include genes, regions, sites and they are able to encapsulate info 
+  about PTMs (such as residues with their states, states, bounds).
+* `Gene`  represents a gene defined by the UniProt accession number and a
+   set of regions, sites, residues, states and bounds (possible PTMs).
+* `Region` represents a physical region (can be seen as protein dimain) defined by a region
+  and a set of its sites, residues, states and bounds.
+* `Site` represents a physical site (usually binding site etc) defined by some
+  short sequence interval and a its residues, states and bounds (PTMs).
+* `Residue` represents a residue defined by an amino acid and
+  (optionally) its location, it also encapsulates a `State` object
+  corresponding to a state of this residue.
+* `State` represents a state given by its name and value (value assumed to be boolean).
+* `RegionActor` represents an actor
+* `SiteActor`
+
+
+
+
+
+
+
 .. _kami_hierarchy:
 
 ------------------------
