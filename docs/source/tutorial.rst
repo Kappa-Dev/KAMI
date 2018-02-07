@@ -4,10 +4,12 @@ Tutorial
 ========
 * :ref:`installation` 
 * :ref:`entities`
-* :ref:`interactions`
 * :ref:`kami_hierarchy`
 * :ref:`black_box`  
 * :ref:`instantiation`
+
+**DISCLAIMER** 
+All PPI examples presented in this tutorial are created by computer scientist, do not make any sense, but serve purely illustrative purpose.
 
 .. _installation:
 
@@ -38,43 +40,71 @@ Installation
 
 .. _entities:
 
--------------
-KAMI entities
--------------
+------------------------------
+KAMI entities and interactions
+------------------------------
 
-KAMI entites specify an intermediary representation format for defining
-agents of PPIs and their components such as regions, sites, residues etc.
+Similarly to such representations in `BioPAX <http://www.biopax.org/>`_ or `INDRA <http://indra.readthedocs.io/en/latest/modules/statements.html>`_, KAMI entites and interactions specify an intermediary representation format for defining protein-protein interactions (PPIs), their agents (roughly speaking proteins) and agents' components such as regions, sites, residues etc.
 
+^^^^^^^^^^^^^
+Genes in KAMI
+^^^^^^^^^^^^^
 
+In KAMI the basic agent of a PPI is a *gene*, from which we can further define its products (i.e. proteins) by providing specific regions, sites, residues, states and bounds. Therefore, in our system an agent corresponding to a gene actually represents not a single protein, but a feasible 'neighbourhood in the sequence space' of gene products.
 
-The implemented data structures include:
+Genes are defined by their Uniprot accession numbers. For example, we can define an object corresponding to the `EGFR <http://www.uniprot.org/uniprot/P00533>`_ gene as follows:
 
-* `Actor` base class for an actor of PPIs. Such actors include genes (see `Gene`),
-  regions of genes (see `RegionActor`), sites of genes or sites of regions of genes
-  (see `SiteActor`).
-* `PhysicalEntity` base class for physical entities in KAMI. Physical
-  entities in KAMI include genes, regions, sites and they are able to encapsulate info 
-  about PTMs (such as residues with their states, states, bounds).
-* `Gene`  represents a gene defined by the UniProt accession number and a
-   set of regions, sites, residues, states and bounds (possible PTMs).
-* `Region` represents a physical region (can be seen as protein dimain) defined by a region
-  and a set of its sites, residues, states and bounds.
-* `Site` represents a physical site (usually binding site etc) defined by some
-  short sequence interval and a its residues, states and bounds (PTMs).
-* `Residue` represents a residue defined by an amino acid and
-  (optionally) its location, it also encapsulates a `State` object
-  corresponding to a state of this residue.
-* `State` represents a state given by its name and value (value assumed to be boolean).
-* `RegionActor` represents an actor
-* `SiteActor`
+>>> egfr = Gene("P00533")
+
+Now we would like to define *EGFR* who has key residue *Y* at the location *155* and, moreover, this residue should be phosphorylated:
+
+>>> egfr_Y155 = Gene("P00533", residues=[Residue("Y", 155, state=State("phosphorylation", True))])
+
+Define the gene _MAPK1_ who has protein kinase region:
+
+>>> mapk1_PK = Gene("P28482", regions=[Region(name="Protein kinase", start=25, end=313)])
 
 
+Simarly to the conditions on presence of regions we also can define conditions on presence of particular sites:
 
-.. _interactions:
+>>> mapk1_ = Gene("P28482", sites=[Site(name="", start=34, end=34)])
 
------------------
-KAMI interactions
------------------
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sites and Regions as agents of interactions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Modification interactions
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Modifications in KAMI are defined as follows:
+
+`Modification(enzyme, substrate, mod_target, mod_value=True, annotation=None, direct=False)`
+
+Here, `enzyme` and `substrate` are instances of the base `Actor` class, `mod_target` is either an object of the `Residue` or the `State` class (represents an object of modification), `mod_value` is a boolean flag which says whether the state of the target is being set to True or Flase. 
+
+Example statement: *"Active MEK1 phosphorylates residue S727 of STAT3"*
+
+>>> mek1 = Gene("Q02750", states=[State("activity", True)])
+>>> stat3 = Gene("P40763")
+>>> mod_target = Residue("S", 727, State("phosphorylation", False))
+>>> mod1 = Modification(mek1, stat3, mod_target, mod_state=True)
+>>> print(mod1)
+Modification:
+	Enzyme: Q02750
+	Substrate: P40763
+	Mod target: S727
+	Value: True
+	Direct? True
+
+
+^^^^^^^^^^^^^^^^^^^^
+Binding interactions
+^^^^^^^^^^^^^^^^^^^^
 
 
 .. _kami_hierarchy:

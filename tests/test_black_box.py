@@ -341,3 +341,15 @@ class TestBlackBox(object):
         hierarchy = create_nuggets([mod1, mod2])
         # hierarchy = create_nuggets([mod2, mod3])
         print_graph(hierarchy.action_graph)
+
+    def test_site_residue_reconnect(self):
+        sh2 = Region(name="SH2")
+        b = Binding(
+            [SiteActor(gene=Gene(uniprotid="P00533", hgnc_symbol="EGFR",
+                                 residues=[Residue("Y", 1092, state=State("phosphorylation", True))]),
+                       site=Site(name="motif1092", start=1088, end=1096))],
+            [RegionActor(gene=Gene("P62993",  hgnc_symbol="GRB2"), region=sh2)]
+        )
+        hierarchy = KamiHierarchy()
+        hierarchy = create_nuggets([b])
+        print_graph(hierarchy.action_graph)

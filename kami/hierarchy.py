@@ -598,7 +598,7 @@ class KamiHierarchy(Hierarchy):
                                int(residue.loc) <= end:
                                 add_edge(self.action_graph, residue_id, region)
 
-                for site in self.get_attached_regions(ref_agent):
+                for site in self.get_attached_sites(ref_agent):
                     if residue.loc:
                         if "start" in self.action_graph.node[site] and\
                            "end" in self.action_graph.node[site]:
@@ -901,6 +901,8 @@ class KamiHierarchy(Hierarchy):
         for g in all_genes: 
             residues = self.get_attached_residues(g)
             sites = self.get_attached_sites(g)
+            regions = self.get_attached_regions(g)
+            self._reconnect_residues(residues, regions, sites)
             self._merge_sites(residues + sites)
 
         # 6. Apply semantics to the nugget
@@ -917,6 +919,35 @@ class KamiHierarchy(Hierarchy):
             )
 
         return nugget_id
+
+    def _reconnect_residues(self, residues, regions, sites):
+        for res in residues:
+            loc = None
+            if "loc" in self.action_graph.node[res].keys():
+                loc = list(self.action_graph.node[res]["loc"])[0]
+            if loc is not None:
+                for region in regions:
+                    if "start" in self.action_graph.node[region] and\
+                       "end" in self.action_graph.node[region]:
+                        start = min(
+                            self.action_graph.node[region]["start"])
+                        end = max(
+                            self.action_graph.node[region]["end"])
+                        if int(loc) >= start and\
+                           int(loc) <= end and\
+                           (res, region) not in self.action_graph.edges():
+                            add_edge(self.action_graph, res, region)
+                for site in sites:
+                    if "start" in self.action_graph.node[site] and\
+                       "end" in self.action_graph.node[site]:
+                        start = min(
+                            self.action_graph.node[site]["start"])
+                        end = max(
+                            self.action_graph.node[site]["end"])
+                        if int(loc) >= start and\
+                           int(loc) <= end and\
+                           (res, site) not in self.action_graph.edges():
+                            add_edge(self.action_graph, res, site)
 
     def _merge_sites(self, nodes):
         pattern = nx.DiGraph()
