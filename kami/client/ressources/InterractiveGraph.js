@@ -138,7 +138,13 @@ define([
                     };
                 let source_type = ancestorArray[l.source["id"]];
                 let target_type = ancestorArray[l.target["id"]];
-                return (edge_length[source_type][target_type] * width / 2000);
+                let len_value = 50; // Default edge length.
+                if (edge_length.hasOwnProperty(source_type)) {
+                    if (edge_length[source_type].hasOwnProperty(target_type)) {
+                        let len_value = edge_length[source_type][target_type] * width / 2000;
+                    }
+                }
+                return len_value;
             };
             simulation.force("link", d3.forceLink().id(function (d) { return d.id; }));
             simulation.force("link").distance(distanceOfLink);
