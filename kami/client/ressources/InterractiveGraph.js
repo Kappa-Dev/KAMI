@@ -130,6 +130,8 @@ define([
                         "is_equal": { "state": 150 },
                         "state": { "region": 50, "agent": 50, "residue": 50 },
                         "residue": { "agent": 30, "region": 30 },
+                        "site": { "agent": 30, "region": 30 },
+                        "compo": { "site": 50, "region": 50 },
                         "syn": { "agent": 150 },
                         "agent": { "mod": 150 },
                         "deg": { "agent": 150 },
@@ -224,6 +226,7 @@ define([
                 ) {
                     return d3.symbolCircle;
                 }
+
                 // Draw a star for states.
                 else if (ancestor == "state") {
                     return {
@@ -253,6 +256,28 @@ define([
                             context.closePath();
                         }
                     };
+                }
+
+                // Draw fused circles for composite sites.
+                else if (ancestor == "compo") {
+                    return {
+                        draw: function (context, size) {
+                            // Angle between the top and side circles.
+                            // Only values between 30 and 90 degree make sense.
+                            // 90 = the two circles completely fused into a single cicle.
+                            // 30 = the two circles at the limit of meing unfused.
+                            let angle = 55, // Degree.
+                                scale = 0.75, // Scale down the radius compared to sites.
+                                radius = Math.sqrt(size/Math.PI) * scale,
+                                radian = angle * Math.PI / 180,
+                                x_offset = Math.cos(radian) * 2 * radius,
+                                y_offset =  Math.sin(radian) * 2 * radius;
+                            context.arc(-x_offset,  0, radius,        -radian,         radian, true);
+                            context.arc( 0,  y_offset, radius, Math.PI+radian,        -radian, false);
+                            context.arc( x_offset,  0, radius, Math.PI-radian, Math.PI+radian, true);
+                            context.arc( 0, -y_offset, radius,         radian, Math.PI-radian, false);
+                        }
+                    }
                 }
 
                 else if (
@@ -304,6 +329,12 @@ define([
                     ancestor == "region"
                 ) { return 4000; }
                 else if (
+                    ancestor == "site"
+                ) { return 2500; }
+                else if (
+                    ancestor == "compo"
+                ) { return 2500; }
+                else if (
                     ancestor == "residue"
                 ) { return 2500; }
                 else if (
@@ -331,10 +362,12 @@ define([
                     "is_bnd": "#82A532", //"#648226",
                     "is_free": "#E63234", // "#B83319",
                     "state": "#FFD33D", // "#77855C",
-                    "region": "#C68482", // "#AB8472",
+                    "region": "#DA8C8A", // "#AB8472",
+                    "site": "EC928F",
+                    "compo": "EC928F",
                     "agent": "#AB7372",
                     "locus": "#828282", // "#718CC4",
-                    "residue": "#CE9896" // "#94716A"
+                    "residue": "#FF9E9B" // "#94716A"
                 }[ancestor]);
 
             };
@@ -342,7 +375,7 @@ define([
             var link_to_dotStyle = function (l) {
                 var ancestorSource = ancestorArray[l.source.id];
                 var ancestorTarget = ancestorArray[l.target.id];
-                var components = ["residue", "region", "agent"];
+                var components = ["residue", "region", "agent", "site", "compo"];
 		var components2 = ["locus", "state"];
 		var components3 = ["bnd", "brk", "is_bnd", "is_free"];
                 if (components.indexOf(ancestorSource) > -1 &&
