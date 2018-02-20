@@ -128,15 +128,15 @@ define([
                     {
                         "mod": { "state": 150 },
                         "is_equal": { "state": 150 },
-                        "state": { "region": 50, "agent": 50, "residue": 50 },
-                        "residue": { "agent": 30, "region": 30 },
-                        "site": { "agent": 30, "region": 30 },
+                        "state": { "region": 50, "gene": 50, "residue": 50 },
+                        "residue": { "gene": 30, "region": 30 },
+                        "site": { "gene": 30, "region": 30 },
                         "compo": { "site": 50, "region": 50 },
-                        "syn": { "agent": 150 },
-                        "agent": { "mod": 150 },
-                        "deg": { "agent": 150 },
-                        "region": { "agent": 30 },
-                        "locus": { "agent": 150, "region": 150, "is_bnd": 50, "is_free": 50, "bnd": 50, "brk": 50 }
+                        "syn": { "gene": 150 },
+                        "gene": { "mod": 150 },
+                        "deg": { "gene": 150 },
+                        "region": { "gene": 30 },
+                        "half-act": { "gene": 150, "region": 150, "is_bnd": 50, "is_free": 50, "bnd": 50, "brk": 50 }
                     };
                 let source_type = ancestorArray[l.source["id"]];
                 let target_type = ancestorArray[l.target["id"]];
@@ -219,10 +219,10 @@ define([
             var node_to_symbol = function (n) {
                 var ancestor = ancestorArray[n.id];
                 if (
-                    ancestor == "agent" ||
+                    ancestor == "gene" ||
                     ancestor == "residue" ||
                     ancestor == "region" ||
-                    ancestor == "locus"
+                    ancestor == "half-act"
                 ) {
                     return d3.symbolCircle;
                 }
@@ -341,10 +341,10 @@ define([
                     ancestor == "state"
                 ) { return 2200; }
                 else if (
-                    ancestor == "locus"
+                    ancestor == "half-act"
                 ) { return 2000; }
                 else if (
-                    ancestor == "agent"
+                    ancestor == "gene"
                 ) { return 6000; }
                 else {
                     return 4000;
@@ -365,8 +365,8 @@ define([
                     "region": "#DA8C8A", // "#AB8472",
                     "site": "EC928F",
                     "compo": "EC928F",
-                    "agent": "#AB7372",
-                    "locus": "#828282", // "#718CC4",
+                    "gene": "#AB7372",
+                    "half-act": "#828282", // "#718CC4",
                     "residue": "#FF9E9B" // "#94716A"
                 }[ancestor]);
 
@@ -375,14 +375,14 @@ define([
             var link_to_dotStyle = function (l) {
                 var ancestorSource = ancestorArray[l.source.id];
                 var ancestorTarget = ancestorArray[l.target.id];
-                var components = ["residue", "region", "agent", "site", "compo"];
-		var components2 = ["locus", "state"];
+                var components = ["residue", "region", "gene", "site", "compo"];
+		var components2 = ["half-act", "state"];
 		var components3 = ["bnd", "brk", "is_bnd", "is_free"];
                 if (components.indexOf(ancestorSource) > -1 &&
                     components.indexOf(ancestorTarget) > -1) {
                         return ("Gray");
                     // return ("1,0");
-                } else if (ancestorSource == "locus" &&
+                } else if (ancestorSource == "half-act" &&
 		    components3.indexOf(ancestorTarget) > -1) {
                         return ("Gray");
                 } else if (components2.indexOf(ancestorSource) > -1 &&
@@ -1120,7 +1120,7 @@ define([
                     })
                 }
             }
-            if (from_config !== undefined && nodeType === "locus") {
+            if (from_config !== undefined && nodeType === "half-act") {
                 return menu.concat(from_config);
             }
             else {
