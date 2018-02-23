@@ -116,13 +116,13 @@ class Generator(object):
                  apply_semantics=True):
         """Generate a nuggert generation rule."""
         nugget, nugget_type = self._create_nugget(mod)
-        nugget_id, rules = self.hierarchy.add_nugget(
+        nugget_id = self.hierarchy.add_nugget(
             nugget, nugget_type,
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
         print("Generated nugget '%s'..." % nugget_id)
-        return nugget_id, rules
+        return nugget_id
 
     def _generate_state(self, nugget, state, father):
         prefix = father
