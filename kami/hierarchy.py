@@ -4,8 +4,6 @@ import networkx as nx
 import numpy as np
 import warnings
 import time
-import os
-import json
 
 from regraph import Rule, Hierarchy
 from regraph.primitives import *
@@ -114,7 +112,7 @@ class KamiHierarchy(Hierarchy):
     def rewrite(self, graph_id, rule, instance=None,
                 lhs_typing=None, rhs_typing=None,
                 strict=True, inplace=True):
-        """."""
+        """Overloading of the rewrite method."""
         g_prime, r_g_prime = super().rewrite(
             graph_id, rule, instance,
             lhs_typing, rhs_typing,
@@ -821,8 +819,6 @@ class KamiHierarchy(Hierarchy):
     def add_nugget(self, nugget, nugget_type, add_agents=True,
                    anatomize=True, apply_semantics=True, name=None):
         """Add nugget to the hierarchy."""
-        rules = []
-
         nugget_id = self._generate_nugget_id()
 
         p = nx.DiGraph()
@@ -846,54 +842,6 @@ class KamiHierarchy(Hierarchy):
         )
         self.nugget[nugget_id] = self.node[nugget_id].graph
         self.add_typing(nugget_id, "action_graph", dict())
-
-        ag_generation_rule_instance = {}
-        for n_node, ag_node in nugget.ag_typing.items():
-            ag_generation_rule_instance[n_node] = ag_node
-
-        ag_lhs = copy.deepcopy(nugget.graph)
-        ag_rhs = copy.deepcopy(nugget.graph)
-        for n in ag_lhs.nodes():
-            if n not in nugget.ag_typing.keys():
-                ag_lhs.remove_node(n)
-
-        for u, v in ag_lhs.edges():
-            if u in nugget.ag_typing.keys() and\
-               v in nugget.ag_typing.keys():
-                if (nugget.ag_typing[u], nugget.ag_typing[v]) not in self.action_graph.edges():
-                    ag_lhs.remove_edge(u, v)
-
-        keys_to_remove = set()
-        not_to_remove = dict()
-
-        for v in ag_generation_rule_instance.values():
-            ks = keys_by_value(ag_generation_rule_instance, v)
-            if len(ks) > 1:
-                for k in ks:
-                    pass_flag = False
-                    if k in keys_to_remove:
-                        pass_flag = True
-                        break
-                if not pass_flag:
-                    new_name = merge_nodes(ag_lhs, ks)
-                    merge_nodes(ag_rhs, ks, node_id=new_name)
-                    for k in ks:
-                        keys_to_remove.add(k)
-                    not_to_remove[new_name] = v
-
-        for k in keys_to_remove:
-            del ag_generation_rule_instance[k]
-
-        ag_generation_rule_instance.update(not_to_remove)
-
-        ag_generation_rule = Rule(
-            ag_lhs, ag_lhs, ag_rhs)
-
-        rules.append({
-            "rule": ag_generation_rule.to_json(),
-            "instance": ag_generation_rule_instance,
-            "origin": "nugget_generation"
-        })
 
         # 4. Apply nugget generation rule
         g_prime, r_g_prime = self.rewrite(
@@ -927,11 +875,7 @@ class KamiHierarchy(Hierarchy):
                 rule = Rule.from_transform(pattern)
                 rule.inject_merge_nodes(v, node_id=k)
                 _, rhs_instance = self.rewrite("action_graph", rule)
-                rules.append({
-                    "rule": rule.to_json(),
-                    "instance": {n: n for n in rule.lhs.nodes()},
-                    "origin": "mergining_same_genes"
-                })
+
                 # self.rename_node("action_graph", rhs_instance[k], k)
                 merge_result = rhs_instance[k]
                 if k in new_gene_nodes:
@@ -946,12 +890,7 @@ class KamiHierarchy(Hierarchy):
         if anatomize is True:
             if len(new_gene_nodes) > 0:
                 for gene in new_gene_nodes:
-                    added_regions, rule, instance = self.anatomize_gene(gene)
-                    rules.append({
-                        "rule": rule.to_json(),
-                        "instance": instance,
-                        "origin": "anatomization"
-                    })
+                    added_regions = self.anatomize_gene(gene)
                     new_ag_regions += added_regions
 
         all_genes = [
@@ -960,32 +899,27 @@ class KamiHierarchy(Hierarchy):
             if self.action_graph_typing[
                 self.typing[nugget_id]["action_graph"][node]] == "gene"]
 
-        rs = self._connect_nested_fragments(all_genes)
-        rules += rs
-        rs = self._connect_transitive_components([
+        self._connect_nested_fragments(all_genes)
+        self._connect_transitive_components([
             self.typing[nugget_id]["action_graph"][n]
             for n in self.nugget[nugget_id].nodes()
         ] + new_ag_regions)
-        rules += rs
 
         # Merge sites
         for g in all_genes:
             residues = self.get_attached_residues(g)
             sites = self.get_attached_sites(g)
             regions = self.get_attached_regions(g)
-            rs = self._reconnect_residues(residues, regions, sites)
-            rules += rs
-            rs = self._merge_sites(residues + sites)
-            rules += rs
+            self._reconnect_residues(residues, regions, sites)
+            self._merge_sites(residues + sites)
 
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
             if "mod" in self.node[nugget_id].attrs["interaction_type"]:
-                rs = apply_mod_semantics(self, nugget_id)
-                rules += rs
+                apply_mod_semantics(self, nugget_id)
+
             elif "bnd" in self.node[nugget_id].attrs["interaction_type"]:
-                rs = apply_bnd_semantics(self, nugget_id)
-                rules += rs
+                apply_bnd_semantics(self, nugget_id)
 
         # 7. Add semantic relations found for the nugget
         for semantic_nugget, rel in nugget.semantic_rels.items():
@@ -993,10 +927,10 @@ class KamiHierarchy(Hierarchy):
                 nugget_id, semantic_nugget, rel
             )
 
-        return nugget_id, rules
+        return nugget_id
 
     def _reconnect_residues(self, residues, regions, sites):
-        rules = []
+
         for res in residues:
             loc = None
             if "loc" in self.action_graph.node[res].keys():
@@ -1013,15 +947,12 @@ class KamiHierarchy(Hierarchy):
                            int(loc) <= end and\
                            (res, region) not in self.action_graph.edges():
                             add_edge(self.action_graph, res, region)
-                            pattern = nx.DiGraph()
-                            pattern.add_nodes_from([res, region])
-                            rule = Rule.from_transform(pattern)
-                            rule.inject_add_edge(res, region)
-                            rules.append({
-                                "rule": rule.to_json(),
-                                "instance": {n: n for n in rule.lhs.nodes()},
-                                "origin": "reconnect_residues_region"
-                            })
+                            # # Rule version
+                            # pattern = nx.DiGraph()
+                            # pattern.add_nodes_from([res, region])
+                            # rule = Rule.from_transform(pattern)
+                            # rule.inject_add_edge(res, region)
+
                 for site in sites:
                     if "start" in self.action_graph.node[site] and\
                        "end" in self.action_graph.node[site]:
@@ -1033,19 +964,14 @@ class KamiHierarchy(Hierarchy):
                            int(loc) <= end and\
                            (res, site) not in self.action_graph.edges():
                             add_edge(self.action_graph, res, site)
-                            pattern = nx.DiGraph()
-                            pattern.add_nodes_from([res, site])
-                            rule = Rule.from_transform(pattern)
-                            rule.inject_add_edge(res, site)
-                            rules.append({
-                                "rule": rule.to_json(),
-                                "instance": {n: n for n in rule.lhs.nodes()},
-                                "origin": "reconnect_residues_site"
-                            })
-        return rules
+                            # # Rule version
+                            # pattern = nx.DiGraph()
+                            # pattern.add_nodes_from([res, site])
+                            # rule = Rule.from_transform(pattern)
+                            # rule.inject_add_edge(res, site)
+        return
 
     def _merge_sites(self, nodes):
-        rules = []
         pattern = nx.DiGraph()
         pattern.add_edges_from([("residue", "site1"), ("residue", "site2")])
         site_merging_rule = Rule.from_transform(pattern)
@@ -1068,21 +994,13 @@ class KamiHierarchy(Hierarchy):
                 self.rewrite("action_graph", site_merging_rule, instance)
                 visited_sites.add(instance["site1"])
                 visited_sites.add(instance["site2"])
-                rules.append({
-                    "rule": site_merging_rule.to_json(),
-                    "instance": instance,
-                    "origin": "merge_sites"
-                })
 
             instances_to_rewrite = self.find_matching(
                 "action_graph", pattern, pattern_typing=lhs_typing,
                 nodes=nodes)
 
-        return rules
-
     def _connect_transitive_components(self, new_nodes):
         """Add edges between components connected transitively."""
-        rules = []
         connecting_rules = []
 
         gene_region_site = nx.DiGraph()
@@ -1138,15 +1056,9 @@ class KamiHierarchy(Hierarchy):
                 nodes=new_nodes)
             for instance in instances:
                 self.rewrite("action_graph", rule, instance)
-                rules.append({
-                    "rule": rule.to_json(),
-                    "instance": instance,
-                    "origin": "transitive_components"
-                })
-        return rules
+        return
 
     def _connect_nested_fragments(self, genes):
-        rules = []
         for gene in genes:
             regions = self.get_attached_regions(gene)
             for site in self.get_attached_sites(gene):
@@ -1157,16 +1069,12 @@ class KamiHierarchy(Hierarchy):
                     if self.action_graph_typing[f] == "region" and\
                        (site, f) not in self.action_graph.edges():
                         add_edge(self.action_graph, site, f)
-                        pattern = nx.DiGraph()
-                        pattern.add_nodes_from([site, f])
-                        rule = Rule.from_transform(pattern)
-                        rule.inject_add_edge(site, f)
-                        rules.append({
-                            "rule": rule.to_json(),
-                            "instance": {n: n for n in rule.lhs.nodes()},
-                            "origin": "nested fragments"
-                        })
-        return rules
+                        # # Rule version
+                        # pattern = nx.DiGraph()
+                        # pattern.add_nodes_from([site, f])
+                        # rule = Rule.from_transform(pattern)
+                        # rule.inject_add_edge(site, f)
+        return
 
     def anatomize_gene(self, gene):
         """Anatomize existing gene node in the action graph."""
@@ -1304,7 +1212,7 @@ class KamiHierarchy(Hierarchy):
             warnings.warn(
                 "Unable to anatomize gene node '%s'" % gene,
                 KamiHierarchyWarning)
-        return new_regions, anatomization_rule, instance
+        return new_regions
 
     def type_nugget_by_ag(self, nugget_id, typing):
         """Type nugget by the action graph."""
