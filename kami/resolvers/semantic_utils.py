@@ -1,4 +1,3 @@
-import time
 import networkx as nx
 import warnings
 
@@ -28,8 +27,12 @@ def _propagate_semantics_to_ag(hierarchy, nugget_id,
 def apply_mod_semantics(hierarchy, nugget_id):
     """Apply mod semantics to the created nugget."""
     # TODO: Check the phosphorylated residue
+    rules = []
+
     template_rel = hierarchy.relation["mod_template"][nugget_id]
-    enzyme = list(template_rel["enzyme"])[0]
+    enzyme = None
+    if "enzyme" in template_rel.keys():
+        enzyme = list(template_rel["enzyme"])[0]
     mod_state = list(template_rel["mod_state"])[0]
     mod_residue = None
 
@@ -37,18 +40,21 @@ def apply_mod_semantics(hierarchy, nugget_id):
         mod_residue = list(template_rel["substrate_residue"])[0]
 
     mod_node = list(template_rel["mod"])[0]
-    ag_enzyme = hierarchy.typing[nugget_id]["action_graph"][enzyme]
+    ag_enzyme = None
+    if enzyme is not None:
+        ag_enzyme = hierarchy.typing[nugget_id]["action_graph"][enzyme]
     ag_mod_node = hierarchy.typing[nugget_id]["action_graph"]["mod"]
 
     dephospho = False
     phospho = False
 
-    if "phosphorylation" in hierarchy.nugget[nugget_id].node[mod_state].keys():
-        if True in hierarchy.nugget[nugget_id].node[
-                mod_node]["value"]:
-            phospho = True
-        elif False in hierarchy.nugget[nugget_id].node[mod_node]["value"]:
-            dephospho = True
+    if enzyme is not None:
+        if "phosphorylation" in hierarchy.nugget[nugget_id].node[mod_state].keys():
+            if True in hierarchy.nugget[nugget_id].node[
+                    mod_node]["value"]:
+                phospho = True
+            elif False in hierarchy.nugget[nugget_id].node[mod_node]["value"]:
+                dephospho = True
 
     # 1. Phospho semantics
     if phospho:
@@ -96,6 +102,10 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     _, rhs_g = hierarchy.rewrite(
                         nugget_id, autocompletion_rule,
                         rhs_typing=rhs_typing)
+                    # rules.append({
+                    #     "rule": autocompletion_rule.to_json(),
+                    #     "instance": {n: n for n in autocompletion_rule.lhs.nodes()}
+                    # })
                     phospho_semantic_rel[rhs_g[ag_activity]] = "protein_kinase_activity"
             else:
                 warnings.warn(
@@ -128,6 +138,11 @@ def apply_mod_semantics(hierarchy, nugget_id):
                         [ag_mod_node] + kinase_mods)
 
                 _, rhs_ag = hierarchy.rewrite("action_graph", mod_merge_rule)
+                rules.append({
+                    "rule": mod_merge_rule.to_json(),
+                    "instance": {n: n for n in mod_merge_rule.lhs.nodes()},
+                    "origin": "mod_semantic_merge"
+                })
 
                 if len(kinase_mods) > 0:
                     new_ag_mod = rhs_ag[new_mod_id]
@@ -158,6 +173,10 @@ def apply_mod_semantics(hierarchy, nugget_id):
                 _, rhs_nugget = hierarchy.rewrite(
                     nugget_id, autocompletion_rule,
                     rhs_typing=rhs_typing)
+                # rules.append({
+                #     "rule": autocompletion_rule.to_json(),
+                #     "instance": {n: n for n in autocompletion_rule.lhs.nodes()}
+                # })
 
                 enz_region = rhs_nugget[unique_kinase_region]
                 phospho_semantic_rel[rhs_nugget[unique_kinase_region]] =\
@@ -178,10 +197,12 @@ def apply_mod_semantics(hierarchy, nugget_id):
             phospho_semantic_rel)
         # propagate this phospho semantics to the ag nodes
         _propagate_semantics_to_ag(hierarchy, nugget_id, "phosphorylation")
-
+    return rules
 
 def apply_bnd_semantics(hierarchy, nugget_id):
     """Apply bnd semantics to the created nugget."""
+
+    rules = []
 
     def _apply_sh2_py_semantics(region_node, region_locus,
                                 region_bnd, opposite_locus,
@@ -225,7 +246,11 @@ def apply_bnd_semantics(hierarchy, nugget_id):
                     opposite_loci)
                 _, rhs_ag = hierarchy.rewrite(
                     "action_graph", bnd_merge_rule)
-
+                rules.append({
+                    "rule": bnd_merge_rule.to_json(),
+                    "instance": {n: n for n in bnd_merge_rule.lhs.nodes()},
+                    "origin": "bnd_semantic_merge"
+                })
                 # Process sites
                 if partner_sites:
                     for site in partner_sites:
@@ -309,3 +334,4 @@ def apply_bnd_semantics(hierarchy, nugget_id):
                     sh2_semantic_rel)
                 _propagate_semantics_to_ag(
                     hierarchy, nugget_id, "sh2_pY_binding")
+    return rules
