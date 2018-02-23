@@ -116,13 +116,13 @@ class Generator(object):
                  apply_semantics=True):
         """Generate a nuggert generation rule."""
         nugget, nugget_type = self._create_nugget(mod)
-        nugget_id = self.hierarchy.add_nugget(
+        nugget_id, rules = self.hierarchy.add_nugget(
             nugget, nugget_type,
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
         print("Generated nugget '%s'..." % nugget_id)
-        return nugget_id
+        return nugget_id, rules
 
     def _generate_state(self, nugget, state, father):
         prefix = father
@@ -555,6 +555,104 @@ class ModGenerator(Generator):
             nugget.add_edge(enzyme_region, "mod")
         else:
             nugget.add_edge(enzyme, "mod")
+        nugget.add_edge("mod", mod_state_id)
+        return nugget, "mod"
+
+
+class AnonymousModGenerator(Generator):
+    """Anonymous nugget generator."""
+
+    def _create_nugget(self, mod):
+        """Create a mod nugget graph and find its typing."""
+        nugget = NuggetContainer()
+        nugget.template_id = "mod_template"
+
+        # Process substrate
+        substrate_region = None
+        substrate_site = None
+        if isinstance(mod.substrate, Gene):
+            substrate = self._generate_gene(nugget, mod.substrate)
+        elif isinstance(mod.substrate, RegionActor):
+            (substrate, substrate_region) = self._generate_region_actor(
+                nugget, mod.substrate)
+        elif isinstance(mod.substrate, SiteActor):
+            (substrate, substrate_site, substrate_region) =\
+                self._generate_site_actor(
+                    nugget, mod.substrate)
+        else:
+            raise NuggetGenerationError(
+                "Unkown type of a substrate: '%s'" % type(mod.substrate)
+            )
+
+        nugget.template_rel[substrate].add("substrate")
+        if substrate_region:
+            nugget.template_rel[substrate_region] = {"substrate_region"}
+        if substrate_site:
+            nugget.template_rel[substrate_site] = {"substrate_site"}
+
+        # 2. create mod node
+        mod_attrs = {
+            "value": mod.value,
+            "direct": mod.direct
+        }
+        if mod.annotation:
+            mod_attrs.update(mod.annotation.to_attrs())
+
+        nugget.add_node(
+            "mod",
+            mod_attrs,
+            meta_typing="mod",
+            template_rel=["mod"]
+        )
+
+        # 3. create state related nodes subject to modification
+        if substrate_site:
+            attached_to = substrate_site
+        elif substrate_region:
+            attached_to = substrate_region
+        else:
+            attached_to = substrate
+
+        mod_residue_id = None
+        if isinstance(mod.target, State):
+            mod.target.name
+            if mod.target.value == mod.value:
+                warnings.warn(
+                    "Modification does not change the state's value!",
+                    UserWarning
+                )
+            mod_state_id = self._generate_state(
+                nugget, mod.target, attached_to)
+            nugget.add_edge(mod_state_id, attached_to)
+            if mod_state_id in nugget.template_rel.keys():
+                nugget.template_rel[mod_state_id].add("mod_state")
+            else:
+                nugget.template_rel[mod_state_id] = {"mod_state"}
+
+        elif isinstance(mod.target, Residue):
+            if mod.target.state:
+                if mod.target.state.value == mod.value:
+                    warnings.warn(
+                        "Modification does not change the state's value!",
+                        KamiWarning
+                    )
+                (mod_residue_id, mod_state_id) = self._generate_residue(
+                    nugget, mod.target, attached_to, substrate)
+                nugget.add_edge(mod_residue_id, attached_to)
+                nugget.template_rel[mod_state_id].add("mod_state")
+                nugget.template_rel[mod_residue_id].add("substrate_residue")
+            else:
+                raise KamiError(
+                    "Target of modification is required to be either "
+                    "`State` or `Residue` with non-empty state: state "
+                    "of residue is empty"
+                )
+        else:
+            raise KamiError(
+                "Target of modification is required to be either "
+                "`State` or `Residue` with non-empty state: %s "
+                "is provided" % type(mod.target)
+            )
         nugget.add_edge("mod", mod_state_id)
         return nugget, "mod"
 
