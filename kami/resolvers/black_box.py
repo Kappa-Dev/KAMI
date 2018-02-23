@@ -1,13 +1,13 @@
 """Basic black box functionality."""
+import json
 import sys
 import time
 
 from kami.resolvers.generators import (ModGenerator,
                                        # AutoModGenerator,
                                        # TransModGenerator,
-                                       # AnonymousModGenerator,
+                                       AnonymousModGenerator,
                                        BndGenerator)
-                                       # ComplexGenerator)
 from kami.hierarchy import KamiHierarchy
 
 
@@ -15,8 +15,9 @@ def add_modification(mod, hierarchy, add_agents=True, anatomize=True,
                      apply_semantics=True):
     """Add modification nugget to the hierarchy."""
     gen = ModGenerator(hierarchy)
-    gen.generate(
+    _, rules = gen.generate(
         mod, add_agents, anatomize, apply_semantics)
+    return rules
 
 
 # def add_automodification(mod, hierarchy, add_agents=True, anatomize=True,
@@ -39,23 +40,23 @@ def add_modification(mod, hierarchy, add_agents=True, anatomize=True,
 #     )
 
 
-# def add_anonymousmodification(mod, hierarchy, add_agents=True, anatomize=True,
-#                               merge_actions=True, apply_semantics=True):
-#     """Add anonymous modification nugget to the hierarchy."""
-#     gen = AnonymousModGenerator(hierarchy)
-#     gen.generate(
-#         mod, add_agents, anatomize,
-#         merge_actions, apply_semantics
-#     )
+def add_anonymousmodification(mod, hierarchy, add_agents=True, anatomize=True,
+                              merge_actions=True, apply_semantics=True):
+    """Add anonymous modification nugget to the hierarchy."""
+    gen = AnonymousModGenerator(hierarchy)
+    _, rules = gen.generate(
+        mod, add_agents, anatomize, apply_semantics
+    )
+    return rules
 
 
 def add_binding(bnd, hierarchy, add_agents=True, anatomize=True,
                 apply_semantics=True):
     """Add binary bnd nugget to the hierarchy."""
     gen = BndGenerator(hierarchy)
-    gen.generate(
+    _, rules = gen.generate(
         bnd, add_agents, anatomize, apply_semantics)
-
+    return rules
 
 # def add_complex(complex, hierarchy, add_agents=True, anatomize=True,
 #                 merge_actions=True, apply_semantics=True):
@@ -77,21 +78,27 @@ def create_nuggets(interactions, hierarchy=None, add_agents=True,
         hierarchy.create_empty_action_graph()
     time_to_generate_nugget = []
     size_of_ag = []
-    for i, interaction in enumerate(interactions):
-        interaction_type = type(interaction).__name__.lower()
 
-        # Dynamically call functions corresponding to an interaction type
-        start = time.time()
-        getattr(sys.modules[__name__], "add_%s" % interaction_type)(
-            interaction,
-            hierarchy=hierarchy,
-            add_agents=add_agents,
-            anatomize=anatomize,
-            apply_semantics=apply_semantics
-        )
-        end = time.time() - start
-        time_to_generate_nugget.append(end)
-        size_of_ag.append(len(hierarchy.action_graph.nodes()))
-    print(time_to_generate_nugget)
-    print(size_of_ag)
+    extracted_rules = []
+    filename = "/home/eugenia/Work/Notebooks/extracted_rules_all.json"
+    with open(filename, "a+") as f:
+        for i, interaction in enumerate(interactions):
+            interaction_type = type(interaction).__name__.lower()
+
+            # Dynamically call functions corresponding to an interaction type
+            start = time.time()
+            rules = getattr(sys.modules[__name__], "add_%s" % interaction_type)(
+                interaction,
+                hierarchy=hierarchy,
+                add_agents=add_agents,
+                anatomize=anatomize,
+                apply_semantics=apply_semantics
+            )
+            end = time.time() - start
+            time_to_generate_nugget.append(end)
+            size_of_ag.append(len(hierarchy.action_graph.nodes()))
+            extracted_rules += rules
+            json.dump(rules, f)
+            f.write("\n")
+
     return hierarchy

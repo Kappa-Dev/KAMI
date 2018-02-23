@@ -1,4 +1,5 @@
 """Importer from Biopax to KAMI interactions."""
+import copy
 import os
 import re
 import warnings
@@ -6,7 +7,7 @@ from jpype import (java, startJVM, getDefaultJVMPath,
                    JPackage, isJVMStarted)
 
 from kami.entities import Gene, Residue, Region, State, RegionActor
-from kami.interactions import Modification
+from kami.interactions import Modification, Binding, AnonymousModification
 
 
 AA = {
@@ -477,25 +478,86 @@ class BioPaxImporter(object):
         mods = []
         enzyme_uri = data["enzyme"]
         enzyme = self.process_protein(enzyme_uri)
-        if enzyme is not None:
-            init_substrate_uri = data["initial_substrate"]
-            res_substrate_uri = data["result_substrate"]
-            mod_targets = self.get_mod_targets(
-                init_substrate_uri, res_substrate_uri)
-            init_substrate = self.process_protein(
-                init_substrate_uri, ignore_features=mod_targets.keys())
-            if init_substrate is not None:
-                mod_targets = self.get_kami_mod_targets(mod_targets)
-                for target, v in mod_targets:
-                    mods.append(
-                        Modification(
-                            enzyme=enzyme,
-                            substrate=init_substrate,
-                            mod_target=target,
-                            mod_value=v
-                        )
+
+        init_substrate_uri = data["initial_substrate"]
+        res_substrate_uri = data["result_substrate"]
+        mod_targets = self.get_mod_targets(
+            init_substrate_uri, res_substrate_uri)
+        init_substrate = self.process_protein(
+            init_substrate_uri, ignore_features=mod_targets.keys())
+        mod_targets = self.get_kami_mod_targets(mod_targets)
+
+        if enzyme is not None and init_substrate is not None:
+            for target, v in mod_targets:
+                mods.append(
+                    Modification(
+                        enzyme=enzyme,
+                        substrate=init_substrate,
+                        mod_target=target,
+                        mod_value=v
                     )
+                )
+
+        activity_def = self.get_activity_def(
+            self.process_protein(res_substrate_uri), mod_targets)
+        if activity_def is not None:
+            mods.append(activity_def)
+
         return mods
+
+    def get_activity_def(self, substrate, mod_targets):
+        activity_def = None
+
+        activation = False
+        inactivation = False
+
+        if len(mod_targets) > 1:
+            for t, v in mod_targets:
+                if isinstance(t, State):
+                    if t.name == "activity":
+                        if v is True:
+                            activation = True
+                            break
+                        else:
+                            inactivation = True
+                            break
+
+            if activation is True:
+                # remove activity state from the right
+                if isinstance(substrate, Gene):
+                    new_substrate = copy.deepcopy(substrate)
+                    new_states = []
+                    for state in new_substrate.states:
+                        if state.name != "activity":
+                            new_states.append(state)
+                    new_substrate.states = new_states
+                    activity_def = AnonymousModification(
+                        new_substrate, State("activity", False), True)
+
+                if inactivation is True:
+                    if isinstance(substrate, Gene):
+                        new_substrate = copy.deepcopy(substrate)
+                        new_states = []
+                        for state in new_substrate.states:
+                            if state.name != "activity":
+                                new_states.append(state)
+                        new_substrate.states = new_states
+                        activity_def = AnonymousModification(
+                            new_substrate, State("activity", True), False)
+        return activity_def
+
+    def get_kami_binding(self, reaction_id, data):
+        bnds = []
+        components = list(data["components"])
+        left_uri = components[0].getUri()
+        right_uri = components[1].getUri()
+        left = self.process_protein(left_uri)
+        right = self.process_protein(right_uri)
+
+        if left is not None and right is not None:
+            bnds.append(Binding([left], [right]))
+
+        return bnds
 
     def collect_modifications(self):
         """Detect and collect modifications and their participants."""
@@ -551,12 +613,50 @@ class BioPaxImporter(object):
 
         return modification_data
 
+    def collect_bnd(self):
+        complex_assembly = self.data.model_.getObjects(
+            self.data.complex_assembly_class_)
+        bnd_data = {}
+        for reaction in complex_assembly:
+            uri = reaction.getUri()
+            components = reaction.getLeft()
+            comp = reaction.getRight()
+            if len(components) == 2 and len(comp) == 1:
+                # Check component types
+                all_proteins = True
+                for c in components:
+                    if c.getModelInterface() !=\
+                       self.data.protein_class_:
+                        all_proteins = False
+                        break
+
+                # Check stochiometry (expecting 1/1)
+                stochiometry = reaction.getParticipantStoichiometry()
+                all_single_molecule = True
+                for s in stochiometry:
+                    coef = s.getStoichiometricCoefficient()
+                    if int(coef) != 1:
+                        all_single_molecule = False
+                        break
+
+                if all_single_molecule and all_proteins:
+                    bnd_data[uri] = {
+                        "components": components,
+                        "complex": comp
+                    }
+        return bnd_data
+
     def generate_interactions(self):
         """Generate interactions from loaded BioPAX model."""
         interactions = []
         mod_data = self.collect_modifications()
         for k, v in mod_data.items():
             interactions += self.get_kami_modification(k, v)
+
+        bnd_data = self.collect_bnd()
+        for k, v in bnd_data.items():
+            interactions += self.get_kami_binding(k, v)
+
         return interactions
 
     def import_model(self, filename):
