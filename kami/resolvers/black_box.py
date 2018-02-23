@@ -74,21 +74,20 @@ def create_nuggets(interactions, hierarchy=None, add_agents=True,
     time_to_generate_nugget = []
     size_of_ag = []
 
-    with open(filename, "a+") as f:
-        for i, interaction in enumerate(interactions):
-            interaction_type = type(interaction).__name__.lower()
+    for i, interaction in enumerate(interactions):
+        interaction_type = type(interaction).__name__.lower()
 
-            # Dynamically call functions corresponding to an interaction type
-            start = time.time()
-            getattr(sys.modules[__name__], "add_%s" % interaction_type)(
-                interaction,
-                hierarchy=hierarchy,
-                add_agents=add_agents,
-                anatomize=anatomize,
-                apply_semantics=apply_semantics
-            )
-            end = time.time() - start
-            time_to_generate_nugget.append(end)
-            size_of_ag.append(len(hierarchy.action_graph.nodes()))
+        # Dynamically call functions corresponding to an interaction type
+        start = time.time()
+        getattr(sys.modules[__name__], "add_%s" % interaction_type)(
+            interaction,
+            hierarchy=hierarchy,
+            add_agents=add_agents,
+            anatomize=anatomize,
+            apply_semantics=apply_semantics
+        )
+        end = time.time() - start
+        time_to_generate_nugget.append(end)
+        size_of_ag.append(len(hierarchy.action_graph.nodes()))
 
     return hierarchy
