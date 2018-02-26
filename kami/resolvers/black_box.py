@@ -1,5 +1,4 @@
 """Basic black box functionality."""
-import json
 import sys
 import time
 
@@ -11,8 +10,8 @@ from kami.resolvers.generators import (ModGenerator,
 from kami.hierarchy import KamiHierarchy
 
 
-def add_modification(mod, hierarchy, add_agents=True, anatomize=True,
-                     apply_semantics=True):
+def _add_modification(mod, hierarchy, add_agents=True, anatomize=True,
+                      apply_semantics=True):
     """Add modification nugget to the hierarchy."""
     gen = ModGenerator(hierarchy)
     gen.generate(
@@ -38,29 +37,44 @@ def add_modification(mod, hierarchy, add_agents=True, anatomize=True,
 #     )
 
 
-def add_anonymousmodification(mod, hierarchy, add_agents=True, anatomize=True,
-                              merge_actions=True, apply_semantics=True):
+def _add_anonymousmodification(mod, hierarchy, add_agents=True, anatomize=True,
+                               merge_actions=True, apply_semantics=True):
     """Add anonymous modification nugget to the hierarchy."""
     gen = AnonymousModGenerator(hierarchy)
     gen.generate(
         mod, add_agents, anatomize, apply_semantics
     )
 
-def add_binding(bnd, hierarchy, add_agents=True, anatomize=True,
-                apply_semantics=True):
+
+def _add_binding(bnd, hierarchy, add_agents=True, anatomize=True,
+                 apply_semantics=True):
     """Add binary bnd nugget to the hierarchy."""
     gen = BndGenerator(hierarchy)
     gen.generate(
         bnd, add_agents, anatomize, apply_semantics)
 
-# def add_complex(complex, hierarchy, add_agents=True, anatomize=True,
-#                 merge_actions=True, apply_semantics=True):
-#     """Add complex nugget to the hierarchy."""
-#     gen = ComplexGenerator(hierarchy)
-#     gen.generate(
-#         complex, add_agents, anatomize,
-#         merge_actions, apply_semantics
-#     )
+
+def create_nugget(interaction, hierarchy=None, add_agents=True,
+                  anatomize=True, apply_semantics=True):
+    """Create a nugget from a KAMI interaction."""
+    if hierarchy is None:
+        hierarchy = KamiHierarchy()
+
+    if "action_graph" not in hierarchy.nodes():
+        hierarchy.create_empty_action_graph()
+
+    interaction_type = type(interaction).__name__.lower()
+
+    # Dynamically call function corresponding to an interaction type
+    getattr(sys.modules[__name__], "_add_%s" % interaction_type)(
+        interaction,
+        hierarchy=hierarchy,
+        add_agents=add_agents,
+        anatomize=anatomize,
+        apply_semantics=apply_semantics
+    )
+
+    return hierarchy
 
 
 def create_nuggets(interactions, hierarchy=None, add_agents=True,
@@ -71,23 +85,25 @@ def create_nuggets(interactions, hierarchy=None, add_agents=True,
 
     if "action_graph" not in hierarchy.nodes():
         hierarchy.create_empty_action_graph()
-    time_to_generate_nugget = []
-    size_of_ag = []
 
     for i, interaction in enumerate(interactions):
-        interaction_type = type(interaction).__name__.lower()
-
-        # Dynamically call functions corresponding to an interaction type
-        start = time.time()
-        getattr(sys.modules[__name__], "add_%s" % interaction_type)(
-            interaction,
-            hierarchy=hierarchy,
-            add_agents=add_agents,
-            anatomize=anatomize,
-            apply_semantics=apply_semantics
-        )
-        end = time.time() - start
-        time_to_generate_nugget.append(end)
-        size_of_ag.append(len(hierarchy.action_graph.nodes()))
+        create_nugget(interaction, hierarchy, add_agents,
+                      anatomize, apply_semantics)
 
     return hierarchy
+
+
+def add_interactions(interactions, hierarchy=None, add_agents=True,
+                     anatomize=True, apply_semantics=True):
+    """Alias for 'create_nuggets'."""
+    h = create_nuggets(
+        interactions, hierarchy, add_agents, anatomize, apply_semantics)
+    return h
+
+
+def add_interaction(interaction, hierarchy=None, add_agents=True,
+                    anatomize=True, apply_semantics=True):
+    """Alias for 'create_nugget'."""
+    h = create_nugget(interaction, hierarchy, add_agents,
+                      anatomize, apply_semantics)
+    return h
