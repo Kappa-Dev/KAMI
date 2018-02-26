@@ -129,18 +129,21 @@ class Gene(Actor, PhysicalEntity):
             components.append("bounds=[%s]" % ", ".join(
                 [str(b) for b in self.bounds]))
         res = str(self.uniprotid)
-        # if len(components) > 0:
-        #     res += "(%s)" % ", ".join(components)
+        if len(components) > 0:
+            res += "({})".format(", ".join(components))
         return res
 
     def to_attrs(self):
         """Convert agent object to attrs."""
         agent_attrs = {
-            "uniprotid": {self.uniprotid},
-            "hgnc_symbol": {self.hgnc_symbol},
-            "synonyms": set(self.synonyms),
-            "xrefs": set(self.xrefs.items())
+            "uniprotid": {self.uniprotid}
         }
+        if self.hgnc_symbol is not None:
+            agent_attrs["hgnc_symbol"] = {self.hgnc_symbol}
+        if self.synonyms is not None:
+            agent_attrs["synonyms"] = set(self.synonyms)
+        if self.xrefs is not None:
+            agent_attrs["xrefs"]: set(self.xrefs.items())
         return agent_attrs
 
     def add_region(self, region):
@@ -195,21 +198,21 @@ class Region(PhysicalEntity):
         if self.order:
             res += "_%s" % str(self.order)
 
-        # components = []
-        # if self.sites:
-        #     components.append("sites=[%s]" % ", ".join(
-        #         [str(s) for s in self.sites]))
-        # if self.residues:
-        #     components.append("residues=[%s]" % ", ".join(
-        #         [str(r) for r in self.residues]))
-        # if self.states:
-        #     components.append("states=[%s]" % ", ".join(
-        #         [str(s) for s in self.states]))
-        # if self.bounds:
-        #     components.append("bounds=[%s]" % ", ".join(
-        #         [str(b) for b in self.bounds]))
-        # if len(components) > 0:
-        #     res += "(%s)" % ", ".join(components)
+        components = []
+        if self.sites:
+            components.append("sites=[%s]" % ", ".join(
+                [str(s) for s in self.sites]))
+        if self.residues:
+            components.append("residues=[%s]" % ", ".join(
+                [str(r) for r in self.residues]))
+        if self.states:
+            components.append("states=[%s]" % ", ".join(
+                [str(s) for s in self.states]))
+        if self.bounds:
+            components.append("bounds=[%s]" % ", ".join(
+                [str(b) for b in self.bounds]))
+        if len(components) > 0:
+            res += "(%s)" % ", ".join(components)
         return res
 
     def to_attrs(self):
@@ -267,18 +270,18 @@ class Site(PhysicalEntity):
             res += "_" + str(self.end)
         if self.order:
             res += "_%s" % str(self.order)
-        # components = []
-        # if self.residues:
-        #     components.append("residues=[%s]" % ", ".join(
-        #         [str(r) for r in self.residues]))
-        # if self.states:
-        #     components.append("states=[%s]" % ", ".join(
-        #         [str(s) for s in self.states]))
-        # if self.bounds:
-        #     components.append("bounds=[%s]" % ", ".join(
-        #         [str(b) for b in self.bounds]))
-        # if len(components) > 0:
-        #     res += "(%s)" % ", ".join(components)
+        components = []
+        if self.residues:
+            components.append("residues=[%s]" % ", ".join(
+                [str(r) for r in self.residues]))
+        if self.states:
+            components.append("states=[%s]" % ", ".join(
+                [str(s) for s in self.states]))
+        if self.bounds:
+            components.append("bounds=[%s]" % ", ".join(
+                [str(b) for b in self.bounds]))
+        if len(components) > 0:
+            res += "(%s)" % ", ".join(components)
         return res
 
     def to_attrs(self):
