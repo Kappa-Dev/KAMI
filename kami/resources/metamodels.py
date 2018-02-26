@@ -88,6 +88,7 @@ add_nodes_from(
             "unimolecular_rate": UniversalSet()
         }),
         ("brk", {
+            "text": RegexSet.universal(),
             "rate": UniversalSet(),
             "unimolecular_rate": UniversalSet()
         }),
