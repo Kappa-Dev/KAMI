@@ -487,12 +487,8 @@ class ModGenerator(Generator):
             nugget.template_rel[substrate_site] = {"substrate_site"}
 
         # 2. create mod node
-        mod_attrs = {
-            "value": mod.value,
-            "direct": mod.direct
-        }
-        if mod.annotation:
-            mod_attrs.update(mod.annotation.to_attrs())
+        mod_attrs = mod.to_attrs()
+        mod_attrs["value"] = mod.value
 
         nugget.add_node(
             "mod",
@@ -591,12 +587,8 @@ class AnonymousModGenerator(Generator):
             nugget.template_rel[substrate_site] = {"substrate_site"}
 
         # 2. create mod node
-        mod_attrs = {
-            "value": mod.value,
-            "direct": mod.direct
-        }
-        if mod.annotation:
-            mod_attrs.update(mod.annotation.to_attrs())
+        mod_attrs = mod.to_attrs()
+        mod_attrs["value"] = mod.value,
 
         nugget.add_node(
             "mod",
@@ -728,11 +720,7 @@ class BndGenerator(Generator):
         right_ids = "_".join(right)
         bnd_id = get_nugget_bnd_id(nugget.graph, left_ids, right_ids)
 
-        bnd_attrs = {
-            "direct": bnd.direct
-        }
-        if bnd.annotation:
-            bnd_attrs.update(bnd.annotation.to_attrs())
+        bnd_attrs = bnd.to_attrs()
 
         nugget.add_node(
             bnd_id, bnd_attrs,
