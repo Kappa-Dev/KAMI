@@ -37,6 +37,7 @@ class Modification(Interaction):
         self.substrate = substrate
         self.target = mod_target
         self.value = mod_value
+        self.rate = rate
         self.annotation = annotation
         self.direct = direct
         return
@@ -68,14 +69,15 @@ class AutoModification(Modification):
     """Class for Kami auto mod interaction."""
 
     def __init__(self, enzyme_agent, mod_target, mod_value=True,
-                 enz_region=None, sub_region=None, annotation=None,
-                 direct=True):
+                 enz_region=None, sub_region=None, rate=None,
+                 annotation=None, direct=True):
         """Initialize modification."""
         self.enzyme = enzyme_agent
         self.enzyme_region = enz_region
         self.substrate_region = sub_region
         self.target = mod_target
         self.value = mod_value
+        self.rate = rate
         self.annotation = annotation
         self.direct = direct
         return
@@ -85,12 +87,13 @@ class TransModification(Modification):
     """Class for Kami trans mod interaction."""
 
     def __init__(self, enzyme, substrate, mod_target, mod_value=True,
-                 annotation=None, direct=True):
+                 rate=None, annotation=None, direct=True):
         """Initialize modification."""
         self.enzyme = enzyme
         self.substrate = enzyme
         self.target = mod_target
         self.value = mod_value
+        self.rate = rate
         self.annotation = annotation
         self.direct = direct
         return
@@ -100,12 +103,13 @@ class AnonymousModification(Modification):
     """Class for Kami anonymous mod interaction."""
 
     def __init__(self, substrate_agent, mod_target, mod_value,
-                 annotation=None, direct=True):
+                 rate=None, annotation=None, direct=True):
         """Initialize modification."""
         self.enzyme = None
         self.substrate = substrate_agent
         self.target = mod_target
         self.value = mod_value
+        self.rate = rate
         self.annotation = annotation
         self.direct = direct
 
@@ -139,10 +143,11 @@ class Unbinding(Interaction):
     """Class for Kami binary unbinding interaction."""
 
     def __init__(self, left_members, right_members,
-                 annotation=None, direct=True):
+                 rate=None, annotation=None, direct=True):
         """Initialize binary binding."""
         self.left = left_members
         self.right = right_members
+        self.rate = rate
         self.annotation = annotation
         self.direct = direct
 

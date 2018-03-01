@@ -381,16 +381,17 @@ define([
                 if (components.indexOf(ancestorSource) > -1 &&
                     components.indexOf(ancestorTarget) > -1) {
                         return ("Gray");
-                    // return ("1,0");
                 } else if (ancestorSource == "half-act" &&
 		    components3.indexOf(ancestorTarget) > -1) {
                         return ("Gray");
-                } else if (components2.indexOf(ancestorSource) > -1 &&
+                } else if (ancestorSource == "state" &&
                     components.indexOf(ancestorTarget) > -1) {
-                        return ("notDotted")
+                        return ("notDotted");
+                } else if (components.indexOf(ancestorSource) > -1 &&
+                    ancestorTarget == "half-act") {
+                        return ("notDotted");
                 } else {
                     return ("Dotted");
-                    //return ("3, 6")
                 }
             };
             var shapeClassifier =
