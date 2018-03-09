@@ -380,10 +380,10 @@ define([
 		var components3 = ["bnd", "brk", "is_bnd", "is_free"];
                 if (components.indexOf(ancestorSource) > -1 &&
                     components.indexOf(ancestorTarget) > -1) {
-                        return ("Gray");
+                        return ("notDotted");
                 } else if (ancestorSource == "half-act" &&
 		    components3.indexOf(ancestorTarget) > -1) {
-                        return ("Gray");
+                        return ("notDotted");
                 } else if (ancestorSource == "state" &&
                     components.indexOf(ancestorTarget) > -1) {
                         return ("notDotted");
@@ -394,12 +394,36 @@ define([
                     return ("Dotted");
                 }
             };
+
+            var link_to_color = function (l) {
+                var userColor = l.color
+                var ancestorSource = ancestorArray[l.source.id];
+                var ancestorTarget = ancestorArray[l.target.id];
+                var components = ["residue", "region", "gene", "site", "compo"];
+                var components2 = ["bnd", "brk", "is_bnd", "is_free"];
+                if (userColor == "unspecified") {
+                    // Default colors depending on the source and target.
+                    if (components.indexOf(ancestorSource) > -1 &&
+                        components.indexOf(ancestorTarget) > -1) {
+                            return "gray";
+                    } else if (ancestorSource == "half-act" &&
+                        components2.indexOf(ancestorTarget) > -1) {
+                            return "gray";
+                    } else {
+                        return "black";
+                    }
+                } else {
+                    return userColor;
+                }
+            };
+
             var shapeClassifier =
                 {
                     "shape": node_to_symbol,
                     "size": node_to_size,
                     "dotStyle": link_to_dotStyle,
-                    "nodeColor": node_to_color
+                    "nodeColor": node_to_color,
+                    "edgeColor": link_to_color
                 };
             loadType(path, graph, config, function (rep) { loadGraph(rep, shapeClassifier, config); });
         }
@@ -512,11 +536,7 @@ define([
                         //return "M" + x1 + "," + y1 + "C 1 1, 0 0,"+ x2+ "," + y2;
                     })
                     .style("stroke", function (d) {
-                        if (shapeClassifier["dotStyle"](d) === "Gray") {
-			    return "gray"
-			} else {
-			    return "black"
-			}
+                        return shapeClassifier["edgeColor"](d);
 		    });
                 if (localDispatch) { localDispatch.call("move") };
             };
@@ -643,12 +663,24 @@ define([
                     else return "#EEEEEE";
                 }
             };
+            if (!shapeClassifier.edgeColor) { shapeClassifier.edgeColor = function (_) { return "black" } };
 
 
 
             //transform links for search optimisation
             var links = response.edges.map(function (d) {
-                return { source: findNode(d.from, response.nodes), target: findNode(d.to, response.nodes) }
+                userColor = "unspecified";
+                edgeColor = d.attrs.color
+                if (edgeColor != null) {
+                    colorVals = d.attrs.color.strSet.pos_list;
+                    if (colorVals != null) {
+                        userColor = colorVals[0];
+                    }
+                }
+                return { source: findNode(d.from, response.nodes),
+                         target: findNode(d.to, response.nodes),
+                         color: userColor
+                }
             });
             edgesList = links;
 
