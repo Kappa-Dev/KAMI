@@ -159,11 +159,12 @@ class Gene(Actor, PhysicalEntity):
 
 class Region(PhysicalEntity):
 
-    def __init__(self, name=None, start=None, end=None, order=None,
-                 sites=None, residues=None, states=None, bounds=None,
-                 label=None):
+    def __init__(self, name=None, interproid=None, start=None, end=None,
+                 order=None, sites=None, residues=None, states=None,
+                 bounds=None, label=None):
         """Initialize kami region object."""
         self.name = name
+        self.interproid = interproid
         self.start = start
         self.end = end
         self.order = order
@@ -191,6 +192,12 @@ class Region(PhysicalEntity):
         res = "Region"
         if self.name:
             res += "_%s" % self.name
+        if self.interproid:
+            if type(self.interproid) is list:
+                res += "_%s" % "-".join(
+                    [str(ipr_id) for ipr_id in self.interproid])
+            else:
+                res += "_%s" % self.interproid
         if self.start:
             res += "_" + str(self.start)
         if self.end:
@@ -224,6 +231,8 @@ class Region(PhysicalEntity):
             res["end"] = {self.end}
         if self.name:
             res["name"] = {self.name}
+        if self.interproid:
+            res["interproid"] = self.interproid
         if self.order:
             res["order"] = {self.order}
         if self.label:

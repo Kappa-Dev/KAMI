@@ -771,7 +771,7 @@ def propose_name_label(ipr_list):
     # a) InterPro ID is found anywhere in longest_branch.
     # (basically this is used to ignore deeper levels)
     anywhere_dict = {
-        'IPR020635': {'name':'Tyrosine kinase', 'label':'Tyr_kin'}
+        'IPR020635': {'name':'Tyrosine kinase', 'label':'Tyr_kinase'}
     }
     for ipr_id in longest_branch:
         if ipr_id in anywhere_dict.keys():
