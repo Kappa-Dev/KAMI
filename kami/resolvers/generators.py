@@ -761,14 +761,6 @@ class BndGenerator(Generator):
 
 class AutoModGenerator(Generator):
     """Generator class for auto modification nugget."""
-    # TODO
-    # self.enzyme = enzyme_actor
-    # self.substrate_region = substrate_region
-    # self.substrate_site = substrate_site
-    # self.target = mod_target
-    # self.value = mod_value
-    # self.annotation = annotation
-    # self.direct = direct
 
     def _create_nugget(self, mod):
         """Create a mod nugget graph and find its typing."""
