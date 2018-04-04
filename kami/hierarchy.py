@@ -3,7 +3,6 @@ import copy
 import networkx as nx
 import numpy as np
 import warnings
-import time
 
 from regraph import Rule, Hierarchy
 from regraph.primitives import *
@@ -22,6 +21,7 @@ def find_fragment(a, dict_of_b):
     a_start = None
     a_end = None
     a_name = None
+    a_interpro = None
     a_order = None
     if "start" in a.keys():
         a_start = int(min(a["start"]))
@@ -29,6 +29,8 @@ def find_fragment(a, dict_of_b):
         a_end = int(max(a["end"]))
     if "name" in a.keys():
         a_name = list(a["name"])[0].lower()
+    if "interproid" in a.keys():
+        a_interpro = a["interproid"]
     if "order" in a.keys():
         a_order = list(a["order"])[0]
 
@@ -37,12 +39,15 @@ def find_fragment(a, dict_of_b):
         b_start = None
         b_end = None
         b_name = None
+        b_interpro = None
         if "start" in b.keys():
             b_start = int(min(b["start"]))
         if "end" in b.keys():
             b_end = int(max(b["end"]))
         if "name" in b.keys():
             b_name = list(b["name"])[0].lower()
+        if "interproid" in b.keys():
+            b_interpro = b["interproid"]
 
         if a_start is not None and a_end is not None and\
            b_start is not None and b_end is not None:
@@ -50,15 +55,17 @@ def find_fragment(a, dict_of_b):
                 return b_id
             elif a_start <= b_start and a_end >= b_end:
                 return b_id
-
-        if a_name is not None and b_name is not None:
+        elif a_name is not None and b_name is not None:
             if a_name in b_name or b_name in a_name:
                 satifying_fragments.append(b_id)
+        elif a_interpro is not None and b_interpro is not None:
+            if len(a_interpro.intersection(b_interpro)) > 0:
+                satisfying_fragments.append(b_id)
 
     if len(satifying_fragments) == 1:
         return satifying_fragments[0]
     elif len(satifying_fragments) > 1:
-        # Try to find if there is a unique region in a list of
+        # Try to find if there is a unique region in the list of
         # satisfying regions with the same order number
         if a_order is not None:
             same_order_fragments = []

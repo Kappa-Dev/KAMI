@@ -2,8 +2,9 @@
 
 from regraph import print_graph
 
+from kami import add_interactions
 from kami.resolvers.generators import (NuggetContainer, Generator,
-                                           ModGenerator)
+                                       ModGenerator)
 from kami.interactions import (Modification,
                                Binding)
 from kami.entities import (Gene, Region, RegionActor, Residue,
@@ -568,6 +569,3 @@ class TestBlackBox(object):
         generator = ModGenerator(hierarchy)
         n, t = generator._create_nugget(mod5)
         print_graph(n.graph)
-
-    # def test_bnd_generator(self):
-    #     pass

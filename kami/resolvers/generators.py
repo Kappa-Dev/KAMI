@@ -258,8 +258,7 @@ class Generator(object):
         nugget.add_node(
             site_id, site.to_attrs(),
             meta_typing="site",
-            ag_typing=action_graph_site,
-            # semantic_rels=semantic_rels
+            ag_typing=action_graph_site
         )
 
         # create and attach residues
@@ -305,12 +304,10 @@ class Generator(object):
             action_graph_region = self.hierarchy.identify_region(
                 region, nugget.ag_typing[father])
 
-        # find semantic relations
         nugget.add_node(
             region_id, region.to_attrs(),
             meta_typing="region",
-            ag_typing=action_graph_region,
-            # semantic_rels=semantic_rels
+            ag_typing=action_graph_region
         )
 
         # 2. create and attach residues
