@@ -256,6 +256,7 @@ class KamiHierarchy(Hierarchy):
         for node_id in self.nodes():
             if "nugget" in self.node[node_id].attrs["type"]:
                 nuggets.append(node_id)
+
         return nuggets
 
     def semantic_nuggets(self):

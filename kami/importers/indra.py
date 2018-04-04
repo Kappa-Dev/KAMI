@@ -11,8 +11,7 @@ from kami.interactions import (Modification,
                                AutoModification,
                                TransModification,
                                Binding,
-                               AnonymousModification,
-                               Complex)
+                               AnonymousModification)
 from kami.utils.xrefs import (uniprot_from_xrefs,
                               names_from_uniprot,
                               uniprot_from_names

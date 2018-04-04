@@ -68,13 +68,13 @@ class Modification(Interaction):
 class AutoModification(Modification):
     """Class for Kami auto mod interaction."""
 
-    def __init__(self, enzyme_agent, mod_target, mod_value=True,
-                 enz_region=None, sub_region=None, rate=None,
+    def __init__(self, enzyme_actor, mod_target, mod_value=True,
+                 substrate_region=None, substrate_site=None, rate=None,
                  annotation=None, direct=True):
         """Initialize modification."""
-        self.enzyme = enzyme_agent
-        self.enzyme_region = enz_region
-        self.substrate_region = sub_region
+        self.enzyme = enzyme_actor
+        self.substrate_region = substrate_region
+        self.substrate_site = substrate_site
         self.target = mod_target
         self.value = mod_value
         self.rate = rate
