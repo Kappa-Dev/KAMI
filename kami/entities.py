@@ -110,28 +110,36 @@ class Gene(Actor, PhysicalEntity):
 
         return
 
-    def __str__(self):
-        """String represenation of an agent."""
-        components = []
+    def __repr__(self):
+        """Representation of a gene."""
+        content = ""
+
+        components = ["uniprot={}".format(self.uniprotid)]
+
         if self.regions:
             components.append("regions=[%s]" % ", ".join(
-                [str(r) for r in self.regions]))
+                [r.__repr__() for r in self.regions]))
         if self.sites:
             components.append("sites=[%s]" % ", ".join(
-                [str(s) for s in self.sites]))
+                [s.__repr__() for s in self.sites]))
         if self.residues:
             components.append("residues=[%s]" % ", ".join(
-                [str(r) for r in self.residues]))
+                [r.__repr__() for r in self.residues]))
         if self.states:
             components.append("states=[%s]" % ", ".join(
-                [str(s) for s in self.states]))
+                [s.__repr__() for s in self.states]))
         if self.bounds:
             components.append("bounds=[%s]" % ", ".join(
-                [str(b) for b in self.bounds]))
-        res = str(self.uniprotid)
-        if len(components) > 0:
-            res += "({})".format(", ".join(components))
+                [b.__repr__() for b in self.bounds]))
+
+        content = ", ".join(components)
+
+        res = "Gene({})".format(content)
         return res
+
+    def __str__(self):
+        """String represenation of a gene."""
+        return str(self.uniprotid)
 
     def to_attrs(self):
         """Convert agent object to attrs."""
@@ -143,7 +151,7 @@ class Gene(Actor, PhysicalEntity):
         if self.synonyms is not None:
             agent_attrs["synonyms"] = set(self.synonyms)
         if self.xrefs is not None:
-            agent_attrs["xrefs"]: set(self.xrefs.items())
+            agent_attrs["xrefs"] = set(self.xrefs.items())
         return agent_attrs
 
     def add_region(self, region):
@@ -187,9 +195,48 @@ class Region(PhysicalEntity):
         self.bounds = self._normalize_bounds(bounds)
         return
 
+    def __repr__(self):
+        """Representation of a region."""
+        content = ""
+
+        components = []
+        if self.name:
+            components.append("name='{}'".format(self.name))
+        if self.interproid:
+            if type(self.interproid) is list:
+                components.append(
+                    "interproid=[{}]".format(
+                        ",".join("'{}'".format(i)
+                                 for i in self.interproid)))
+            else:
+                components.append("interproid='{}'".format(self.interproid))
+        if self.start:
+            components.append("start={}".format(self.start))
+        if self.end:
+            components.append("end={}".format(self.end))
+        if self.order:
+            components.append("order={}".format(self.order))
+        if self.sites:
+            components.append("sites=[%s]" % ", ".join(
+                [s.__repr__() for s in self.sites]))
+        if self.residues:
+            components.append("residues=[%s]" % ", ".join(
+                [r.__repr__() for r in self.residues]))
+        if self.states:
+            components.append("states=[%s]" % ", ".join(
+                [s.__repr__() for s in self.states]))
+        if self.bounds:
+            components.append("bounds=[%s]" % ", ".join(
+                [b.__repr__() for b in self.bounds]))
+        if len(components) > 0:
+            content = ", ".join(components)
+
+        res = "Region({})".format(content)
+        return res
+
     def __str__(self):
-        """String representation of the region."""
-        res = "Region"
+        """String representation of a region."""
+        res = "region"
         if self.name:
             res += "_%s" % self.name
         if self.interproid:
@@ -205,34 +252,19 @@ class Region(PhysicalEntity):
         if self.order:
             res += "_%s" % str(self.order)
 
-        components = []
-        if self.sites:
-            components.append("sites=[%s]" % ", ".join(
-                [str(s) for s in self.sites]))
-        if self.residues:
-            components.append("residues=[%s]" % ", ".join(
-                [str(r) for r in self.residues]))
-        if self.states:
-            components.append("states=[%s]" % ", ".join(
-                [str(s) for s in self.states]))
-        if self.bounds:
-            components.append("bounds=[%s]" % ", ".join(
-                [str(b) for b in self.bounds]))
-        if len(components) > 0:
-            res += "(%s)" % ", ".join(components)
         return res
 
     def to_attrs(self):
         """Convert agent object to attrs."""
         res = dict()
-        if self.start is not None:
+        if self.interproid:
+            res["interproid"] = self.interproid
+        if self.start:
             res["start"] = {self.start}
-        if self.end is not None:
+        if self.end:
             res["end"] = {self.end}
         if self.name:
             res["name"] = {self.name}
-        if self.interproid:
-            res["interproid"] = self.interproid
         if self.order:
             res["order"] = {self.order}
         if self.label:
@@ -268,8 +300,37 @@ class Site(PhysicalEntity):
         self.bounds = self._normalize_bounds(bounds)
         return
 
+    def __repr__(self):
+        """Representation of a site."""
+        content = ""
+
+        components = []
+        if self.name:
+            components.append("name='{}'".format(self.name))
+        if self.start:
+            components.append("start={}".format(self.start))
+        if self.end:
+            components.append("end={}".format(self.end))
+        if self.order:
+            components.append("order={}".format(self.order))
+
+        if self.residues:
+            components.append("residues=[%s]" % ", ".join(
+                [r.__repr__() for r in self.residues]))
+        if self.states:
+            components.append("states=[%s]" % ", ".join(
+                [s.__repr__() for s in self.states]))
+        if self.bounds:
+            components.append("bounds=[%s]" % ", ".join(
+                [b.__repr__() for b in self.bounds]))
+        if len(components) > 0:
+            content = ", ".join(components)
+
+        res = "Site({})".format(content)
+        return res
+
     def __str__(self):
-        """String representation of the region."""
+        """String representation of a site."""
         res = "site"
         if self.name:
             res += "_%s" % self.name
@@ -279,18 +340,6 @@ class Site(PhysicalEntity):
             res += "_" + str(self.end)
         if self.order:
             res += "_%s" % str(self.order)
-        components = []
-        if self.residues:
-            components.append("residues=[%s]" % ", ".join(
-                [str(r) for r in self.residues]))
-        if self.states:
-            components.append("states=[%s]" % ", ".join(
-                [str(s) for s in self.states]))
-        if self.bounds:
-            components.append("bounds=[%s]" % ", ".join(
-                [str(b) for b in self.bounds]))
-        if len(components) > 0:
-            res += "(%s)" % ", ".join(components)
         return res
 
     def to_attrs(self):
@@ -325,6 +374,21 @@ class Residue():
             self.loc = None
         self.state = state
 
+    def __repr__(self):
+        """Representation of a site."""
+        content = ""
+
+        components = ["aa='{}'".format(self.aa)]
+        if self.loc:
+            components.append("loc='{}'".format(self.loc))
+        if self.state:
+            components.append("state={}".format(self.state.__repr__()))
+        if len(components) > 0:
+            content = ", ".join(components)
+
+        res = "Residue({})".format(content)
+        return res
+
     def __str__(self):
         """Str representation of residue."""
         res = "".join(self.aa)
@@ -349,8 +413,12 @@ class State(object):
         self.name = name
         self.value = value
 
+    def __repr__(self):
+        """Representation of a state."""
+        return "State(name='{}', value={})".format(self.name, self.value)
+
     def __str__(self):
-        """Str representation of state."""
+        """Str representation of a state."""
         res = "%s" % (self.name)
         return res
 
@@ -367,19 +435,35 @@ class RegionActor(Actor):
         self.region = region
         self.gene = gene
 
+    def __repr__(self):
+        """Representation of a region actor object."""
+        return "RegionActor(gene='{}', region='{}')".format(
+            self.gene.__repr__(), self.region.__repr__())
+
     def __str__(self):
-        """String representation of  region/agent."""
+        """String representation of a region actor."""
         res = str(self.region) + "_"
         res += str(self.gene)
         return res
 
 
 class SiteActor(Actor):
+
     def __init__(self, gene, site, region=None):
         """."""
         self.site = site
         self.region = region
         self.gene = gene
+
+    def __repr__(self):
+        """Representation of a site actor object."""
+        content = ""
+        if self.region is not None:
+            content += "region={}, ".format(self.region.__repr__())
+        content += "site={}".format(self.site.__repr__())
+
+        return "SiteActor(gene={}, {})".format(
+            self.gene.__repr__(), content)
 
     def __str__(self):
         """String representation of  region/agent."""
