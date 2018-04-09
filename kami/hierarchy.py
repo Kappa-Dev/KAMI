@@ -1154,7 +1154,8 @@ class KamiHierarchy(Hierarchy):
                              for n in domain.short_names]),
                         start=domain.start,
                         end=domain.end,
-                        label=domain.prop_label)
+                        label=domain.prop_label,
+                        interproid=domain.ipr_ids)
 
                     region_id = "%s_%s" % (gene, str(region))
                     if region_id in self.action_graph.nodes():
