@@ -203,16 +203,15 @@ class Generator(object):
             # !TODO! add identification in ag
             nugget.add_node(
                 is_bnd_id,
-                # meta_typing="is_bnd"
+                meta_typing="is_bnd"
             )
             is_bnd_ids.append(is_bnd_id)
 
             partner_locus_id = get_nugget_locus_id(
                 nugget.graph, partner_id, is_bnd_id)
-            # !TODO! add indentification in ag
             nugget.add_node(
                 partner_locus_id,
-                # meta_typing="locus"
+                meta_typing="locus"
             )
 
             if isinstance(partner, Gene):
@@ -237,7 +236,7 @@ class Generator(object):
         # !TODO! add id to ag
         nugget.add_node(
             bound_locus_id,
-            # meta_typing="locus"
+            meta_typing="locus"
         )
         for is_bnd_id in is_bnd_ids:
             nugget.add_edge(bound_locus_id, is_bnd_id)
