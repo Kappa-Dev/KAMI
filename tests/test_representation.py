@@ -81,7 +81,9 @@ class TestRepresentation(object):
         mod = TransModification(
             enzyme=self.enzyme_site_actor,
             substrate=self.substrate_region_actor,
-            target=self.residue_mod_target
+            target=self.residue_mod_target,
+            substrate_bnd_region=Region("SH2"),
+            enzyme_bnd_site=Site("pY")
         )
         print(mod)
         print(mod.__repr__())

@@ -29,12 +29,13 @@ The implemented data structures include:
 import collections
 
 
-class Actor():
+class Actor(object):
     """Base class for actors of interaction."""
+
     pass
 
 
-class PhysicalEntity():
+class PhysicalEntity(object):
     """Base class for physical entities in KAMI.
 
     Implements several methods of common behaviour:
@@ -69,6 +70,7 @@ class PhysicalEntity():
 
 
 class Gene(Actor, PhysicalEntity):
+    """Class for a gene."""
 
     def __init__(self, uniprotid, regions=None, residues=None, sites=None,
                  states=None, bounds=None, hgnc_symbol=None,
@@ -166,6 +168,7 @@ class Gene(Actor, PhysicalEntity):
 
 
 class Region(PhysicalEntity):
+    """Class for a conserved gene region."""
 
     def __init__(self, name=None, interproid=None, start=None, end=None,
                  order=None, sites=None, residues=None, states=None,
@@ -278,6 +281,7 @@ class Region(PhysicalEntity):
 
 
 class Site(PhysicalEntity):
+    """Class for a gene's interaction site."""
 
     def __init__(self, name=None, start=None, end=None, order=None,
                  residues=None, states=None, bounds=None):
@@ -357,7 +361,7 @@ class Site(PhysicalEntity):
 
 
 class Residue():
-    """Class implementing KAMI residue."""
+    """Class for a residue."""
 
     def __init__(self, aa, loc=None, state=None):
         """Init residue object."""
@@ -406,7 +410,7 @@ class Residue():
 
 
 class State(object):
-    """Class implementing KAMI state."""
+    """Class for a KAMI state."""
 
     def __init__(self, name, value):
         """Init kami state object."""
@@ -430,7 +434,7 @@ class State(object):
 
 
 class RegionActor(Actor):
-    """Class representing a region of a gene as an actor of PPI."""
+    """Class for a region of a gene as an actor of PPI."""
 
     def __init__(self, gene, region):
         """Initialize RegionActor object."""
@@ -450,7 +454,7 @@ class RegionActor(Actor):
 
 
 class SiteActor(Actor):
-    """Class representing a site of a gene as an actor of PPI."""
+    """Class for a site of a gene as an actor of PPI."""
 
     def __init__(self, gene, site, region=None):
         """Initialize SiteActor object."""
