@@ -378,9 +378,9 @@ class Residue():
         """Representation of a site."""
         content = ""
 
-        components = ["aa='{}'".format(self.aa)]
+        components = ["aa={}".format(self.aa)]
         if self.loc:
-            components.append("loc='{}'".format(self.loc))
+            components.append("loc={}".format(self.loc))
         if self.state:
             components.append("state={}".format(self.state.__repr__()))
         if len(components) > 0:
@@ -430,27 +430,30 @@ class State(object):
 
 
 class RegionActor(Actor):
+    """Class representing a region of a gene as an actor of PPI."""
+
     def __init__(self, gene, region):
-        """."""
+        """Initialize RegionActor object."""
         self.region = region
         self.gene = gene
 
     def __repr__(self):
         """Representation of a region actor object."""
-        return "RegionActor(gene='{}', region='{}')".format(
+        return "RegionActor(gene={}, region={})".format(
             self.gene.__repr__(), self.region.__repr__())
 
     def __str__(self):
-        """String representation of a region actor."""
+        """String representation of a RegionActor object."""
         res = str(self.region) + "_"
         res += str(self.gene)
         return res
 
 
 class SiteActor(Actor):
+    """Class representing a site of a gene as an actor of PPI."""
 
     def __init__(self, gene, site, region=None):
-        """."""
+        """Initialize SiteActor object."""
         self.site = site
         self.region = region
         self.gene = gene
@@ -466,7 +469,7 @@ class SiteActor(Actor):
             self.gene.__repr__(), content)
 
     def __str__(self):
-        """String representation of  region/agent."""
+        """String representation of a SiteActor object."""
         res = str(self.gene)
         if self.region is not None:
             res += "_" + str(self.region)
