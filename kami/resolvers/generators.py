@@ -282,7 +282,7 @@ class Generator(object):
             nugget.add_edge(state_id, site_id)
 
         # 5. create and attach bounds
-        for partners in site.bounds:
+        for partners in site.bound_to:
             bound_locus_id = self._generate_bound(
                 nugget, partners, site_id)
             nugget.add_edge(site_id, bound_locus_id)
@@ -346,7 +346,7 @@ class Generator(object):
             nugget.add_edge(state_id, region_id)
 
         # 5. create and attach bounds
-        for partners in region.bounds:
+        for partners in region.bound_to:
             bound_locus_id = self._generate_bound(
                 nugget, partners, region_id)
             nugget.add_edge(region_id, bound_locus_id)
@@ -393,7 +393,7 @@ class Generator(object):
             nugget.add_edge(site_id, agent_id)
 
         # 6. create and attach bounds
-        for bnd in gene.bounds:
+        for bnd in gene.bound_to:
             bound_locus_id = self._generate_bound(
                 nugget, bnd, agent_id)
             nugget.add_edge(agent_id, bound_locus_id)
@@ -556,31 +556,29 @@ class BndGenerator(Generator):
         right = []
 
         # 1. create bnd actors
-        for member in bnd.left:
-            gene_id, region_id, site_id = self._generate_actor(nugget, member)
-            nugget.template_rel[gene_id] = {"left_partner"}
-            if site_id is not None:
-                left.append(site_id)
-                nugget.template_rel[site_id] = {"left_partner_site"}
-            if region_id is not None:
-                nugget.template_rel[region_id] = {"left_partner_region"}
-                if site_id is None:
-                    left.append(region_id)
-            if site_id is None and region_id is None:
-                left.append(gene_id)
+        gene_id, region_id, site_id = self._generate_actor(nugget, bnd.left)
+        nugget.template_rel[gene_id] = {"left_partner"}
+        if site_id is not None:
+            left.append(site_id)
+            nugget.template_rel[site_id] = {"left_partner_site"}
+        if region_id is not None:
+            nugget.template_rel[region_id] = {"left_partner_region"}
+            if site_id is None:
+                left.append(region_id)
+        if site_id is None and region_id is None:
+            left.append(gene_id)
 
-        for member in bnd.right:
-            gene_id, region_id, site_id = self._generate_actor(nugget, member)
-            nugget.template_rel[gene_id] = {"right_partner"}
-            if site_id is not None:
-                right.append(site_id)
-                nugget.template_rel[site_id] = {"right_partner_site"}
-            if region_id is not None:
-                nugget.template_rel[region_id] = {"right_partner_region"}
-                if site_id is None:
-                    right.append(region_id)
-            if site_id is None and region_id is None:
-                right.append(gene_id)
+        gene_id, region_id, site_id = self._generate_actor(nugget, bnd.right)
+        nugget.template_rel[gene_id] = {"right_partner"}
+        if site_id is not None:
+            right.append(site_id)
+            nugget.template_rel[site_id] = {"right_partner_site"}
+        if region_id is not None:
+            nugget.template_rel[region_id] = {"right_partner_region"}
+            if site_id is None:
+                right.append(region_id)
+        if site_id is None and region_id is None:
+            right.append(gene_id)
 
         # 2. create binding action
         left_ids = "_".join(left)
@@ -705,12 +703,8 @@ class AutoModGenerator(Generator):
             nugget.template_rel[substrate_site] = {"substrate_site"}
 
         # 2. create mod node
-        mod_attrs = {
-            "value": mod.value,
-            "direct": mod.direct
-        }
-        if mod.annotation:
-            mod_attrs.update(mod.annotation.to_attrs())
+        mod_attrs = mod.to_attrs()
+        mod_attrs["value"] = mod.value
 
         nugget.add_node(
             "mod",

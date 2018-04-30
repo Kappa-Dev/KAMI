@@ -30,7 +30,7 @@ class TestBlackBox(object):
         sub_bound_1 = Gene("P28482", states=[State("activity", True)])
         sub_bound_2 = Gene("P28482", states=[State("activity", True)])
 
-        substrate_entity = Gene("P04049", bounds=[[sub_bound_1], [sub_bound_2]])
+        substrate_entity = Gene("P04049", bound_to=[sub_bound_1, sub_bound_2])
 
         mod_state = State("activity", False)
         value = True
@@ -70,7 +70,7 @@ class TestBlackBox(object):
 
         substrate_bound = Gene(
             "P12931",
-            bounds=[next_level_bound]
+            bound_to=[next_level_bound]
         )
 
         substrate = Gene(
@@ -78,7 +78,7 @@ class TestBlackBox(object):
             regions=[substrate_region],
             residues=substrate_residues,
             states=[substrate_state],
-            bounds=[substrate_bound]
+            bound_to=[substrate_bound]
         )
 
         mod_target = Residue("S", "33", State("phosphorylation", False))
@@ -136,7 +136,7 @@ class TestBlackBox(object):
 
         abl2_sh2 = RegionActor(abl2, sh2)
 
-        bnd527 = Binding([dok1_py398], [abl2_sh2])
+        bnd527 = Binding(dok1_py398, abl2_sh2)
         print(bnd527)
 
         hierarchy = create_nuggets([bnd527])
@@ -166,8 +166,8 @@ class TestBlackBox(object):
         )
 
         bnds = []
-        bnds.append(Binding([frs2_py196], [pik3r1_sh2n]))
-        bnds.append(Binding([frs2_py349], [pik3r1_sh2c]))
+        bnds.append(Binding(frs2_py196, pik3r1_sh2n))
+        bnds.append(Binding(frs2_py349, pik3r1_sh2c))
 
     def test_sites(self):
         # Create genes.
@@ -182,7 +182,7 @@ class TestBlackBox(object):
         # This works (RegionActor).
         # inters.append(BinaryBinding([egfr], [grb2_sh2]))
         # This does not work (SiteActor)
-        inters.append(Binding([egfr], [grb2_site]))
+        inters.append(Binding(egfr, grb2_site))
 
         hierarchy = create_nuggets(inters, anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
@@ -294,8 +294,6 @@ class TestBlackBox(object):
         inters.append(m)
         m = Modification(
             enzyme=Gene("P00519", hgnc_symbol="ABL1"),
-            #substrate=RegionActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
-            #                    region=Region(name="region800", start=796, end=804)),
             substrate=SiteActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
                                 site=Site(name="site800", start=796, end=804)),
             mod_target=Residue("Y", 800, State("phosphorylation", False)),
@@ -303,18 +301,16 @@ class TestBlackBox(object):
         )
         inters.append(m)
 
-
         # Binding using SiteActor.
         b = Binding(
-            #[RegionActor(gene=Gene("P00533",  hgnc_symbol="EGFR"),
-            #           region=Region(name="region800", start=796, end=804))],
-            [SiteActor(gene=Gene("P00533",  hgnc_symbol="EGFR"),
-                       site=Site(name="site800", start=796, end=804))],
-            [RegionActor(gene=Gene("P62993",  hgnc_symbol="GRB2"), region=sh2)]
+
+            SiteActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
+                      site=Site(name="site800", start=796, end=804)),
+            RegionActor(gene=Gene("P62993", hgnc_symbol="GRB2"), region=sh2)
         )
         inters.append(b)
         hierarchy = create_nuggets(inters, anatomize=True)
-    
+
     def test_site_merge(self):
         enzyme_site_actor1 =\
             SiteActor(
@@ -345,10 +341,13 @@ class TestBlackBox(object):
     def test_site_residue_reconnect(self):
         sh2 = Region(name="SH2")
         b = Binding(
-            [SiteActor(gene=Gene(uniprotid="P00533", hgnc_symbol="EGFR",
-                                 residues=[Residue("Y", 1092, state=State("phosphorylation", True))]),
-                       site=Site(name="motif1092", start=1088, end=1096))],
-            [RegionActor(gene=Gene("P62993",  hgnc_symbol="GRB2"), region=sh2)]
+            SiteActor(gene=Gene(uniprotid="P00533", hgnc_symbol="EGFR",
+                                residues=[
+                                    Residue(
+                                        "Y", 1092,
+                                        state=State("phosphorylation", True))]),
+                      site=Site(name="motif1092", start=1088, end=1096)),
+            RegionActor(gene=Gene("P62993", hgnc_symbol="GRB2"), region=sh2)
         )
         hierarchy = KamiHierarchy()
         hierarchy = create_nuggets([b])

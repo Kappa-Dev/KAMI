@@ -36,7 +36,7 @@ class TestRepresentation(object):
             residues=residues,
             sites=sites,
             states=states,
-            bounds=bounds,
+            bound_to=bounds,
             hgnc_symbol="EGFR",
             synonyms=["EGFR", "Epidermal growth factor receptor"])
 

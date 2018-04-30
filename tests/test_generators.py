@@ -273,7 +273,7 @@ class TestGenerators(object):
                     start=0, end=1000, name="big_region",
                     states=[State("activity", True)])
             ],
-            bounds=[gene1],
+            bound_to=[gene1],
         )
 
         gene_id = self.generator._generate_gene(nugget, gene2)
@@ -332,7 +332,7 @@ class TestGenerators(object):
 
         site = Site(
             "lala",
-            bounds=[gene, gene]
+            bound_to=[gene, gene]
         )
         site_id =\
             self.generator._generate_site(
@@ -344,7 +344,7 @@ class TestGenerators(object):
 
         site = Site(
             "lala",
-            bounds=[[gene, gene]]
+            bound_to=[[gene, gene]]
         )
         site_id =\
             self.generator._generate_site(
@@ -356,7 +356,7 @@ class TestGenerators(object):
 
         site = Site(
             "lala",
-            bounds=[site_actor]
+            bound_to=[site_actor]
         )
         site_id =\
             self.generator._generate_site(
@@ -368,7 +368,7 @@ class TestGenerators(object):
 
         site = Site(
             "lala",
-            bounds=[region_actor]
+            bound_to=[region_actor]
         )
         self.generator._generate_site(
             nugget, site, self.default_ag_gene, self.default_ag_gene)

@@ -5,22 +5,25 @@ agents of PPIs and their components such as regions, sites, residues etc.
 
 The implemented data structures include:
 
-* `Actor` base class for an actor of PPIs. Such actors include genes (see `Gene`),
-  regions of genes (see `RegionActor`), sites of genes or sites of regions of genes
-  (see `SiteActor`).
+* `Actor` base class for an actor of PPIs. Such actors include genes
+  (see `Gene`), regions of genes (see `RegionActor`), sites of genes or
+  sites of regions of genes (see `SiteActor`).
 * `PhysicalEntity` base class for physical entities in KAMI. Physical
-  entities in KAMI include genes, regions, sites and they are able to encapsulate info 
-  about PTMs (such as residues with their states, states, bounds).
+  entities in KAMI include genes, regions, sites and they are able to
+  encapsulate info about PTMs (such as residues with their states,
+  states, bounds).
 * `Gene`  represents a gene defined by the UniProt accession number and a
    set of regions, sites, residues, states and bounds (possible PTMs).
-* `Region` represents a physical region (can be seen as protein dimain) defined by a region
+* `Region` represents a physical region (can be seen as protein dimain) defined
+  by a region
   and a set of its sites, residues, states and bounds.
 * `Site` represents a physical site (usually binding site etc) defined by some
   short sequence interval and a its residues, states and bounds (PTMs).
 * `Residue` represents a residue defined by an amino acid and
   (optionally) its location, it also encapsulates a `State` object
   corresponding to a state of this residue.
-* `State` represents a state given by its name and value (value assumed to be boolean).
+* `State` represents a state given by its name and value (value assumed to be
+  boolean).
 * `RegionActor` represents an actor
 * `SiteActor`
 * (under construction) `NuggetAnnotation`
@@ -59,22 +62,26 @@ class PhysicalEntity(object):
         return
 
     def add_state(self, state):
-        """Add a state to a list of residues of the entity."""
+        """Add a state to a list of states of the entity."""
         self.states.append(state)
         return
 
     def add_bound(self, partner):
-        """Add a bound to a list of residues of the entity."""
-        self.bounds.append(partner)
+        """Add a bound to a list of bound conditions of the entity."""
+        self.bound.append(partner)
         pass
+
+    def add_unbound(self, partner):
+        """Add an unbound-condition to the entity."""
+        self.unbound.append()
 
 
 class Gene(Actor, PhysicalEntity):
     """Class for a gene."""
 
     def __init__(self, uniprotid, regions=None, residues=None, sites=None,
-                 states=None, bounds=None, hgnc_symbol=None,
-                 synonyms=None, xrefs=None, location=None):
+                 states=None, bound_to=None, unbound_from=None,
+                 hgnc_symbol=None, synonyms=None, xrefs=None, location=None):
         """Initialize kami protein object."""
         self.uniprotid = uniprotid
 
@@ -106,10 +113,13 @@ class Gene(Actor, PhysicalEntity):
             states = []
         self.states = states
 
-        if bounds is None:
-            bounds = []
-        self.bounds = self._normalize_bounds(bounds)
+        if bound_to is None:
+            bound_to = []
+        self.bound_to = self._normalize_bounds(bound_to)
 
+        if unbound_from is None:
+            unbound_from = []
+        self.unbound_from = self._normalize_bounds(unbound_from)
         return
 
     def __repr__(self):
@@ -119,20 +129,23 @@ class Gene(Actor, PhysicalEntity):
         components = ["uniprot={}".format(self.uniprotid)]
 
         if self.regions:
-            components.append("regions=[%s]" % ", ".join(
-                [r.__repr__() for r in self.regions]))
+            components.append("regions=[{}]".format(", ".join(
+                [r.__repr__() for r in self.regions])))
         if self.sites:
-            components.append("sites=[%s]" % ", ".join(
-                [s.__repr__() for s in self.sites]))
+            components.append("sites=[{}]".format(", ".join(
+                [s.__repr__() for s in self.sites])))
         if self.residues:
-            components.append("residues=[%s]" % ", ".join(
-                [r.__repr__() for r in self.residues]))
+            components.append("residues=[{}]".format(", ".join(
+                [r.__repr__() for r in self.residues])))
         if self.states:
-            components.append("states=[%s]" % ", ".join(
-                [s.__repr__() for s in self.states]))
-        if self.bounds:
-            components.append("bounds=[%s]" % ", ".join(
-                [b.__repr__() for b in self.bounds]))
+            components.append("states=[{}]".format(", ".join(
+                [s.__repr__() for s in self.states])))
+        if self.bound_to:
+            components.append("bound_to=[{}]".format(", ".join(
+                [b.__repr__() for b in self.bound_to])))
+        if self.unbound_from:
+            components.append("unbound_from=[{}]".format(", ".join(
+                [b.__repr__() for b in self.unbound_from])))
 
         content = ", ".join(components)
 
@@ -172,7 +185,7 @@ class Region(PhysicalEntity):
 
     def __init__(self, name=None, interproid=None, start=None, end=None,
                  order=None, sites=None, residues=None, states=None,
-                 bounds=None, label=None):
+                 bound_to=None, unbound_from=None, label=None):
         """Initialize kami region object."""
         self.name = name
         self.interproid = interproid
@@ -193,9 +206,13 @@ class Region(PhysicalEntity):
             states = []
         self.states = states
 
-        if bounds is None:
-            bounds = []
-        self.bounds = self._normalize_bounds(bounds)
+        if bound_to is None:
+            bound_to = []
+        self.bound_to = self._normalize_bounds(bound_to)
+
+        if unbound_from is None:
+            unbound_from = []
+        self.unbound_from = self._normalize_bounds(unbound_from)
         return
 
     def __repr__(self):
@@ -220,17 +237,20 @@ class Region(PhysicalEntity):
         if self.order:
             components.append("order={}".format(self.order))
         if self.sites:
-            components.append("sites=[%s]" % ", ".join(
-                [s.__repr__() for s in self.sites]))
+            components.append("sites=[{}]".format(", ".join(
+                [s.__repr__() for s in self.sites])))
         if self.residues:
-            components.append("residues=[%s]" % ", ".join(
-                [r.__repr__() for r in self.residues]))
+            components.append("residues=[{}]".format(", ".join(
+                [r.__repr__() for r in self.residues])))
         if self.states:
-            components.append("states=[%s]" % ", ".join(
-                [s.__repr__() for s in self.states]))
-        if self.bounds:
-            components.append("bounds=[%s]" % ", ".join(
-                [b.__repr__() for b in self.bounds]))
+            components.append("states=[{}]".format(", ".join(
+                [s.__repr__() for s in self.states])))
+        if self.bound_to:
+            components.append("bound_to=[{}]".format(", ".join(
+                [b.__repr__() for b in self.bound_to])))
+        if self.unbound_from:
+            components.append("unbound_from=[{}]".format(", ".join(
+                [b.__repr__() for b in self.unbound_from])))
         if len(components) > 0:
             content = ", ".join(components)
 
@@ -241,19 +261,19 @@ class Region(PhysicalEntity):
         """String representation of a region."""
         res = "region"
         if self.name:
-            res += "_%s" % self.name
+            res += "_{}".format(self.name)
         if self.interproid:
             if type(self.interproid) is list:
-                res += "_%s" % "-".join(
-                    [str(ipr_id) for ipr_id in self.interproid])
+                res += "_{}".format("-".join(
+                    [str(ipr_id) for ipr_id in self.interproid]))
             else:
-                res += "_%s" % self.interproid
+                res += "_{}".format(self.interproid)
         if self.start:
             res += "_" + str(self.start)
         if self.end:
             res += "_" + str(self.end)
         if self.order:
-            res += "_%s" % str(self.order)
+            res += "_{}".format(str(self.order))
 
         return res
 
@@ -284,7 +304,7 @@ class Site(PhysicalEntity):
     """Class for a gene's interaction site."""
 
     def __init__(self, name=None, start=None, end=None, order=None,
-                 residues=None, states=None, bounds=None):
+                 residues=None, states=None, bound_to=None, unbound_from=None):
         """Initialize kami site object."""
         self.name = name
         self.start = start
@@ -299,9 +319,13 @@ class Site(PhysicalEntity):
             states = []
         self.states = states
 
-        if bounds is None:
-            bounds = []
-        self.bounds = self._normalize_bounds(bounds)
+        if bound_to is None:
+            bound_to = []
+        self.bound_to = self._normalize_bounds(bound_to)
+
+        if unbound_from is None:
+            unbound_from = []
+        self.unbound_from = self._normalize_bounds(unbound_from)
         return
 
     def __repr__(self):
@@ -319,14 +343,17 @@ class Site(PhysicalEntity):
             components.append("order={}".format(self.order))
 
         if self.residues:
-            components.append("residues=[%s]" % ", ".join(
-                [r.__repr__() for r in self.residues]))
+            components.append("residues=[{}]".format(", ".join(
+                [r.__repr__() for r in self.residues])))
         if self.states:
-            components.append("states=[%s]" % ", ".join(
-                [s.__repr__() for s in self.states]))
-        if self.bounds:
-            components.append("bounds=[%s]" % ", ".join(
-                [b.__repr__() for b in self.bounds]))
+            components.append("states=[{}]".format(", ".join(
+                [s.__repr__() for s in self.states])))
+        if self.bound_to:
+            components.append("bound_to=[{}]".format(", ".join(
+                [b.__repr__() for b in self.bound_to])))
+        if self.unbound_from:
+            components.append("unbound_from=[{}]".format(", ".join(
+                [b.__repr__() for b in self.unbound_from])))
         if len(components) > 0:
             content = ", ".join(components)
 
@@ -337,13 +364,13 @@ class Site(PhysicalEntity):
         """String representation of a site."""
         res = "site"
         if self.name:
-            res += "_%s" % self.name
+            res += "_{}".format(self.name)
         if self.start:
             res += "_" + str(self.start)
         if self.end:
             res += "_" + str(self.end)
         if self.order:
-            res += "_%s" % str(self.order)
+            res += "_{}".format(str(self.order))
         return res
 
     def to_attrs(self):
@@ -423,7 +450,7 @@ class State(object):
 
     def __str__(self):
         """Str representation of a state."""
-        res = "%s" % (self.name)
+        res = str(self.name)
         return res
 
     def to_attrs(self):
