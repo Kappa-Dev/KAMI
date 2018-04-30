@@ -203,7 +203,8 @@ class Generator(object):
 
             nugget.add_node(
                 is_bnd_id,
-                meta_typing="is_bnd"
+                attrs={"type": "be", "test": True},
+                meta_typing="bnd"
             )
             is_bnd_ids.append(is_bnd_id)
 
@@ -586,6 +587,8 @@ class BndGenerator(Generator):
         bnd_id = get_nugget_bnd_id(nugget.graph, left_ids, right_ids)
 
         bnd_attrs = bnd.to_attrs()
+        bnd_attrs["type"] = "do"
+        bnd_attrs["test"] = True
 
         nugget.add_node(
             bnd_id, bnd_attrs,
@@ -827,7 +830,8 @@ class TransModGenerator(Generator):
             else:
                 nugget.add_edge(substrate_bnd_site, substrate)
 
-        nugget.add_node("is_bnd", meta_typing="is_bnd")
+        nugget.add_node("is_bnd", attrs={"type": "be", "test": True},
+                        meta_typing="bnd")
         enzyme_locus_id = get_nugget_locus_id(
             nugget.graph, enzyme, "is_bnd")
         nugget.add_node(

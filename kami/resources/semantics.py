@@ -8,15 +8,15 @@ from regraph.primitives import (add_nodes_from,
 action_graph = nx.DiGraph()
 add_nodes_from(action_graph, [
     "protein_kinase",
-    ("activity", {"activity": {True}}),
+    ("activity", {"name": {"activity"}, "test": {True}}),
     ("phospho", {"value": {True}}),
-    ("phospho_state", {"phosphorylation": {True, False}}),
-    ("phospho_target_residue", {"aa": {"S", "T", "Y"}}),
+    ("phospho_state", {"name": {"phosphorylation"}, "test": {True, False}}),
+    ("phospho_target_residue", {"aa": {"S", "T", "Y"}, "test": {True}}),
     "phosphatase",
     ("dephospho", {"value": {False}}),
     "pY_site",
     "pY_locus",
-    ("sh2_domain_pY_bnd", {"direct": True}),
+    ("sh2_domain_pY_bnd"),
     "sh2_domain_locus",
     "sh2_domain",
 ])
@@ -56,10 +56,10 @@ phosphorylation = nx.DiGraph()
 add_nodes_from(
     phosphorylation,
     ["protein_kinase",
-     ("protein_kinase_activity", {"activity": {True}}),
+     ("protein_kinase_activity", {"name": {"activity"}, "test": {True}}),
      ("phospho", {"value": {True}}),
-     ("target_state", {"phosphorylation": {False}}),
-     ("target_residue", {"aa": {"S", "T", "Y"}})]
+     ("target_state", {"name": {"phosphorylation"}, "test": {False}}),
+     ("target_residue", {"aa": {"S", "T", "Y"}, "test": {True}})]
 )
 
 add_edges_from(
@@ -92,10 +92,10 @@ add_nodes_from(
     dephosphorylation,
     [
         "phosphatase",
-        ("phosphatase_activity", {"activity": True}),
+        ("phosphatase_activity", {"name": {"activity"}, "test": {True}}),
         ("dephospho", {"value": False}),
-        ("target_state", {"phosphorylation": {True}}),
-        ("target_residue", {"aa": {"S", "T", "Y"}})
+        ("target_state", {"name": {"phosphorylation"}, "test": {True}}),
+        ("target_residue", {"aa": {"S", "T", "Y"}, "test": {True}})
     ]
 )
 
@@ -132,11 +132,11 @@ add_nodes_from(
     [
         "sh2_domain",
         "sh2_domain_locus",
-        ("sh2_domain_pY_bnd", {"direct": True}),
+        ("sh2_domain_pY_bnd"),
         "pY_locus",
         "pY_site",
-        ("pY_residue", {"aa": "Y"}),
-        ("phosphorylation", {"phosphorylation": True})
+        ("pY_residue", {"aa": "Y", "test": True}),
+        ("phosphorylation", {"name": "phosphorylation", "test": True})
     ]
 )
 

@@ -10,12 +10,13 @@ from regraph.attribute_sets import RegexSet, IntegerSet, UniversalSet
 UNIPROT_REGEX =\
     "[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2}"
 
+INTERPRO_REGEX = "IPR\d{6}"
+
 base_kami = nx.DiGraph()
 add_nodes_from(
     base_kami,
     [
         "component",
-        "test",
         "state",
         "action"
     ]
@@ -28,7 +29,6 @@ add_edges_from(
         ("state", "component"),
         ("component", "action"),
         ("action", "component"),
-        ("component", "test"),
         ("action", "state")
     ]
 )
@@ -45,17 +45,12 @@ add_nodes_from(
             "xrefs": UniversalSet()
         }),
         ("region", {
-            "start": IntegerSet([(1, math.inf)]),
-            "end": IntegerSet([(1, math.inf)]),
             "name": RegexSet.universal(),
-            "order": IntegerSet([(1, math.inf)]),
+            "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal()
         }),
         ("site", {
-            "start": IntegerSet([(1, math.inf)]),
-            "end": IntegerSet([(1, math.inf)]),
             "name": RegexSet.universal(),
-            "order": IntegerSet([(1, math.inf)]),
             "label": RegexSet.universal()
         }),
         ("residue", {
@@ -64,17 +59,19 @@ add_nodes_from(
                 "C", "F", "Y", "W", "H", "K", "R",
                 "Q", "N", "E", "D", "S", "T"
             },
-            "loc": IntegerSet([(1, math.inf)])
+            "test": {True, False}
         }),
         "locus",
         ("state", {
-            "activity": {True, False},
-            "phosphorylation": {True, False},
-            "acetylation": {True, False}
+            "name": {
+                "phosphorylation",
+                "activity",
+                "acetylation"
+            },
+            "test": {True, False}
         }),
         ("mod", {
             "value": {True, False},
-            "direct": {True, False},
             "text": RegexSet.universal(),
             "rate": UniversalSet(),
             "unimolecular_rate": UniversalSet()
@@ -82,30 +79,48 @@ add_nodes_from(
         "syn",
         "deg",
         ("bnd", {
-            "direct": {True, False},
+            "type": {"do", "be"},
+            "test": {True, False},
             "text": RegexSet.universal(),
             "rate": UniversalSet(),
             "unimolecular_rate": UniversalSet()
-        }),
-        ("brk", {
-            "text": RegexSet.universal(),
-            "rate": UniversalSet(),
-            "unimolecular_rate": UniversalSet()
-        }),
-        "is_bnd",
-        "is_free",
+        })
     ]
 )
 
 add_edges_from(
     kami,
     [
-        ("region", "gene"),
-        ("site", "gene"),
-        ("site", "region"),
-        ("residue", "gene"),
-        ("residue", "region"),
-        ("residue", "site"),
+        (
+            "region", "gene",
+            {"start": IntegerSet([(1, math.inf)]),
+             "end": IntegerSet([(1, math.inf)]),
+             "order": IntegerSet([(1, math.inf)])}
+        ),
+        (
+            "site", "gene",
+            {"start": IntegerSet([(1, math.inf)]),
+             "end": IntegerSet([(1, math.inf)]),
+             "order": IntegerSet([(1, math.inf)])}
+        ),
+        (
+            "site", "region",
+            {"start": IntegerSet([(1, math.inf)]),
+             "end": IntegerSet([(1, math.inf)]),
+             "order": IntegerSet([(1, math.inf)])}
+        ),
+        (
+            "residue", "gene",
+            {"loc": IntegerSet([(1, math.inf)])}
+        ),
+        (
+            "residue", "region",
+            {"loc": IntegerSet([(1, math.inf)])}
+        ),
+        (
+            "residue", "site",
+            {"loc": IntegerSet([(1, math.inf)])}
+        ),
         ("state", "gene"),
         ("state", "region"),
         ("state", "site"),
@@ -117,9 +132,6 @@ add_edges_from(
         ("site", "locus"),
         ("mod", "state"),
         ("locus", "bnd"),
-        ("locus", "brk"),
-        ("locus", "is_bnd"),
-        ("locus", "is_free"),
         ("gene", "mod"),
         ("region", "mod"),
         ("site", "mod")
@@ -136,8 +148,5 @@ kami_base_kami_typing = {
     "mod": "action",
     "syn": "action",
     "deg": "action",
-    "bnd": "action",
-    "brk": "action",
-    "is_bnd": "test",
-    "is_free": "test",
+    "bnd": "action"
 }

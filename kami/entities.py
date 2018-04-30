@@ -456,7 +456,8 @@ class State(object):
     def to_attrs(self):
         """Convert agent object to attrs."""
         return {
-            self.name: {self.value}
+            "name": {self.name},
+            "test": {self.value}
         }
 
 

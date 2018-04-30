@@ -50,10 +50,14 @@ class TestGenerators(object):
 
         assert(len(nugget.graph.nodes()) == 4)
 
-        assert("activity" in nugget.graph.node[state1].keys())
-        assert("activity" in nugget.graph.node[state2].keys())
-        assert("activity" in nugget.graph.node[state3].keys())
-        assert("activity" in nugget.graph.node[state4].keys())
+        assert("name" in nugget.graph.node[state1].keys())
+        assert("activity" in nugget.graph.node[state1]["name"])
+        assert("name" in nugget.graph.node[state2].keys())
+        assert("activity" in nugget.graph.node[state2]["name"])
+        assert("name" in nugget.graph.node[state3].keys())
+        assert("activity" in nugget.graph.node[state3]["name"])
+        assert("name" in nugget.graph.node[state4].keys())
+        assert("activity" in nugget.graph.node[state4]["name"])
 
         assert(nugget.meta_typing[state1] == "state")
         assert(nugget.meta_typing[state2] == "state")
