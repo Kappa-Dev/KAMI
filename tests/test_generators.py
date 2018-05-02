@@ -103,7 +103,6 @@ class TestGenerators(object):
         assert("T" in nugget.graph.node[residue1]["aa"])
         assert("T" in nugget.graph.node[residue2]["aa"])
         assert("T" in nugget.graph.node[residue3]["aa"])
-        assert(100 in nugget.graph.node[residue3]["loc"])
         assert(nugget.meta_typing[residue1] == "residue")
         assert(nugget.meta_typing[residue2] == "residue")
         assert(nugget.meta_typing[residue3] == "residue")

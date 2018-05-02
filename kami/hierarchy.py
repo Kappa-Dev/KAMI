@@ -6,7 +6,6 @@ import warnings
 
 from regraph import Rule, Hierarchy
 from regraph.primitives import *
-from regraph.utils import keys_by_value
 
 from anatomizer.new_anatomizer import GeneAnatomy
 from kami.exceptions import KamiHierarchyError, KamiHierarchyWarning
@@ -15,82 +14,7 @@ from kami.utils.id_generators import generate_new_id
 from kami.entities import Region
 from kami.resolvers.semantic_utils import (apply_mod_semantics,
                                            apply_bnd_semantics)
-
-
-def find_fragment(a, dict_of_b):
-    a_start = None
-    a_end = None
-    a_name = None
-    a_interpro = None
-    a_order = None
-    if "start" in a.keys():
-        a_start = int(min(a["start"]))
-    if "end" in a.keys():
-        a_end = int(max(a["end"]))
-    if "name" in a.keys():
-        a_name = list(a["name"])[0].lower()
-    if "interproid" in a.keys():
-        a_interpro = a["interproid"]
-    if "order" in a.keys():
-        a_order = list(a["order"])[0]
-
-    satifying_fragments = []
-    for b_id, b in dict_of_b.items():
-        b_start = None
-        b_end = None
-        b_name = None
-        b_interpro = None
-        if "start" in b.keys():
-            b_start = int(min(b["start"]))
-        if "end" in b.keys():
-            b_end = int(max(b["end"]))
-        if "name" in b.keys():
-            b_name = list(b["name"])[0].lower()
-        if "interproid" in b.keys():
-            b_interpro = b["interproid"]
-
-        if a_start is not None and a_end is not None and\
-           b_start is not None and b_end is not None:
-            if a_start >= b_start and a_end <= b_end:
-                return b_id
-            elif a_start <= b_start and a_end >= b_end:
-                return b_id
-        elif a_name is not None and b_name is not None:
-            if a_name in b_name or b_name in a_name:
-                satifying_fragments.append(b_id)
-        elif a_interpro is not None and b_interpro is not None:
-            if len(a_interpro.intersection(b_interpro)) > 0:
-                satisfying_fragments.append(b_id)
-
-    if len(satifying_fragments) == 1:
-        return satifying_fragments[0]
-    elif len(satifying_fragments) > 1:
-        # Try to find if there is a unique region in the list of
-        # satisfying regions with the same order number
-        if a_order is not None:
-            same_order_fragments = []
-            for b_id in satifying_fragments:
-                if "order" in dict_of_b[b_id].keys():
-                    if a_order in dict_of_b[b_id]["order"]:
-                        same_order_fragments.append(b_id)
-            # if not explicit order number was found
-            if len(same_order_fragments) == 0:
-                try:
-                    start_orders = np.argsort([
-                        int(min(dict_of_b[b_id]["start"]))
-                        for b_id in satifying_fragments
-                        if "start" in dict_of_b[b_id].keys()
-                    ])
-                    return satifying_fragments[
-                        start_orders[a_order - 1]]
-                except:
-                    return None
-            elif len(same_order_fragments) == 1:
-                return same_order_fragments[0]
-            else:
-                return None
-    else:
-        return None
+from kami.resolvers.identifiers import identify_residue, find_fragment
 
 
 class KamiHierarchy(Hierarchy):
@@ -417,7 +341,7 @@ class KamiHierarchy(Hierarchy):
                 i += 1
             gene_id = name + str(i)
 
-        add_node(self.action_graph, gene_id, gene.to_attrs())
+        add_node(self.action_graph, gene_id, gene.meta_data())
         self.action_graph_typing[gene_id] = "gene"
         return gene_id
 
@@ -471,9 +395,9 @@ class KamiHierarchy(Hierarchy):
         if region_id in self.action_graph.nodes():
             region_id = generate_new_id(self.action_graph, region_id)
 
-        add_node(self.action_graph, region_id, region.to_attrs())
+        add_node(self.action_graph, region_id, region.meta_data())
         self.action_graph_typing[region_id] = "region"
-        add_edge(self.action_graph, region_id, ref_agent)
+        add_edge(self.action_graph, region_id, ref_agent, region.location())
 
         if semantics is not None:
             for sem in semantics:
@@ -514,10 +438,10 @@ class KamiHierarchy(Hierarchy):
 
         if site_id in self.action_graph.nodes():
             site_id = generate_new_id(self.action_graph, site_id)
-        add_node(self.action_graph, site_id, site.to_attrs())
+        add_node(self.action_graph, site_id, site.meta_data())
         assert(site_id in self.action_graph.nodes())
         self.action_graph_typing[site_id] = "site"
-        add_edge(self.action_graph, site_id, ref_agent)
+        add_edge(self.action_graph, site_id, ref_agent, site.location())
         assert((site_id, ref_agent) in self.action_graph.edges())
 
         if semantics is not None:
@@ -582,7 +506,7 @@ class KamiHierarchy(Hierarchy):
             )
 
         # try to find an existing residue with this
-        res = self.identify_residue(residue, ref_agent, True)
+        res = identify_residue(self, residue, ref_agent, True)
         # if residue with this loc does not exist: create one
         if res is None:
             if ref_agent_in_genes:
@@ -591,9 +515,10 @@ class KamiHierarchy(Hierarchy):
                     residue_id += "_%s" % residue.loc
                 else:
                     residue_id = generate_new_id(self.action_graph, residue_id)
-                add_node(self.action_graph, residue_id, residue.to_attrs())
+                add_node(self.action_graph, residue_id, residue.meta_data())
                 self.action_graph_typing[residue_id] = "residue"
-                add_edge(self.action_graph, residue_id, ref_agent)
+                add_edge(self.action_graph, residue_id, ref_agent,
+                         residue.location())
 
                 for region in self.get_attached_regions(ref_agent):
                     if residue.loc:
@@ -626,10 +551,12 @@ class KamiHierarchy(Hierarchy):
                 else:
                     residue_id = generate_new_id(self.action_graph, residue_id)
 
-                add_node(self.action_graph, residue_id, residue.to_attrs())
+                add_node(self.action_graph, residue_id, residue.meta_data())
                 self.action_graph_typing[residue_id] = "residue"
-                add_edge(self.action_graph, residue_id, ref_agent)
-                add_edge(self.action_graph, residue_id, gene_id)
+                add_edge(self.action_graph, residue_id, ref_agent,
+                         residue.location())
+                add_edge(self.action_graph, residue_id, gene_id,
+                         residue.location())
 
                 if ref_agent_in_regions:
                     for site in self.get_attached_regions(gene_id):
@@ -706,7 +633,7 @@ class KamiHierarchy(Hierarchy):
                 return state_node
 
         state_id = ref_agent + "_" + str(state)
-        add_node(self.action_graph, state_id, state.to_attrs())
+        add_node(self.action_graph, state_id, state.meta_data())
         self.action_graph_typing[state_id] = "state"
         add_edge(self.action_graph, state_id, ref_agent)
 
@@ -715,94 +642,6 @@ class KamiHierarchy(Hierarchy):
             for s in semantics:
                 self.add_ag_node_semantics(state_id, s)
         return state_id
-
-    def identify_gene(self, gene):
-        """Find corresponding gene in action graph."""
-        for node in self.genes():
-            if "uniprotid" in self.action_graph.node[node].keys() and\
-               gene.uniprotid in self.action_graph.node[node]["uniprotid"]:
-                return node
-        return None
-
-    def _identify_fragment(self, fragment, ref_agent, fragment_type):
-        fragment_candidates = self.ag_predecessors_of_type(
-            ref_agent, fragment_type)
-        return find_fragment(
-            fragment.to_attrs(),
-            {f: self.action_graph.node[f] for f in fragment_candidates})
-
-    def identify_region(self, region, ref_agent):
-        """Find corresponding region in action graph."""
-        if ref_agent not in self.genes():
-            raise KamiHierarchyError(
-                "Agent with UniProtID '%s' is not found in the action graph" %
-                ref_agent
-            )
-        else:
-            return self._identify_fragment(region, ref_agent, "region")
-
-    def identify_site(self, site, ref_agent):
-        """Find corresponding site in action graph."""
-        if ref_agent not in self.genes() and ref_agent not in self.regions():
-            raise KamiHierarchyError(
-                "Agent with UniProtID '%s' is not found in the action graph" %
-                ref_agent
-            )
-        else:
-            return self._identify_fragment(site, ref_agent, "site")
-
-    def identify_residue(self, residue, ref_agent, add_aa=False):
-        """Find corresponding residue.
-
-        `residue` -- input residue entity to search for
-        `ref_agent` -- reference to an agent to which residue belongs.
-        Can reference either to an agent or to a region
-        in the action graph.
-        `add_aa` -- add aa value if location is found but aa not
-        """
-        ref_gene = self.get_gene_of(ref_agent)
-        residue_candidates = self.get_attached_residues(ref_gene)
-        if residue.loc is not None:
-            for res in residue_candidates:
-                if "loc" in self.action_graph.node[res].keys():
-                    if residue.loc == int(list(self.action_graph.node[res]["loc"])[0]):
-                        if residue.aa <= self.action_graph.node[res]["aa"]:
-                            return res
-                        elif add_aa is True:
-                            self.action_graph.node[res]["aa"] =\
-                                self.action_graph.node[res]["aa"].union(
-                                    residue.aa
-                            )
-                            return res
-        else:
-            for res in residue_candidates:
-                if "loc" not in self.action_graph.node[res].keys() or\
-                   self.action_graph.node[res]["loc"].is_empty():
-                    if residue.aa <= self.action_graph.node[res]["aa"]:
-                        return res
-                    elif add_aa is True:
-                        self.action_graph.node[res]["aa"] =\
-                            self.action_graph.node[res]["aa"].union(
-                            residue.aa
-                        )
-                        return res
-        return None
-
-    def identify_state(self, state, ref_agent):
-        """Find corresponding state of reference agent."""
-        for pred in self.action_graph.predecessors(ref_agent):
-            if pred in self.action_graph_typing.keys() and\
-               self.action_graph_typing[pred] == "state":
-                name = list(self.action_graph.node[pred].keys())[0]
-                values = self.action_graph.node[pred][name]
-                if state.name == name:
-                    if state.value not in values:
-                        add_node_attrs(
-                            self.action_graph,
-                            pred,
-                            {name: {state.value}})
-                    return pred
-        return None
 
     def _generate_nugget_id(self, name=None):
         """Generate id for a new nugget."""
@@ -871,10 +710,12 @@ class KamiHierarchy(Hierarchy):
         # Check if all new genes agents from the nugget should be
         # distinct in the action graph
         genes_to_merge = {
-            list(self.action_graph.node[gene]["uniprotid"])[0]: set() for gene in new_gene_nodes
+            list(self.action_graph.node[gene]["uniprotid"])[0]:
+                set() for gene in new_gene_nodes
         }
         for gene in new_gene_nodes:
-            genes_to_merge[list(self.action_graph.node[gene]["uniprotid"])[0]].add(gene)
+            genes_to_merge[
+                list(self.action_graph.node[gene]["uniprotid"])[0]].add(gene)
 
         for k, v in genes_to_merge.items():
             if len(v) > 1:
@@ -955,11 +796,6 @@ class KamiHierarchy(Hierarchy):
                            int(loc) <= end and\
                            (res, region) not in self.action_graph.edges():
                             add_edge(self.action_graph, res, region)
-                            # # Rule version
-                            # pattern = nx.DiGraph()
-                            # pattern.add_nodes_from([res, region])
-                            # rule = Rule.from_transform(pattern)
-                            # rule.inject_add_edge(res, region)
 
                 for site in sites:
                     if "start" in self.action_graph.node[site] and\
@@ -972,11 +808,6 @@ class KamiHierarchy(Hierarchy):
                            int(loc) <= end and\
                            (res, site) not in self.action_graph.edges():
                             add_edge(self.action_graph, res, site)
-                            # # Rule version
-                            # pattern = nx.DiGraph()
-                            # pattern.add_nodes_from([res, site])
-                            # rule = Rule.from_transform(pattern)
-                            # rule.inject_add_edge(res, site)
         return
 
     def _merge_sites(self, nodes):
@@ -998,7 +829,8 @@ class KamiHierarchy(Hierarchy):
 
         while len(instances_to_rewrite) > 0:
             instance = instances_to_rewrite[0]
-            if instance["site1"] not in visited_sites or instance["site2"] not in visited_sites:
+            if instance["site1"] not in visited_sites or\
+               instance["site2"] not in visited_sites:
                 self.rewrite("action_graph", site_merging_rule, instance)
                 visited_sites.add(instance["site1"])
                 visited_sites.add(instance["site2"])
@@ -1072,7 +904,11 @@ class KamiHierarchy(Hierarchy):
             for site in self.get_attached_sites(gene):
                 f = find_fragment(
                     self.action_graph.node[site],
-                    {r: self.action_graph.node[r] for r in regions})
+                    self.action_graph.edge[site][gene],
+                    {r: (
+                        self.action_graph.node[r],
+                        self.action_graph.edge[r][gene]
+                    ) for r in regions})
                 if f is not None:
                     if self.action_graph_typing[f] == "region" and\
                        (site, f) not in self.action_graph.edges():
@@ -1162,10 +998,10 @@ class KamiHierarchy(Hierarchy):
                         region_id = generate_new_id(
                             self.action_graph, region_id)
                     anatomization_rule.inject_add_node(
-                        region_id, region.to_attrs())
+                        region_id, region.meta_data())
                     new_regions.append(region_id)
                     anatomization_rule.inject_add_edge(
-                        region_id, "gene")
+                        region_id, "gene", region.location())
 
                     anatomization_rule_typing["kami"][region_id] = "region"
                     # Resolve semantics
@@ -1191,7 +1027,11 @@ class KamiHierarchy(Hierarchy):
             for existing_region in existing_regions:
                 matching_region = find_fragment(
                     self.action_graph.node[existing_region],
-                    {n: anatomization_rule.rhs.node[n] for n in new_regions})
+                    self.action_graph.edge[existing_region][gene],
+                    {n: (
+                        anatomization_rule.rhs.node[n],
+                        anatomization_rule.rhs.edge[n]["gene"]
+                    ) for n in new_regions})
                 if matching_region is not None:
                     anatomization_rule._add_node_lhs(existing_region)
                     anatomization_rule._add_edge_lhs(existing_region, "gene")
@@ -1306,7 +1146,7 @@ class KamiHierarchy(Hierarchy):
             of labels chosen on get_studio_v1 call.
             """
 
-            label = node_typ # For bnd, brk, mod, syn and deg.
+            label = node_typ  # For bnd, brk, mod, syn and deg.
             if node_typ == "half-act":
                 label = "half"
             if node_typ == "is_bnd":
@@ -1344,7 +1184,7 @@ class KamiHierarchy(Hierarchy):
                 label = '%s%s' % (aa, loc)
             if node_typ == "state":
                 underscore = node_id.rfind("_")
-                state_name = node_id[underscore+1:]
+                state_name = node_id[underscore + 1:]
                 if state_name == "phosphorylation":
                     label = "phos"
                 else:
@@ -1424,7 +1264,7 @@ class KamiHierarchy(Hierarchy):
                     "attrs": {"val": {"numSet": {"neg_list": []},
                                       "strSet": {"neg_list": []}}}}
             node_id = kami_node
-            if kami_node == "locus": # Rename locus to half-action.
+            if kami_node == "locus":  # Rename locus to half-action.
                 node_id = "half-act"
             node["id"] = node_id
             node["type"] = kami_typing[node_id]
@@ -1497,9 +1337,9 @@ class KamiHierarchy(Hierarchy):
             if vals != "empty":
                 value_list = []
                 for val in vals:
-                    if val == True:
+                    if val is True:
                         val = "True"
-                    if val == False:
+                    if val is False:
                         val = "False"
                     value_list.append(val)
                 attrs = {"val": {"numSet": {"pos_list": []},
@@ -1543,7 +1383,7 @@ class KamiHierarchy(Hierarchy):
                 node_type_ag = nugget_graph_typing[nugget_node]
                 node_metatype = action_graph_typing[node_type_ag]
                 if node_metatype == "locus":
-                   node_metatype = "half-act"
+                    node_metatype = "half-act"
                 node_label, ngt_counters = find_studio_label(nugget_node,
                                                              node_metatype,
                                                              ngt_counters,
@@ -1561,9 +1401,9 @@ class KamiHierarchy(Hierarchy):
                 if vals != "empty":
                     value_list = []
                     for val in vals:
-                        if val == True:
+                        if val is True:
                             val = "True"
-                        if val == False:
+                        if val is False:
                             val = "False"
                         value_list.append(val)
                     attrs = {"val": {"numSet": {"pos_list": []},
@@ -1582,9 +1422,9 @@ class KamiHierarchy(Hierarchy):
                         if rate == 'und':
                             rate = rate_value
                         else:
-                             warnings.warn(
-                                 "Several rates given for a single nugget.",
-                                 KamiWarning)
+                            warnings.warn(
+                                "Several rates given for a single nugget.",
+                                KamiWarning)
                     except:
                         pass
             top_graph["nodes"] = nodes

@@ -156,7 +156,7 @@ class Gene(Actor, PhysicalEntity):
         """String represenation of a gene."""
         return str(self.uniprotid)
 
-    def to_attrs(self):
+    def meta_data(self):
         """Convert agent object to attrs."""
         agent_attrs = {
             "uniprotid": {self.uniprotid}
@@ -251,6 +251,9 @@ class Region(PhysicalEntity):
         if self.unbound_from:
             components.append("unbound_from=[{}]".format(", ".join(
                 [b.__repr__() for b in self.unbound_from])))
+        if self.label is not None:
+            components.append("label='{}'".format(self.label))
+
         if len(components) > 0:
             content = ", ".join(components)
 
@@ -274,24 +277,31 @@ class Region(PhysicalEntity):
             res += "_" + str(self.end)
         if self.order:
             res += "_{}".format(str(self.order))
+        if self.label:
+            res += "_{}".format(self.label)
 
         return res
 
-    def to_attrs(self):
-        """Convert agent object to attrs."""
+    def meta_data(self):
+        """Get a dictionary with region's meta-data."""
         res = dict()
         if self.interproid:
             res["interproid"] = self.interproid
+        if self.name:
+            res["name"] = {self.name}
+        if self.label:
+            res["label"] = {self.label}
+        return res
+
+    def location(self):
+        """Get a dictionary with region's location."""
+        res = dict()
         if self.start:
             res["start"] = {self.start}
         if self.end:
             res["end"] = {self.end}
-        if self.name:
-            res["name"] = {self.name}
         if self.order:
             res["order"] = {self.order}
-        if self.label:
-            res["label"] = {self.label}
         return res
 
     def add_site(self, site):
@@ -303,10 +313,13 @@ class Region(PhysicalEntity):
 class Site(PhysicalEntity):
     """Class for a gene's interaction site."""
 
-    def __init__(self, name=None, start=None, end=None, order=None,
-                 residues=None, states=None, bound_to=None, unbound_from=None):
+    def __init__(self, name=None, interproid=None, start=None, end=None,
+                 order=None, residues=None, states=None,
+                 bound_to=None, unbound_from=None, label=None):
         """Initialize kami site object."""
         self.name = name
+        self.interproid = interproid
+        self.label = label
         self.start = start
         self.end = end
         self.order = order
@@ -335,13 +348,20 @@ class Site(PhysicalEntity):
         components = []
         if self.name:
             components.append("name='{}'".format(self.name))
+        if self.interproid:
+            if type(self.interproid) is list:
+                components.append(
+                    "interproid=[{}]".format(
+                        ",".join("'{}'".format(i)
+                                 for i in self.interproid)))
+            else:
+                components.append("interproid='{}'".format(self.interproid))
         if self.start:
             components.append("start={}".format(self.start))
         if self.end:
             components.append("end={}".format(self.end))
         if self.order:
             components.append("order={}".format(self.order))
-
         if self.residues:
             components.append("residues=[{}]".format(", ".join(
                 [r.__repr__() for r in self.residues])))
@@ -354,6 +374,9 @@ class Site(PhysicalEntity):
         if self.unbound_from:
             components.append("unbound_from=[{}]".format(", ".join(
                 [b.__repr__() for b in self.unbound_from])))
+        if self.label is not None:
+            components.append("label='{}'".format(self.label))
+
         if len(components) > 0:
             content = ", ".join(components)
 
@@ -365,23 +388,40 @@ class Site(PhysicalEntity):
         res = "site"
         if self.name:
             res += "_{}".format(self.name)
+        if self.interproid:
+            if type(self.interproid) is list:
+                res += "_{}".format("-".join(
+                    [str(ipr_id) for ipr_id in self.interproid]))
+            else:
+                res += "_{}".format(self.interproid)
         if self.start:
             res += "_" + str(self.start)
         if self.end:
             res += "_" + str(self.end)
         if self.order:
             res += "_{}".format(str(self.order))
+        if self.label:
+            res += "_{}".format(self.label)
         return res
 
-    def to_attrs(self):
-        """Convert agent object to attrs."""
+    def meta_data(self):
+        """Get a dictionary with site's meta-data."""
+        res = dict()
+        if self.interproid:
+            res["interproid"] = self.interproid
+        if self.name:
+            res["name"] = {self.name}
+        if self.label:
+            res["label"] = {self.label}
+        return res
+
+    def location(self):
+        """Get a dictionary with site's location."""
         res = dict()
         if self.start is not None:
             res["start"] = {self.start}
         if self.end is not None:
             res["end"] = {self.end}
-        if self.name:
-            res["name"] = {self.name}
         if self.order:
             res["order"] = {self.order}
         return res
@@ -427,10 +467,15 @@ class Residue():
             res += str(self.loc)
         return res
 
-    def to_attrs(self):
-        """Convert agent object to attrs."""
+    def meta_data(self):
+        """Get a dictionary with residue's meta-data."""
         res = dict()
         res["aa"] = self.aa
+        return res
+
+    def location(self):
+        """Get a dictionary with residue's location."""
+        res = dict()
         if self.loc is not None:
             res["loc"] = {int(self.loc)}
         return res
@@ -453,7 +498,7 @@ class State(object):
         res = str(self.name)
         return res
 
-    def to_attrs(self):
+    def meta_data(self):
         """Convert agent object to attrs."""
         return {
             "name": {self.name},
@@ -506,5 +551,4 @@ class SiteActor(Actor):
         if self.region is not None:
             res += "_" + str(self.region)
         res += "_" + str(self.site)
-
         return res

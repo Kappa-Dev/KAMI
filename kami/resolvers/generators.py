@@ -3,7 +3,6 @@ import copy
 import warnings
 
 import networkx as nx
-import time
 
 from regraph import (add_edge,
                      add_node)
@@ -22,6 +21,9 @@ from kami.utils.id_generators import (get_nugget_gene_id,
                                       get_nugget_locus_id,
                                       get_nugget_site_id,
                                       get_nugget_bnd_id,)
+from kami.resolvers.identifiers import (identify_gene, identify_region,
+                                        identify_site, identify_residue,
+                                        identify_state)
 
 
 class NuggetContainer:
@@ -91,9 +93,9 @@ class NuggetContainer:
                     self.semantic_rels[key][node_id].add(v)
         return
 
-    def add_edge(self, node_1, node_2, attrs=None):
+    def add_edge(self, s, t, attrs=None):
         """Add edge between the nodes of a nugget."""
-        add_edge(self.graph, node_1, node_2, attrs)
+        add_edge(self.graph, s, t, attrs)
         return
 
     def nodes(self):
@@ -131,12 +133,12 @@ class Generator(object):
 
         action_graph_state = None
         if father in nugget.ag_typing.keys():
-            action_graph_state = self.hierarchy.identify_state(
-                state, nugget.ag_typing[father])
+            action_graph_state = identify_state(
+                self.hierarchy, state, nugget.ag_typing[father])
 
         nugget.add_node(
             state_id,
-            state.to_attrs(),
+            state.meta_data(),
             meta_typing="state",
             ag_typing=action_graph_state
         )
@@ -149,12 +151,12 @@ class Generator(object):
 
         action_graph_residue = None
         if gene in nugget.ag_typing.keys():
-            action_graph_residue = self.hierarchy.identify_residue(
-                residue, nugget.ag_typing[gene])
+            action_graph_residue = identify_residue(
+                self.hierarchy, residue, nugget.ag_typing[gene])
 
         nugget.add_node(
             residue_id,
-            residue.to_attrs(),
+            residue.meta_data(),
             meta_typing="residue",
             ag_typing=action_graph_residue
         )
@@ -252,11 +254,11 @@ class Generator(object):
 
         action_graph_site = None
         if father in nugget.ag_typing.keys():
-            action_graph_site = self.hierarchy.identify_site(
-                site, nugget.ag_typing[father])
+            action_graph_site = identify_site(
+                self.hierarchy, site, nugget.ag_typing[father])
 
         nugget.add_node(
-            site_id, site.to_attrs(),
+            site_id, site.meta_data(),
             meta_typing="site",
             ag_typing=action_graph_site
         )
@@ -274,7 +276,7 @@ class Generator(object):
                     )
             (residue_id, _) = self._generate_residue(
                 nugget, residue, site_id, gene)
-            nugget.add_edge(residue_id, site_id)
+            nugget.add_edge(residue_id, site_id, residue.location())
 
         # create and attach states
         for state in site.states:
@@ -301,11 +303,11 @@ class Generator(object):
         # identify region
         action_graph_region = None
         if father in nugget.ag_typing.keys():
-            action_graph_region = self.hierarchy.identify_region(
-                region, nugget.ag_typing[father])
+            action_graph_region = identify_region(
+                self.hierarchy, region, nugget.ag_typing[father])
 
         nugget.add_node(
-            region_id, region.to_attrs(),
+            region_id, region.meta_data(),
             meta_typing="region",
             ag_typing=action_graph_region
         )
@@ -323,7 +325,7 @@ class Generator(object):
                     )
             (residue_id, _) = self._generate_residue(
                 nugget, residue, region_id, father)
-            nugget.add_edge(residue_id, region_id)
+            nugget.add_edge(residue_id, region_id, residue.location())
 
         # 3. create and attach sites
         for site in region.sites:
@@ -338,7 +340,7 @@ class Generator(object):
                     )
             site_id = self._generate_site(
                 nugget, site, region_id, father)
-            nugget.add_edge(site_id, region_id)
+            nugget.add_edge(site_id, region_id, site.location())
 
         # 4. create and attach states
         for state in region.states:
@@ -360,11 +362,11 @@ class Generator(object):
         agent_id = get_nugget_gene_id(nugget.graph, gene)
 
         # 2. identify agent (map to a node in the action graph)
-        action_graph_agent = self.hierarchy.identify_gene(gene)
+        action_graph_agent = identify_gene(self.hierarchy, gene)
 
         nugget.add_node(
             agent_id,
-            gene.to_attrs(),
+            gene.meta_data(),
             meta_typing="gene",
             ag_typing=action_graph_agent
         )
@@ -373,7 +375,7 @@ class Generator(object):
         for residue in gene.residues:
             (residue_id, _) = self._generate_residue(
                 nugget, residue, agent_id, agent_id)
-            nugget.add_edge(residue_id, agent_id)
+            nugget.add_edge(residue_id, agent_id, residue.location())
 
         # 3. create and attach states
         for state in gene.states:
@@ -385,13 +387,13 @@ class Generator(object):
         for region in gene.regions:
             region_id = self._generate_region(
                 nugget, region, agent_id)
-            nugget.add_edge(region_id, agent_id)
+            nugget.add_edge(region_id, agent_id, region.location())
 
         # 5. create and attach sites
         for site in gene.sites:
             site_id = self._generate_site(
                 nugget, site, agent_id, agent_id)
-            nugget.add_edge(site_id, agent_id)
+            nugget.add_edge(site_id, agent_id, site.location())
 
         # 6. create and attach bounds
         for bnd in gene.bound_to:
@@ -406,7 +408,7 @@ class Generator(object):
             nugget, region_actor.gene)
         region_id = self._generate_region(
             nugget, region_actor.region, agent_id)
-        nugget.add_edge(region_id, agent_id)
+        nugget.add_edge(region_id, agent_id, region_actor.region.location())
         return (agent_id, region_id)
 
     def _generate_site_actor(self, nugget, site_actor):
@@ -419,10 +421,10 @@ class Generator(object):
         if site_actor.region is not None:
             region_id = self._generate_region(
                 nugget, site_actor.region, agent_id)
-            nugget.add_edge(region_id, agent_id)
-            nugget.add_edge(site_id, region_id)
+            nugget.add_edge(region_id, agent_id, site_actor.region.location())
+            nugget.add_edge(site_id, region_id, site_actor.site.location())
         else:
-            nugget.add_edge(site_id, agent_id)
+            nugget.add_edge(site_id, agent_id, site_actor.site.location())
 
         return (agent_id, site_id, region_id)
 
@@ -478,7 +480,7 @@ class Generator(object):
             )
 
         if residue is not None:
-            nugget.add_edge(residue, attached_to)
+            nugget.add_edge(residue, attached_to, target.location())
             nugget.template_rel[residue] = {"substrate_residue"}
         else:
             nugget.add_edge(state, attached_to)
@@ -693,16 +695,21 @@ class AutoModGenerator(Generator):
             substrate_region = self._generate_region(
                 nugget, mod.substrate_region, enzyme)
             nugget.template_rel[substrate_region] = {"substrate_region"}
-            nugget.add_edge(substrate_region, enzyme)
+            nugget.add_edge(
+                substrate_region, enzyme, mod.substrate_region.location())
         if mod.substrate_site is not None:
             if substrate_region is not None:
                 substrate_site = self._generate_site(
                     nugget, mod.substrate_site, substrate_region, enzyme)
-                nugget.add_edge(substrate_site, substrate_region)
+                nugget.add_edge(
+                    substrate_site, substrate_region,
+                    mod.substrate_site.location())
             else:
                 substrate_site = self._generate_site(
                     nugget, mod.substrate_site, enzyme, enzyme)
-                nugget.add_edge(substrate_site, enzyme)
+                nugget.add_edge(
+                    substrate_site, enzyme,
+                    mod.substrate_site.location())
             nugget.template_rel[substrate_site] = {"substrate_site"}
 
         # 2. create mod node
@@ -799,7 +806,8 @@ class TransModGenerator(Generator):
         if mod.enzyme_bnd_region is not None:
             enzyme_bnd_region = self._generate_region(
                 nugget, mod.enzyme_bnd_region, enzyme)
-            nugget.add_edge(enzyme_bnd_region, enzyme)
+            nugget.add_edge(enzyme_bnd_region, enzyme,
+                            mod.enzyme_bnd_region.location())
         if mod.enzyme_bnd_site is not None:
             if enzyme_bnd_region is not None:
                 father = enzyme_bnd_region
@@ -808,16 +816,20 @@ class TransModGenerator(Generator):
             enzyme_bnd_site = self._generate_site(
                 nugget, mod.enzyme_bnd_site, father, enzyme)
             if enzyme_bnd_region is not None:
-                nugget.add_edge(enzyme_bnd_site, enzyme_bnd_region)
+                nugget.add_edge(
+                    enzyme_bnd_site, enzyme_bnd_region,
+                    mod.enzyme_bnd_site.location())
             else:
-                nugget.add_edge(enzyme_bnd_site, enzyme)
+                nugget.add_edge(enzyme_bnd_site, enzyme,
+                                mod.enzyme_bnd_site.location())
 
         substrate_bnd_region = None
         substrate_bnd_site = None
         if mod.substrate_bnd_region is not None:
             substrate_bnd_region = self._generate_region(
                 nugget, mod.substrate_bnd_region, substrate)
-            nugget.add_edge(substrate_bnd_region, substrate)
+            nugget.add_edge(substrate_bnd_region, substrate,
+                            mod.substrate_bnd_region.location())
         if mod.substrate_bnd_site is not None:
             if substrate_bnd_region is not None:
                 father = substrate_bnd_region
@@ -826,9 +838,11 @@ class TransModGenerator(Generator):
             substrate_bnd_site = self._generate_site(
                 nugget, mod.substrate_bnd_site, father, substrate)
             if substrate_bnd_site is not None:
-                nugget.add_edge(substrate_bnd_site, substrate_bnd_region)
+                nugget.add_edge(substrate_bnd_site, substrate_bnd_region,
+                                mod.substrate_bnd_site.location())
             else:
-                nugget.add_edge(substrate_bnd_site, substrate)
+                nugget.add_edge(substrate_bnd_site, substrate,
+                                mod.substrate_bnd_site.location())
 
         nugget.add_node("is_bnd", attrs={"type": "be", "test": True},
                         meta_typing="bnd")
