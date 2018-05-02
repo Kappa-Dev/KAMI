@@ -140,8 +140,9 @@ def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
     residue_candidates = hierarchy.get_attached_residues(ref_gene)
     if residue.loc is not None:
         for res in residue_candidates:
-            if "loc" in hierarchy.action_graph.node[res].keys():
-                if residue.loc == int(list(hierarchy.action_graph.node[res]["loc"])[0]):
+            if "loc" in hierarchy.action_graph.edge[res][ref_agent].keys():
+                if residue.loc == int(list(hierarchy.action_graph.edge[res][
+                        ref_agent]["loc"])[0]):
                     if residue.aa <= hierarchy.action_graph.node[res]["aa"]:
                         return res
                     elif add_aa is True:
@@ -152,8 +153,8 @@ def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
                         return res
     else:
         for res in residue_candidates:
-            if "loc" not in hierarchy.action_graph.node[res].keys() or\
-               hierarchy.action_graph.node[res]["loc"].is_empty():
+            if "loc" not in hierarchy.action_graph.edge[res][ref_agent].keys() or\
+               hierarchy.action_graph.edge[res][ref_agent]["loc"].is_empty():
                 if residue.aa <= hierarchy.action_graph.node[res]["aa"]:
                     return res
                 elif add_aa is True:

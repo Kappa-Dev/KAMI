@@ -21,9 +21,9 @@ from kami.utils.id_generators import (get_nugget_gene_id,
                                       get_nugget_locus_id,
                                       get_nugget_site_id,
                                       get_nugget_bnd_id,)
-from kami.resolvers.identifiers import (identify_gene, identify_region,
-                                        identify_site, identify_residue,
-                                        identify_state)
+from kami.aggregation.identifiers import (identify_gene, identify_region,
+                                          identify_site, identify_residue,
+                                          identify_state)
 
 
 class NuggetContainer:
@@ -113,18 +113,6 @@ class Generator(object):
     def __init__(self, hierarchy):
         """Initialize generator with a hierarchy."""
         self.hierarchy = hierarchy
-
-    def generate(self, mod, add_agents=True, anatomize=True,
-                 apply_semantics=True):
-        """Generate a nuggert generation rule."""
-        nugget, nugget_type = self._create_nugget(mod)
-        nugget_id = self.hierarchy.add_nugget(
-            nugget, nugget_type,
-            add_agents=add_agents,
-            anatomize=anatomize,
-            apply_semantics=apply_semantics)
-        print("Generated nugget '%s'..." % nugget_id)
-        return nugget_id
 
     def _generate_state(self, nugget, state, father):
         prefix = father
@@ -492,7 +480,7 @@ class Generator(object):
 class ModGenerator(Generator):
     """Modification nugget generator."""
 
-    def _create_nugget(self, mod):
+    def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
@@ -550,8 +538,7 @@ class ModGenerator(Generator):
 class BndGenerator(Generator):
     """Binding nugget generator."""
 
-    def _create_nugget(self, bnd):
-
+    def generate(self, bnd):
         nugget = NuggetContainer()
         nugget.template_id = "bnd_template"
 
@@ -630,7 +617,7 @@ class BndGenerator(Generator):
 class AnonymousModGenerator(Generator):
     """Anonymous nugget generator."""
 
-    def _create_nugget(self, mod):
+    def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
@@ -673,7 +660,7 @@ class AnonymousModGenerator(Generator):
 class AutoModGenerator(Generator):
     """Generator class for auto modification nugget."""
 
-    def _create_nugget(self, mod):
+    def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
@@ -747,7 +734,7 @@ class AutoModGenerator(Generator):
 class TransModGenerator(Generator):
     """Generator class for transmodification nugget."""
 
-    def _create_nugget(self, mod):
+    def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
         nugget = NuggetContainer()
         nugget.template_id = "mod_template"
