@@ -2,9 +2,7 @@
 
 from regraph.primitives import (print_graph)
 
-from kami.resolvers.black_box import create_nuggets
-from kami.interactions import (Modification,
-                               Binding)
+from kami.interactions import (Modification, Binding)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.hierarchy import KamiHierarchy
@@ -39,8 +37,7 @@ class TestBlackBox(object):
             enzyme_entity, substrate_entity, mod_state, value
         )
         # Create corresponding nugget in the hierarchy
-        create_nuggets([mod1], hierarchy=self.hierarchy,
-                       add_agents=True, anatomize=False)
+        self.hierarchy.add_interaction(mod1, add_agents=True, anatomize=False)
 
     def test_complex_mod_nugget(self):
         """Complex modification interaction example."""
@@ -83,7 +80,7 @@ class TestBlackBox(object):
 
         mod_target = Residue("S", "33", State("phosphorylation", False))
         mod2 = Modification(enzyme, substrate, mod_target, True)
-        create_nuggets([mod2], add_agents=True, anatomize=False)
+        self.hierarchy.add_interaction(mod2, add_agents=True, anatomize=False)
 
     def test_phospho_semantics(self):
         """Test black box processing using phosphorylation semantics."""
@@ -111,7 +108,8 @@ class TestBlackBox(object):
 
         interactions = [mod1, mod2, mod3, mod4]
 
-        hierarchy = create_nuggets(
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(
             interactions,
             add_agents=True,
             anatomize=True
@@ -139,7 +137,8 @@ class TestBlackBox(object):
         bnd527 = Binding(dok1_py398, abl2_sh2)
         print(bnd527)
 
-        hierarchy = create_nuggets([bnd527])
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interaction(bnd527)
         # print(hierarchy)
         # print_graph(hierarchy.node["nugget_1"].graph)
         # print_graph(hierarchy.action_graph)
@@ -168,6 +167,8 @@ class TestBlackBox(object):
         bnds = []
         bnds.append(Binding(frs2_py196, pik3r1_sh2n))
         bnds.append(Binding(frs2_py349, pik3r1_sh2c))
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(bnds, anatomize=True)
 
     def test_sites(self):
         # Create genes.
@@ -184,7 +185,8 @@ class TestBlackBox(object):
         # This does not work (SiteActor)
         inters.append(Binding(egfr, grb2_site))
 
-        hierarchy = create_nuggets(inters, anatomize=True)
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(inters, anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
 
     def test_regionactor(self):
@@ -208,7 +210,8 @@ class TestBlackBox(object):
         )
         inters.append(m)
 
-        hierarchy = create_nuggets(inters, anatomize=True)
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(inters, anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
 
     def test_siteactor(self):
@@ -240,7 +243,8 @@ class TestBlackBox(object):
             mod_target=Residue(aa="Y", loc=location, state=unphos),
             mod_value=True)
         inters.append(m)
-        hierarchy = create_nuggets(inters, anatomize=True)
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(inters, anatomize=True)
 
     def test_complicated_site_actor(self):
         m = Modification(
@@ -262,7 +266,8 @@ class TestBlackBox(object):
             mod_target=Residue("Y", 100, State("phosphorylation", False)),
             mod_value=True
         )
-        hierarchy = create_nuggets([m], anatomize=True)
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions([m], anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
         print(hierarchy.ag_to_edge_list())
 
@@ -280,12 +285,10 @@ class TestBlackBox(object):
         s1 = Site(name="test_site")
 
         inters = []
-        
+
         # Modification using SiteActor.
         m = Modification(
             enzyme=Gene("P00519", hgnc_symbol="ABL1"),
-            #substrate=RegionActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
-            #                    region=Region(name="region800", start=796, end=804)),
             substrate=SiteActor(gene=Gene("P00519", hgnc_symbol="ABL1"),
                                 site=Site(name="site800", start=796, end=804)),
             mod_target=Residue("Y", 800, State("phosphorylation", False)),
@@ -309,7 +312,8 @@ class TestBlackBox(object):
             RegionActor(gene=Gene("P62993", hgnc_symbol="GRB2"), region=sh2)
         )
         inters.append(b)
-        hierarchy = create_nuggets(inters, anatomize=True)
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(inters, anatomize=True)
 
     def test_site_merge(self):
         enzyme_site_actor1 =\
@@ -334,7 +338,7 @@ class TestBlackBox(object):
             Gene("P00519"),
             Residue("Y", 354, State("phosphorylation", False)), True)
         hierarchy = KamiHierarchy()
-        hierarchy = create_nuggets([mod1, mod2])
+        hierarchy.add_interactions([mod1, mod2])
         # hierarchy = create_nuggets([mod2, mod3])
         print_graph(hierarchy.action_graph)
 
@@ -350,5 +354,5 @@ class TestBlackBox(object):
             RegionActor(gene=Gene("P62993", hgnc_symbol="GRB2"), region=sh2)
         )
         hierarchy = KamiHierarchy()
-        hierarchy = create_nuggets([b])
+        hierarchy.add_interaction(b)
         print_graph(hierarchy.action_graph)

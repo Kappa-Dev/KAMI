@@ -1,7 +1,6 @@
 """Tests related to KamiHierarchy data structure."""
 from kami import entities, interactions
 from kami.hierarchy import KamiHierarchy
-from kami.resolvers.black_box import create_nuggets
 
 
 class TestKamiHierarchy(object):
@@ -49,7 +48,7 @@ class TestKamiHierarchy(object):
         abl1_sh2 = entities.RegionActor(abl1, sh2)
         bnd = interactions.Binding(plcg1_pY1253, abl1_sh2)
 
-        create_nuggets([bnd], hierarchy)
+        hierarchy.add_interactions([bnd], hierarchy)
         assert(hierarchy.empty() is False)
 
         hierarchy.export("test_non_empty_hierarchy.json")

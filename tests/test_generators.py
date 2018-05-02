@@ -2,10 +2,10 @@
 
 from regraph import print_graph
 
-from kami.resolvers.generators import (NuggetContainer, Generator,
-                                       ModGenerator, AutoModGenerator,
-                                       TransModGenerator, BndGenerator,
-                                       AnonymousModGenerator)
+from kami.aggregation.generators import (NuggetContainer, Generator,
+                                         ModGenerator, AutoModGenerator,
+                                         TransModGenerator, BndGenerator,
+                                         AnonymousModGenerator)
 from kami.interactions import (Modification,
                                Binding, AutoModification,
                                TransModification, AnonymousModification)
@@ -430,7 +430,7 @@ class TestGenerators(object):
         )
         hierarchy = KamiHierarchy()
         generator = ModGenerator(hierarchy)
-        n, t = generator._create_nugget(mod5)
+        n, t = generator.generate(mod5)
         print_graph(n.graph)
 
     def test_anonymous_mod_generation(self):
@@ -447,7 +447,7 @@ class TestGenerators(object):
 
         hierarchy = KamiHierarchy()
         generator = AnonymousModGenerator(hierarchy)
-        n, t = generator._create_nugget(mod)
+        n, t = generator.generate(mod)
         print_graph(n.graph)
 
     def test_automod_generation(self):
@@ -466,7 +466,7 @@ class TestGenerators(object):
 
         hierarchy = KamiHierarchy()
         generator = AutoModGenerator(hierarchy)
-        n, t = generator._create_nugget(automod)
+        n, t = generator.generate(automod)
         print_graph(n.graph)
 
     def test_transmod_generation(self):
@@ -489,7 +489,7 @@ class TestGenerators(object):
 
         hierarchy = KamiHierarchy()
         generator = TransModGenerator(hierarchy)
-        n, t = generator._create_nugget(automod)
+        n, t = generator.generate(automod)
         print_graph(n.graph)
 
     def test_bnd_generation(self):
@@ -500,5 +500,5 @@ class TestGenerators(object):
 
         hierarchy = KamiHierarchy()
         generator = BndGenerator(hierarchy)
-        n, t = generator._create_nugget(bnd)
+        n, t = generator.generate(bnd)
         print_graph(n.graph)
