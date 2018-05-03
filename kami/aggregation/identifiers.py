@@ -143,14 +143,14 @@ def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
             if "loc" in hierarchy.action_graph.edge[res][ref_agent].keys():
                 if residue.loc == int(list(hierarchy.action_graph.edge[res][
                         ref_agent]["loc"])[0]):
-                    if residue.aa <= hierarchy.action_graph.node[res]["aa"]:
-                        return res
-                    elif add_aa is True:
+                    if not residue.aa.issubset(
+                        hierarchy.action_graph.node[res]["aa"]) and\
+                            add_aa is True:
                         hierarchy.action_graph.node[res]["aa"] =\
                             hierarchy.action_graph.node[res]["aa"].union(
                                 residue.aa
                         )
-                        return res
+                    return res
     else:
         for res in residue_candidates:
             if "loc" not in hierarchy.action_graph.edge[res][ref_agent].keys() or\
@@ -168,16 +168,15 @@ def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
 
 def identify_state(hierarchy, state, ref_agent):
     """Find corresponding state of reference agent."""
-    for pred in hierarchy.action_graph.predecessors(ref_agent):
-        if pred in hierarchy.action_graph_typing.keys() and\
-           hierarchy.action_graph_typing[pred] == "state":
-            name = list(hierarchy.action_graph.node[pred].keys())[0]
-            values = hierarchy.action_graph.node[pred][name]
-            if state.name == name:
-                if state.value not in values:
-                    add_node_attrs(
-                        hierarchy.action_graph,
-                        pred,
-                        {name: {state.value}})
-                return pred
+    state_candidates = hierarchy.get_attached_states(ref_agent)
+    for s in state_candidates:
+        name = list(hierarchy.action_graph.node[s]["name"])[0]
+        # values = hierarchy.action_graph.node[pred][name]
+        if state.name == name:
+                # if state.value not in values:
+                #     add_node_attrs(
+                #         hierarchy.action_graph,
+                #         pred,
+                #         {name: {state.value}})
+            return s
     return None
