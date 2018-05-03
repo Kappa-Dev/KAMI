@@ -10,6 +10,7 @@ from regraph import (add_edge,
 from kami.entities import (Gene, RegionActor,
                            Residue, SiteActor, State
                            )
+from kami.interactions import Binding
 from kami.exceptions import (KamiError,
                              KamiWarning,
                              NuggetGenerationError)
@@ -159,7 +160,7 @@ class Generator(object):
 
         return (residue_id, state_id)
 
-    def _generate_bound(self, nugget, partners, father):
+    def _generate_bound(self, nugget, partners, father, test=True):
         is_bnd_ids = []
         partner_ids = []
         for partner in partners:
@@ -193,7 +194,7 @@ class Generator(object):
 
             nugget.add_node(
                 is_bnd_id,
-                attrs={"type": "be", "test": True},
+                attrs={"type": "be", "test": test},
                 meta_typing="bnd"
             )
             is_bnd_ids.append(is_bnd_id)
@@ -222,7 +223,10 @@ class Generator(object):
             nugget.add_edge(partner_locus_id, is_bnd_id)
             nugget.add_edge(partner_id, partner_locus_id)
 
-        bound_id = "%s_is_bnd_%s" % (prefix, "_".join(partner_ids))
+        if test is True:
+            bound_id = "%s_is_bnd_%s" % (prefix, "_".join(partner_ids))
+        else:
+            bound_id = "%s_is_brk_%s" % (prefix, "_".join(partner_ids))
         bound_locus_id = get_nugget_locus_id(nugget.graph, prefix, bound_id)
         # !TODO! add id to ag
         nugget.add_node(
@@ -275,7 +279,12 @@ class Generator(object):
         # 5. create and attach bounds
         for partners in site.bound_to:
             bound_locus_id = self._generate_bound(
-                nugget, partners, site_id)
+                nugget, partners, site_id, test=True)
+            nugget.add_edge(site_id, bound_locus_id)
+
+        for partners in site.unbound_from:
+            bound_locus_id = self._generate_bound(
+                nugget, partners, site_id, test=False)
             nugget.add_edge(site_id, bound_locus_id)
 
         return site_id
@@ -339,7 +348,12 @@ class Generator(object):
         # 5. create and attach bounds
         for partners in region.bound_to:
             bound_locus_id = self._generate_bound(
-                nugget, partners, region_id)
+                nugget, partners, region_id, test=True)
+            nugget.add_edge(region_id, bound_locus_id)
+
+        for partners in region.unbound_from:
+            bound_locus_id = self._generate_bound(
+                nugget, partners, region_id, test=False)
             nugget.add_edge(region_id, bound_locus_id)
 
         return region_id
@@ -386,7 +400,12 @@ class Generator(object):
         # 6. create and attach bounds
         for bnd in gene.bound_to:
             bound_locus_id = self._generate_bound(
-                nugget, bnd, agent_id)
+                nugget, bnd, agent_id, test=True)
+            nugget.add_edge(agent_id, bound_locus_id)
+
+        for bnd in gene.unbound_from:
+            bound_locus_id = self._generate_bound(
+                nugget, bnd, agent_id, test=False)
             nugget.add_edge(agent_id, bound_locus_id)
 
         return agent_id
@@ -577,7 +596,10 @@ class BndGenerator(Generator):
 
         bnd_attrs = bnd.to_attrs()
         bnd_attrs["type"] = "do"
-        bnd_attrs["test"] = True
+        if isinstance(bnd, Binding):
+            bnd_attrs["test"] = True
+        else:
+            bnd_attrs["test"] = False
 
         nugget.add_node(
             bnd_id, bnd_attrs,

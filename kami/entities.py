@@ -430,7 +430,7 @@ class Site(PhysicalEntity):
 class Residue():
     """Class for a residue."""
 
-    def __init__(self, aa, loc=None, state=None):
+    def __init__(self, aa, loc=None, state=None, test=True):
         """Init residue object."""
         if type(aa) == set:
             pass
@@ -444,6 +444,7 @@ class Residue():
         else:
             self.loc = None
         self.state = state
+        self.test = test
 
     def __repr__(self):
         """Representation of a site."""
@@ -454,6 +455,8 @@ class Residue():
             components.append("loc={}".format(self.loc))
         if self.state:
             components.append("state={}".format(self.state.__repr__()))
+        if self.test:
+            components.append("test={}".format(self.test))
         if len(components) > 0:
             content = ", ".join(components)
 
@@ -462,7 +465,11 @@ class Residue():
 
     def __str__(self):
         """Str representation of residue."""
-        res = "".join(self.aa)
+        if self.test is False:
+            res = "not_"
+        else:
+            res = ""
+        res += "".join(self.aa)
         if self.loc:
             res += str(self.loc)
         return res
@@ -471,6 +478,7 @@ class Residue():
         """Get a dictionary with residue's meta-data."""
         res = dict()
         res["aa"] = self.aa
+        res["test"] = self.test
         return res
 
     def location(self):
