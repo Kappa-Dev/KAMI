@@ -61,7 +61,6 @@ add_nodes_from(
             },
             "test": {True, False}
         }),
-        "locus",
         ("state", {
             "name": {
                 "phosphorylation",
@@ -127,11 +126,10 @@ add_edges_from(
         ("state", "residue"),
         ("syn", "gene"),
         ("deg", "gene"),
-        ("gene", "locus"),
-        ("region", "locus"),
-        ("site", "locus"),
+        ("gene", "bnd"),
+        ("region", "bnd"),
+        ("site", "bnd"),
         ("mod", "state"),
-        ("locus", "bnd"),
         ("gene", "mod"),
         ("region", "mod"),
         ("site", "mod")
@@ -143,7 +141,6 @@ kami_base_kami_typing = {
     "region": "component",
     "site": "component",
     "residue": "component",
-    "locus": "component",
     "state": "state",
     "mod": "action",
     "syn": "action",

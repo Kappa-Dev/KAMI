@@ -15,9 +15,7 @@ add_nodes_from(action_graph, [
     "phosphatase",
     ("dephospho", {"value": {False}}),
     "pY_site",
-    "pY_locus",
-    ("sh2_domain_pY_bnd"),
-    "sh2_domain_locus",
+    ("sh2_domain_pY_bnd", {"type": "do", "test": True}),
     "sh2_domain",
 ])
 
@@ -30,10 +28,8 @@ add_edges_from(action_graph, [
     ("phosphatase", "dephospho"),
     ("dephospho", "phospho_state"),
     ("phospho_target_residue", "pY_site"),
-    ("pY_site", "pY_locus"),
-    ("pY_locus", "sh2_domain_pY_bnd"),
-    ("sh2_domain_locus", "sh2_domain_pY_bnd"),
-    ("sh2_domain", "sh2_domain_locus"),
+    ("pY_site", "sh2_domain_pY_bnd"),
+    ("sh2_domain", "sh2_domain_pY_bnd"),
 ])
 
 sag_kami_typing = {
@@ -45,9 +41,7 @@ sag_kami_typing = {
     "phosphatase": "region",
     "dephospho": "mod",
     "pY_site": "site",
-    "pY_locus": "locus",
     "sh2_domain_pY_bnd": "bnd",
-    "sh2_domain_locus": "locus",
     "sh2_domain": "region",
 }
 
@@ -131,9 +125,7 @@ add_nodes_from(
     sh2_pY_binding,
     [
         "sh2_domain",
-        "sh2_domain_locus",
-        ("sh2_domain_pY_bnd"),
-        "pY_locus",
+        ("sh2_domain_pY_bnd", {"type": "do", "test": True}),
         "pY_site",
         ("pY_residue", {"aa": "Y", "test": True}),
         ("phosphorylation", {"name": "phosphorylation", "test": True})
@@ -142,19 +134,15 @@ add_nodes_from(
 
 add_edges_from(
     sh2_pY_binding,
-    [("sh2_domain", "sh2_domain_locus"),
-     ("sh2_domain_locus", "sh2_domain_pY_bnd"),
-     ("pY_locus", "sh2_domain_pY_bnd"),
-     ("pY_site", "pY_locus"),
+    [("sh2_domain", "sh2_domain_pY_bnd"),
+     ("pY_site", "sh2_domain_pY_bnd"),
      ("pY_residue", "pY_site"),
      ("phosphorylation", "pY_residue")]
 )
 
 sh2_pY_kami_typing = {
     "sh2_domain": "region",
-    "sh2_domain_locus": "locus",
     "sh2_domain_pY_bnd": "bnd",
-    "pY_locus": "locus",
     "pY_site": "site",
     "pY_residue": "residue",
     "phosphorylation": "state",
@@ -162,9 +150,7 @@ sh2_pY_kami_typing = {
 
 sh2_pY_semantic_AG = {
     "sh2_domain": "sh2_domain",
-    "sh2_domain_locus": "sh2_domain_locus",
     "sh2_domain_pY_bnd": "sh2_domain_pY_bnd",
-    "pY_locus": "pY_locus",
     "pY_site": "pY_site",
     "pY_residue": "phospho_target_residue",
     "phosphorylation": "phospho_state"

@@ -60,8 +60,6 @@ add_nodes_from(bnd_nugget, [
     "right_partner_region",
     "left_partner_site",
     "right_partner_site",
-    "left_partner_locus",
-    "right_partner_locus",
     "bnd"
 ])
 add_edges_from(bnd_nugget, [
@@ -71,14 +69,12 @@ add_edges_from(bnd_nugget, [
     ("right_partner_site", "right_partner_region"),
     ("left_partner_region", "left_partner"),
     ("right_partner_region", "right_partner"),
-    ("left_partner_site", "left_partner_locus"),
-    ("right_partner_site", "right_partner_locus"),
-    ("left_partner_region", "left_partner_locus"),
-    ("right_partner_region", "right_partner_locus"),
-    ("left_partner", "left_partner_locus"),
-    ("right_partner", "right_partner_locus"),
-    ("left_partner_locus", "bnd"),
-    ("right_partner_locus", "bnd")
+    ("left_partner_site", "bnd"),
+    ("right_partner_site", "bnd"),
+    ("left_partner_region", "bnd"),
+    ("right_partner_region", "bnd"),
+    ("left_partner", "bnd"),
+    ("right_partner", "bnd"),
 ])
 
 bnd_kami_typing = {
@@ -88,7 +84,5 @@ bnd_kami_typing = {
     "right_partner_region": "region",
     "left_partner_site": "site",
     "right_partner_site": "site",
-    "left_partner_locus": "locus",
-    "right_partner_locus": "locus",
     "bnd": "bnd",
 }
