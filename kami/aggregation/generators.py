@@ -160,82 +160,28 @@ class Generator(object):
 
         return (residue_id, state_id)
 
-    def _generate_bound(self, nugget, partners, father, test=True):
-        is_bnd_ids = []
-        partner_ids = []
-        for partner in partners:
-            if isinstance(partner, Gene):
-                partner_id = get_nugget_gene_id(nugget.graph, partner)
-            elif isinstance(partner, RegionActor):
-                partner_id = get_nugget_region_id(
-                    nugget.graph, str(partner.region),
-                    str(partner.gene)
-                )
-            elif isinstance(partner, SiteActor):
-                partner_id = get_nugget_site_id(
-                    nugget.graph, str(partner.site),
-                    str(partner.gene)
-                )
-            else:
-                raise KamiError(
-                    "Invalid type of binding partner in bound conditions: "
-                    "type '%s' is received ('Gene', "
-                    "'RegionActor' or 'SiteActor' are expected)" %
-                    (type(partner))
-                )
+    def _generate_bound(self, nugget, partner, father, test=True):
+        (partner_gene, partner_region, partner_site) = self._generate_actor(
+            nugget, partner)
 
-            partner_ids.append(partner_id)
+        # generate prefix for is_bnd_id
+        prefix = father
 
-            # generate prefix for is_bnd_id
-            prefix = father
+        is_bnd_id = get_nugget_is_bnd_id(
+            nugget.graph, prefix, partner_gene)
 
-            is_bnd_id = get_nugget_is_bnd_id(
-                nugget.graph, prefix, partner_id)
-
-            nugget.add_node(
-                is_bnd_id,
-                attrs={"type": "be", "test": test},
-                meta_typing="bnd"
-            )
-            is_bnd_ids.append(is_bnd_id)
-
-            partner_locus_id = get_nugget_locus_id(
-                nugget.graph, partner_id, is_bnd_id)
-            nugget.add_node(
-                partner_locus_id,
-                meta_typing="locus"
-            )
-
-            if isinstance(partner, Gene):
-                partner_id = self._generate_gene(
-                    nugget, partner)
-            elif isinstance(partner, RegionActor):
-                (_, partner_id) = self._generate_region_actor(
-                    nugget, partner)
-            elif isinstance(partner, SiteActor):
-                (_, partner_id, _) = self._generate_site_actor(
-                    nugget, partner)
-            else:
-                raise NuggetGenerationError(
-                    "Invalid type of binding partner: '%s'" % type(partner)
-                )
-
-            nugget.add_edge(partner_locus_id, is_bnd_id)
-            nugget.add_edge(partner_id, partner_locus_id)
-
-        if test is True:
-            bound_id = "%s_is_bnd_%s" % (prefix, "_".join(partner_ids))
-        else:
-            bound_id = "%s_is_brk_%s" % (prefix, "_".join(partner_ids))
-        bound_locus_id = get_nugget_locus_id(nugget.graph, prefix, bound_id)
-        # !TODO! add id to ag
         nugget.add_node(
-            bound_locus_id,
-            meta_typing="locus"
+            is_bnd_id,
+            attrs={"type": "be", "test": test},
+            meta_typing="bnd"
         )
-        for is_bnd_id in is_bnd_ids:
-            nugget.add_edge(bound_locus_id, is_bnd_id)
-        return bound_locus_id
+        if partner_site is not None:
+            nugget.add_edge(partner_site, is_bnd_id)
+        elif partner_region is not None:
+            nugget.add_edge(partner_region, is_bnd_id)
+        else:
+            nugget.add_edge(partner_gene, is_bnd_id)
+        return is_bnd_id
 
     def _generate_site(self, nugget, site, father, gene):
         # 1. create region node
@@ -277,15 +223,15 @@ class Generator(object):
             nugget.add_edge(state_id, site_id)
 
         # 5. create and attach bounds
-        for partners in site.bound_to:
-            bound_locus_id = self._generate_bound(
-                nugget, partners, site_id, test=True)
-            nugget.add_edge(site_id, bound_locus_id)
+        for partner in site.bound_to:
+            is_bnd_id = self._generate_bound(
+                nugget, partner, site_id, test=True)
+            nugget.add_edge(site_id, is_bnd_id)
 
-        for partners in site.unbound_from:
-            bound_locus_id = self._generate_bound(
-                nugget, partners, site_id, test=False)
-            nugget.add_edge(site_id, bound_locus_id)
+        for partner in site.unbound_from:
+            is_notbnd_id = self._generate_bound(
+                nugget, partner, site_id, test=False)
+            nugget.add_edge(site_id, is_notbnd_id)
 
         return site_id
 
@@ -607,31 +553,12 @@ class BndGenerator(Generator):
             template_rel=["bnd"]
         )
 
-        # 3. create loci
-        left_locus = get_nugget_locus_id(nugget.graph, left_ids, bnd_id)
-        nugget.add_node(
-            left_locus,
-            meta_typing="locus",
-            template_rel=["left_partner_locus"]
-        )
-        nugget.add_edge(left_locus, bnd_id)
-
-        right_locus = get_nugget_locus_id(
-            nugget.graph, right_ids, bnd_id
-        )
-        nugget.add_node(
-            right_locus,
-            meta_typing="locus",
-            template_rel=["right_partner_locus"]
-        )
-        nugget.add_edge(right_locus, bnd_id)
-
-        # 4. connect left/right members to the respective loci
+        # connect left/right members to the respective loci
         for member in left:
-            nugget.add_edge(member, left_locus)
+            nugget.add_edge(member, bnd_id)
 
         for member in right:
-            nugget.add_edge(member, right_locus)
+            nugget.add_edge(member, bnd_id)
 
         return nugget, "bnd"
 
@@ -855,33 +782,19 @@ class TransModGenerator(Generator):
 
         nugget.add_node("is_bnd", attrs={"type": "be", "test": True},
                         meta_typing="bnd")
-        enzyme_locus_id = get_nugget_locus_id(
-            nugget.graph, enzyme, "is_bnd")
-        nugget.add_node(
-            enzyme_locus_id,
-            meta_typing="locus"
-        )
-        substrate_locus_id = get_nugget_locus_id(
-            nugget.graph, substrate, "is_bnd")
-        nugget.add_node(
-            substrate_locus_id,
-            meta_typing="locus"
-        )
-        nugget.add_edge(enzyme_locus_id, "is_bnd")
-        nugget.add_edge(substrate_locus_id, "is_bnd")
 
         if enzyme_bnd_site is not None:
-            nugget.add_edge(enzyme_bnd_site, enzyme_locus_id)
+            nugget.add_edge(enzyme_bnd_site, "is_bnd")
         elif enzyme_bnd_region is not None:
-            nugget.add_edge(enzyme_bnd_region, enzyme_locus_id)
+            nugget.add_edge(enzyme_bnd_region, "is_bnd")
         else:
-            nugget.add_edge(enzyme, enzyme_locus_id)
+            nugget.add_edge(enzyme, "is_bnd")
 
         if substrate_bnd_site is not None:
-            nugget.add_edge(substrate_bnd_site, substrate_locus_id)
+            nugget.add_edge(substrate_bnd_site, "is_bnd")
         elif substrate_bnd_region is not None:
-            nugget.add_edge(substrate_bnd_region, substrate_locus_id)
+            nugget.add_edge(substrate_bnd_region, "is_bnd")
         else:
-            nugget.add_edge(substrate, substrate_locus_id)
+            nugget.add_edge(substrate, "is_bnd")
 
         return nugget, "mod"

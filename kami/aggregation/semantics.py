@@ -1,3 +1,4 @@
+"""Collection of utils for semantic updates in KAMI models."""
 import networkx as nx
 import warnings
 
@@ -48,11 +49,12 @@ def apply_mod_semantics(hierarchy, nugget_id):
     phospho = False
 
     if enzyme is not None:
-        if "phosphorylation" in hierarchy.nugget[nugget_id].node[mod_state].keys():
+        if "phosphorylation" in hierarchy.nugget[
+                nugget_id].node[mod_state].keys():
             if True in hierarchy.nugget[nugget_id].node[
-                    mod_node]["value"]:
+                    mod_node]["test"]:
                 phospho = True
-            elif False in hierarchy.nugget[nugget_id].node[mod_node]["value"]:
+            elif False in hierarchy.nugget[nugget_id].node[mod_node]["test"]:
                 dephospho = True
 
     # 1. Phospho semantics
@@ -80,8 +82,10 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     ag_pred = hierarchy.typing[nugget_id]["action_graph"][pred]
                     ag_pred_type = hierarchy.action_graph_typing[ag_pred]
                     if ag_pred_type == "state" and\
-                       "activity" in hierarchy.nugget[nugget_id].node[pred].keys() and\
-                       True in hierarchy.nugget[nugget_id].node[pred]["activity"]:
+                       "activity" in hierarchy.nugget[
+                            nugget_id].node[pred].keys() and\
+                       True in hierarchy.nugget[nugget_id].node[
+                            pred]["activity"]:
                         phospho_semantic_rel[pred] = "protein_kinase_activity"
                         activity_found = True
                         break
@@ -101,7 +105,8 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     _, rhs_g = hierarchy.rewrite(
                         nugget_id, autocompletion_rule,
                         rhs_typing=rhs_typing)
-                    phospho_semantic_rel[rhs_g[ag_activity]] = "protein_kinase_activity"
+                    phospho_semantic_rel[rhs_g[ag_activity]] =\
+                        "protein_kinase_activity"
             else:
                 warnings.warn(
                     "Region '%s' performing phosphorylation is not "
@@ -116,7 +121,8 @@ def apply_mod_semantics(hierarchy, nugget_id):
             if unique_kinase_region is not None:
 
                 kinase_mods =\
-                    hierarchy.ag_successors_of_type(unique_kinase_region, "mod")
+                    hierarchy.ag_successors_of_type(
+                        unique_kinase_region, "mod")
                 pattern = nx.DiGraph()
                 add_nodes_from(
                     pattern,
@@ -143,7 +149,8 @@ def apply_mod_semantics(hierarchy, nugget_id):
                 autocompletion_rule.inject_add_node(
                     unique_kinase_region,
                     hierarchy.action_graph.node[unique_kinase_region])
-                ag_activity = hierarchy.get_activity_state(unique_kinase_region)
+                ag_activity = hierarchy.get_activity_state(
+                    unique_kinase_region)
                 autocompletion_rule.inject_add_node(
                     ag_activity, hierarchy.action_graph.node[ag_activity])
                 autocompletion_rule.inject_add_edge(
@@ -186,132 +193,177 @@ def apply_mod_semantics(hierarchy, nugget_id):
 
 
 def apply_bnd_semantics(hierarchy, nugget_id):
-    """Apply bnd semantics to the created nugget."""
+    """Apply known binding semantics to the created nugget."""
+    nugget = hierarchy.nugget[nugget_id]
 
-    def _apply_sh2_py_semantics(region_node, region_locus,
-                                region_bnd, opposite_locus,
-                                partner_sites=None):
-        ag_region_node =\
+    def _apply_sh2_py_semantics(region_node, region_bnd, partner_gene,
+                                partner_region=None, partner_site=None):
+        ag_region =\
             hierarchy.typing[nugget_id]["action_graph"][region_node]
-        if ag_region_node in hierarchy.relation["action_graph"][
+        if ag_region in hierarchy.relation["action_graph"][
             "semantic_action_graph"].keys() and\
             "sh2_domain" in hierarchy.relation["action_graph"][
-                "semantic_action_graph"][ag_region_node]:
+                "semantic_action_graph"][ag_region]:
             sh2_semantic_rel = {
                 region_node: "sh2_domain",
-                region_locus: "sh2_domain_locus",
                 region_bnd: "sh2_domain_pY_bnd",
-                opposite_locus: "pY_locus"
             }
-            ag_region_loci = hierarchy.ag_successors_of_type(
-                ag_region_node, "locus")
-
-            if len(ag_region_loci) > 1:
-                opposite_loci = []
-                bnds = []
-                for locus in ag_region_loci:
-                    bnd = hierarchy.ag_successors_of_type(
-                        locus, "bnd")[0]
-                    all_bnd_loci = hierarchy.ag_predecessors_of_type(
-                        bnd, "locus")
-                    opposite_loci += [l for l in all_bnd_loci if l != locus]
-                    bnds.append(bnd)
-
+            # Check if there are multiple bnd actions associated with the
+            # same SH2 domain, merge them if it's the case
+            ag_region_bnds = []
+            for bnd in hierarchy.ag_successors_of_type(ag_region, "bnd"):
+                ag_region_bnds.append(bnd)
+            if len(ag_region_bnds) > 1:
                 # generate a rule that merges bnds and loci
                 pattern = nx.DiGraph()
-                add_nodes_from(pattern, ag_region_loci)
-                add_nodes_from(pattern, bnds)
-                add_nodes_from(pattern, opposite_loci)
+                add_nodes_from(pattern, ag_region_bnds)
                 bnd_merge_rule = Rule.from_transform(pattern)
-                bnd_merge_rule.inject_merge_nodes(
-                    ag_region_loci)
-                bnd_merge_rule.inject_merge_nodes(bnds)
-                bnd_merge_rule.inject_merge_nodes(
-                    opposite_loci)
+                bnd_merge_rule.inject_merge_nodes(ag_region_bnds)
                 _, rhs_ag = hierarchy.rewrite(
                     "action_graph", bnd_merge_rule)
 
-                # Process sites
-                if partner_sites:
-                    for site in partner_sites:
-                        sh2_semantic_rel[site] = "pY_site"
-                        # add semantics of this site to the ag
-                        ag_site = hierarchy.typing[nugget_id]["action_graph"][site]
-                        ag_sag_rel =\
-                            hierarchy.relation["action_graph"][
-                                "semantic_action_graph"]
-                        if ag_site in ag_sag_rel.keys():
-                            ag_sag_rel[ag_site].add("pY_site")
-                        else:
-                            ag_sag_rel[ag_site] = {"pY_site"}
+            # Process/autocomplete sites and residues
+            if partner_site:
+                sh2_semantic_rel[partner_site] = "pY_site"
+                # check if site has phosphorylated 'Y' residue
+                py_residue_states = []
+                for pred in nugget.predecessors(
+                        partner_site):
+                    ag_pred = hierarchy.typing[nugget_id][
+                        "action_graph"][pred]
+                    if hierarchy.action_graph_typing[ag_pred] == "residue" and\
+                       "Y" in nugget.node[pred]["aa"]:
+                        for residue_pred in nugget.predecessors(pred):
+                            ag_residue_pred = hierarchy.typing[nugget_id][
+                                "action_graph"][residue_pred]
+                            if hierarchy.action_graph_typing[
+                                    ag_residue_pred] == "state" and\
+                               "phosphorylation" in nugget.node[
+                                    residue_pred]["name"]:
+                                py_residue_states.append((pred, residue_pred))
 
-                # # generate nugget autocompletion rule (adding pY site)
-                # else:
-                #     pattern = hierarchy.nugget[nugget_id]
-                #     autocompletion_rule = Rule.from_transform(pattern)
-                #     if "right_partner_region" in template_rel.keys():
-                #         pass
-                #     autocompletion_rule
-                #     autocompletion_rule.inject_add_node("pY_site")
-                #     _, rhs_nugget = hierarchy.rewrite(
-                #         nugget_id, autocompletion_rule)
+                # if pY residue was not found it, autocomplete nugget with it
+                if len(py_residue_states) == 0:
+                    pattern = nx.DiGraph()
+                    add_nodes_from(pattern, [partner_site])
+                    autocompletion_rule = Rule.from_transform(pattern)
+                    autocompletion_rule.inject_add_node(
+                        "pY_residue", {"aa": "Y"})
+                    autocompletion_rule.inject_add_node(
+                        "pY_residue_phospho",
+                        {"name": "phosphorylation", "test": True})
+                    autocompletion_rule.inject_add_edge(
+                        "pY_residue_phospho", "pY_residue")
+                    autocompletion_rule.inject_add_edge(
+                        "pY_residue", partner_site)
+                    rhs_typing = {
+                        "kami": {
+                            "pY_residue": "residue",
+                            "pY_residue_phospho": "state"
+                        }
+                    }
+                    _, rhs_nugget = hierarchy.rewrite(
+                        nugget_id, autocompletion_rule,
+                        rhs_typing=rhs_typing, strict=False)
+                    # add necessary semantic rels
+                    sh2_semantic_rel[rhs_nugget["pY_residue"]] = "pY_residue"
+                    sh2_semantic_rel[rhs_nugget["pY_residue_phospho"]] =\
+                        "phosphorylation"
+                else:
+                    for residue, state in py_residue_states:
+                        sh2_semantic_rel[residue] = "pY_residue"
+                        sh2_semantic_rel[state] = "phosphorylation"
+            else:
+                if partner_region is not None:
+                    attached_to = partner_region
+                else:
+                    attached_to = partner_gene
+                pattern = nx.DiGraph()
+                add_nodes_from(pattern, [region_bnd, attached_to])
+                add_edges_from(pattern, [(attached_to, region_bnd)])
+                autocompletion_rule = Rule.from_transform(pattern)
+                autocompletion_rule.inject_remove_edge(
+                    attached_to, region_bnd)
+                autocompletion_rule.inject_add_node("pY_site")
+                autocompletion_rule.inject_add_node(
+                    "pY_residue", {"aa": "Y"})
+                autocompletion_rule.inject_add_node(
+                    "pY_residue_phospho",
+                    {"name": "phosphorylation", "test": True})
+                autocompletion_rule.inject_add_edge(
+                    "pY_residue_phospho", "pY_residue")
+                autocompletion_rule.inject_add_edge(
+                    "pY_residue", "pY_site")
+                autocompletion_rule.inject_add_edge(
+                    "pY_site", attached_to)
+                autocompletion_rule.inject_add_edge(
+                    "pY_site", region_bnd)
+                rhs_typing = {
+                    "kami": {
+                        "pY_site": "site",
+                        "pY_residue": "residue",
+                        "pY_residue_phospho": "state"
+                    }
+                }
 
+                _, rhs_nugget = hierarchy.rewrite(
+                    nugget_id, autocompletion_rule,
+                    rhs_typing=rhs_typing, strict=False)
+                sh2_semantic_rel[rhs_nugget["pY_site"]] = "pY_site"
+                sh2_semantic_rel[rhs_nugget["pY_residue"]] = "pY_residue"
+                sh2_semantic_rel[rhs_nugget["pY_residue_phospho"]] =\
+                    "phosphorylation"
             return sh2_semantic_rel
         return None
 
     template_rel = hierarchy.relation["bnd_template"][nugget_id]
 
     if "left_partner_region" in template_rel.keys():
-        if len(template_rel["left_partner_region"]) == 1:
-            region_node =\
-                list(template_rel["left_partner_region"])[0]
-            region_locus =\
-                list(template_rel["left_partner_locus"])[0]
-            region_bnd =\
-                list(template_rel["bnd"])[0]
-            opposite_locus =\
-                list(template_rel["right_partner_locus"])[0]
+        region_node =\
+            list(template_rel["left_partner_region"])[0]
+        region_bnd =\
+            list(template_rel["bnd"])[0]
 
-            partner_sites = None
-            if "right_partner_site" in template_rel.keys():
-                partner_sites = template_rel["right_partner_site"]
+        partner_site = None
+        if "right_partner_site" in template_rel.keys():
+            partner_site = list(template_rel["right_partner_site"])[0]
+        partner_region = None
+        if "right_partner_region" in template_rel.keys():
+            partner_region = list(template_rel["right_partner_region"])[0]
+        partner_gene = list(template_rel["right_partner"])[0]
 
-            sh2_semantic_rel = _apply_sh2_py_semantics(
-                region_node, region_locus, region_bnd, opposite_locus,
-                partner_sites)
-
-            if sh2_semantic_rel is not None:
-                hierarchy.add_semantic_nugget_rel(
-                    nugget_id,
-                    "sh2_pY_binding",
-                    sh2_semantic_rel)
-                _propagate_semantics_to_ag(
-                    hierarchy, nugget_id, "sh2_pY_binding")
+        sh2_semantic_rel = _apply_sh2_py_semantics(
+            region_node, region_bnd, partner_gene, partner_region,
+            partner_site)
+        if sh2_semantic_rel is not None:
+            hierarchy.add_semantic_nugget_rel(
+                nugget_id,
+                "sh2_pY_binding",
+                sh2_semantic_rel)
+            _propagate_semantics_to_ag(
+                hierarchy, nugget_id, "sh2_pY_binding")
 
     if "right_partner_region" in template_rel.keys():
-        if len(template_rel["right_partner_region"]) == 1:
-            region_node =\
-                list(template_rel["right_partner_region"])[0]
-            region_locus =\
-                list(template_rel["right_partner_locus"])[0]
-            region_bnd =\
-                list(template_rel["bnd"])[0]
-            opposite_locus =\
-                list(template_rel["left_partner_locus"])[0]
+        region_node =\
+            list(template_rel["right_partner_region"])[0]
+        region_bnd =\
+            list(template_rel["bnd"])[0]
 
-            partner_sites = None
-            if "left_partner_site" in template_rel.keys():
-                partner_sites = template_rel["left_partner_site"]
+        partner_site = None
+        if "left_partner_site" in template_rel.keys():
+            partner_site = list(template_rel["left_partner_site"])[0]
+        partner_region = None
+        if "left_partner_region" in template_rel.keys():
+            partner_region = list(template_rel["left_partner_region"])[0]
+        partner_gene = list(template_rel["left_partner"])[0]
 
-            sh2_semantic_rel = _apply_sh2_py_semantics(
-                region_node, region_locus, region_bnd, opposite_locus,
-                partner_sites)
-
-            if sh2_semantic_rel is not None:
-                hierarchy.add_semantic_nugget_rel(
-                    nugget_id,
-                    "sh2_pY_binding",
-                    sh2_semantic_rel)
-                _propagate_semantics_to_ag(
-                    hierarchy, nugget_id, "sh2_pY_binding")
-
+        sh2_semantic_rel = _apply_sh2_py_semantics(
+            region_node, region_bnd, partner_gene, partner_region,
+            partner_site)
+        if sh2_semantic_rel is not None:
+            hierarchy.add_semantic_nugget_rel(
+                nugget_id,
+                "sh2_pY_binding",
+                sh2_semantic_rel)
+            _propagate_semantics_to_ag(
+                hierarchy, nugget_id, "sh2_pY_binding")

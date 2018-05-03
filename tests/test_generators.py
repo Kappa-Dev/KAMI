@@ -282,8 +282,8 @@ class TestGenerators(object):
         gene_id = self.generator._generate_gene(nugget, gene2)
 
         # check it is consistent
-        assert(len(nugget.nodes()) == 19)
-        assert(len(nugget.edges()) == 18)
+        assert(len(nugget.nodes()) == 17)
+        assert(len(nugget.edges()) == 16)
         assert(gene_id in nugget.graph.nodes())
         assert("P00519" in nugget.graph.node[gene_id]['uniprotid'])
 
@@ -341,18 +341,6 @@ class TestGenerators(object):
             self.generator._generate_site(
                 nugget, site,
                 self.default_ag_gene, self.default_ag_gene)
-
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
-
-        site = Site(
-            "lala",
-            bound_to=[[gene, gene]]
-        )
-        site_id =\
-            self.generator._generate_site(
-                nugget, site, self.default_ag_gene,
-                self.default_ag_gene)
 
         nugget = NuggetContainer()
         nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene

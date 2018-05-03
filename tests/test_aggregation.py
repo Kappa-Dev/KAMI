@@ -134,14 +134,88 @@ class TestBlackBox(object):
 
         abl2_sh2 = RegionActor(abl2, sh2)
 
-        bnd527 = Binding(dok1_py398, abl2_sh2)
-        print(bnd527)
+        bnd = Binding(dok1_py398, abl2_sh2)
 
         hierarchy = KamiHierarchy()
-        hierarchy.add_interaction(bnd527)
-        # print(hierarchy)
-        # print_graph(hierarchy.node["nugget_1"].graph)
-        # print_graph(hierarchy.action_graph)
+        nugget_id = hierarchy.add_interaction(bnd)
+
+        semantic_entities = [
+            "sh2_domain",
+            "sh2_domain_pY_bnd",
+            "pY_site",
+            "pY_residue",
+            "phosphorylation"]
+
+        assert("pY_site" in hierarchy.nugget[nugget_id].nodes())
+        assert("pY_residue" in hierarchy.nugget[nugget_id].nodes())
+        assert("pY_residue_phospho" in hierarchy.nugget[nugget_id].nodes())
+
+        assert((nugget_id, "sh2_pY_binding") in hierarchy.relations() or
+               ("sh2_pY_binding", nugget_id) in hierarchy.relations())
+
+        for entity in semantic_entities:
+            assert(entity in hierarchy.relation[
+                "sh2_pY_binding"][nugget_id].keys())
+
+        site_actor_no_residue = SiteActor(
+            Gene("A"),
+            Site("pY-site", start=100, end=150))
+
+        bnd = Binding(abl2_sh2, site_actor_no_residue)
+        nugget_id = hierarchy.add_interaction(bnd)
+        assert(len(hierarchy.nugget[nugget_id].nodes()) == 7)
+        binding_nodes = []
+        for n in hierarchy.action_graph.nodes():
+            if hierarchy.action_graph_typing[n] == "bnd":
+                binding_nodes.append(n)
+        assert(len(binding_nodes) == 1)
+
+        assert((nugget_id, "sh2_pY_binding") in hierarchy.relations() or
+               ("sh2_pY_binding", nugget_id) in hierarchy.relations())
+
+        for entity in semantic_entities:
+            assert(entity in hierarchy.relation[
+                "sh2_pY_binding"][nugget_id].keys())
+
+        site_actor_no_phospho = SiteActor(
+            Gene("A"),
+            Site("pY-site", start=100, end=150, residues=[Residue("Y")]))
+        bnd = Binding(abl2_sh2, site_actor_no_phospho)
+        nugget_id = hierarchy.add_interaction(bnd)
+        assert(len(hierarchy.nugget[nugget_id].nodes()) == 8)
+        binding_nodes = []
+        for n in hierarchy.action_graph.nodes():
+            if hierarchy.action_graph_typing[n] == "bnd":
+                binding_nodes.append(n)
+        assert(len(binding_nodes) == 1)
+        assert((nugget_id, "sh2_pY_binding") in hierarchy.relations() or
+               ("sh2_pY_binding", nugget_id) in hierarchy.relations())
+
+        for entity in semantic_entities:
+            assert(entity in hierarchy.relation[
+                "sh2_pY_binding"][nugget_id].keys())
+
+        site_actor_with_residue = SiteActor(
+            Gene("A"),
+            Site("pY-site", start=100, end=150,
+                 residues=[Residue(
+                     "Y", loc=145, state=State("phosphorylation"))
+                 ]))
+
+        bnd = Binding(abl2_sh2, site_actor_with_residue)
+        nugget_id = hierarchy.add_interaction(bnd)
+        assert(len(hierarchy.nugget[nugget_id].nodes()) == 7)
+        binding_nodes = []
+        for n in hierarchy.action_graph.nodes():
+            if hierarchy.action_graph_typing[n] == "bnd":
+                binding_nodes.append(n)
+        assert(len(binding_nodes) == 1)
+        assert((nugget_id, "sh2_pY_binding") in hierarchy.relations() or
+               ("sh2_pY_binding", nugget_id) in hierarchy.relations())
+
+        for entity in semantic_entities:
+            assert(entity in hierarchy.relation[
+                "sh2_pY_binding"][nugget_id].keys())
 
     def test_multiple_sh2(self):
         """."""
