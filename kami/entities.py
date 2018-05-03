@@ -48,13 +48,10 @@ class PhysicalEntity(object):
     """
 
     def _normalize_bounds(self, bounds):
-        new_bounds = []
-        for el in bounds:
-            if not isinstance(el, collections.Iterable):
-                new_bounds.append([el])
-            else:
-                new_bounds.append(el)
-        return new_bounds
+        if not isinstance(bounds, collections.Iterable):
+            return [bounds]
+        else:
+            return bounds
 
     def add_residue(self, residue):
         """Add a residue to a list of residues of the entity."""
@@ -492,14 +489,14 @@ class Residue():
 class State(object):
     """Class for a KAMI state."""
 
-    def __init__(self, name, value):
+    def __init__(self, name, test=True):
         """Init kami state object."""
         self.name = name
-        self.value = value
+        self.test = test
 
     def __repr__(self):
         """Representation of a state."""
-        return "State(name='{}', value={})".format(self.name, self.value)
+        return "State(name='{}', test={})".format(self.name, self.test)
 
     def __str__(self):
         """Str representation of a state."""
@@ -510,7 +507,7 @@ class State(object):
         """Convert agent object to attrs."""
         return {
             "name": {self.name},
-            "test": {self.value}
+            "test": {self.test}
         }
 
 
