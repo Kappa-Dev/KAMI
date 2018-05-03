@@ -2,7 +2,7 @@
 
 from setuptools import setup
 setup(name='kami',
-      version='0.1',
+      version='1.2',
       description='Knowledge Aggregator and Model Instantiator',
       author='Russ Harmer, Sebastien Legare, Eugenia Oshurko',
       license='MIT License',
