@@ -217,6 +217,23 @@ class TestBlackBox(object):
             assert(entity in hierarchy.relation[
                 "sh2_pY_binding"][nugget_id].keys())
 
+        site_actor_with_residue1 = SiteActor(
+            Gene("B"),
+            Site("pY-site",
+                 residues=[Residue(
+                     "Y", loc=145, state=State("phosphorylation"))
+                 ]))
+        site_actor_with_residue2 = SiteActor(
+            Gene("B"),
+            Site("some site",
+                 residues=[Residue(
+                     "Y", loc=145, state=State("phosphorylation"))
+                 ]))
+        bnd1 = Binding(abl2_sh2, site_actor_with_residue1)
+        bnd2 = Binding(abl2_sh2, site_actor_with_residue2)
+        hierarchy.add_interactions([bnd1, bnd2])
+        print_graph(hierarchy.action_graph)
+
     def test_multiple_sh2(self):
         """."""
         phos = State("phosphorylation", True)
@@ -388,33 +405,6 @@ class TestBlackBox(object):
         inters.append(b)
         hierarchy = KamiHierarchy()
         hierarchy.add_interactions(inters, anatomize=True)
-
-    def test_site_merge(self):
-        enzyme_site_actor1 =\
-            SiteActor(
-                gene=Gene("P00533"),
-                site=Site("unknown", residues=[Residue("Y", 100)]))
-        substrate = Gene("P62993")
-        mod1 = Modification(
-            enzyme_site_actor1, substrate,
-            State("phosphorylation", False), True)
-
-        enzyme_site_actor2 =\
-            SiteActor(
-                gene=Gene("P00533"),
-                site=Site("noname", residues=[Residue("Y", 100)]),
-                region=Region("PK", start=720, end=950))
-        mod2 = Modification(
-            enzyme_site_actor2, substrate,
-            State("phosphorylation", False), True)
-        mod3 = Modification(
-            enzyme_site_actor2,
-            Gene("P00519"),
-            Residue("Y", 354, State("phosphorylation", False)), True)
-        hierarchy = KamiHierarchy()
-        hierarchy.add_interactions([mod1, mod2])
-        # hierarchy = create_nuggets([mod2, mod3])
-        print_graph(hierarchy.action_graph)
 
     def test_site_residue_reconnect(self):
         sh2 = Region(name="SH2")

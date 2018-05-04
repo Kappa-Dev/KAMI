@@ -11,8 +11,7 @@ from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           reconnect_residues,
                                           connect_nested_fragments,
-                                          connect_transitive_components,
-                                          merge_sites)
+                                          connect_transitive_components)
 from kami.aggregation.generators import (ModGenerator,
                                          AutoModGenerator,
                                          TransModGenerator,
@@ -777,7 +776,6 @@ class KamiHierarchy(Hierarchy):
             sites = self.get_attached_sites(g)
             regions = self.get_attached_regions(g)
             reconnect_residues(self, g, residues, regions, sites)
-            merge_sites(self, residues + sites)
 
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
@@ -829,9 +827,12 @@ class KamiHierarchy(Hierarchy):
     def add_interactions(self, interactions, add_agents=True,
                          anatomize=True, apply_semantics=True):
         """Add a collection of interactions to the model."""
+        nugget_ids = []
         for i in interactions:
-            self.add_interaction(i, add_agents, anatomize, apply_semantics)
-        return
+            nugget_id = self.add_interaction(
+                i, add_agents, anatomize, apply_semantics)
+            nugget_ids.append(nugget_id)
+        return nugget_ids
 
     def type_nugget_by_ag(self, nugget_id, typing):
         """Type nugget by the action graph."""

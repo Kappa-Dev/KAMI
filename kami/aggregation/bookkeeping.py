@@ -50,35 +50,34 @@ def reconnect_residues(hierarchy, gene, residues, regions, sites):
         return
 
 
-def merge_sites(hierarchy, nodes):
-    """Merge sites sharing the same residues."""
-    pattern = nx.DiGraph()
-    pattern.add_edges_from([("residue", "site1"), ("residue", "site2")])
-    site_merging_rule = Rule.from_transform(pattern)
-    site_merging_rule.inject_merge_nodes(["site1", "site2"])
-    lhs_typing = {
-        "kami": {
-            "residue": "residue",
-            "site1": "site",
-            "site2": "site"
-        }
-    }
-    instances_to_rewrite = hierarchy.find_matching(
-        "action_graph", pattern, pattern_typing=lhs_typing,
-        nodes=nodes)
-    visited_sites = set()
+# def merge_sites(hierarchy, nodes):
+#     """Merge sites sharing the same residues."""
+#     pattern = nx.DiGraph()
+#     pattern.add_edges_from([("residue", "site1"), ("residue", "site2")])
+#     site_merging_rule = Rule.from_transform(pattern)
+#     site_merging_rule.inject_merge_nodes(["site1", "site2"])
+#     lhs_typing = {
+#         "kami": {
+#             "residue": "residue",
+#             "site1": "site",
+#             "site2": "site"
+#         }
+#     }
+#     instances_to_rewrite = hierarchy.find_matching(
+#         "action_graph", pattern, pattern_typing=lhs_typing,
+#         nodes=nodes)
+#     visited_sites = set()
+#     while len(instances_to_rewrite) > 0:
+#         instance = instances_to_rewrite[0]
+#         if instance["site1"] not in visited_sites or\
+#            instance["site2"] not in visited_sites:
+#             hierarchy.rewrite("action_graph", site_merging_rule, instance)
+#             visited_sites.add(instance["site1"])
+#             visited_sites.add(instance["site2"])
 
-    while len(instances_to_rewrite) > 0:
-        instance = instances_to_rewrite[0]
-        if instance["site1"] not in visited_sites or\
-           instance["site2"] not in visited_sites:
-            hierarchy.rewrite("action_graph", site_merging_rule, instance)
-            visited_sites.add(instance["site1"])
-            visited_sites.add(instance["site2"])
-
-        instances_to_rewrite = hierarchy.find_matching(
-            "action_graph", pattern, pattern_typing=lhs_typing,
-            nodes=nodes)
+#         instances_to_rewrite = hierarchy.find_matching(
+#             "action_graph", pattern, pattern_typing=lhs_typing,
+#             nodes=nodes)
 
 
 def connect_transitive_components(hierarchy, new_nodes):

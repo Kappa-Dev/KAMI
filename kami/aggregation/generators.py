@@ -403,7 +403,7 @@ class Generator(object):
                              gene, mod_value=True):
         residue = None
         if isinstance(target, State):
-            if target.value == mod_value:
+            if target.test == mod_value:
                 warnings.warn(
                     "Modification does not change the state's value!",
                     UserWarning
@@ -412,7 +412,7 @@ class Generator(object):
                 nugget, target, attached_to)
         elif isinstance(target, Residue):
             if target.state:
-                if target.state.value == mod_value:
+                if target.state.test == mod_value:
                     warnings.warn(
                         "Modification does not change the state's value!",
                         KamiWarning

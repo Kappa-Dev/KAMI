@@ -270,9 +270,31 @@ def apply_bnd_semantics(hierarchy, nugget_id):
                     sh2_semantic_rel[rhs_nugget["pY_residue_phospho"]] =\
                         "phosphorylation"
                 else:
+                    # Update action graph by merging all the sites
+                    # sharing the same residue
+                    ag_gene = hierarchy.typing[nugget_id][
+                        "action_graph"][partner_gene]
+                    sites = [
+                        s for s in hierarchy.get_attached_sites(ag_gene)
+                        if s != partner_site]
+
+                    sites_to_merge = set()
                     for residue, state in py_residue_states:
                         sh2_semantic_rel[residue] = "pY_residue"
                         sh2_semantic_rel[state] = "phosphorylation"
+                        ag_residue = hierarchy.typing[
+                            nugget_id]["action_graph"][residue]
+                        for s in sites:
+                            if ag_residue in hierarchy.get_attached_residues(s):
+                                sites_to_merge.add(s)
+                    if len(sites_to_merge) > 0:
+                        sites_to_merge.add(partner_site)
+                        pattern = nx.DiGraph()
+                        add_nodes_from(pattern, sites_to_merge)
+                        site_merging_rule = Rule.from_transform(pattern)
+                        site_merging_rule.inject_merge_nodes(sites_to_merge)
+                        hierarchy.rewrite("action_graph", site_merging_rule)
+
             else:
                 if partner_region is not None:
                     attached_to = partner_region
