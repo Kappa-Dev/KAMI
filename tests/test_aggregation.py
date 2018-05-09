@@ -2,6 +2,7 @@
 
 from regraph.primitives import (print_graph)
 
+from kami.export.old_kami import ag_to_edge_list
 from kami.interactions import (Modification, Binding)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
@@ -360,7 +361,7 @@ class TestBlackBox(object):
         hierarchy = KamiHierarchy()
         hierarchy.add_interactions([m], anatomize=True)
         print_graph(hierarchy.nugget["nugget_1"])
-        print(hierarchy.ag_to_edge_list())
+        print(ag_to_edge_list(hierarchy))
 
     def test_advanced_site_actor(self):
         # General phosphorylation state.
