@@ -372,10 +372,11 @@ class Generator(object):
             nugget, site_actor.site, agent_id, agent_id)
         region_id = None
         if site_actor.region is not None:
-            region_id = self._generate_region(
-                nugget, site_actor.region, agent_id)
-            nugget.add_edge(region_id, agent_id, site_actor.region.location())
-            nugget.add_edge(site_id, region_id, site_actor.site.location())
+            for r in site_actor.region:
+                region_id = self._generate_region(
+                    nugget, r, agent_id)
+                nugget.add_edge(region_id, agent_id, r.location())
+                nugget.add_edge(site_id, region_id, site_actor.site.location())
         else:
             nugget.add_edge(site_id, agent_id, site_actor.site.location())
 

@@ -537,7 +537,10 @@ class SiteActor(Actor):
     def __init__(self, gene, site, region=None):
         """Initialize SiteActor object."""
         self.site = site
-        self.region = region
+        if region is None or isinstance(region, collections.Iterable):
+            self.region = region
+        else:
+            self.region = [region]
         self.gene = gene
 
     def __repr__(self):
