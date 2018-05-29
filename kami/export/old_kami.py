@@ -71,14 +71,38 @@ def get_studio_v1(hierarchy,
         if node_typ == "residue":
             aa_field = (hierarchy.graph[graph_level]
                         .node[node_id]["aa"])
-            loc_field = (hierarchy.graph[graph_level]
-                         .node[node_id]["loc"])
             aa = list(aa_field)[0]
-            loc = list(loc_field)[0]
-            label = '%s%s' % (aa, loc)
+            # Location is now an attribute of edges.
+            out_edges = (hierarchy.graph[graph_level]
+                         .edge[node_id].keys())
+            aa_locations = []
+            for out_edge in out_edges:
+                try:
+                    loc_field = (hierarchy.graph[graph_level]
+                                 .edge[node_id][out_edge]["loc"])
+                    aa_locations.append(list(loc_field)[0])
+                except:
+                    pass
+            if len(aa_locations) == 0:
+                loc = 'unknown'
+            else:
+                if len(set(aa_locations)) == 1:
+                    loc = aa_locations[0]
+                else:
+                    loc = 'unknown'
+                    warnings.warn(
+                        "Conflicting information about location of residue %s."
+                        % node_id, KamiWarning)
+            if loc == 'unknown':
+                label = '%s' % (aa)
+            else:
+                label = '%s%s' % (aa, loc)
         if node_typ == "state":
-            underscore = node_id.rfind("_")
-            state_name = node_id[underscore + 1:]
+            #underscore = node_id.rfind("_")
+            #state_name = node_id[underscore + 1:] 
+            field = (hierarchy.graph[graph_level]
+                     .node[node_id]["name"])
+            state_name = list(field)[0]
             if state_name == "phosphorylation":
                 label = "phos"
             else:
@@ -178,20 +202,15 @@ def get_studio_v1(hierarchy,
     top_graph["edges"] = edges
 
     positions = {
-        "bnd":      {"x": 539.3,  "y": 267.3},
-        "is_free":  {"x": 378.0,  "y": 413.9},
-        "state":    {"x": 1212.4, "y": 450.9},
-        "is_bnd":   {"x": 406.3,  "y": 519.7},
-        "brk":      {"x": 417.2,  "y": 285.0},
-        "mod":      {"x": 1218.1, "y": 588.0},
-        "residue":  {"x": 1088.2, "y": 334.3},
-        "deg":      {"x": 820.5,  "y": 721.8},
-        "syn":      {"x": 652.8,  "y": 722.4},
-        "half-act": {"x": 543.1,  "y": 409.8},
-        "gene":     {"x": 728.5,  "y": 591.6},
-        "region":   {"x": 728.5,  "y": 443.3},
-        "site":     {"x": 893.0,  "y": 335.3},
-        "compo":    {"x": 727.4,  "y": 275.3}
+        "bnd":      {"x": 780, "y": 500},
+        "state":    {"x": 780, "y": 766},
+        "mod":      {"x": 700, "y": 900},
+        "residue":  {"x": 860, "y": 900},
+        "deg":      {"x": 500, "y": 800},
+        "syn":      {"x": 500, "y": 600},
+        "gene":     {"x": 620, "y": 700},
+        "region":   {"x": 940, "y": 700},
+        "site":     {"x": 780, "y": 633}
     }
     attributes = {"name": "kami", "positions": positions}
     top_graph["attributes"] = attributes
