@@ -130,11 +130,11 @@ def to_kamistudio(hierarchy,
         nodes.append(node)
     top_graph["nodes"] = nodes
 
-    edges = [{"from": "component", "to": "component", "attrs": {"pouf":"paf"}},
-             {"from": "component", "to": "action",    "attrs": {"pouf":"paf"}},
-             {"from": "action",    "to": "component", "attrs": {"pouf":"paf"}},
-             {"from": "action",    "to": "state", "attrs": {"pouf":"paf"}},
-             {"from": "state",     "to": "component", "attrs": {"pouf":"paf"}}]
+    edges = [{"from": "component", "to": "component", "attrs": {}},
+             {"from": "component", "to": "action",    "attrs": {}},
+             {"from": "action",    "to": "component", "attrs": {}},
+             {"from": "action",    "to": "state", "attrs": {}},
+             {"from": "state",     "to": "component", "attrs": {}}]
     top_graph["edges"] = edges
 
     positions = {
@@ -174,7 +174,7 @@ def to_kamistudio(hierarchy,
     for kami_edge in hierarchy.graph['kami'].edges():
         source = kami_edge[0]
         target = kami_edge[1]
-        edge = {"from": source, "to": target, "attrs": {"pouf":"paf"}}
+        edge = {"from": source, "to": target, "attrs": {}}
         edges.append(edge)
     top_graph["edges"] = edges
 
@@ -224,14 +224,55 @@ def to_kamistudio(hierarchy,
                                     "strSet": {"pos_list": []}}
                 vals = list(hierarchy.graph['action_graph']
                             .node[ag_node][attribute])
-                value_list = []
+                str_value_list = []
+                num_value_list = []
                 for val in vals:
                     if val is True:
-                        val = "True"
+                        val = "true"
                     if val is False:
-                        val = "False"
-                    value_list.append(val)
-                attrs[attribute]["strSet"]["pos_list"] = value_list
+                        val = "false"
+                    try:
+                        float(val)
+                        num_value_list.append(val)
+                    except:
+                        str_value_list.append(val)
+                attrs[attribute]["numSet"]["pos_list"] = num_value_list
+                attrs[attribute]["strSet"]["pos_list"] = str_value_list
+        # I put attributes from edges into nodes for now as there seem to be
+        # a problem with edge attributes in the old regraph.
+        out_edge_list = list(hierarchy.graph['action_graph']
+                             .edge[ag_node].keys())
+        for out_edge in out_edge_list:
+            edge_str_attrs = {}
+            edge_num_attrs = {}
+            attributes = list(hierarchy.graph['action_graph']
+                              .edge[ag_node][out_edge].keys())
+            for attribute in attributes:
+                attrs[attribute] = {"numSet": {"pos_list": []},
+                                    "strSet": {"pos_list": []}}
+                vals = list(hierarchy.graph['action_graph']
+                            .edge[ag_node][out_edge][attribute])
+                # Temporary solution for when the range of a site is split
+                # between two regions. The two ranges will be displayed, but
+                # not which region each range comes from.
+                if attribute in attrs.keys():
+                    str_value_list = attrs[attribute]["strSet"]["pos_list"]
+                    num_value_list = attrs[attribute]["numSet"]["pos_list"]
+                else:
+                    str_value_list = []
+                    num_value_list = []
+                for val in vals:
+                    if val is True:
+                        val = "true"
+                    if val is False:
+                        val = "false"
+                    try:
+                        float(val)
+                        num_value_list.append(val)
+                    except:
+                        str_value_list.append(val)
+                attrs[attribute]["numSet"]["pos_list"] = num_value_list
+                attrs[attribute]["strSet"]["pos_list"] = str_value_list
         # ---------------------------------------------------------
         node = {"id": node_label, "type": node_type, "attrs": attrs}
         nodes.append(node)
@@ -242,22 +283,22 @@ def to_kamistudio(hierarchy,
         source_label = label_tracker[ag_edge[0]]
         target_label = label_tracker[ag_edge[1]]
         ## Uncomment when edge attributes will work in KAMIStudio
-        ## ----- Get all attributes of the action graph edge --------------------
+        ## ----- Get all attributes of the nugget edge --------------------
         #attrs = {}
-        #attributes = list(hierarchy.graph['action_graph']
+        #attributes = list(hierarchy.graph[nugget_id]
         #                  .edge[ag_edge[0]][ag_edge[1]].keys())
         #for attribute in attributes:
         #    if attribute != "rate":
         #        attrs[attribute] = {"numSet": {"pos_list": []},
         #                            "strSet": {"pos_list": []}}
-        #        vals = list(hierarchy.graph['action_graph']
+        #        vals = list(hierarchy.graph[nugget_id]
         #                    .edge[ag_edge[0]][ag_edge[1]][attribute])
         #        value_list = []
         #        for val in vals:
         #            if val is True:
-        #                val = "True"
+        #                val = "true"
         #            if val is False:
-        #                val = "False"
+        #                val = "false"
         #            value_list.append(val)
         #        attrs[attribute]["strSet"]["pos_list"] = value_list
         ## ---------------------------------------------------------
@@ -308,14 +349,55 @@ def to_kamistudio(hierarchy,
                                         "strSet": {"pos_list": []}}
                     vals = list(hierarchy.graph[nugget_id]
                                 .node[nugget_node][attribute])
-                    value_list = []
+                    str_value_list = []
+                    num_value_list = []
                     for val in vals:
                         if val is True:
-                            val = "True"
+                            val = "true"
                         if val is False:
-                            val = "False"
-                        value_list.append(val)
-                    attrs[attribute]["strSet"]["pos_list"] = value_list
+                            val = "false"
+                        try:
+                            float(val)
+                            num_value_list.append(val)
+                        except:
+                            str_value_list.append(val)
+                    attrs[attribute]["numSet"]["pos_list"] = num_value_list
+                    attrs[attribute]["strSet"]["pos_list"] = str_value_list
+            # I put attributes from edges into nodes for now as there seem to be
+            # a problem with edge attributes in the old regraph.
+            out_edge_list = list(hierarchy.graph['action_graph']
+                                 .edge[nugget_node].keys())
+            for out_edge in out_edge_list:
+                edge_str_attrs = {}
+                edge_num_attrs = {}
+                attributes = list(hierarchy.graph['action_graph']
+                                  .edge[nugget_node][out_edge].keys())
+                for attribute in attributes:
+                    attrs[attribute] = {"numSet": {"pos_list": []},
+                                        "strSet": {"pos_list": []}}
+                    vals = list(hierarchy.graph['action_graph']
+                                .edge[nugget_node][out_edge][attribute])
+                    # Temporary solution for when the range of a site is split
+                    # between two regions. The two ranges will be displayed, but
+                    # not which region each range comes from.
+                    if attribute in attrs.keys():
+                        str_value_list = attrs[attribute]["strSet"]["pos_list"]
+                        num_value_list = attrs[attribute]["numSet"]["pos_list"]
+                    else:
+                        str_value_list = []
+                        num_value_list = []
+                    for val in vals:
+                        if val is True:
+                            val = "true"
+                        if val is False:
+                            val = "false"
+                        try:
+                            float(val)
+                            num_value_list.append(val)
+                        except:
+                            str_value_list.append(val)
+                    attrs[attribute]["numSet"]["pos_list"] = num_value_list
+                    attrs[attribute]["strSet"]["pos_list"] = str_value_list
             # ---------------------------------------------------------
             node = {"id": node_label, "type": node_type_studio,
                     "attrs": attrs}
@@ -354,9 +436,9 @@ def to_kamistudio(hierarchy,
             #        value_list = []
             #        for val in vals:
             #            if val is True:
-            #                val = "True"
+            #                val = "true"
             #            if val is False:
-            #                val = "False"
+            #                val = "false"
             #            value_list.append(val)
             #        attrs[attribute]["strSet"]["pos_list"] = value_list
             ## ---------------------------------------------------------
