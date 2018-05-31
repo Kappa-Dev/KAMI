@@ -18,13 +18,13 @@ class Interaction(object):
 class Modification(Interaction):
     """Class for Kami mod interaction."""
 
-    def __init__(self, enzyme, substrate, mod_target,
-                 mod_value=True, rate=None, annotation=None):
+    def __init__(self, enzyme, substrate, target,
+                 value=True, rate=None, annotation=None):
         """Initialize modification."""
         self.enzyme = enzyme
         self.substrate = substrate
-        self.target = mod_target
-        self.value = mod_value
+        self.target = target
+        self.value = value
         self.rate = rate
         self.annotation = annotation
         return
