@@ -2,6 +2,9 @@
 
 
 def generate_new_id(graph, base_name):
+    """Generate new unique node id."""
+    if base_name not in graph.nodes():
+        return base_name
     i = 1
     new_base_name = str(base_name) + "_" + str(i)
     while new_base_name in graph.nodes():
