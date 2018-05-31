@@ -38,8 +38,16 @@ class IndraImportWarning(KamiWarning):
 
 
 class BiopaxImportError(KamiError):
-    """."""
+    """Class for Biopax import errors."""
 
 
 class BiopaxImportWarning(KamiWarning):
-    """."""
+    """Warnings for BiopaxImport."""
+
+
+class KamiEntityError(KamiException):
+    """Class for errors in KAMI entities."""
+
+
+class KamiInteractionError(KamiException):
+    """Class for errors in KAMI interactions."""
