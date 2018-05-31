@@ -297,8 +297,8 @@ class TestBlackBox(object):
                     Region(name="L receptor",
                            start=57, end=167, states=[phos])]),
                 Region(start=1000, end=1500)),
-            mod_target=Residue(aa="Y", loc=1092, state=unphos),
-            mod_value=True
+            target=Residue(aa="Y", loc=1092, state=unphos),
+            value=True
         )
         inters.append(m)
 
@@ -332,8 +332,8 @@ class TestBlackBox(object):
             substrate=SiteActor(
                 gene=Gene(sub_uniprot),
                 site=Site(name=site_name, start=strt, end=stop)),
-            mod_target=Residue(aa="Y", loc=location, state=unphos),
-            mod_value=True)
+            target=Residue(aa="Y", loc=location, state=unphos),
+            value=True)
         inters.append(m)
         hierarchy = KamiHierarchy()
         hierarchy.add_interactions(inters, anatomize=True)
@@ -355,8 +355,8 @@ class TestBlackBox(object):
             substrate=SiteActor(gene=Gene("P00533"),
                                 site=Site(name="target"),
                                 region=Region(name="bla")),
-            mod_target=Residue("Y", 100, State("phosphorylation", False)),
-            mod_value=True
+            target=Residue("Y", 100, State("phosphorylation", False)),
+            value=True
         )
         hierarchy = KamiHierarchy()
         hierarchy.add_interactions([m], anatomize=True)
@@ -383,16 +383,16 @@ class TestBlackBox(object):
             enzyme=Gene("P00519", hgnc_symbol="ABL1"),
             substrate=SiteActor(gene=Gene("P00519", hgnc_symbol="ABL1"),
                                 site=Site(name="site800", start=796, end=804)),
-            mod_target=Residue("Y", 800, State("phosphorylation", False)),
-            mod_value=True
+            target=Residue("Y", 800, State("phosphorylation", False)),
+            value=True
         )
         inters.append(m)
         m = Modification(
             enzyme=Gene("P00519", hgnc_symbol="ABL1"),
             substrate=SiteActor(gene=Gene("P00533", hgnc_symbol="EGFR"),
                                 site=Site(name="site800", start=796, end=804)),
-            mod_target=Residue("Y", 800, State("phosphorylation", False)),
-            mod_value=True
+            target=Residue("Y", 800, State("phosphorylation", False)),
+            value=True
         )
         inters.append(m)
 

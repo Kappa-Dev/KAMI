@@ -390,31 +390,31 @@ class TestGenerators(object):
         mod1 = Modification(
             enzyme=enzyme_gene,
             substrate=substrate_gene,
-            mod_target=state_mod_target
+            target=state_mod_target
         )
 
         mod2 = Modification(
             enzyme=enzyme_region_actor,
             substrate=substrate_gene,
-            mod_target=state_mod_target
+            target=state_mod_target
         )
 
         mod3 = Modification(
             enzyme=enzyme_site_actor,
             substrate=substrate_gene,
-            mod_target=state_mod_target
+            target=state_mod_target
         )
 
         mod4 = Modification(
             enzyme=enzyme_site_actor,
             substrate=substrate_region_actor,
-            mod_target=state_mod_target
+            target=state_mod_target
         )
 
         mod5 = Modification(
             enzyme=enzyme_site_actor,
             substrate=substrate_site_actor,
-            mod_target=residue_mod_target
+            target=residue_mod_target
         )
         hierarchy = KamiHierarchy()
         generator = ModGenerator(hierarchy)

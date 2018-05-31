@@ -62,7 +62,7 @@ class TestRepresentation(object):
         mod = Modification(
             enzyme=self.enzyme_site_actor,
             substrate=self.substrate_region_actor,
-            mod_target=self.residue_mod_target
+            target=self.residue_mod_target
         )
         print(mod)
         print(mod.__repr__())
