@@ -1,15 +1,16 @@
 """KAMI specific graph hierarchy."""
 import copy
 import networkx as nx
-import warnings
 
 from regraph import Rule, Hierarchy
 from regraph.primitives import (add_node, add_edge)
 
 from kami.resources import default_components
+from kami.utils.generic import normalize_to_set
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           reconnect_residues,
+                                          reconnect_sites,
                                           connect_nested_fragments,
                                           connect_transitive_components)
 from kami.aggregation.generators import (ModGenerator,
@@ -33,7 +34,6 @@ from kami.interactions import (Modification,
 class KamiHierarchy(Hierarchy):
     """Kami-specific hierarchy class."""
 
-    # Similar to NetworkX node_dict_factory
     nugget_dict_factory = dict
     semantic_nugget_dict_factory = dict
 
@@ -342,37 +342,68 @@ class KamiHierarchy(Hierarchy):
             )
         return None
 
-    def add_gene(self, gene):
-        """Add gene node to action graph."""
+    def add_gene(self, gene, rewriting=False):
+        """Add gene node to action graph.
+
+        gene : kami.entities.Gene
+        rewriting : bool
+            Flag indicating if the action graph should be modified
+            by SqPO rewriting (if True) or primitive operations (if False)
+        """
         if self.action_graph is None:
             self.create_empty_action_graph()
         if gene.uniprotid:
             gene_id = gene.uniprotid
         else:
-            i = 1
-            name = "unkown_agent_"
-            while name + str(i) in self.action_graph.nodes():
-                i += 1
-            gene_id = name + str(i)
+            gene_id = generate_new_id(
+                self.action_graph, "unkown_agent")
+        if rewriting:
+            rule = Rule.from_transform(nx.DiGraph())
+            rule.inject_add_node(gene_id, gene.meta_data())
+            rhs_typing = {"kami": {gene_id: "gene"}}
+            _, rhs_instance = self.rewrite(
+                "action_graph", rule, instance={},
+                rhs_typing=rhs_typing, inplace=True)
+            return rhs_instance[gene_id]
+        else:
+            add_node(self.action_graph, gene_id, gene.meta_data())
+            self.action_graph_typing[gene_id] = "gene"
+            return gene_id
 
-        add_node(self.action_graph, gene_id, gene.meta_data())
-        self.action_graph_typing[gene_id] = "gene"
-        return gene_id
+    def add_mod(self, attrs=None, semantics=None, rewriting=False):
+        """Add mod node to the action graph.
 
-    def add_mod(self, attrs=None, semantics=None):
-        """Add mod node to the action graph."""
-        # TODO: nice mod ids generation
+        attrs : dict
+            Dictionary with mod node attributes
+        semantics: str or iterable of str
+            Semantics of the mod node (available semantics: `phosopo`,
+            `dephospho`)
+        rewriting : bool
+            Flag indicating if the action graph should be modified
+            by SqPO rewriting (if True) or primitive operations (if False)
+        """
+        semantics = normalize_to_set(semantics)
+
         mod_id = generate_new_id(self.action_graph, "mod")
 
-        add_node(self.action_graph, mod_id, attrs)
-        self.action_graph_typing[mod_id] = "mod"
+        if rewriting:
+            rule = Rule.from_transform(nx.DiGraph())
+            rule.inject_add_node(mod_id, attrs)
+            rhs_typing = {"kami": {mod_id: "mod"}}
+            _, rhs_instance = self.rewrite(
+                "action_graph", rule, instance={},
+                rhs_typing=rhs_typing, inplace=True)
+            res_mod_id = rhs_instance[mod_id]
+        else:
+            add_node(self.action_graph, mod_id, attrs)
+            self.action_graph_typing[mod_id] = "mod"
+            res_mod_id = mod_id
 
         # add semantic relations of the node
-        if semantics:
-            for s in semantics:
-                self.add_ag_node_semantics(mod_id, s)
+        for s in semantics:
+            self.add_ag_node_semantics(res_mod_id, s)
 
-        return mod_id
+        return res_mod_id
 
     def add_ag_node_semantics(self, node_id, semantic_node):
         """Add relation of `node_id` with `semantic_node`."""
@@ -391,56 +422,81 @@ class KamiHierarchy(Hierarchy):
         pairs = self.relation["action_graph"]["semantic_action_graph"]
         for node, semantic_node in pairs:
             if node == node_id:
-
                 result.append(semantic_node)
         return result
 
-    def add_region(self, region, ref_agent, semantics=None):
-        """Add region node to action graph connected to `ref_agent`."""
-        # found node in AG corresponding to reference agent
-        if ref_agent not in self.genes():
+    def add_region(self, region, ref_gene, semantics=None, rewriting=False):
+        """Add a region node to action graph connected to the reference agent.
+
+        region : kami.entities.Region
+            Region to add
+        ref_gene
+            Id of the reference agent node in the action graph
+        semantics: str or iterable of str
+            Semantics of the mod node (available semantics: `protein_kinase`,
+            `sh2_domain`)
+        rewriting : bool
+            Flag indicating if the action graph should be modified
+            by SqPO rewriting (if True) or primitive operations (if False)
+        """
+        # find the node corresponding to reference agent in the AG
+        if ref_gene not in self.genes():
             raise KamiHierarchyError(
-                "Agent '%s' is not found in the action graph" %
-                ref_agent
-            )
+                "Gene '{}' is not found in the action graph".format(ref_gene))
 
-        region_id = "%s_region_%s" % (ref_agent, str(region))
+        semantics = normalize_to_set(semantics)
 
-        if region_id in self.action_graph.nodes():
-            region_id = generate_new_id(self.action_graph, region_id)
+        region_id = generate_new_id(
+            self.action_graph, "{}_{}".format(ref_gene, str(region)))
 
-        add_node(self.action_graph, region_id, region.meta_data())
-        self.action_graph_typing[region_id] = "region"
-        add_edge(self.action_graph, region_id, ref_agent, region.location())
+        if rewriting:
+            pattern = nx.DiGraph()
+            pattern.add_node(ref_gene)
+            rule = Rule.from_transform(pattern)
+            rule.inject_add_node(region_id, region.meta_data())
+            rule.inject_add_edge(region_id, ref_gene, region.location())
+            rhs_typing = {"kami": {region_id: "region"}}
+            _, rhs_instance = self.rewrite(
+                "action_graph", rule, instance={ref_gene: ref_gene},
+                rhs_typing=rhs_typing, inplace=True)
+            res_region_id = rhs_instance[region_id]
+        else:
+            add_node(self.action_graph, region_id, region.meta_data())
+            self.action_graph_typing[region_id] = "region"
+            add_edge(
+                self.action_graph, region_id, ref_gene, region.location())
+            res_region_id = region_id
 
         if semantics is not None:
-            for sem in semantics:
-                self.relation["action_graph"][
-                    "semantic_action_graph"][region_id] = sem
+            for s in semantics:
+                self.add_ag_node_semantics(res_region_id, s)
 
         # reconnect all the residues & sites of the corresponding gene
         # that lie in the region range
-        if region.start is not None and region.end is not None:
-            for residue in self.get_attached_residues(ref_agent):
-                if "loc" in self.action_graph.node[residue].keys():
-                    loc = list(self.action_graph.node[residue]["loc"])[0]
-                    if loc >= region.start and loc <= region.end:
-                        add_edge(self.action_graph, residue, region_id)
+        reconnect_residues(
+            self, ref_gene,
+            self.get_attached_residues(ref_gene),
+            [res_region_id])
 
-            for site in self.get_attached_sites(ref_agent):
-                if "start" in self.action_graph.node[site].keys() and\
-                   "end" in self.action_graph.node[site].keys():
-                    start = min(self.action_graph.node[site]["start"])
-                    end = max(self.action_graph.node[site]["end"])
-                    if start >= region.start and end <= region.end:
-                        add_edge(self.action_graph, site, region_id)
+        reconnect_sites(
+            self, ref_gene,
+            self.get_attached_sites(ref_gene),
+            [res_region_id]
+        )
 
-        return region_id
+        return res_region_id
 
-    def add_site(self, site, ref_agent, semantics=None):
+    def add_site(self, site, ref_agent, semantics=None, rewriting=True):
         """Add site node to the action graph."""
         ref_agent_in_genes = ref_agent in self.genes()
         ref_agent_in_regions = ref_agent in self.regions()
+
+        if ref_agent_in_genes:
+            ref_gene = ref_agent
+        else:
+            ref_gene = self.get_gene_of(ref_agent)
+
+        semantics = normalize_to_set(semantics)
 
         if not ref_agent_in_genes and not ref_agent_in_regions:
             raise KamiHierarchyError(
@@ -448,64 +504,49 @@ class KamiHierarchy(Hierarchy):
                 "found in the action graph" %
                 ref_agent
             )
-        site_id = "%s_%s" % (ref_agent, str(site))
+        site_id = generate_new_id(
+            self.action_graph, "{}_{}".format(ref_agent, str(site)))
 
-        if site_id in self.action_graph.nodes():
-            site_id = generate_new_id(self.action_graph, site_id)
-        add_node(self.action_graph, site_id, site.meta_data())
-        assert(site_id in self.action_graph.nodes())
-        self.action_graph_typing[site_id] = "site"
-        add_edge(self.action_graph, site_id, ref_agent, site.location())
-        assert((site_id, ref_agent) in self.action_graph.edges())
+        if rewriting:
+            pattern = nx.DiGraph()
+            pattern.add_node(ref_gene)
+            instance = {ref_gene: ref_gene}
+            if not ref_agent_in_genes:
+                pattern.add_node(ref_agent)
+                instance[ref_agent] = ref_agent
+            rule = Rule.from_transform(pattern)
+            rule.inject_add_node(site_id, site.meta_data())
+            rule.inject_add_edge(site_id, ref_gene, site.location())
+            if not ref_agent_in_genes:
+                rule.inject_add_edge(site_id, ref_agent, site.location())
+            rhs_typing = {"kami": {site_id: "site"}}
+            _, rhs_instance = self.rewrite(
+                "action_graph", rule, instance, rhs_typing=rhs_typing)
+            new_site_id = rhs_instance[site_id]
+        else:
+            add_node(self.action_graph, site_id, site.meta_data())
+            self.action_graph_typing[site_id] = "site"
+            add_edge(self.action_graph, site_id, ref_agent, site.location())
+            new_site_id = site_id
 
-        if semantics is not None:
-            for sem in semantics:
-                self.relation["action_graph"]["semantic_action_graph"].add(
-                    (site_id, sem)
-                )
+        for sem in semantics:
+            self.add_ag_node_semantics(site_id, sem)
 
-        # find if there are regions to which it may be included
-        if ref_agent_in_genes:
-            for region in self.get_attached_regions(ref_agent):
-                if site.start and site.end:
-                    if "start" in self.action_graph.node[region] and\
-                       "end" in self.action_graph.node[region]:
-                        if int(site.start) >= min(self.action_graph.node[
-                            region]["start"]) and\
-                           int(site.end) <= max(self.action_graph.node[
-                                region]["end"]):
-                            add_edge(self.action_graph, site_id, region)
-            # reconnect all the residues of the corresponding gene
-            # that lie in the region range
-
-            if site.start is not None and site.end is not None:
-                for residue in self.get_attached_residues(ref_agent):
-                    if "loc" in self.action_graph.node[residue].keys():
-                        loc = list(self.action_graph.node[residue]["loc"])[0]
-                        if loc >= site.start and loc <= site.end:
-                            add_edge(self.action_graph, residue, site_id)
-
-        elif ref_agent_in_regions:
-            gene_id = self.get_gene_of(ref_agent)
-            add_edge(self.action_graph, site_id, gene_id)
-            # reconnect all the residues of the corresponding gene
-            # that lie in the region range
-            if site.start is not None and site.end is not None:
-                for residue in self.get_attached_residues(gene_id):
-                    if "loc" in self.action_graph.node[residue].keys():
-                        loc = list(self.action_graph.node[residue]["loc"])[0]
-                        if loc >= site.start and loc <= site.end:
-                            add_edge(self.action_graph, residue, site_id)
+        reconnect_residues(
+            self, ref_gene, self.get_attached_residues(ref_gene),
+            sites=[new_site_id])
+        reconnect_sites(
+            self, ref_gene, [new_site_id],
+            self.get_attached_regions(ref_gene))
 
         return site_id
 
-    def add_residue(self, residue, ref_agent, semantics=None):
+    def add_residue(self, residue, ref_agent, semantics=None, rewriting=False):
         """Add residue node to the action_graph."""
         if ref_agent not in self.action_graph.nodes():
             raise KamiHierarchyError(
-                "Node '%s' does not exist in the action graph" %
-                ref_agent
-            )
+                "Node '{}' does not exist in the action graph".format(
+                    ref_agent))
 
         ref_agent_in_genes = ref_agent in self.genes()
         ref_agent_in_regions = ref_agent in self.regions()
@@ -520,83 +561,63 @@ class KamiHierarchy(Hierarchy):
                 (ref_agent, self.action_graph_typing[ref_agent])
             )
 
+        semantics = normalize_to_set(semantics)
+
         # try to find an existing residue with this
-        res = identify_residue(self, residue, ref_agent, True)
+        residue_id = identify_residue(
+            self, residue, ref_agent, add_aa=True, rewriting=rewriting)
+
         # if residue with this loc does not exist: create one
-        if res is None:
+        if residue_id is None:
+
+            residue_id = generate_new_id(
+                self.action_graph, "{}_{}".format(ref_agent, str(residue)))
+
             if ref_agent_in_genes:
-                residue_id = "%s_residue" % ref_agent
-                if residue.loc is not None:
-                    residue_id += "_%s" % residue.loc
-                else:
-                    residue_id = generate_new_id(self.action_graph, residue_id)
-                add_node(self.action_graph, residue_id, residue.meta_data())
-                self.action_graph_typing[residue_id] = "residue"
-                add_edge(self.action_graph, residue_id, ref_agent,
-                         residue.location())
-
-                for region in self.get_attached_regions(ref_agent):
-                    if residue.loc:
-                        if "start" in self.action_graph.node[region] and\
-                           "end" in self.action_graph.node[region]:
-                            start = min(
-                                self.action_graph.node[region]["start"])
-                            end = max(
-                                self.action_graph.node[region]["end"])
-                            if int(residue.loc) >= start and\
-                               int(residue.loc) <= end:
-                                add_edge(self.action_graph, residue_id, region)
-
-                for site in self.get_attached_sites(ref_agent):
-                    if residue.loc:
-                        if "start" in self.action_graph.node[site] and\
-                           "end" in self.action_graph.node[site]:
-                            start = min(
-                                self.action_graph.node[site]["start"])
-                            end = max(
-                                self.action_graph.node[site]["end"])
-                            if int(residue.loc) >= start and\
-                               int(residue.loc) <= end:
-                                add_edge(self.action_graph, residue_id, site)
+                ref_gene = ref_agent
             else:
-                gene_id = self.get_gene_of(ref_agent)
-                residue_id = "%s_residue" % gene_id
-                if residue.loc is not None:
-                    residue_id += "_%s" % residue.loc
-                else:
-                    residue_id = generate_new_id(self.action_graph, residue_id)
+                ref_gene = self.get_gene_of(ref_agent)
 
-                add_node(self.action_graph, residue_id, residue.meta_data())
+            if rewriting:
+                pattern = nx.DiGraph()
+                pattern.add_node(ref_gene)
+                instance = {ref_gene: ref_gene}
+                if not ref_agent_in_genes:
+                    pattern.add_node(ref_agent)
+                    instance[ref_agent] = ref_agent
+                rule = Rule.from_transform(pattern)
+                rule.inject_add_node(residue_id, residue.meta_data())
+                rule.inject_add_edge(residue_id, ref_gene, residue.location())
+                if not ref_agent_in_genes:
+                    rule.inject_add_edge(
+                        residue_id, ref_agent, residue.location())
+                rhs_typing = {"kami": {residue_id: "residue"}}
+                _, rhs_instance = self.rewrite(
+                    "action_graph", rule, instance, rhs_typing=rhs_typing)
+                new_residue_id = rhs_typing[residue_id]
+            else:
+                add_node(self.action_graph, residue_id,
+                         residue.meta_data())
                 self.action_graph_typing[residue_id] = "residue"
-                add_edge(self.action_graph, residue_id, ref_agent,
+                add_edge(self.action_graph, residue_id, ref_gene,
                          residue.location())
-                add_edge(self.action_graph, residue_id, gene_id,
-                         residue.location())
+                if not ref_agent_in_genes:
+                    add_edge(self.action_graph, residue_id, ref_agent)
+                new_residue_id = residue_id
 
-                if ref_agent_in_regions:
-                    for site in self.get_attached_regions(gene_id):
-                        if residue.loc:
-                            if "start" in self.action_graph.node[site] and\
-                               "end" in self.action_graph.node[site]:
-                                start = min(
-                                    self.action_graph.node[site]["start"])
-                                end = max(
-                                    self.action_graph.node[site]["end"])
-                                if int(residue.loc) >= start and\
-                                   int(residue.loc) <= end:
-                                    add_edge(self.action_graph, residue_id,
-                                             site)
-                else:
-                    region_id = self.get_region_of(ref_agent)
-                    if region_id is not None:
-                        add_edge(self.action_graph, residue_id, region_id)
+            # reconnect regions/sites to the new residue
+            reconnect_residues(
+                self, ref_gene, [new_residue_id],
+                self.get_attached_regions(ref_gene),
+                self.get_attached_sites(ref_gene))
+        else:
+            new_residue_id = residue_id
 
-            # add semantic relations of the node
-            if semantics:
-                for s in semantics:
-                    self.add_ag_node_semantics(residue_id, s)
+        # add semantic relations of the node
+        for s in semantics:
+            self.add_ag_node_semantics(new_residue_id, s)
 
-        return residue_id
+        return new_residue_id
 
     def add_bnd(self, attrs=None, semantics=None):
         """Add bnd node to the action graph."""
@@ -644,8 +665,9 @@ class KamiHierarchy(Hierarchy):
 
         # try to find an existing residue with this
         for state_node in self.get_attached_states(ref_agent):
-            if list(self.action_graph.node[state_node].keys())[0] == state.name:
-                self.action_graph.node[state_node][state.name].add(state.value)
+            if list(self.action_graph.node[state_node]["name"])[0] ==\
+               state.name:
+                self.action_graph.node[state_node][state.name].add(state.test)
                 return state_node
 
         state_id = ref_agent + "_" + str(state)
@@ -770,12 +792,13 @@ class KamiHierarchy(Hierarchy):
             for n in self.nugget[nugget_id].nodes()
         ] + new_ag_regions)
 
-        # Merge sites
+        # Apply bookkeeping updates
         for g in all_genes:
             residues = self.get_attached_residues(g)
             sites = self.get_attached_sites(g)
             regions = self.get_attached_regions(g)
             reconnect_residues(self, g, residues, regions, sites)
+            reconnect_sites(self, g, sites, regions)
 
         # 6. Apply semantics to the nugget
         if apply_semantics is True:
@@ -872,6 +895,6 @@ class KamiHierarchy(Hierarchy):
         states = self.get_attached_states(gene)
 
         for state in states:
-            if "activity" in self.action_graph.node[state].keys():
+            if "activity" in self.action_graph.node[state]["name"]:
                 return state
         return None

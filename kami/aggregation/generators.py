@@ -371,7 +371,7 @@ class Generator(object):
         site_id = self._generate_site(
             nugget, site_actor.site, agent_id, agent_id)
         region_id = None
-        if site_actor.region is not None:
+        if len(site_actor.region) > 0:
             for r in site_actor.region:
                 region_id = self._generate_region(
                     nugget, r, agent_id)

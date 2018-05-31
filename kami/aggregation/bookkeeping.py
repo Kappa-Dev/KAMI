@@ -15,13 +15,55 @@ from kami.exceptions import KamiHierarchyError, KamiHierarchyWarning
 from kami.utils.id_generators import generate_new_id
 
 
-def reconnect_residues(hierarchy, gene, residues, regions, sites):
+def reconnect_residues(hierarchy, gene, residues,
+                       regions=None, sites=None):
     """Reconnect residues of a gene to regions/sites of compatible range."""
     for res in residues:
         loc = None
         if "loc" in hierarchy.action_graph.edge[res][gene].keys():
             loc = list(hierarchy.action_graph.edge[res][gene]["loc"])[0]
         if loc is not None:
+            if regions is not None:
+                for region in regions:
+                    if "start" in hierarchy.action_graph.edge[region][gene] and\
+                       "end" in hierarchy.action_graph.edge[region][gene]:
+                        start = min(
+                            hierarchy.action_graph.edge[region][gene]["start"])
+                        end = max(
+                            hierarchy.action_graph.edge[region][gene]["end"])
+                        if int(loc) >= start and\
+                           int(loc) <= end and\
+                           (res, region) not in hierarchy.action_graph.edges():
+                            add_edge(hierarchy.action_graph, res, region,
+                                     {"loc": loc})
+
+            if sites is not None:
+                for site in sites:
+                    if "start" in hierarchy.action_graph.edge[site][gene] and\
+                       "end" in hierarchy.action_graph.edge[site][gene]:
+                        start = min(
+                            hierarchy.action_graph.edge[site][gene]["start"])
+                        end = max(
+                            hierarchy.action_graph.edge[site][gene]["end"])
+                        if int(loc) >= start and\
+                           int(loc) <= end and\
+                           (res, site) not in hierarchy.action_graph.edges():
+                            add_edge(hierarchy.action_graph, res, site,
+                                     {"loc": loc})
+        return
+
+
+def reconnect_sites(hierarchy, gene, sites, regions):
+    """Reconnect sites of a gene to regions of compatible range."""
+    for site in sites:
+        start = None
+        end = None
+        if "start" in hierarchy.action_graph.edge[site][gene].keys():
+            start = list(hierarchy.action_graph.edge[site][gene]["start"])[0]
+        if "end" in hierarchy.action_graph.edge[site][gene].keys():
+            end = list(hierarchy.action_graph.edge[site][gene]["end"])[0]
+
+        if start is not None and end is not None:
             for region in regions:
                 if "start" in hierarchy.action_graph.edge[region][gene] and\
                    "end" in hierarchy.action_graph.edge[region][gene]:
@@ -29,55 +71,11 @@ def reconnect_residues(hierarchy, gene, residues, regions, sites):
                         hierarchy.action_graph.edge[region][gene]["start"])
                     end = max(
                         hierarchy.action_graph.edge[region][gene]["end"])
-                    if int(loc) >= start and\
-                       int(loc) <= end and\
-                       (res, region) not in hierarchy.action_graph.edges():
-                        add_edge(hierarchy.action_graph, res, region,
-                                 {"loc": loc})
-
-            for site in sites:
-                if "start" in hierarchy.action_graph.edge[site][gene] and\
-                   "end" in hierarchy.action_graph.edge[site][gene]:
-                    start = min(
-                        hierarchy.action_graph.edge[site][gene]["start"])
-                    end = max(
-                        hierarchy.action_graph.edge[site][gene]["end"])
-                    if int(loc) >= start and\
-                       int(loc) <= end and\
-                       (res, site) not in hierarchy.action_graph.edges():
-                        add_edge(hierarchy.action_graph, res, site,
-                                 {"loc": loc})
-        return
-
-
-# def merge_sites(hierarchy, nodes):
-#     """Merge sites sharing the same residues."""
-#     pattern = nx.DiGraph()
-#     pattern.add_edges_from([("residue", "site1"), ("residue", "site2")])
-#     site_merging_rule = Rule.from_transform(pattern)
-#     site_merging_rule.inject_merge_nodes(["site1", "site2"])
-#     lhs_typing = {
-#         "kami": {
-#             "residue": "residue",
-#             "site1": "site",
-#             "site2": "site"
-#         }
-#     }
-#     instances_to_rewrite = hierarchy.find_matching(
-#         "action_graph", pattern, pattern_typing=lhs_typing,
-#         nodes=nodes)
-#     visited_sites = set()
-#     while len(instances_to_rewrite) > 0:
-#         instance = instances_to_rewrite[0]
-#         if instance["site1"] not in visited_sites or\
-#            instance["site2"] not in visited_sites:
-#             hierarchy.rewrite("action_graph", site_merging_rule, instance)
-#             visited_sites.add(instance["site1"])
-#             visited_sites.add(instance["site2"])
-
-#         instances_to_rewrite = hierarchy.find_matching(
-#             "action_graph", pattern, pattern_typing=lhs_typing,
-#             nodes=nodes)
+                    if int(start) >= start and\
+                       int(end) <= end and\
+                       (site, region) not in hierarchy.action_graph.edges():
+                        add_edge(hierarchy.action_graph, site, region,
+                                 {"start": start, "end": end})
 
 
 def connect_transitive_components(hierarchy, new_nodes):
@@ -301,12 +299,13 @@ def anatomize_gene(hierarchy, gene):
                 if "IPR000719" in domain.ipr_ids:
                     semantic_relations[region_id].add("protein_kinase")
                     # autocomplete with activity
-                    activity_state_id = "%s_%s" % (region_id, "activity")
+                    activity_state_id = "{}_activity".format(region_id)
                     if activity_state_id in hierarchy.action_graph.nodes():
                         activity_state_id = generate_new_id(
                             hierarchy.action_graph, activity_state_id)
                     anatomization_rule.inject_add_node(
-                        activity_state_id, {"activity": {True}})
+                        activity_state_id, {
+                            "name": "activity", "test": {True}})
                     anatomization_rule.inject_add_edge(
                         activity_state_id, region_id)
                     semantic_relations[activity_state_id] = {"activity"}

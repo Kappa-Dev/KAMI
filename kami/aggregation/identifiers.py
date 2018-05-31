@@ -1,6 +1,8 @@
 """Collection of untils for identification of entities in a KAMI model."""
+import networkx as nx
 import numpy as np
-from regraph.primitives import add_node_attrs
+
+from regraph import Rule
 
 from kami.exceptions import KamiHierarchyError
 
@@ -127,14 +129,21 @@ def identify_site(hierarchy, site, ref_agent):
         return _identify_fragment(hierarchy, site, ref_agent, "site")
 
 
-def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
+def identify_residue(hierarchy, residue, ref_agent,
+                     add_aa=False, rewriting=False):
     """Find corresponding residue.
 
-    `residue` -- input residue entity to search for
-    `ref_agent` -- reference to an agent to which residue belongs.
-    Can reference either to an agent or to a region
-    in the action graph.
-    `add_aa` -- add aa value if location is found but aa not
+    residue : kami.entities.residue
+        Input residue entity to search for
+    ref_agent
+        Id of the reference agent to which residue belongs,
+        can reference either to a gene, a region or a site
+        of the action graph
+    add_aa : bool
+        Add aa value if location is found but aa is not
+    rewriting : bool
+        If True, add aa value using SqPO rewriting, otherwise
+        using primitives (used if `add_aa` is True)
     """
     ref_gene = hierarchy.get_gene_of(ref_agent)
     residue_candidates = hierarchy.get_attached_residues(ref_gene)
@@ -146,10 +155,19 @@ def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
                     if not residue.aa.issubset(
                         hierarchy.action_graph.node[res]["aa"]) and\
                             add_aa is True:
-                        hierarchy.action_graph.node[res]["aa"] =\
-                            hierarchy.action_graph.node[res]["aa"].union(
-                                residue.aa
-                        )
+                        if rewriting:
+                            pattern = nx.DiGraph()
+                            pattern.add_node(res)
+                            rule = Rule.from_transform(pattern)
+                            rule.inject_add_node_attrs(
+                                res, {"aa": {residue.aa}})
+                            hierarchy.rewrite(
+                                "action_graph", rule, instance={res: res})
+                        else:
+                            hierarchy.action_graph.node[res]["aa"] =\
+                                hierarchy.action_graph.node[res]["aa"].union(
+                                    residue.aa
+                            )
                     return res
     else:
         for res in residue_candidates:
@@ -158,10 +176,19 @@ def identify_residue(hierarchy, residue, ref_agent, add_aa=False):
                 if residue.aa <= hierarchy.action_graph.node[res]["aa"]:
                     return res
                 elif add_aa is True:
-                    hierarchy.action_graph.node[res]["aa"] =\
-                        hierarchy.action_graph.node[res]["aa"].union(
-                        residue.aa
-                    )
+                    if rewriting:
+                        pattern = nx.DiGraph()
+                        pattern.add_node(res)
+                        rule = Rule.from_transform(pattern)
+                        rule.inject_add_node_attrs(
+                            res, {"aa": {residue.aa}})
+                        hierarchy.rewrite(
+                            "action_graph", rule, instance={res: res})
+                    else:
+                        hierarchy.action_graph.node[res]["aa"] =\
+                            hierarchy.action_graph.node[res]["aa"].union(
+                            residue.aa
+                        )
                     return res
     return None
 

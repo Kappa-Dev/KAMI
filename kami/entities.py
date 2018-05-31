@@ -29,7 +29,8 @@ The implemented data structures include:
 * (under construction) `NuggetAnnotation`
 
 """
-import collections
+from kami.utils.generic import normalize_to_set
+from kami.exceptions import KamiEntityError
 
 
 class Actor(object):
@@ -46,12 +47,6 @@ class PhysicalEntity(object):
     - `add_state` - adds a state to a physical entity
     - `add_bound` - adds a bound partner to a physical entity
     """
-
-    def _normalize_bounds(self, bounds):
-        if not isinstance(bounds, collections.Iterable):
-            return [bounds]
-        else:
-            return bounds
 
     def add_residue(self, residue):
         """Add a residue to a list of residues of the entity."""
@@ -110,13 +105,8 @@ class Gene(Actor, PhysicalEntity):
             states = []
         self.states = states
 
-        if bound_to is None:
-            bound_to = []
-        self.bound_to = self._normalize_bounds(bound_to)
-
-        if unbound_from is None:
-            unbound_from = []
-        self.unbound_from = self._normalize_bounds(unbound_from)
+        self.bound_to = normalize_to_set(bound_to)
+        self.unbound_from = normalize_to_set(unbound_from)
         return
 
     def __repr__(self):
@@ -186,6 +176,12 @@ class Region(PhysicalEntity):
         """Initialize kami region object."""
         self.name = name
         self.interproid = interproid
+        if start is not None and end is not None:
+            if start > end or type(start) != int or type(end) != int:
+                raise KamiEntityError(
+                    "Region sequence interval {}-{} is not valid".format(
+                        start, end))
+
         self.start = start
         self.end = end
         self.order = order
@@ -203,13 +199,8 @@ class Region(PhysicalEntity):
             states = []
         self.states = states
 
-        if bound_to is None:
-            bound_to = []
-        self.bound_to = self._normalize_bounds(bound_to)
-
-        if unbound_from is None:
-            unbound_from = []
-        self.unbound_from = self._normalize_bounds(unbound_from)
+        self.bound_to = normalize_to_set(bound_to)
+        self.unbound_from = normalize_to_set(unbound_from)
         return
 
     def __repr__(self):
@@ -329,13 +320,8 @@ class Site(PhysicalEntity):
             states = []
         self.states = states
 
-        if bound_to is None:
-            bound_to = []
-        self.bound_to = self._normalize_bounds(bound_to)
-
-        if unbound_from is None:
-            unbound_from = []
-        self.unbound_from = self._normalize_bounds(unbound_from)
+        self.bound_to = normalize_to_set(bound_to)
+        self.unbound_from = normalize_to_set(unbound_from)
         return
 
     def __repr__(self):
@@ -431,11 +417,7 @@ class Residue():
         """Init residue object."""
         if type(aa) == set:
             pass
-        elif isinstance(aa, collections.Iterable):
-            aa = set(aa)
-        else:
-            aa = set([aa])
-        self.aa = aa
+        self.aa = normalize_to_set(aa)
         if loc is not None:
             self.loc = int(loc)
         else:
@@ -537,10 +519,7 @@ class SiteActor(Actor):
     def __init__(self, gene, site, region=None):
         """Initialize SiteActor object."""
         self.site = site
-        if region is None or isinstance(region, collections.Iterable):
-            self.region = region
-        else:
-            self.region = [region]
+        self.region = normalize_to_set(region)
         self.gene = gene
 
     def __repr__(self):
