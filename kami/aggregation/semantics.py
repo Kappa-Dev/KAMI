@@ -27,8 +27,6 @@ def _propagate_semantics_to_ag(hierarchy, nugget_id,
 
 def apply_mod_semantics(hierarchy, nugget_id):
     """Apply mod semantics to the created nugget."""
-    # TODO: Check the phosphorylated residue
-
     template_rel = hierarchy.relation["mod_template"][nugget_id]
     enzyme = None
     if "enzyme" in template_rel.keys():
@@ -50,12 +48,12 @@ def apply_mod_semantics(hierarchy, nugget_id):
 
     if enzyme is not None:
         if "phosphorylation" in hierarchy.nugget[
-                nugget_id].node[mod_state].keys():
+                nugget_id].node[mod_state]["name"]:
             if True in hierarchy.nugget[nugget_id].node[
-                    mod_node]["test"]:
+                    mod_node]["value"]:
                 phospho = True
-            elif False in hierarchy.nugget[nugget_id].node[mod_node]["test"]:
-                dephospho = True
+            # elif False in hierarchy.nugget[nugget_id].node[mod_node]["test"]:
+            #     dephospho = True
 
     # 1. Phospho semantics
     if phospho:
@@ -83,25 +81,29 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     ag_pred_type = hierarchy.action_graph_typing[ag_pred]
                     if ag_pred_type == "state" and\
                        "activity" in hierarchy.nugget[
-                            nugget_id].node[pred].keys() and\
+                            nugget_id].node[pred]["name"] and\
                        True in hierarchy.nugget[nugget_id].node[
-                            pred]["activity"]:
+                            pred]["test"]:
                         phospho_semantic_rel[pred] = "protein_kinase_activity"
                         activity_found = True
                         break
                 if activity_found is False:
-                    ag_activity = hierarchy.get_activity_state(ag_enz_region)
-
                     autocompletion_rule = Rule.from_transform(
                         hierarchy.nugget[nugget_id])
+                    new_activity_state = "{}_activity".format(enzyme)
                     autocompletion_rule.inject_add_node(
-                        ag_activity,
-                        hierarchy.action_graph.node[ag_activity])
-                    rhs_typing = {
-                        "action_graph": {
-                            ag_activity: ag_activity
-                        }
-                    }
+                        new_activity_state,
+                        {"name": "activity", "test": True})
+                    autocompletion_rule.inject_add_edge(
+                        new_activity_state, enz_region)
+                    # identify if there exists the activity state
+                    # in the action graph
+                    rhs_typing = {"action_graph": {}}
+                    ag_activity = hierarchy.get_activity_state(ag_enz_region)
+                    if ag_activity is not None:
+                        rhs_typing["action_graph"][new_activity_state] =\
+                            ag_activity
+
                     _, rhs_g = hierarchy.rewrite(
                         nugget_id, autocompletion_rule,
                         rhs_typing=rhs_typing)
@@ -149,23 +151,28 @@ def apply_mod_semantics(hierarchy, nugget_id):
                 autocompletion_rule.inject_add_node(
                     unique_kinase_region,
                     hierarchy.action_graph.node[unique_kinase_region])
-                ag_activity = hierarchy.get_activity_state(
-                    unique_kinase_region)
+
+                activity_state = "{}_activity".format(unique_kinase_region)
+
                 autocompletion_rule.inject_add_node(
-                    ag_activity, hierarchy.action_graph.node[ag_activity])
+                    activity_state, {"name": "activity", "test": True})
                 autocompletion_rule.inject_add_edge(
                     unique_kinase_region, enzyme)
                 autocompletion_rule.inject_add_edge(
                     unique_kinase_region, mod_node)
                 autocompletion_rule.inject_add_edge(
-                    ag_activity, unique_kinase_region)
+                    activity_state, unique_kinase_region)
+
                 rhs_typing = {
                     "action_graph": {
                         unique_kinase_region: unique_kinase_region,
-                        mod_node: new_ag_mod,
-                        ag_activity: ag_activity
+                        mod_node: new_ag_mod
                     }
                 }
+                ag_activity = hierarchy.get_activity_state(
+                    unique_kinase_region)
+                if ag_activity is not None:
+                    rhs_typing["action_graph"][activity_state] = ag_activity
 
                 _, rhs_nugget = hierarchy.rewrite(
                     nugget_id, autocompletion_rule,
@@ -241,7 +248,6 @@ def apply_bnd_semantics(hierarchy, nugget_id):
                                "phosphorylation" in nugget.node[
                                     residue_pred]["name"]:
                                 py_residue_states.append((pred, residue_pred))
-
                 # if pY residue was not found it, autocomplete nugget with it
                 if len(py_residue_states) == 0:
                     pattern = nx.DiGraph()
