@@ -365,17 +365,17 @@ def to_kamistudio(hierarchy,
                     attrs[attribute]["strSet"]["pos_list"] = str_value_list
             # I put attributes from edges into nodes for now as there seem to be
             # a problem with edge attributes in the old regraph.
-            out_edge_list = list(hierarchy.graph['action_graph']
+            out_edge_list = list(hierarchy.graph[nugget_id]
                                  .edge[nugget_node].keys())
             for out_edge in out_edge_list:
                 edge_str_attrs = {}
                 edge_num_attrs = {}
-                attributes = list(hierarchy.graph['action_graph']
+                attributes = list(hierarchy.graph[nugget_id]
                                   .edge[nugget_node][out_edge].keys())
                 for attribute in attributes:
                     attrs[attribute] = {"numSet": {"pos_list": []},
                                         "strSet": {"pos_list": []}}
-                    vals = list(hierarchy.graph['action_graph']
+                    vals = list(hierarchy.graph[nugget_id]
                                 .edge[nugget_node][out_edge][attribute])
                     # Temporary solution for when the range of a site is split
                     # between two regions. The two ranges will be displayed, but
