@@ -36,6 +36,9 @@ def reconnect_residues(hierarchy, gene, residues,
                            (res, region) not in hierarchy.action_graph.edges():
                             add_edge(hierarchy.action_graph, res, region,
                                      {"loc": loc})
+                            add_edge_attrs(
+                                hierarchy.action_graph, res, gene,
+                                {"type": "transitive"})
 
             if sites is not None:
                 for site in sites:
@@ -50,6 +53,9 @@ def reconnect_residues(hierarchy, gene, residues,
                            (res, site) not in hierarchy.action_graph.edges():
                             add_edge(hierarchy.action_graph, res, site,
                                      {"loc": loc})
+                            add_edge_attrs(
+                                hierarchy.action_graph, res, gene,
+                                {"type": "transitive"})
         return
 
 
@@ -76,6 +82,9 @@ def reconnect_sites(hierarchy, gene, sites, regions):
                        (site, region) not in hierarchy.action_graph.edges():
                         add_edge(hierarchy.action_graph, site, region,
                                  {"start": start, "end": end})
+                        add_edge_attrs(
+                            hierarchy.action_graph, site, gene,
+                            {"type": "transitive"})
 
 
 def connect_transitive_components(hierarchy, new_nodes):
@@ -85,7 +94,8 @@ def connect_transitive_components(hierarchy, new_nodes):
     add_edges_from(
         gene_region_site, [("region", "gene"), ("site", "region")])
     gene_region_site_rule = Rule.from_transform(gene_region_site)
-    gene_region_site_rule.inject_add_edge("site", "gene")
+    gene_region_site_rule.inject_add_edge(
+        "site", "gene", {"type": "transitive"})
     lhs_typing = {
         "kami": {"gene": "gene", "region": "region", "site": "site"}
     }
@@ -125,7 +135,8 @@ def connect_transitive_components(hierarchy, new_nodes):
     add_edges_from(
         region_site_residue, [("site", "region"), ("residue", "site")])
     region_site_residue_rule = Rule.from_transform(region_site_residue)
-    region_site_residue_rule.inject_add_edge("residue", "region")
+    region_site_residue_rule.inject_add_edge(
+        "residue", "region", {"type": "transitive"})
     lhs_typing = {
         "kami": {"region": "region", "site": "site", "residue": "residue"}
     }
@@ -149,7 +160,8 @@ def connect_transitive_components(hierarchy, new_nodes):
     add_edges_from(
         gene_region_residue, [("region", "gene"), ("residue", "region")])
     gene_region_residue_rule = Rule.from_transform(gene_region_residue)
-    gene_region_residue_rule.inject_add_edge("residue", "gene")
+    gene_region_residue_rule.inject_add_edge(
+        "residue", "gene", {"type": "transitive"})
     lhs_typing = {
         "kami": {"gene": "gene", "region": "region", "residue": "residue"}
     }
@@ -173,7 +185,8 @@ def connect_transitive_components(hierarchy, new_nodes):
     add_edges_from(
         gene_site_residue, [("site", "gene"), ("residue", "site")])
     gene_site_residue_rule = Rule.from_transform(gene_site_residue)
-    gene_site_residue_rule.inject_add_edge("residue", "gene")
+    gene_site_residue_rule.inject_add_edge(
+        "residue", "gene", {"type": "transitive"})
     lhs_typing = {
         "kami": {"gene": "gene", "site": "site", "residue": "residue"}
     }
@@ -208,6 +221,9 @@ def connect_nested_fragments(hierarchy, genes):
                    (site, f) not in hierarchy.action_graph.edges():
                     add_edge(hierarchy.action_graph, site, f,
                              hierarchy.action_graph.edge[site][gene])
+                    add_edge_attrs(
+                        hierarchy.action_graph,
+                        site, gene, {"type": "transitive"})
 
 
 def anatomize_gene(hierarchy, gene):

@@ -107,7 +107,7 @@ def apply_mod_semantics(hierarchy, nugget_id):
                     _, rhs_g = hierarchy.rewrite(
                         nugget_id, autocompletion_rule,
                         rhs_typing=rhs_typing)
-                    phospho_semantic_rel[rhs_g[ag_activity]] =\
+                    phospho_semantic_rel[rhs_g[new_activity_state]] =\
                         "protein_kinase_activity"
             else:
                 warnings.warn(
