@@ -51,6 +51,7 @@ add_nodes_from(
         }),
         ("site", {
             "name": RegexSet.universal(),
+            "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal()
         }),
         ("residue", {

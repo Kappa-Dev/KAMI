@@ -786,13 +786,13 @@ class KamiHierarchy(Hierarchy):
             if self.action_graph_typing[
                 self.typing[nugget_id]["action_graph"][node]] == "gene"]
 
+        # Apply bookkeeping updates
         connect_nested_fragments(self, all_genes)
         connect_transitive_components(self, [
             self.typing[nugget_id]["action_graph"][n]
             for n in self.nugget[nugget_id].nodes()
         ] + new_ag_regions)
 
-        # Apply bookkeeping updates
         for g in all_genes:
             residues = self.get_attached_residues(g)
             sites = self.get_attached_sites(g)

@@ -67,12 +67,12 @@ def reconnect_sites(hierarchy, gene, sites, regions):
             for region in regions:
                 if "start" in hierarchy.action_graph.edge[region][gene] and\
                    "end" in hierarchy.action_graph.edge[region][gene]:
-                    start = min(
+                    region_start = min(
                         hierarchy.action_graph.edge[region][gene]["start"])
-                    end = max(
+                    region_end = max(
                         hierarchy.action_graph.edge[region][gene]["end"])
-                    if int(start) >= start and\
-                       int(end) <= end and\
+                    if int(start) >= region_start and\
+                       int(end) <= region_end and\
                        (site, region) not in hierarchy.action_graph.edges():
                         add_edge(hierarchy.action_graph, site, region,
                                  {"start": start, "end": end})
