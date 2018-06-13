@@ -23,6 +23,7 @@ def reconnect_residues(hierarchy, gene, residues,
         if "loc" in hierarchy.action_graph.edge[res][gene].keys():
             loc = list(hierarchy.action_graph.edge[res][gene]["loc"])[0]
         if loc is not None:
+            region_dict = {}
             if regions is not None:
                 for region in regions:
                     if "start" in hierarchy.action_graph.edge[region][gene] and\
@@ -31,15 +32,9 @@ def reconnect_residues(hierarchy, gene, residues,
                             hierarchy.action_graph.edge[region][gene]["start"])
                         end = max(
                             hierarchy.action_graph.edge[region][gene]["end"])
-                        if int(loc) >= start and\
-                           int(loc) <= end and\
-                           (res, region) not in hierarchy.action_graph.edges():
-                            add_edge(hierarchy.action_graph, res, region,
-                                     {"loc": loc})
-                            add_edge_attrs(
-                                hierarchy.action_graph, res, gene,
-                                {"type": "transitive"})
+                        region_dict[region] = (start, end)
 
+            site_dict = {}
             if sites is not None:
                 for site in sites:
                     if "start" in hierarchy.action_graph.edge[site][gene] and\
@@ -48,15 +43,28 @@ def reconnect_residues(hierarchy, gene, residues,
                             hierarchy.action_graph.edge[site][gene]["start"])
                         end = max(
                             hierarchy.action_graph.edge[site][gene]["end"])
-                        if int(loc) >= start and\
-                           int(loc) <= end and\
-                           (res, site) not in hierarchy.action_graph.edges():
-                            add_edge(hierarchy.action_graph, res, site,
-                                     {"loc": loc})
-                            add_edge_attrs(
-                                hierarchy.action_graph, res, gene,
-                                {"type": "transitive"})
-        return
+                        site_dict[site] = (start, end)
+
+            for region, (start, end) in region_dict.items():
+                if int(loc) >= start and\
+                   int(loc) <= end and\
+                   (res, region) not in hierarchy.action_graph.edges():
+                    add_edge(hierarchy.action_graph, res, region,
+                             {"loc": loc})
+                    add_edge_attrs(
+                        hierarchy.action_graph, res, gene,
+                        {"type": "transitive"})
+
+            for site, (start, end) in site_dict.items():
+                if int(loc) >= start and\
+                   int(loc) <= end and\
+                   (res, site) not in hierarchy.action_graph.edges():
+                    for suc in hierarchy.action_graph.successors(res):
+                        add_edge_attrs(
+                            hierarchy.action_graph, res, suc,
+                            {"type": "transitive"})
+                    add_edge(hierarchy.action_graph, res, site,
+                             {"loc": loc})
 
 
 def reconnect_sites(hierarchy, gene, sites, regions):
@@ -204,7 +212,6 @@ def connect_transitive_components(hierarchy, new_nodes):
                            rhs_instance["residue"],
                            rhs_instance["gene"],
                            {"loc": loc})
-    return
 
 
 def connect_nested_fragments(hierarchy, genes):

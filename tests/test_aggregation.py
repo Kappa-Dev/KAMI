@@ -3,7 +3,7 @@
 from regraph.primitives import (print_graph)
 
 from kami.export.old_kami import ag_to_edge_list
-from kami.interactions import (Modification, Binding)
+from kami.interactions import (Modification, Binding, TransModification)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.hierarchy import KamiHierarchy
@@ -420,4 +420,29 @@ class TestBlackBox(object):
         )
         hierarchy = KamiHierarchy()
         hierarchy.add_interaction(b)
-        print_graph(hierarchy.action_graph)
+
+    def test_bookkeeping(self):
+        interactions = []
+
+        i1 = TransModification(
+            RegionActor(Gene("P00533"), Region(start=712, end=979)),
+            Gene("P00533"),
+            Residue("Y", 1092, state=State("phosphorylation", False)))
+        interactions.append(i1)
+
+        i2 = Modification(
+            Gene("P00519"),
+            Gene("P00533"),
+            Residue("S", 800, state=State("phosphorylation", False)))
+        interactions.append(i2)
+
+        i3 = Binding(
+            Gene("P00424"),
+            SiteActor(
+                Gene("P00533"),
+                Site(start=799, end=900)))
+        interactions.append(i3)
+
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interactions(interactions)
+
