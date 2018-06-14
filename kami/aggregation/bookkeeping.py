@@ -60,11 +60,18 @@ def reconnect_residues(hierarchy, gene, residues,
                    int(loc) <= end and\
                    (res, site) not in hierarchy.action_graph.edges():
                     for suc in hierarchy.action_graph.successors(res):
-                        add_edge_attrs(
-                            hierarchy.action_graph, res, suc,
-                            {"type": "transitive"})
+                        if hierarchy.action_graph_typing[suc] != "site":
+                            if hierarchy.action_graph_typing[suc] == "region" and\
+                               suc in hierarchy.action_graph.successors(site):
+                                add_edge_attrs(
+                                    hierarchy.action_graph, res, suc,
+                                    {"type": "transitive"})
+                    add_edge_attrs(
+                        hierarchy.action_graph, res, gene,
+                        {"type": "transitive"})
                     add_edge(hierarchy.action_graph, res, site,
                              {"loc": loc})
+
 
 
 def reconnect_sites(hierarchy, gene, sites, regions):
