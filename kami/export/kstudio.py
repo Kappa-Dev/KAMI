@@ -1,3 +1,5 @@
+import math
+
 def ag_to_edge_list(hierarchy, agent_ids="hgnc_symbol"):
     edge_list = []
     for u, v in hierarchy.action_graph.edges():
@@ -130,11 +132,14 @@ def to_kamistudio(hierarchy,
         nodes.append(node)
     top_graph["nodes"] = nodes
 
-    edges = [{"from": "component", "to": "component", "attrs": {}},
-             {"from": "component", "to": "action",    "attrs": {}},
-             {"from": "action",    "to": "component", "attrs": {}},
-             {"from": "action",    "to": "state", "attrs": {}},
-             {"from": "state",     "to": "component", "attrs": {}}]
+    attrs = {}
+    attrs["type"] = {"numSet": {"pos_list": []},
+                     "strSet": {"pos_list": ["transitive"]}}
+    edges = [{"from": "component", "to": "component", "attrs": attrs},
+             {"from": "component", "to": "action",    "attrs": attrs},
+             {"from": "action",    "to": "component", "attrs": attrs},
+             {"from": "action",    "to": "state", "attrs": attrs},
+             {"from": "state",     "to": "component", "attrs": attrs}]
     top_graph["edges"] = edges
 
     positions = {
@@ -174,7 +179,10 @@ def to_kamistudio(hierarchy,
     for kami_edge in hierarchy.graph['kami'].edges():
         source = kami_edge[0]
         target = kami_edge[1]
-        edge = {"from": source, "to": target, "attrs": {}}
+        attrs = {}
+        attrs["type"] = {"numSet": {"pos_list": []},
+                         "strSet": {"pos_list": ["transitive"]}}
+        edge = {"from": source, "to": target, "attrs": attrs}
         edges.append(edge)
     top_graph["edges"] = edges
 
@@ -207,6 +215,13 @@ def to_kamistudio(hierarchy,
     label_tracker = {}
 
     nodes = []
+    # Position all nodes of the action graph. Try a square lattice.
+    positions = {}
+    spacing = 150
+    num_nodes = len(hierarchy.graph['action_graph'].nodes())
+    num_col = int(math.sqrt(num_nodes))
+    start_xpos, start_ypos = 0, 0
+    col, row = 0, 0
     for ag_node in hierarchy.graph['action_graph'].nodes():
         node_type = action_graph_typing[ag_node]
         node_label, counters = find_studio_label(ag_node,
@@ -248,67 +263,78 @@ def to_kamistudio(hierarchy,
             attributes = list(hierarchy.graph['action_graph']
                               .edge[ag_node][out_edge].keys())
             for attribute in attributes:
-                attrs[attribute] = {"numSet": {"pos_list": []},
-                                    "strSet": {"pos_list": []}}
-                vals = list(hierarchy.graph['action_graph']
-                            .edge[ag_node][out_edge][attribute])
-                # Temporary solution for when the range of a site is split
-                # between two regions. The two ranges will be displayed, but
-                # not which region each range comes from.
-                if attribute in attrs.keys():
-                    str_value_list = attrs[attribute]["strSet"]["pos_list"]
-                    num_value_list = attrs[attribute]["numSet"]["pos_list"]
-                else:
-                    str_value_list = []
-                    num_value_list = []
-                for val in vals:
-                    if val is True:
-                        val = "true"
-                    if val is False:
-                        val = "false"
-                    try:
-                        float(val)
-                        num_value_list.append(val)
-                    except:
-                        str_value_list.append(val)
-                attrs[attribute]["numSet"]["pos_list"] = num_value_list
-                attrs[attribute]["strSet"]["pos_list"] = str_value_list
+                if attribute != "type":
+                    attrs[attribute] = {"numSet": {"pos_list": []},
+                                        "strSet": {"pos_list": []}}
+                    vals = list(hierarchy.graph['action_graph']
+                                .edge[ag_node][out_edge][attribute])
+                    # Temporary solution for when the range of a site is split
+                    # between two regions. The two ranges will be displayed, but
+                    # not which region each range comes from.
+                    if attribute in attrs.keys():
+                        str_value_list = attrs[attribute]["strSet"]["pos_list"]
+                        num_value_list = attrs[attribute]["numSet"]["pos_list"]
+                    else:
+                        str_value_list = []
+                        num_value_list = []
+                    for val in vals:
+                        if val is True:
+                            val = "true"
+                        if val is False:
+                            val = "false"
+                        try:
+                            float(val)
+                            num_value_list.append(val)
+                        except:
+                            str_value_list.append(val)
+                    attrs[attribute]["numSet"]["pos_list"] = num_value_list
+                    attrs[attribute]["strSet"]["pos_list"] = str_value_list
         # ---------------------------------------------------------
         node = {"id": node_label, "type": node_type, "attrs": attrs}
         nodes.append(node)
+        # Set position of every node. Try with just a square first.
+        xpos = start_xpos + col * spacing
+        ypos = start_ypos + row * spacing
+        positions[node_label] = {"x": xpos, "y": ypos}
+        col += 1
+        if col >= num_col+1:
+            col = 0
+            row += 1
     top_graph["nodes"] = nodes
 
     edges = []
     for ag_edge in hierarchy.graph['action_graph'].edges():
         source_label = label_tracker[ag_edge[0]]
         target_label = label_tracker[ag_edge[1]]
-        ## Uncomment when edge attributes will work in KAMIStudio
-        ## ----- Get all attributes of the nugget edge --------------------
-        #attrs = {}
-        #attributes = list(hierarchy.graph[nugget_id]
-        #                  .edge[ag_edge[0]][ag_edge[1]].keys())
-        #for attribute in attributes:
-        #    if attribute != "rate":
-        #        attrs[attribute] = {"numSet": {"pos_list": []},
-        #                            "strSet": {"pos_list": []}}
-        #        vals = list(hierarchy.graph[nugget_id]
-        #                    .edge[ag_edge[0]][ag_edge[1]][attribute])
-        #        value_list = []
-        #        for val in vals:
-        #            if val is True:
-        #                val = "true"
-        #            if val is False:
-        #                val = "false"
-        #            value_list.append(val)
-        #        attrs[attribute]["strSet"]["pos_list"] = value_list
-        ## ---------------------------------------------------------
-        #edge = {"from": source_label, "to": target_label, "attrs": attrs}
-        edge = {"from": source_label, "to": target_label, "attrs": {}}
+        # Uncomment when edge attributes will work in KAMIStudio
+        # ----- Get all attributes of the nugget edge --------------------
+        attrs = {}
+        attributes = list(hierarchy.graph["action_graph"]
+                          .edge[ag_edge[0]][ag_edge[1]].keys())
+        for attribute in attributes:
+            if attribute != "rate":
+                if attribute == "type": # temporary fix
+                    attrs[attribute] = {"numSet": {"pos_list": []},
+                                        "strSet": {"pos_list": []}}
+                    vals = list(hierarchy.graph["action_graph"]
+                                .edge[ag_edge[0]][ag_edge[1]][attribute])
+                    value_list = []
+                    for val in vals:
+                        if val is True:
+                            val = "true"
+                        if val is False:
+                            val = "false"
+                        value_list.append(val)
+                    attrs[attribute]["strSet"]["pos_list"] = value_list
+        # ---------------------------------------------------------
+        edge = {"from": source_label, "to": target_label, "attrs": attrs}
+        #edge = {"from": source_label, "to": target_label, "attrs": {}}
         edges.append(edge)
     top_graph["edges"] = edges
 
     attributes = {"name": "action_graph", "type": "graph",
-                  "children_types": ["nugget", "rule", "variant"]}
+                  "children_types": ["nugget", "rule", "variant"],
+                  "positions": positions}
     top_graph["attributes"] = attributes
 
     action_graph["top_graph"] = top_graph
