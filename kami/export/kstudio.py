@@ -28,7 +28,8 @@ def ag_to_edge_list(hierarchy, agent_ids="hgnc_symbol"):
 
 
 def to_kamistudio(hierarchy,
-                  gene_label="hgnc_symbol", region_label="label"):
+                  gene_label="hgnc_symbol", region_label="label",
+                  ag_positions=None):
     """
     Convert a Kami hierarchy to a dictionary formatted for the old KamiStudio.
     To convert a Kami model into a KamiStudio readable file:
@@ -217,11 +218,11 @@ def to_kamistudio(hierarchy,
     nodes = []
     # Position all nodes of the action graph. Try a square lattice.
     positions = {}
-    spacing = 150
-    num_nodes = len(hierarchy.graph['action_graph'].nodes())
-    num_col = int(math.sqrt(num_nodes))
-    start_xpos, start_ypos = 0, 0
-    col, row = 0, 0
+    #spacing = 150
+    #num_nodes = len(hierarchy.graph['action_graph'].nodes())
+    #num_col = int(math.sqrt(num_nodes))
+    #start_xpos, start_ypos = 0, 0
+    #col, row = 0, 0
     for ag_node in hierarchy.graph['action_graph'].nodes():
         node_type = action_graph_typing[ag_node]
         node_label, counters = find_studio_label(ag_node,
@@ -301,14 +302,18 @@ def to_kamistudio(hierarchy,
         # ---------------------------------------------------------
         node = {"id": node_label, "type": node_type, "attrs": attrs}
         nodes.append(node)
-        # Set position of every node. Try with just a square first.
-        xpos = start_xpos + col * spacing
-        ypos = start_ypos + row * spacing
-        positions[node_label] = {"x": xpos, "y": ypos}
-        col += 1
-        if col >= num_col+1:
-            col = 0
-            row += 1
+        # Set position of every node according to given layout file.
+        try:
+            positions[node_label] = ag_positions[ag_node]
+        except:
+            pass
+        #xpos = start_xpos + col * spacing
+        #ypos = start_ypos + row * spacing
+        #positions[node_label] = {"x": xpos, "y": ypos}
+        #col += 1
+        #if col >= num_col+1:
+        #    col = 0
+        #    row += 1
     top_graph["nodes"] = nodes
 
     edges = []
@@ -500,3 +505,80 @@ def to_kamistudio(hierarchy,
         action_graph["children"].append(nugget_graph)
 
     return kami_v1_dict
+
+
+def ag_layout(hierarchy,
+              gene_label="hgnc_symbol", region_label="label", groups=None,
+              grid_spacing=400, component_radius=100):
+    """
+    Outputs a dictionay with the x and y position of every node. By default,
+    every gene is put on a grid and every structural component of a gene is
+    positioned around that gene. Optionally, groups of genes can be given as a
+    list of group objects. Group objects must be dictionaries formated like:
+    {genes: [ABL1, STAT5, ...], center: 100, rows: 2}.
+    The output of ag_layout can be passed to function to_kamistudio so that 
+    the action graph can be visualized with the specified layout.
+    """
+    
+    # { EGFR: {x: 12, y: 53}, HCK: {x: 27, y:32} }
+    layout = {}
+
+    action_graph_typing = hierarchy.typing['action_graph']['kami']
+
+    # First, put every gene node.
+    identifiers = {}
+    gene_list = []
+    for ag_node in hierarchy.graph['action_graph'].nodes():
+        if action_graph_typing[ag_node] == "gene":
+            node_info = hierarchy.graph['action_graph'].node[ag_node]
+            label = (list(node_info[gene_label])[0])
+            gene_list.append(label)
+            identifiers[label] = ag_node
+    gene_sort = sorted(gene_list)
+    num_genes = len(gene_sort)
+    num_col = int(math.sqrt(num_genes))
+    start_xpos, start_ypos = 0, 0
+    col, row = 0, 0
+    for gene in gene_sort:
+        xpos = start_xpos + col * grid_spacing
+        ypos = start_ypos + row * grid_spacing
+        node_id = identifiers[gene]
+        layout[node_id] = {"x": xpos, "y": ypos}
+        col += 1
+        if col >= num_col+1:
+            col = 0
+            row += 1
+
+    # Then, put the structural component of every gene around it.
+    # I need to use edges to find which component belongs to each gene.
+    # Follow ingoing edges but stop if I reach a mod node.
+    edge_list = hierarchy.graph['action_graph'].edges()
+
+    layer = 1
+    for gene in gene_sort:
+        node_id = identifiers[gene]
+        gene_pos = layout[node_id]
+        components = []
+        for edge in edge_list:
+            if edge[1] == node_id: # Found an edge coming from a component.
+                # Exclude transitive eges from seach.
+                try:
+                    edge_type = list(hierarchy.graph['action_graph'].edge[edge[0]][edge[1]]["type"])[0]
+                except:
+                    edge_type = "direct"
+                if edge_type != "transitive":
+                    components.append(edge[0])
+        # Place every component around the gene.
+        # Zero degree is pointing to the right and we rotate clockwise.
+        angle = 0
+        if len(components) > 0:
+            delta = 360. / len(components)
+        for component in components:
+            xvect = math.sin(angle*math.pi/180)
+            yvect = math.cos(angle*math.pi/180)
+            xpos = gene_pos["x"] + (xvect * component_radius)
+            ypos = gene_pos["y"] + (yvect * component_radius)
+            layout[component] = {"x": xpos, "y": ypos}
+            angle += delta
+
+    return layout
