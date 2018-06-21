@@ -493,8 +493,8 @@ class BioPaxImporter(object):
                     Modification(
                         enzyme=enzyme,
                         substrate=init_substrate,
-                        mod_target=target,
-                        mod_value=v
+                        target=target,
+                        value=v
                     )
                 )
 
