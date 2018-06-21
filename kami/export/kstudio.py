@@ -509,7 +509,7 @@ def to_kamistudio(hierarchy,
 
 def ag_layout(hierarchy,
               gene_label="hgnc_symbol", region_label="label", groups=None,
-              grid_spacing=400, component_radius=100):
+              grid_spacing=600, component_radius=80):
     """
     Outputs a dictionay with the x and y position of every node. By default,
     every gene is put on a grid and every structural component of a gene is
@@ -525,7 +525,24 @@ def ag_layout(hierarchy,
 
     action_graph_typing = hierarchy.typing['action_graph']['kami']
 
-    # First, put every gene node.
+    if groups != None:
+        for group in groups:
+            genes = group["genes"]
+            n_genes = len(genes)
+            center = group["center"]
+            try:
+                n_rows = group["rows"]
+            except:
+                n_rows = "square"
+            if n_rows != "square":
+                num_col = int(n_genes/n_rows)
+            else:
+               num_col = int(math.sqrt(num_genes))
+            #width = grid_spacing
+            #start_xpos =  
+            for gene in genes:
+
+    # Put every remaining gene node.
     identifiers = {}
     gene_list = []
     for ag_node in hierarchy.graph['action_graph'].nodes():
@@ -554,31 +571,106 @@ def ag_layout(hierarchy,
     # Follow ingoing edges but stop if I reach a mod node.
     edge_list = hierarchy.graph['action_graph'].edges()
 
-    layer = 1
     for gene in gene_sort:
         node_id = identifiers[gene]
-        gene_pos = layout[node_id]
-        components = []
-        for edge in edge_list:
-            if edge[1] == node_id: # Found an edge coming from a component.
-                # Exclude transitive eges from seach.
-                try:
-                    edge_type = list(hierarchy.graph['action_graph'].edge[edge[0]][edge[1]]["type"])[0]
-                except:
-                    edge_type = "direct"
-                if edge_type != "transitive":
-                    components.append(edge[0])
-        # Place every component around the gene.
-        # Zero degree is pointing to the right and we rotate clockwise.
-        angle = 0
-        if len(components) > 0:
-            delta = 360. / len(components)
-        for component in components:
-            xvect = math.sin(angle*math.pi/180)
-            yvect = math.cos(angle*math.pi/180)
-            xpos = gene_pos["x"] + (xvect * component_radius)
-            ypos = gene_pos["y"] + (yvect * component_radius)
-            layout[component] = {"x": xpos, "y": ypos}
-            angle += delta
+        # Loops to position every structural elements around a 
+        placed_components = [node_id]
+        layer = 1
+        while len(placed_components) > 0:
+            next_components = []
+            for placed_component in placed_components:
+                component_pos = layout[placed_component]
+                # Find components attached to an already placed component
+                # using incoming edges.
+                new_components = []
+                for edge in edge_list:
+                    if edge[1] == placed_component:
+                        # Exclude transitive edges from seach.
+                        try:
+                            edge_type = list(hierarchy.graph['action_graph'].edge[edge[0]][edge[1]]["type"])[0]
+                        except:
+                            edge_type = "direct"
+                        if edge_type != "transitive":
+                            new_component = edge[0]
+                            # Exclude mod or bnd nodes.
+                            new_component_type = action_graph_typing[new_component]
+                            if new_component_type != "mod" and new_component_type != "bnd":
+                               new_components.append(new_component)
+                if len(new_components) > 0:
+                    # Place every new component around the already placed component.
+                    if layer == 1:
+                        # Zero degree is pointing to the right and 
+                        # we rotate clockwise.
+                        angle = 0
+                        delta = 360. / len(new_components)
+                        side = 1
+                    else:
+                        # First, find the orientation relative to the previous component.
+                        previous_components = []
+                        for edge in edge_list:
+                            if edge[0] == placed_component:
+                                previous_component = edge[1]
+                                previous_component_type = action_graph_typing[previous_component]
+                                if previous_component_type != "mod" and previous_component_type != "bnd":
+                                    previous_components.append(previous_component)
+                        previous_x = 0
+                        previous_y = 0
+                        for previous_component in previous_components:
+                           previous_x += layout[previous_component]["x"]
+                           previous_y += layout[previous_component]["y"]
+                        n_components = len(previous_components)
+                        previous_pos = {"x": previous_x/n_components, "y": previous_y/n_components}
+                        ori_x = component_pos["x"] - previous_pos["x"]
+                        ori_y = component_pos["y"] - previous_pos["y"]
+                        if ori_x == 0 and ori_y == 0:
+                            ori_angle = 0
+                            side = 1
+                        elif ori_x == 0:
+                            ori_angle = 180 + (ori_y/abs(ori_y))*90
+                            side = -1
+                        elif ori_y == 0:
+                            ori_angle = 0
+                            side = ori_x / abs(ori_x)
+                        else:
+                            ori_angle = math.atan(ori_y/ori_x)*180/math.pi
+                            side = ori_x / abs(ori_x)
+                        delta = 180. / (len(new_components) + 1)
+                        angle = ori_angle - 90 + delta
+
+                    for new_component in new_components:
+                        xvect = math.cos(angle*math.pi/180)*side
+                        yvect = math.sin(angle*math.pi/180)*side
+                        xpos = component_pos["x"] + (xvect * component_radius)
+                        ypos = component_pos["y"] + (yvect * component_radius)
+                        layout[new_component] = {"x": xpos, "y": ypos}
+                        angle += delta
+                        next_components.append(new_component)
+            # All components of that layer are placed, ready for next loop.
+            placed_components = next_components
+            layer += 1
+
+    # Finally, put the action nodes between the nodes that they link.
+    for ag_node in hierarchy.graph['action_graph'].nodes():
+        node_type = action_graph_typing[ag_node]
+        if node_type == "bnd" or node_type == "mod":
+            source_list = []
+            for edge in edge_list:
+                if edge[1] == ag_node:
+                    source_list.append(edge[0])
+                if edge[0] == ag_node:
+                    source_list.append(edge[1])
+            # Get the center of mass of every source node.
+            if len(source_list) > 0:
+                sum_x = 0
+                sum_y = 0
+                for source_node in source_list:
+                    sum_x += layout[source_node]["x"]
+                    sum_y += layout[source_node]["y"]
+                n_source = len(source_list)
+                com_x = sum_x / n_source
+                com_y = sum_y / n_source
+                layout[ag_node] = {"x": com_x, "y": com_y}
+            else:
+                layout[ag_node] = {"x": 0, "y": 0}
 
     return layout
