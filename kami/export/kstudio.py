@@ -1,4 +1,8 @@
 import math
+import json
+import warnings
+from kami.exceptions import (KamiError,
+                             KamiWarning)
 
 def ag_to_edge_list(hierarchy, agent_ids="hgnc_symbol"):
     edge_list = []
@@ -509,42 +513,25 @@ def to_kamistudio(hierarchy,
 
 def ag_layout(hierarchy,
               gene_label="hgnc_symbol", region_label="label", groups=None,
-              grid_spacing=600, component_radius=80):
+              grid_spacing=800, component_radius=80, prevpos=None):
     """
     Outputs a dictionay with the x and y position of every node. By default,
     every gene is put on a grid and every structural component of a gene is
     positioned around that gene. Optionally, groups of genes can be given as a
     list of group objects. Group objects must be dictionaries formated like:
-    {genes: [ABL1, STAT5, ...], center: 100, rows: 2}.
+    {"genes": [ABL1, STAT5, ...], "center": {"x": 100, "y": 100}, "rows": 2}.
     The output of ag_layout can be passed to function to_kamistudio so that 
     the action graph can be visualized with the specified layout.
     """
-    
-    # { EGFR: {x: 12, y: 53}, HCK: {x: 27, y:32} }
+
+    # The layout dict looks like { EGFR: {x: 12, y: 53}, HCK: {x: 27, y:32} }
     layout = {}
 
-    action_graph_typing = hierarchy.typing['action_graph']['kami']
-
-    if groups != None:
-        for group in groups:
-            genes = group["genes"]
-            n_genes = len(genes)
-            center = group["center"]
-            try:
-                n_rows = group["rows"]
-            except:
-                n_rows = "square"
-            if n_rows != "square":
-                num_col = int(n_genes/n_rows)
-            else:
-               num_col = int(math.sqrt(num_genes))
-            #width = grid_spacing
-            #start_xpos =  
-            for gene in genes:
-
-    # Put every remaining gene node.
+    # Find every gene that is present in the model. Also get their
+    # labels and ids.
     identifiers = {}
     gene_list = []
+    action_graph_typing = hierarchy.typing['action_graph']['kami']
     for ag_node in hierarchy.graph['action_graph'].nodes():
         if action_graph_typing[ag_node] == "gene":
             node_info = hierarchy.graph['action_graph'].node[ag_node]
@@ -552,11 +539,72 @@ def ag_layout(hierarchy,
             gene_list.append(label)
             identifiers[label] = ag_node
     gene_sort = sorted(gene_list)
-    num_genes = len(gene_sort)
-    num_col = int(math.sqrt(num_genes))
-    start_xpos, start_ypos = 0, 0
-    col, row = 0, 0
+
+    # Place nodes according to input file.
+    if prevpos != None:
+        ag = prevpos["children"][0]["children"][0]["children"][0]
+        pos_data = ag["top_graph"]["attributes"]["positions"]
+
+
+    # Place the genes that are present in predefined groups.
+    x_max = 0
+    y_min = 0
+    placed_genes = []
+    if groups != None:
+        x_max = -float("inf")
+        y_min = float("inf")
+        for group in groups:
+            genes = group["genes"]
+            num_genes = len(genes)
+            center_x = group["center"]["x"]
+            center_y = group["center"]["y"]
+            try:
+                num_rows = group["rows"]
+            except:
+                num_rows = "square"
+            if num_rows != "square":
+                num_cols = int(num_genes/num_rows)
+            else:
+               num_cols = int(math.sqrt(num_genes))
+            start_xpos = center_x - (num_cols-1)/2 * grid_spacing
+            start_ypos = center_y - (num_rows-1)/2 * grid_spacing
+            col, row = 0, 0
+            for gene in genes:
+                # Ignore genes that are in predefined groups but absent
+                # in the model.
+                if gene in gene_sort:
+                    xpos = start_xpos + col * grid_spacing
+                    ypos = start_ypos + row * grid_spacing
+                    node_id = identifiers[gene]
+                    layout[node_id] = {"x": xpos, "y": ypos}
+                    col += 1
+                    if col >= num_cols:
+                        col = 0
+                        row += 1
+                    placed_genes.append(gene)
+                    # Keep track of the end of the layout.
+                    if xpos > x_max:
+                        x_max = xpos
+                    if ypos < y_min:
+                        y_min = ypos
+                else:
+                    warnings.warn(
+                        "Gene %s from layout groups is absent in the action graph."
+                        % gene, KamiWarning)
+        x_max = x_max + 3*grid_spacing
+
+
+    # Place genes that were not present in predefined groups at the far right.
+    remaining_genes = []
     for gene in gene_sort:
+        if gene not in placed_genes:
+            remaining_genes.append(gene)
+    num_genes = len(remaining_genes)
+    num_col = int(math.sqrt(num_genes))
+    start_xpos = x_max
+    start_ypos = y_min
+    col, row = 0, 0
+    for gene in remaining_genes:
         xpos = start_xpos + col * grid_spacing
         ypos = start_ypos + row * grid_spacing
         node_id = identifiers[gene]
@@ -570,7 +618,6 @@ def ag_layout(hierarchy,
     # I need to use edges to find which component belongs to each gene.
     # Follow ingoing edges but stop if I reach a mod node.
     edge_list = hierarchy.graph['action_graph'].edges()
-
     for gene in gene_sort:
         node_id = identifiers[gene]
         # Loops to position every structural elements around a 
