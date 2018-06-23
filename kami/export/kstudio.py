@@ -31,14 +31,16 @@ def ag_to_edge_list(hierarchy, agent_ids="hgnc_symbol"):
     return edge_list
 
 
-def to_kamistudio(hierarchy,
+def kamistudio_export(hierarchy,
                   gene_label="hgnc_symbol", region_label="label",
-                  ag_positions=None):
+                  newlayout=None, prevlayout=None):
     """
     Convert a Kami hierarchy to a dictionary formatted for the old KamiStudio.
     To convert a Kami model into a KamiStudio readable file:
     yourmodel = to_kamistudio(kami_hierarchy)
     json.dump(yourmodel, outfile, indent=4, sort_keys=False)
+    If I use a newlayout created with function create_layout, the keys of the
+    dict are node ids. If I use a prevlayout, the keys are rather node labels.
     """
 
     def find_studio_label(node_id, node_typ, counter_dict, graph_level):
@@ -219,14 +221,13 @@ def to_kamistudio(hierarchy,
     counters = {}
     label_tracker = {}
 
+    # Place nodes according to input file.
+    if prevlayout != None:
+        ag = prevlayout["children"][0]["children"][0]["children"][0]
+        prevpos = ag["top_graph"]["attributes"]["positions"]
+
     nodes = []
-    # Position all nodes of the action graph. Try a square lattice.
     positions = {}
-    #spacing = 150
-    #num_nodes = len(hierarchy.graph['action_graph'].nodes())
-    #num_col = int(math.sqrt(num_nodes))
-    #start_xpos, start_ypos = 0, 0
-    #col, row = 0, 0
     for ag_node in hierarchy.graph['action_graph'].nodes():
         node_type = action_graph_typing[ag_node]
         node_label, counters = find_studio_label(ag_node,
@@ -307,17 +308,17 @@ def to_kamistudio(hierarchy,
         node = {"id": node_label, "type": node_type, "attrs": attrs}
         nodes.append(node)
         # Set position of every node according to given layout file.
-        try:
-            positions[node_label] = ag_positions[ag_node]
-        except:
-            pass
-        #xpos = start_xpos + col * spacing
-        #ypos = start_ypos + row * spacing
-        #positions[node_label] = {"x": xpos, "y": ypos}
-        #col += 1
-        #if col >= num_col+1:
-        #    col = 0
-        #    row += 1
+        if newlayout != None:
+            try:
+                positions[node_label] = newlayout[ag_node]
+            except:
+                pass
+        if prevlayout != None:
+            try:
+                positions[node_label] = prevpos[node_label]
+            except:
+                pass
+
     top_graph["nodes"] = nodes
 
     edges = []
@@ -511,9 +512,9 @@ def to_kamistudio(hierarchy,
     return kami_v1_dict
 
 
-def ag_layout(hierarchy,
+def create_layout(hierarchy,
               gene_label="hgnc_symbol", region_label="label", groups=None,
-              grid_spacing=800, component_radius=80, prevpos=None):
+              grid_spacing=800, component_radius=80):
     """
     Outputs a dictionay with the x and y position of every node. By default,
     every gene is put on a grid and every structural component of a gene is
@@ -539,12 +540,6 @@ def ag_layout(hierarchy,
             gene_list.append(label)
             identifiers[label] = ag_node
     gene_sort = sorted(gene_list)
-
-    # Place nodes according to input file.
-    if prevpos != None:
-        ag = prevpos["children"][0]["children"][0]["children"][0]
-        pos_data = ag["top_graph"]["attributes"]["positions"]
-
 
     # Place the genes that are present in predefined groups.
     x_max = 0
