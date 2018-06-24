@@ -502,7 +502,82 @@ def kamistudio_export(hierarchy,
             edges.append(edge)
         top_graph["edges"] = edges
 
-        attributes = {"name": nugget_id, "type": "nugget", "rate": rate}
+        # Build a simple layout for nuggets.
+        positions = {}
+        print("-----")
+        # Search for the action node and put it at the center.
+        edge_list = hierarchy.graph[nugget_id].edges()
+        for nugget_edge in edge_list:
+            ag_target_type = nugget_graph_typing[nugget_edge[1]]
+            target_type = action_graph_typing[ag_target_type]
+            if target_type == "mod":
+                act_node = nugget_edge[1]
+                nug_type = "modif"
+            if target_type == "bnd":
+                attribs = hierarchy.graph[nugget_id].node[nugget_edge[1]]
+                act_type = list(attribs["type"])[0]
+                if act_type == "do":
+                    act_node = nugget_edge[1]
+                    nug_type = "binding"
+        act_label = nugget_label_tracker[act_node]
+
+            #print(nugget_edge, target_type)
+        # Position nodes for a binding nugget.
+        if nug_type == "binding":
+            positions[act_label] = {"x": 0.0, "y": 0.0}
+            # Find the nodes that connect to the bnd node.
+            side = "left"
+            for nugget_edge in edge_list:
+                if nugget_edge[1] == act_node:
+                    if side == "left":
+                        left_actor = nugget_edge[0]
+                        side = "right"
+                    else:
+                        right_actor = nugget_edge[0]
+            left_label = nugget_label_tracker[left_actor]
+            right_label = nugget_label_tracker[right_actor]
+            positions[left_label]  = {"x": -200, "y": 0}
+            positions[right_label] = {"x":  200, "y": 0}
+            # Left path to gene.
+            x_del = -100
+            x_pos = -200
+            component = left_actor
+            while component != None:
+                next_component = None
+                for nugget_edge in edge_list:
+                    if nugget_edge[0] == component:
+                        # Check the type of the outgoing node.
+                        # Ignore test nodes at that point.
+                        ag_target_type = nugget_graph_typing[nugget_edge[1]]
+                        target_type = action_graph_typing[ag_target_type]
+                        if target_type != "mod" and target_type != "bnd":
+                            next_component = nugget_edge[1]
+                            x_pos = x_pos + x_del
+                            next_label = nugget_label_tracker[next_component]
+                            positions[next_label] = {"x": x_pos, "y": 0}
+                component = next_component
+            # Left path to gene.
+            x_del = 100
+            x_pos = 200
+            component = right_actor
+            while component != None:
+                next_component = None
+                for nugget_edge in edge_list:
+                    if nugget_edge[0] == component:
+                        # Check the type of the outgoing node.
+                        # Ignore test nodes at that point.
+                        ag_target_type = nugget_graph_typing[nugget_edge[1]]
+                        target_type = action_graph_typing[ag_target_type]
+                        if target_type != "mod" and target_type != "bnd":
+                            next_component = nugget_edge[1]
+                            x_pos = x_pos + x_del
+                            next_label = nugget_label_tracker[next_component]
+                            positions[next_label] = {"x": x_pos, "y": 0}
+                component = next_component
+
+
+        attributes = {"name": nugget_id, "type": "nugget", "rate": rate,
+                      "positions": positions}
         top_graph["attributes"] = attributes
 
         nugget_graph["top_graph"] = top_graph
@@ -536,7 +611,10 @@ def create_layout(hierarchy,
     for ag_node in hierarchy.graph['action_graph'].nodes():
         if action_graph_typing[ag_node] == "gene":
             node_info = hierarchy.graph['action_graph'].node[ag_node]
-            label = (list(node_info[gene_label])[0])
+            try:
+                label = (list(node_info[gene_label])[0])
+            except:
+                label = (list(node_info["uniprotid"])[0])
             gene_list.append(label)
             identifiers[label] = ag_node
     gene_sort = sorted(gene_list)
