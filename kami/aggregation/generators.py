@@ -46,7 +46,7 @@ class NuggetContainer:
 
     def __init__(self, graph=None, meta_typing=None,
                  ag_typing=None, template_rel=None,
-                 semantic_rels=None):
+                 semantic_rels=None, desc=None):
         """Initialize nugget container."""
         if graph:
             self.graph = copy.deepcopy(graph)
@@ -72,6 +72,7 @@ class NuggetContainer:
             self.semantic_rels = copy.deepcopy(semantic_rels)
         else:
             self.semantic_rels = dict()
+        self.desc = desc
         return
 
     def add_node(self, node_id, attrs=None, meta_typing=None,
@@ -448,7 +449,7 @@ class ModGenerator(Generator):
 
     def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
-        nugget = NuggetContainer()
+        nugget = NuggetContainer(desc=mod.desc)
         nugget.template_id = "mod_template"
 
         # 1. Process enzyme
@@ -505,7 +506,7 @@ class BndGenerator(Generator):
     """Binding nugget generator."""
 
     def generate(self, bnd):
-        nugget = NuggetContainer()
+        nugget = NuggetContainer(desc=bnd.desc)
         nugget.template_id = "bnd_template"
 
         left = []
@@ -569,7 +570,7 @@ class AnonymousModGenerator(Generator):
 
     def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
-        nugget = NuggetContainer()
+        nugget = NuggetContainer(desc=mod.desc)
         nugget.template_id = "mod_template"
 
         # Process substrate
@@ -607,12 +608,12 @@ class AnonymousModGenerator(Generator):
         return nugget, "mod"
 
 
-class AutoModGenerator(Generator):
+class SelfModGenerator(Generator):
     """Generator class for auto modification nugget."""
 
     def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
-        nugget = NuggetContainer()
+        nugget = NuggetContainer(desc=mod.desc)
         nugget.template_id = "mod_template"
 
         # 1. Process enzyme
@@ -681,12 +682,12 @@ class AutoModGenerator(Generator):
         return nugget, "mod"
 
 
-class TransModGenerator(Generator):
+class LigandModGenerator(Generator):
     """Generator class for transmodification nugget."""
 
     def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
-        nugget = NuggetContainer()
+        nugget = NuggetContainer(desc=mod.desc)
         nugget.template_id = "mod_template"
 
         # 1. Process enzyme

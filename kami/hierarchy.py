@@ -14,8 +14,8 @@ from kami.aggregation.bookkeeping import (anatomize_gene,
                                           connect_nested_fragments,
                                           connect_transitive_components)
 from kami.aggregation.generators import (ModGenerator,
-                                         AutoModGenerator,
-                                         TransModGenerator,
+                                         SelfModGenerator,
+                                         LigandModGenerator,
                                          AnonymousModGenerator,
                                          BndGenerator)
 from kami.aggregation.semantics import (apply_mod_semantics,
@@ -725,6 +725,9 @@ class KamiHierarchy(Hierarchy):
                 "interaction_type": nugget_type
             }
         )
+        if nugget.desc is not None:
+            self.node[nugget_id].attrs['desc'] = nugget.desc
+
         self.nugget[nugget_id] = self.node[nugget_id].graph
         self.add_typing(nugget_id, "action_graph", dict())
 
@@ -824,9 +827,9 @@ class KamiHierarchy(Hierarchy):
 
         # Generate nugget graph
         if isinstance(interaction, SelfModification):
-            generator = AutoModGenerator(self)
+            generator = SelfModGenerator(self)
         elif isinstance(interaction, LigandModification):
-            generator = TransModGenerator(self)
+            generator = LigandModGenerator(self)
         elif isinstance(interaction, AnonymousModification):
             generator = AnonymousModGenerator(self)
         elif isinstance(interaction, Modification):

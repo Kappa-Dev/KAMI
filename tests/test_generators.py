@@ -3,8 +3,8 @@
 from regraph import print_graph
 
 from kami.aggregation.generators import (NuggetContainer, Generator,
-                                         ModGenerator, AutoModGenerator,
-                                         TransModGenerator, BndGenerator,
+                                         ModGenerator, SelfModGenerator,
+                                         LigandModGenerator, BndGenerator,
                                          AnonymousModGenerator)
 from kami.interactions import (Modification,
                                Binding, SelfModification,
@@ -453,7 +453,7 @@ class TestGenerators(object):
             substrate_site=Site("Site"))
 
         hierarchy = KamiHierarchy()
-        generator = AutoModGenerator(hierarchy)
+        generator = SelfModGenerator(hierarchy)
         n, t = generator.generate(automod)
         print_graph(n.graph)
 
@@ -476,7 +476,7 @@ class TestGenerators(object):
             substrate_bnd_site=Site("SbndSite"))
 
         hierarchy = KamiHierarchy()
-        generator = TransModGenerator(hierarchy)
+        generator = LigandModGenerator(hierarchy)
         n, t = generator.generate(automod)
         print_graph(n.graph)
 

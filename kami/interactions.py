@@ -19,7 +19,8 @@ class Modification(Interaction):
     """Class for Kami mod interaction."""
 
     def __init__(self, enzyme, substrate, target,
-                 value=True, rate=None, annotation=None):
+                 value=True, rate=None, annotation=None,
+                 desc=None):
         """Initialize modification."""
         self.enzyme = enzyme
         self.substrate = substrate
@@ -27,11 +28,16 @@ class Modification(Interaction):
         self.value = value
         self.rate = rate
         self.annotation = annotation
+        self.desc = desc
         return
 
     def __str__(self):
         """String representation of Modification class."""
-        res = "Modification:\n"
+        if self.desc is not None:
+            desc_str = self.desc
+        else:
+            desc_str = ""
+        res = "Modification: {}\n".format(desc_str)
         res += "\tEnzyme: {}\n".format(self.enzyme)
         res += "\tSubstrate: {}\n".format(self.substrate)
         res += "\tMod target: {}\n".format(self.target)
@@ -55,6 +61,8 @@ class Modification(Interaction):
             res += ", rate={}".format(self.rate)
         if self.annotation is not None:
             res += ", annotation={}".format(str(self.annotation))
+        if self.desc is not None:
+            res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
 
@@ -75,16 +83,22 @@ class Binding(Interaction):
     """Class for Kami binary binding interaction."""
 
     def __init__(self, left, right,
-                 rate=None, annotation=None):
+                 rate=None, annotation=None, desc=None):
         """Initialize binary binding."""
         self.left = left
         self.right = right
         self.rate = rate
         self.annotation = annotation
+        self.desc = desc
 
     def __str__(self):
         """String representation of Binding class."""
-        res = "Binding: {} binds {}\n".format(str(self.left), str(self.right))
+        if self.desc is not None:
+            desc_str = self.desc
+        else:
+            desc_str = ""
+        res = "Binding: {}\n".format(desc_str)
+        res += "\t{} binds {}\n".format(str(self.left), str(self.right))
         if self.rate is not None:
             res += "\tRate: {}\n".format(self.rate)
         if self.annotation is not None:
@@ -99,6 +113,8 @@ class Binding(Interaction):
             res += ", rate={}".format(self.rate)
         if self.annotation is not None:
             res += ", annotation={}".format(self.annotation)
+        if self.desc is not None:
+            res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
 
@@ -107,16 +123,22 @@ class Unbinding(Interaction):
     """Class for Kami unbinding interaction."""
 
     def __init__(self, left, right,
-                 rate=None, annotation=None):
+                 rate=None, annotation=None, desc=None):
         """Initialize unbinding."""
         self.left = left
         self.right = right
         self.rate = rate
         self.annotation = annotation
+        self.desc = desc
 
     def __str__(self):
         """String representation of Unbinding class."""
-        res = "Unbinding: {} unbinds {}\n".format(
+        if self.desc is not None:
+            desc_str = self.desc
+        else:
+            desc_str = ""
+        res = "Unbinding: {}\n".format(desc_str)
+        res += "\t{} unbinds {}\n".format(
             str(self.left), str(self.right))
         if self.rate is not None:
             res += "\tRate: {}\n".format(self.rate)
@@ -132,6 +154,8 @@ class Unbinding(Interaction):
             res += ", rate={}".format(self.rate)
         if self.annotation is not None:
             res += ", annotation={}".format(self.annotation)
+        if self.desc is not None:
+            res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
 
@@ -141,7 +165,7 @@ class SelfModification(Interaction):
 
     def __init__(self, enzyme, target, value=True,
                  substrate_region=None, substrate_site=None, rate=None,
-                 annotation=None):
+                 annotation=None, desc=None):
         """Initialize modification."""
         self.enzyme = enzyme
         self.substrate_region = substrate_region
@@ -150,11 +174,16 @@ class SelfModification(Interaction):
         self.value = value
         self.rate = rate
         self.annotation = annotation
+        self.desc = desc
         return
 
     def __str__(self):
         """String representation of an SelfModification object."""
-        res = "Modification:\n"
+        if self.desc is not None:
+            desc_str = self.desc
+        else:
+            desc_str = ""
+        res = "SelfModification: {}\n".format(desc_str)
         res += "\tEnzyme: {}\n".format(self.enzyme)
         if self.substrate_region is not None:
             res += "Substrate region: {}\n".format(self.substrate_region)
@@ -185,6 +214,8 @@ class SelfModification(Interaction):
             res += ", rate={}".format(self.rate)
         if self.annotation is not None:
             res += ", annotation={}".format(str(self.annotation))
+        if self.desc is not None:
+            res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
 
@@ -193,7 +224,7 @@ class AnonymousModification(Modification):
     """Class for Kami anonymous modification interaction."""
 
     def __init__(self, substrate, target, value=True,
-                 rate=None, annotation=None):
+                 rate=None, annotation=None, desc=None):
         """Initialize modification."""
         self.enzyme = None
         self.substrate = substrate
@@ -201,10 +232,15 @@ class AnonymousModification(Modification):
         self.value = value
         self.rate = rate
         self.annotation = annotation
+        self.desc = desc
 
     def __str__(self):
         """String representation of an AnonymousModification object."""
-        res = "AnonymousModification:\n"
+        if self.desc is not None:
+            desc_str = self.desc
+        else:
+            desc_str = ""
+        res = "AnonymousModification: {}\n".format(desc_str)
         res += "\tSubstrate: %s\n" % self.substrate
         res += "\tMod target: %s\n" % self.target
         res += "\tValue: %s\n" % self.value
@@ -226,6 +262,8 @@ class AnonymousModification(Modification):
             res += ", rate={}".format(self.rate)
         if self.annotation is not None:
             res += ", annotation={}".format(self.annotation)
+        if self.desc is not None:
+            res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
 
@@ -236,7 +274,7 @@ class LigandModification(Modification):
     def __init__(self, enzyme, substrate, target, value=True,
                  enzyme_bnd_region=None, enzyme_bnd_site=None,
                  substrate_bnd_region=None, substrate_bnd_site=None,
-                 rate=None, annotation=None):
+                 rate=None, annotation=None, desc=None):
         """Initialize modification."""
         self.enzyme = enzyme
         self.substrate = substrate
@@ -248,11 +286,16 @@ class LigandModification(Modification):
         self.substrate_bnd_site = substrate_bnd_site
         self.rate = rate
         self.annotation = annotation
+        self.desc = desc
         return
 
     def __str__(self):
         """String representation of LigandModification class."""
-        res = "LigandModification:\n"
+        if self.desc is not None:
+            desc_str = self.desc
+        else:
+            desc_str = ""
+        res = "LigandModification: {}\n".format(desc_str)
         res += "\tEnzyme: {}\n".format(self.enzyme)
         res += "\tSubstrate: {}\n".format(self.substrate)
         res += "\tMod target: {}\n".format(self.target)
@@ -302,5 +345,7 @@ class LigandModification(Modification):
             res += ", rate={}".format(self.rate)
         if self.annotation is not None:
             res += ", annotation={}".format(str(self.annotation))
+        if self.desc is not None:
+            res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
