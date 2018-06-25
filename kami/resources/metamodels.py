@@ -101,7 +101,8 @@ add_edges_from(
             "site", "gene",
             {"start": IntegerSet([(1, math.inf)]),
              "end": IntegerSet([(1, math.inf)]),
-             "order": IntegerSet([(1, math.inf)])}
+             "order": IntegerSet([(1, math.inf)]),
+             "type": {"transitive"}}
         ),
         (
             "site", "region",
@@ -111,11 +112,13 @@ add_edges_from(
         ),
         (
             "residue", "gene",
-            {"loc": IntegerSet([(1, math.inf)])}
+            {"loc": IntegerSet([(1, math.inf)]),
+             "type": {"transitive"}}
         ),
         (
             "residue", "region",
-            {"loc": IntegerSet([(1, math.inf)])}
+            {"loc": IntegerSet([(1, math.inf)]),
+             "type": {"transitive"}}
         ),
         (
             "residue", "site",

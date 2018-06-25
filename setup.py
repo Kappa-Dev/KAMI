@@ -1,6 +1,7 @@
 """Setup of KAMI."""
 
 from setuptools import setup
+
 setup(name='kami',
       version='1.2',
       description='Knowledge Aggregator and Model Instantiator',
