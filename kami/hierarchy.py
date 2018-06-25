@@ -823,14 +823,14 @@ class KamiHierarchy(Hierarchy):
             self.create_empty_action_graph()
 
         # Generate nugget graph
-        if isinstance(interaction, Modification):
-            generator = ModGenerator(self)
-        elif isinstance(interaction, AutoModification):
+        if isinstance(interaction, AutoModification):
             generator = AutoModGenerator(self)
         elif isinstance(interaction, TransModification):
             generator = TransModGenerator(self)
         elif isinstance(interaction, AnonymousModification):
             generator = AnonymousModGenerator(self)
+        elif isinstance(interaction, Modification):
+            generator = ModGenerator(self)
         elif isinstance(interaction, Binding) or\
                 isinstance(interaction, Unbinding):
             generator = BndGenerator(self)

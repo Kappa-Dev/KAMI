@@ -480,6 +480,30 @@ class TestGenerators(object):
         n, t = generator.generate(automod)
         print_graph(n.graph)
 
+        inter = TransModification(
+            enzyme=RegionActor(gene=Gene(uniprotid="P30530",
+                                         hgnc_symbol="AXL"),
+                               region=Region(name="Tyr_kinase",
+                                             interproid="IPR020635",
+                                             start=536, end=807)),
+            substrate=SiteActor(gene=Gene(uniprotid="P06239",
+                                          hgnc_symbol="LCK"),
+                                site=Site(name="pY394",
+                                          start=391, end=397)),
+            target=Residue(aa="Y", loc=394,
+                           state=State("phosphorylation", False)),
+            value=True,
+            rate=10,
+            enzyme_bnd_region=Region(name="Tyr_kinase",
+                                     interproid="IPR020635",
+                                     start=536, end=807),
+            substrate_bnd_site=Site(name='pY394',
+                                    start=391, end=397)
+        )
+        hierarchy = KamiHierarchy()
+        hierarchy.add_interaction(inter, anatomize=False)
+        print_graph(hierarchy.graph['nugget_1'])
+
     def test_bnd_generation(self):
         """Test generation of a binding nugget graph."""
         left = SiteActor(Gene("A"), Site("pY"), Region("Reg"))

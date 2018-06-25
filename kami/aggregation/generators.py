@@ -774,7 +774,7 @@ class TransModGenerator(Generator):
                 father = substrate
             substrate_bnd_site = self._generate_site(
                 nugget, mod.substrate_bnd_site, father, substrate)
-            if substrate_bnd_site is not None:
+            if substrate_bnd_region is not None:
                 nugget.add_edge(substrate_bnd_site, substrate_bnd_region,
                                 mod.substrate_bnd_site.location())
             else:
