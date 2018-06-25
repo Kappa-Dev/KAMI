@@ -6,13 +6,14 @@ from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.interactions import (Modification,
                                Binding,
-                               AutoModification,
-                               TransModification,
+                               SelfModification,
+                               LigandModification,
                                AnonymousModification)
 
 
 class TestRepresentation(object):
     """Test class for black box functionality."""
+
     def __init__(self):
         uniprotid = "P00533"
         simple_region = Region("SH2")
@@ -68,7 +69,7 @@ class TestRepresentation(object):
         print(mod.__repr__())
 
     def test_automodification(self):
-        automod = AutoModification(
+        automod = SelfModification(
             enzyme=self.enzyme_site_actor,
             target=self.residue_mod_target,
             value=True,
@@ -78,7 +79,7 @@ class TestRepresentation(object):
         print(automod.__repr__())
 
     def test_transmodification(self):
-        mod = TransModification(
+        mod = LigandModification(
             enzyme=self.enzyme_site_actor,
             substrate=self.substrate_region_actor,
             target=self.residue_mod_target,

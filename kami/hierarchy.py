@@ -25,8 +25,8 @@ from kami.aggregation.identifiers import identify_residue
 from kami.exceptions import KamiHierarchyError
 
 from kami.interactions import (Modification,
-                               AutoModification,
-                               TransModification,
+                               SelfModification,
+                               LigandModification,
                                AnonymousModification,
                                Binding, Unbinding)
 
@@ -823,9 +823,9 @@ class KamiHierarchy(Hierarchy):
             self.create_empty_action_graph()
 
         # Generate nugget graph
-        if isinstance(interaction, AutoModification):
+        if isinstance(interaction, SelfModification):
             generator = AutoModGenerator(self)
-        elif isinstance(interaction, TransModification):
+        elif isinstance(interaction, LigandModification):
             generator = TransModGenerator(self)
         elif isinstance(interaction, AnonymousModification):
             generator = AnonymousModGenerator(self)

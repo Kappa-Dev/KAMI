@@ -136,8 +136,8 @@ class Unbinding(Interaction):
         return res
 
 
-class AutoModification(Modification):
-    """Class for Kami automodification interaction."""
+class SelfModification(Interaction):
+    """Class for Kami SelfModification interaction."""
 
     def __init__(self, enzyme, target, value=True,
                  substrate_region=None, substrate_site=None, rate=None,
@@ -153,7 +153,7 @@ class AutoModification(Modification):
         return
 
     def __str__(self):
-        """String representation of an AutoModification object."""
+        """String representation of an SelfModification object."""
         res = "Modification:\n"
         res += "\tEnzyme: {}\n".format(self.enzyme)
         if self.substrate_region is not None:
@@ -169,11 +169,11 @@ class AutoModification(Modification):
         return res
 
     def __repr__(self):
-        """Representation of an AutoModification object."""
+        """Representation of an SelfModification object."""
         enzyme_rep = self.enzyme.__repr__()
         mod_target = self.target.__repr__()
 
-        res = "AutoModification(enzyme={}, target={}, value={}".format(
+        res = "SelfModification(enzyme={}, target={}, value={}".format(
             enzyme_rep, mod_target, self.value)
         if self.substrate_region is not None:
             res += ", substrate_region={}".format(
@@ -230,7 +230,7 @@ class AnonymousModification(Modification):
         return res
 
 
-class TransModification(Modification):
+class LigandModification(Modification):
     """Class for Kami transmodification interaction."""
 
     def __init__(self, enzyme, substrate, target, value=True,
@@ -251,8 +251,8 @@ class TransModification(Modification):
         return
 
     def __str__(self):
-        """String representation of TransModification class."""
-        res = "TransModification:\n"
+        """String representation of LigandModification class."""
+        res = "LigandModification:\n"
         res += "\tEnzyme: {}\n".format(self.enzyme)
         res += "\tSubstrate: {}\n".format(self.substrate)
         res += "\tMod target: {}\n".format(self.target)
@@ -277,12 +277,12 @@ class TransModification(Modification):
         return res
 
     def __repr__(self):
-        """Representation of a TransModification object."""
+        """Representation of a LigandModification object."""
         enzyme_rep = self.enzyme.__repr__()
         substrate_rep = self.substrate.__repr__()
         mod_target = self.target.__repr__()
 
-        res = "TransModification(" +\
+        res = "LigandModification(" +\
             "enzyme={}, substrate={}, target={}, value={}".format(
                 enzyme_rep, substrate_rep, mod_target, self.value)
 

@@ -8,8 +8,8 @@ from kami.entities import (Gene, Region, RegionActor,
                            Residue, Site, SiteActor, State)
 from kami.exceptions import IndraImportError, IndraImportWarning
 from kami.interactions import (Modification,
-                               AutoModification,
-                               TransModification,
+                               SelfModification,
+                               LigandModification,
                                Binding,
                                AnonymousModification)
 from kami.utils.xrefs import (uniprot_from_xrefs,
@@ -269,12 +269,12 @@ class IndraImporter(object):
             annotation = self._annotation_to_kami(statement)
 
             if mod_residue:
-                nugget_gen = AutoModification(
+                nugget_gen = SelfModification(
                     enz_physical_agent, mod_residue, value, annotation=annotation,
                     direct=True
                 )
             else:
-                nugget_gen = AutoModification(
+                nugget_gen = SelfModification(
                     enz_physical_agent, state_obj, value, annotation=annotation,
                     direct=True
                 )
@@ -301,12 +301,12 @@ class IndraImporter(object):
             annotation = self._annotation_to_kami(statement)
 
             if mod_residue:
-                nugget_gen = TransModification(
+                nugget_gen = LigandModification(
                     enzyme_agent, substrate_agent, mod_state, value,
                     annotation=annotation, direct=True
                 )
             else:
-                nugget_gen = TransModification(
+                nugget_gen = LigandModification(
                     enzyme_agent, substrate_agent, mod_residue, value,
                     annotation=annotation, direct=True
                 )
@@ -316,16 +316,16 @@ class IndraImporter(object):
                 "Unknown type of self-modification: '%s'!" % str(statement)
             )
 
-    def _handle_complex(self, statement):
-        """Handle INDRA complex classes."""
-        physical_agents = []
-        for member in statement.members:
-            physical_agents.append(self._physical_agent_to_kami(member))
+    # def _handle_complex(self, statement):
+    #     """Handle INDRA complex classes."""
+    #     physical_agents = []
+    #     for member in statement.members:
+    #         physical_agents.append(self._physical_agent_to_kami(member))
 
-        annotation = self._annotation_to_kami(statement)
-        nugget_gen = Complex(physical_agents, annotation=annotation)
+    #     annotation = self._annotation_to_kami(statement)
+    #     nugget_gen = Complex(physical_agents, annotation=annotation)
 
-        return nugget_gen
+    #     return nugget_gen
 
     def _handle_regulate_activity(self, statement):
 
@@ -379,8 +379,8 @@ class IndraImporter(object):
             nugget = self._handle_modification(statement)
         elif isinstance(statement, indra.statements.SelfModification):
             nugget = self._handle_self_modification(statement)
-        elif isinstance(statement, indra.statements.Complex):
-            nugget = self._handle_complex(statement)
+        # elif isinstance(statement, indra.statements.Complex):
+        #     nugget = self._handle_complex(statement)
         elif isinstance(statement, indra.statements.RegulateActivity):
             nugget = self._handle_regulate_activity(statement)
         elif isinstance(statement, indra.statements.ActiveForm):

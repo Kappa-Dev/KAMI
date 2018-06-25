@@ -7,8 +7,8 @@ from kami.aggregation.generators import (NuggetContainer, Generator,
                                          TransModGenerator, BndGenerator,
                                          AnonymousModGenerator)
 from kami.interactions import (Modification,
-                               Binding, AutoModification,
-                               TransModification, AnonymousModification)
+                               Binding, SelfModification,
+                               LigandModification, AnonymousModification)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)
 from kami.hierarchy import KamiHierarchy
@@ -445,7 +445,7 @@ class TestGenerators(object):
             gene=enzyme_gene,
             region=Region("Pkinase"))
 
-        automod = AutoModification(
+        automod = SelfModification(
             enzyme_region_actor,
             Residue("Y", 100, State("phosphorylation", True)),
             value=True,
@@ -466,7 +466,7 @@ class TestGenerators(object):
 
         substrate = Gene("B")
 
-        automod = TransModification(
+        automod = LigandModification(
             enzyme_region_actor,
             substrate,
             Residue("Y", 100, State("phosphorylation", True)),
@@ -480,7 +480,7 @@ class TestGenerators(object):
         n, t = generator.generate(automod)
         print_graph(n.graph)
 
-        inter = TransModification(
+        inter = LigandModification(
             enzyme=RegionActor(gene=Gene(uniprotid="P30530",
                                          hgnc_symbol="AXL"),
                                region=Region(name="Tyr_kinase",
