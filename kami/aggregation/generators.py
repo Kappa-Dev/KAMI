@@ -584,7 +584,7 @@ class AnonymousModGenerator(Generator):
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
-        mod_attrs["value"] = mod.value,
+        mod_attrs["value"] = mod.value
 
         nugget.add_node(
             "mod",
