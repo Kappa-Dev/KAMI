@@ -502,16 +502,20 @@ def kamistudio_export(hierarchy,
             edges.append(edge)
         top_graph["edges"] = edges
 
-        # Build a simple layout for nuggets.
+        # ====== Build a simple layout for nuggets. =====
+
         positions = {}
-        print("-----")
+        placed_nodes = []
         # Search for the action node and put it at the center.
         edge_list = hierarchy.graph[nugget_id].edges()
+        test_node = None
         for nugget_edge in edge_list:
+            ag_source_type = nugget_graph_typing[nugget_edge[0]]
+            source_type = action_graph_typing[ag_source_type]
             ag_target_type = nugget_graph_typing[nugget_edge[1]]
             target_type = action_graph_typing[ag_target_type]
-            if target_type == "mod":
-                act_node = nugget_edge[1]
+            if source_type == "mod":
+                act_node = nugget_edge[0]
                 nug_type = "modif"
             if target_type == "bnd":
                 attribs = hierarchy.graph[nugget_id].node[nugget_edge[1]]
@@ -519,12 +523,14 @@ def kamistudio_export(hierarchy,
                 if act_type == "do":
                     act_node = nugget_edge[1]
                     nug_type = "binding"
+                if act_type == "be":
+                    test_node = nugget_edge[1]
         act_label = nugget_label_tracker[act_node]
 
-            #print(nugget_edge, target_type)
         # Position nodes for a binding nugget.
         if nug_type == "binding":
             positions[act_label] = {"x": 0.0, "y": 0.0}
+            placed_nodes.append(act_node)
             # Find the nodes that connect to the bnd node.
             side = "left"
             for nugget_edge in edge_list:
@@ -537,7 +543,9 @@ def kamistudio_export(hierarchy,
             left_label = nugget_label_tracker[left_actor]
             right_label = nugget_label_tracker[right_actor]
             positions[left_label]  = {"x": -200, "y": 0}
+            placed_nodes.append(left_actor)
             positions[right_label] = {"x":  200, "y": 0}
+            placed_nodes.append(right_actor)
             # Left path to gene.
             x_del = -100
             x_pos = -200
@@ -555,8 +563,9 @@ def kamistudio_export(hierarchy,
                             x_pos = x_pos + x_del
                             next_label = nugget_label_tracker[next_component]
                             positions[next_label] = {"x": x_pos, "y": 0}
+                            placed_nodes.append(next_component)
                 component = next_component
-            # Left path to gene.
+            # Right path to gene.
             x_del = 100
             x_pos = 200
             component = right_actor
@@ -573,8 +582,202 @@ def kamistudio_export(hierarchy,
                             x_pos = x_pos + x_del
                             next_label = nugget_label_tracker[next_component]
                             positions[next_label] = {"x": x_pos, "y": 0}
+                            placed_nodes.append(next_component)
+                component = next_component
+        # Position nodes for a modification nugget.
+        if nug_type == "modif":
+            # Place the test node if there is one. Proceed like for the
+            # binding nugget for this part.
+            x_left = -200
+            x_right = 200
+            if test_node != None:
+                test_label = nugget_label_tracker[test_node]
+                positions[test_label] = {"x": 0, "y": 0}
+                placed_nodes.append(test_node)
+                # Find the nodes that connect to the bnd node.
+                side = "left"
+                for nugget_edge in edge_list:
+                    if nugget_edge[1] == test_node:
+                        if side == "left":
+                            left_actor = nugget_edge[0]
+                            side = "right"
+                        else:
+                            right_actor = nugget_edge[0]
+                left_label = nugget_label_tracker[left_actor]
+                right_label = nugget_label_tracker[right_actor]
+                positions[left_label]  = {"x": -200, "y": 0}
+                placed_nodes.append(left_actor)
+                positions[right_label] = {"x":  200, "y": 0}
+                placed_nodes.append(right_actor)
+                # Left path to gene.
+                x_del = -100
+                x_pos = -200
+                component = left_actor
+                while component != None:
+                    next_component = None
+                    for nugget_edge in edge_list:
+                        if nugget_edge[0] == component:
+                            # Check the type of the outgoing node.
+                            # Ignore test nodes at that point.
+                            ag_target_type = nugget_graph_typing[nugget_edge[1]]
+                            target_type = action_graph_typing[ag_target_type]
+                            if target_type != "mod" and target_type != "bnd":
+                                next_component = nugget_edge[1]
+                                x_pos = x_pos + x_del
+                                next_label = nugget_label_tracker[next_component]
+                                positions[next_label] = {"x": x_pos, "y": 0}
+                                placed_nodes.append(next_component)
+                    component = next_component
+                x_left = x_pos
+                # Right path to gene.
+                x_del = 100
+                x_pos = 200
+                component = right_actor
+                while component != None:
+                    next_component = None
+                    for nugget_edge in edge_list:
+                        if nugget_edge[0] == component:
+                            # Check the type of the outgoing node.
+                            # Ignore test nodes at that point.
+                            ag_target_type = nugget_graph_typing[nugget_edge[1]]
+                            target_type = action_graph_typing[ag_target_type]
+                            if target_type != "mod" and target_type != "bnd":
+                                next_component = nugget_edge[1]
+                                x_pos = x_pos + x_del
+                                next_label = nugget_label_tracker[next_component]
+                                positions[next_label] = {"x": x_pos, "y": 0}
+                                placed_nodes.append(next_component)
+                    component = next_component
+                x_right = x_pos
+            # Then position the action node.
+            # Find the nodes that connect to the bnd node.
+            left_actor = None
+            for nugget_edge in edge_list:
+                if nugget_edge[1] == act_node:
+                        left_actor = nugget_edge[0]
+                if nugget_edge[0] == act_node:
+                        right_actor = nugget_edge[1]
+            # Left path to gene. There is no left actor for
+            # AnonymousModification
+            if left_actor == None:
+                positions[act_label] = {"x": 100.0, "y": -300.0}
+                placed_nodes.append(act_node)
+            if left_actor != None:
+                positions[act_label] = {"x": 0.0, "y": -200.0}
+                left_label = nugget_label_tracker[left_actor]
+                positions[left_label]  = {"x": x_left, "y": -100}
+                placed_nodes.append(left_actor)
+                x_pos = x_left
+                y_pos = -100
+                x_del = 0
+                y_del = 100
+                component = left_actor
+                while component != None:
+                    next_component = None
+                    for nugget_edge in edge_list:
+                        if nugget_edge[0] == component:
+                            # Check the type of the outgoing node.
+                            # Ignore test nodes at that point.
+                            ag_target_type = nugget_graph_typing[nugget_edge[1]]
+                            target_type = action_graph_typing[ag_target_type]
+                            if target_type != "mod" and target_type != "bnd":
+                                next_component = nugget_edge[1]
+                                x_pos = x_pos + x_del
+                                y_pos = y_pos + y_del
+                                next_label = nugget_label_tracker[next_component]
+                                positions[next_label] = {"x": x_pos, "y": y_pos}
+                                placed_nodes.append(next_component)
+                    component = next_component
+            # Right path to gene.
+            # right_actor is necessarily a state.
+            # I need to know if the state links to a residue
+            # or directly to an actor before I place it.
+            right_label = nugget_label_tracker[right_actor]
+            for nugget_edge in edge_list:
+                if nugget_edge[0] == right_actor:
+                    state_target = nugget_edge[1]
+                    target_label = nugget_label_tracker[state_target]
+                    ag_target_type = nugget_graph_typing[state_target]
+                    target_type = action_graph_typing[ag_target_type]
+            if target_type == "residue":
+                positions[right_label]  = {"x": x_right, "y": -300}
+                placed_nodes.append(right_actor)
+                positions[target_label] = {"x": x_right, "y": -200}
+                placed_nodes.append(state_target)
+                for nugget_edge in edge_list:
+                        if nugget_edge[0] == state_target:
+                            new_target = nugget_edge[1]
+                            new_label = nugget_label_tracker[new_target]
+                            positions[new_label] = {"x": x_right, "y": -100}
+                            placed_nodes.append(new_target)
+                component = new_target
+            else:
+                positions[right_label]  = {"x": x_right, "y": -200}
+                placed_nodes.append(right_actor)
+                positions[target_label] = {"x": x_right, "y": -100}
+                placed_nodes.append(state_target)
+                component = target_of_state
+            x_pos = x_right
+            y_pos = -100
+            x_del = 0
+            y_del = 100
+            while component != None:
+                next_component = None
+                for nugget_edge in edge_list:
+                    if nugget_edge[0] == component:
+                        # Check the type of the outgoing node.
+                        # Ignore test nodes at that point.
+                        ag_target_type = nugget_graph_typing[nugget_edge[1]]
+                        target_type = action_graph_typing[ag_target_type]
+                        if target_type != "mod" and target_type != "bnd":
+                            next_component = nugget_edge[1]
+                            x_pos = x_pos + x_del
+                            y_pos = y_pos + y_del
+                            next_label = nugget_label_tracker[next_component]
+                            positions[next_label] = {"x": x_pos, "y": y_pos}
+                            placed_nodes.append(next_component)
                 component = next_component
 
+        # Place nodes that still do not have a position in a
+        # perpendicular orientation.
+        remaining_nodes_tmp = []
+        for nugget_edge in edge_list:
+            for i in range(2):
+                if nugget_edge[i] not in placed_nodes:
+                    remaining_nodes_tmp.append(nugget_edge[i])
+        remaining_nodes = list(set(remaining_nodes_tmp))
+        while len(remaining_nodes) > 0:
+            for remaining_node in remaining_nodes:
+                remaining_label = nugget_label_tracker[remaining_node]
+                # Check edges to and from that remaining node.
+                has_edges = []
+                for nugget_edge in edge_list:
+                    if nugget_edge[1] == remaining_node:
+                        has_edges.append(nugget_edge[0])
+                    if nugget_edge[0] == remaining_node:
+                        has_edges.append(nugget_edge[1])
+                if len(has_edges) > 0:
+                    # Find the position of connected nodes if any.
+                    pos_defined = []
+                    for a_node in has_edges:
+                        if a_node in placed_nodes:
+                            a_label = nugget_label_tracker[a_node]
+                            pos_defined.append(positions[a_label])
+                    if len(pos_defined) == 1:
+                        positions[remaining_label] = {"x": pos_defined[0]["x"],
+                                                      "y": pos_defined[0]["y"] - 100}
+                        placed_nodes.append(remaining_node)
+                    if len(pos_defined) == 2:
+                        com_x = (pos_defined[0]["x"] + pos_defined[1]["x"])/2.
+                        com_y = (pos_defined[0]["y"] + pos_defined[1]["y"])/2.
+                        positions[remaining_label] = {"x": com_x, "y": com_y}
+                        placed_nodes.append(remaining_node)
+            still_remaining_nodes = []
+            for remaining_node in remaining_nodes:
+                if remaining_node not in placed_nodes:
+                    still_remaining_nodes.append(remaining_node)
+            remaining_nodes = still_remaining_nodes
+        # ===================================================
 
         attributes = {"name": nugget_id, "type": "nugget", "rate": rate,
                       "positions": positions}
