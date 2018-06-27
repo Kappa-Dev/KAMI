@@ -739,48 +739,149 @@ class LigandModGenerator(Generator):
         nugget.add_edge("mod", mod_state_id)
 
         # 4. Process enzyme/substrate binding conditions
+        # 4.1 Validation checks
+        if mod.enzyme_bnd_subactor == "gene":
+            pass
+        elif mod.enzyme_bnd_subactor == "region":
+            if enzyme_region is None:
+                raise KamiError(
+                    "Cannot use region as an enzyme binding subactor: "
+                    "no regions are included in the enzyme actor '{}'!".format(
+                        mod.enzyme.__repr__()))
+        elif mod.enzyme_bnd_subactor == "site":
+            if enzyme_site is None:
+                raise KamiError(
+                    "Cannot use site as an enzyme binding subactor: "
+                    "no sites are included in the enzyme actor '{}'!".format(
+                        mod.enzyme.__repr__()))
+        else:
+            raise KamiError(
+                "Invalid value of `enzyme_bnd_subactor` of LigandModification object:"
+                "expected 'gene', 'site' or 'region', got '{}'".format(
+                    mod.enzyme_bnd_subactor))
+
+        if mod.substrate_bnd_subactor == "gene":
+            pass
+        elif mod.substrate_bnd_subactor == "region":
+            if substrate_region is None:
+                raise KamiError(
+                    "Cannot use region as a substrate binding subactor: "
+                    "no regions are included in the substrate actor '{}'!".format(
+                        mod.substrate.__repr__()))
+        elif mod.substrate_bnd_subactor == "site":
+            if substrate_site is None:
+                raise KamiError(
+                    "Cannot use site as a substrate binding subactor: "
+                    "no sites are included in the substrate actor '{}'!".format(
+                        mod.substrate.__repr__()))
+        else:
+            raise KamiError(
+                "Invalid value of `substrate_bnd_subactor` of LigandModification object:"
+                "expected 'gene', 'site' or 'region', got '{}'".format(
+                    mod.substrate_bnd_subactor))
+
         enzyme_bnd_region = None
         enzyme_bnd_site = None
         if mod.enzyme_bnd_region is not None:
-            enzyme_bnd_region = self._generate_region(
-                nugget, mod.enzyme_bnd_region, enzyme)
-            nugget.add_edge(enzyme_bnd_region, enzyme,
-                            mod.enzyme_bnd_region.location())
+            if mod.enzyme_bnd_subactor == "gene":
+                enzyme_bnd_region = self._generate_region(
+                    nugget, mod.enzyme_bnd_region, enzyme)
+                nugget.add_edge(enzyme_bnd_region, enzyme,
+                                mod.enzyme_bnd_region.location())
+            else:
+                raise KamiError(
+                    "Cannot add enzyme binding region '{}' to ".format(
+                        mod.enzyme_bnd_region.__repr__()) +
+                    "the enzyme binding subactor: " +
+                    "subactor is of type '{}'".format(
+                        mod.enzyme_bnd_subactor))
+        elif mod.enzyme_bnd_subactor == "region":
+            enzyme_bnd_region = enzyme_region
+
         if mod.enzyme_bnd_site is not None:
-            if enzyme_bnd_region is not None:
-                father = enzyme_bnd_region
+            if mod.enzyme_bnd_subactor == "site":
+                raise KamiError(
+                    "Cannot add enzyme binding site '{}' to ".format(
+                        mod.enzyme_bnd_site.__repr__()) +
+                    "the enzyme binding subactor: " +
+                    "subactor is of type 'site'")
             else:
-                father = enzyme
-            enzyme_bnd_site = self._generate_site(
-                nugget, mod.enzyme_bnd_site, father, enzyme)
-            if enzyme_bnd_region is not None:
-                nugget.add_edge(
-                    enzyme_bnd_site, enzyme_bnd_region,
-                    mod.enzyme_bnd_site.location())
-            else:
-                nugget.add_edge(enzyme_bnd_site, enzyme,
-                                mod.enzyme_bnd_site.location())
+                if enzyme_bnd_region is not None:
+                    father = enzyme_bnd_region
+                else:
+                    father = enzyme
+                enzyme_bnd_site = self._generate_site(
+                    nugget, mod.enzyme_bnd_site, father, enzyme)
+                if enzyme_bnd_region is not None:
+                    nugget.add_edge(
+                        enzyme_bnd_site, enzyme_bnd_region,
+                        mod.enzyme_bnd_site.location())
+                else:
+                    nugget.add_edge(enzyme_bnd_site, enzyme,
+                                    mod.enzyme_bnd_site.location())
+        elif mod.enzyme_bnd_subactor == "site":
+            enzyme_bnd_site = enzyme_site
 
         substrate_bnd_region = None
         substrate_bnd_site = None
         if mod.substrate_bnd_region is not None:
-            substrate_bnd_region = self._generate_region(
-                nugget, mod.substrate_bnd_region, substrate)
-            nugget.add_edge(substrate_bnd_region, substrate,
-                            mod.substrate_bnd_region.location())
+            if mod.substrate_bnd_subactor == "gene":
+                substrate_bnd_region = self._generate_region(
+                    nugget, mod.substrate_bnd_region, substrate)
+                nugget.add_edge(substrate_bnd_region, substrate,
+                                mod.substrate_bnd_region.location())
+            else:
+                raise KamiError(
+                    "Cannot add substrate binding region '{}' to ".format(
+                        mod.substrate_bnd_region.__repr__()) +
+                    "the substrate binding subactor: " +
+                    "subactor is of type '{}'".format(
+                        mod.substrate_bnd_subactor))
+        elif mod.substrate_bnd_subactor == "region":
+            substrate_bnd_region = substrate_region
+
         if mod.substrate_bnd_site is not None:
-            if substrate_bnd_region is not None:
-                father = substrate_bnd_region
+            if mod.substrate_bnd_subactor == "site":
+                raise KamiError(
+                    "Cannot add substrate binding site '{}' to ".format(
+                        mod.substrate_bnd_site.__repr__()) +
+                    "the substrate binding subactor: " +
+                    "subactor is of type 'site'")
             else:
-                father = substrate
-            substrate_bnd_site = self._generate_site(
-                nugget, mod.substrate_bnd_site, father, substrate)
-            if substrate_bnd_region is not None:
-                nugget.add_edge(substrate_bnd_site, substrate_bnd_region,
-                                mod.substrate_bnd_site.location())
-            else:
-                nugget.add_edge(substrate_bnd_site, substrate,
-                                mod.substrate_bnd_site.location())
+                if substrate_bnd_region is not None:
+                    father = substrate_bnd_region
+                else:
+                    father = substrate
+                substrate_bnd_site = self._generate_site(
+                    nugget, mod.substrate_bnd_site, father, substrate)
+                if substrate_bnd_region is not None:
+                    nugget.add_edge(
+                        substrate_bnd_site, substrate_bnd_region,
+                        mod.substrate_bnd_site.location())
+                else:
+                    nugget.add_edge(substrate_bnd_site, substrate,
+                                    mod.substrate_bnd_site.location())
+        elif mod.substrate_bnd_subactor == "site":
+            substrate_bnd_site = substrate_site
+
+        # if mod.substrate_bnd_region is not None:
+        #     substrate_bnd_region = self._generate_region(
+        #         nugget, mod.substrate_bnd_region, substrate)
+        #     nugget.add_edge(substrate_bnd_region, substrate,
+        #                     mod.substrate_bnd_region.location())
+        # if mod.substrate_bnd_site is not None:
+        #     if substrate_bnd_region is not None:
+        #         father = substrate_bnd_region
+        #     else:
+        #         father = substrate
+        #     substrate_bnd_site = self._generate_site(
+        #         nugget, mod.substrate_bnd_site, father, substrate)
+        #     if substrate_bnd_region is not None:
+        #         nugget.add_edge(substrate_bnd_site, substrate_bnd_region,
+        #                         mod.substrate_bnd_site.location())
+        #     else:
+        #         nugget.add_edge(substrate_bnd_site, substrate,
+        #                         mod.substrate_bnd_site.location())
 
         nugget.add_node("is_bnd", attrs={"type": "be", "test": True},
                         meta_typing="bnd")

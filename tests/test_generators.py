@@ -438,7 +438,7 @@ class TestGenerators(object):
         n, t = generator.generate(mod)
         print_graph(n.graph)
 
-    def test_automod_generation(self):
+    def test_selfmod_generation(self):
         """Test generation of an automodification nugget graph."""
         enzyme_gene = Gene("A")
         enzyme_region_actor = RegionActor(
@@ -457,7 +457,7 @@ class TestGenerators(object):
         n, t = generator.generate(automod)
         print_graph(n.graph)
 
-    def test_transmod_generation(self):
+    def test_ligandmod_generation(self):
         """Test generation of a transmodification nugget graph."""
         enzyme_gene = Gene("A")
         enzyme_region_actor = RegionActor(
@@ -514,3 +514,68 @@ class TestGenerators(object):
         generator = BndGenerator(hierarchy)
         n, t = generator.generate(bnd)
         print_graph(n.graph)
+
+    def test_advanced_ligand_mod_generator(self):
+        """Test generation with advanced usage of LigandModification."""
+
+        hierarchy = KamiHierarchy()
+        generator = LigandModGenerator(hierarchy)
+
+        enzyme = SiteActor(
+            gene=Gene("A"),
+            region=Region(name="RegionActor"),
+            site=Site(name="SiteActor"))
+        substrate = SiteActor(
+            gene=Gene("B"),
+            region=Region(name="RegionActor"),
+            site=Site(name="SiteActor"))
+
+        # simple subactors switching
+        subactors = ["gene", "region", "site"]
+        for ea in subactors:
+            for sa in subactors:
+                mod = LigandModification(
+                    enzyme=enzyme,
+                    substrate=substrate,
+                    target=Residue("Y", 100, State("phosphorylation", True)),
+                    value=False,
+                    enzyme_bnd_subactor=ea,
+                    substrate_bnd_subactor=sa)
+
+            n, t = generator.generate(mod)
+
+        mod = LigandModification(
+            enzyme=enzyme,
+            substrate=substrate,
+            target=Residue("Y", 100, State("phosphorylation", True)),
+            value=False,
+            enzyme_bnd_region=Region(name="SpecialBindingRegion"),
+            substrate_bnd_region=Region(name="SpecialBindingRegion"))
+
+        n, t = generator.generate(mod)
+
+        mod = LigandModification(
+            enzyme=enzyme,
+            substrate=substrate,
+            target=Residue("Y", 100, State("phosphorylation", True)),
+            value=False,
+            enzyme_bnd_subactor="region",
+            substrate_bnd_subactor="region",
+            enzyme_bnd_site=Site(name="SpecialBindingSite"),
+            substrate_bnd_site=Site(name="SpecialBindingSite"))
+
+        n, t = generator.generate(mod)
+
+        mod = LigandModification(
+            enzyme=enzyme,
+            substrate=substrate,
+            target=Residue("Y", 100, State("phosphorylation", True)),
+            value=False,
+            enzyme_bnd_region=Region(name="SpecialBindingRegion"),
+            substrate_bnd_region=Region(name="SpecialBindingRegion"),
+            enzyme_bnd_site=Site(name="SpecialBindingSite"),
+            substrate_bnd_site=Site(name="SpecialBindingSite"))
+
+        n, t = generator.generate(mod)
+        print_graph(n.graph)
+        # adding binding components

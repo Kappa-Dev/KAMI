@@ -272,6 +272,7 @@ class LigandModification(Modification):
     """Class for Kami transmodification interaction."""
 
     def __init__(self, enzyme, substrate, target, value=True,
+                 enzyme_bnd_subactor="gene", substrate_bnd_subactor="gene",
                  enzyme_bnd_region=None, enzyme_bnd_site=None,
                  substrate_bnd_region=None, substrate_bnd_site=None,
                  rate=None, annotation=None, desc=None):
@@ -280,6 +281,8 @@ class LigandModification(Modification):
         self.substrate = substrate
         self.target = target
         self.value = value
+        self.enzyme_bnd_subactor = enzyme_bnd_subactor
+        self.substrate_bnd_subactor = substrate_bnd_subactor
         self.enzyme_bnd_region = enzyme_bnd_region
         self.enzyme_bnd_site = enzyme_bnd_site
         self.substrate_bnd_region = substrate_bnd_region
@@ -300,7 +303,8 @@ class LigandModification(Modification):
         res += "\tSubstrate: {}\n".format(self.substrate)
         res += "\tMod target: {}\n".format(self.target)
         res += "\tValue: {}\n".format(self.value)
-
+        res += "\tEnzyme binds through: {}\n".format(self.enzyme_bnd_subactor)
+        res += "\tSubstrate binds through: {}\n".format(self.substrate_bnd_subactor)
         if self.enzyme_bnd_region is not None:
             res += "\tEnzyme binding region: {}\n".format(
                 self.enzyme_bnd_region)
@@ -328,6 +332,10 @@ class LigandModification(Modification):
         res = "LigandModification(" +\
             "enzyme={}, substrate={}, target={}, value={}".format(
                 enzyme_rep, substrate_rep, mod_target, self.value)
+
+        res += ", enzyme_bnd_subactor='{}'".format(self.enzyme_bnd_subactor)
+        res += ", substrate_bnd_subactor='{}'".format(
+            self.substrate_bnd_subactor)
 
         if self.enzyme_bnd_region is not None:
             res += ", enzyme_bnd_region={}".format(
