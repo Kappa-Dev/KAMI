@@ -364,7 +364,7 @@ def kamistudio_export(hierarchy,
     for nugget_id in hierarchy.nugget.keys():
         nugget_graph = {}
         nugget_graph["id"] = nugget_id
-        nugget_graph["name"] = nugget_id
+        nugget_graph["name"] = hierarchy.node[nugget_id].attrs["desc"]
         top_graph = {}
 
         nugget_graph_typing = (hierarchy
@@ -737,6 +737,17 @@ def kamistudio_export(hierarchy,
                             positions[next_label] = {"x": x_pos, "y": y_pos}
                             placed_nodes.append(next_component)
                 component = next_component
+            # Check that the test node is still
+            # at the same height as its actors.
+            if test_node != None:
+                for nugget_edge in edge_list:
+                    if nugget_edge[1] == test_node:
+                        left_actor = nugget_edge[0]
+                        break
+                left_label = nugget_label_tracker[left_actor]
+                x_pos = positions[test_label]["x"]
+                y_pos = positions[left_label]["y"]
+                positions[test_label] = {"x": x_pos, "y": y_pos}
 
         # Place nodes that still do not have a position in a
         # perpendicular orientation.
