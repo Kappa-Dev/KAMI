@@ -10,7 +10,9 @@ from regraph import (add_edge,
 from kami.entities import (Gene, RegionActor,
                            Residue, SiteActor, State
                            )
-from kami.interactions import Binding
+from kami.interactions import (Modification, SelfModification,
+                               AnonymousModification, LigandModification,
+                               Binding)
 from kami.exceptions import (KamiError,
                              KamiWarning,
                              NuggetGenerationError)
@@ -19,7 +21,6 @@ from kami.utils.id_generators import (get_nugget_gene_id,
                                       get_nugget_residue_id,
                                       get_nugget_state_id,
                                       get_nugget_is_bnd_id,
-                                      get_nugget_locus_id,
                                       get_nugget_site_id,
                                       get_nugget_bnd_id,)
 from kami.aggregation.identifiers import (identify_gene, identify_region,
@@ -687,6 +688,7 @@ class LigandModGenerator(Generator):
 
     def generate(self, mod):
         """Create a mod nugget graph and find its typing."""
+
         nugget = NuggetContainer(desc=mod.desc)
         nugget.template_id = "mod_template"
 
@@ -901,3 +903,22 @@ class LigandModGenerator(Generator):
             nugget.add_edge(substrate, "is_bnd")
 
         return nugget, "mod"
+
+
+def generate_from_interaction(hierarchy, interaction):
+    """Generate nugget from an interaction object."""
+    if isinstance(interaction, Modification):
+        gen = ModGenerator(hierarchy)
+        return gen.generate(interaction)
+    elif isinstance(interaction, SelfModification):
+        gen = SelfModGenerator(hierarchy)
+        return gen.generate(interaction)
+    elif isinstance(interaction, AnonymousModification):
+        gen = AnonymousModGenerator(hierarchy)
+        return gen.generate(interaction)
+    elif isinstance(interaction, LigandModification):
+        gen = LigandModGenerator(hierarchy)
+        return gen.generate(interaction)
+    elif isinstance(interaction, Binding):
+        gen = BndGenerator(hierarchy)
+        return gen.generate(interaction)

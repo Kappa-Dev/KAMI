@@ -33,6 +33,20 @@ from kami.utils.generic import normalize_to_set
 from kami.exceptions import KamiEntityError
 
 
+def actor_from_json(json_data):
+    """Load an actor object from JSON representation."""
+    if json_data["type"] == "Gene":
+        return Gene.from_json(json_data["data"])
+    elif json_data["type"] == "RegionActor":
+        return RegionActor.from_json(json_data["data"])
+    elif json_data["type"] == "SiteActor":
+        return SiteActor.from_json(json_data["data"])
+    else:
+        raise KamiEntityError(
+            "Cannot load an actor: invalid actor type '{}'".format(
+                json_data["type"]))
+
+
 class Actor(object):
     """Base class for actors of interaction."""
 
@@ -71,7 +85,7 @@ class PhysicalEntity(object):
 class Gene(Actor, PhysicalEntity):
     """Class for a gene."""
 
-    def __init__(self, uniprotid, regions=None, residues=None, sites=None,
+    def __init__(self, uniprotid, regions=None, sites=None, residues=None,
                  states=None, bound_to=None, unbound_from=None,
                  hgnc_symbol=None, synonyms=None, xrefs=None, location=None):
         """Initialize kami protein object."""
@@ -108,6 +122,70 @@ class Gene(Actor, PhysicalEntity):
         self.bound_to = normalize_to_set(bound_to)
         self.unbound_from = normalize_to_set(unbound_from)
         return
+
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Gene object from JSON representation."""
+        uniprotid = json_data["uniprotid"]
+
+        regions = None
+        if "regions" in json_data.keys():
+            regions = []
+            for region in json_data["regions"]:
+                regions.append(Region.from_json(region))
+
+        sites = None
+        if "sites" in json_data.keys():
+            sites = []
+            for site in json_data["sites"]:
+                sites.append(Site.from_json(site))
+
+        residues = None
+        if "residues" in json_data.keys():
+            residues = []
+            for residue in json_data["residues"]:
+                residues.append(Residue.from_json(residue))
+
+        states = None
+        if "states" in json_data.keys():
+            states = []
+            for state in json_data["states"]:
+                states.append(State.from_json(state))
+
+        bound_to = None
+        if "bound_to" in json_data.keys():
+            bound_to = []
+            for bound in json_data["bound_to"]:
+                bound_to.append(actor_from_json(bound))
+
+        unbound_from = None
+        if "bound_to" in json_data.keys():
+            unbound_from = []
+            for bound in json_data["unbound_from"]:
+                unbound_from.append(actor_from_json(bound))
+
+        hgnc_symbol = None
+        if "hgnc_symbol" in json_data.keys():
+            hgnc_symbol = json_data["hgnc_symbol"]
+
+        synonyms = None
+        if "synonyms" in json_data.keys():
+            synonyms = json_data["synonyms"]
+
+        xrefs = None
+        if "xrefs" in json_data.keys():
+            xrefs = json_data["xrefs"]
+
+        location = None
+        if "location" in json_data.keys():
+            location = json_data["location"]
+
+        return cls(
+            uniprotid, regions=regions, sites=sites,
+            residues=residues, states=states,
+            bound_to=bound_to, unbound_from=unbound_from,
+            hgnc_symbol=hgnc_symbol, synonyms=synonyms,
+            xrefs=xrefs, location=location)
 
     def __repr__(self):
         """Representation of a gene."""
@@ -202,6 +280,68 @@ class Region(PhysicalEntity):
         self.bound_to = normalize_to_set(bound_to)
         self.unbound_from = normalize_to_set(unbound_from)
         return
+
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Region object from JSON representation."""
+        name = None
+        if "name" in json_data.keys():
+            name = json_data["name"]
+
+        interproid = None
+        if "interproid" in json_data.keys():
+            interproid = json_data["interproid"]
+
+        start = None
+        if "start" in json_data.keys():
+            start = json_data["start"]
+
+        end = None
+        if "end" in json_data.keys():
+            end = json_data["end"]
+
+        order = None
+        if "order" in json_data.keys():
+            order = json_data["order"]
+
+        label = None
+        if "label" in json_data.keys():
+            label = json_data["label"]
+
+        sites = None
+        if "sites" in json_data.keys():
+            sites = []
+            for site in json_data["sites"]:
+                sites.append(Site.from_json(site))
+
+        residues = None
+        if "residues" in json_data.keys():
+            residues = []
+            for residue in json_data["residues"]:
+                residues.append(Residue.from_json(residue))
+
+        states = None
+        if "states" in json_data.keys():
+            states = []
+            for state in json_data["states"]:
+                states.append(State.from_json(state))
+
+        bound_to = None
+        if "bound_to" in json_data.keys():
+            bound_to = []
+            for bound in json_data["bound_to"]:
+                bound_to.append(actor_from_json(bound))
+
+        unbound_from = None
+        if "bound_to" in json_data.keys():
+            unbound_from = []
+            for bound in json_data["unbound_from"]:
+                unbound_from.append(actor_from_json(bound))
+
+        return cls(
+            name=name, interproid=interproid, start=start, end=end,
+            order=order, sites=sites, residues=residues, states=states,
+            bound_to=bound_to, unbound_from=unbound_from, label=label)
 
     def __repr__(self):
         """Representation of a region."""
@@ -324,6 +464,62 @@ class Site(PhysicalEntity):
         self.unbound_from = normalize_to_set(unbound_from)
         return
 
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Site object from JSON representation."""
+        name = None
+        if "name" in json_data.keys():
+            name = json_data["name"]
+
+        interproid = None
+        if "interproid" in json_data.keys():
+            interproid = json_data["interproid"]
+
+        start = None
+        if "start" in json_data.keys():
+            start = json_data["start"]
+
+        end = None
+        if "end" in json_data.keys():
+            end = json_data["end"]
+
+        order = None
+        if "order" in json_data.keys():
+            order = json_data["order"]
+
+        label = None
+        if "label" in json_data.keys():
+            label = json_data["label"]
+
+        residues = None
+        if "residues" in json_data.keys():
+            residues = []
+            for residue in json_data["residues"]:
+                residues.append(Residue.from_json(residue))
+
+        states = None
+        if "states" in json_data.keys():
+            states = []
+            for state in json_data["states"]:
+                states.append(State.from_json(state))
+
+        bound_to = None
+        if "bound_to" in json_data.keys():
+            bound_to = []
+            for bound in json_data["bound_to"]:
+                bound_to.append(actor_from_json(bound))
+
+        unbound_from = None
+        if "bound_to" in json_data.keys():
+            unbound_from = []
+            for bound in json_data["unbound_from"]:
+                unbound_from.append(actor_from_json(bound))
+
+        return cls(
+            name=name, interproid=interproid, start=start, end=end,
+            order=order, residues=residues, states=states,
+            bound_to=bound_to, unbound_from=unbound_from, label=label)
+
     def __repr__(self):
         """Representation of a site."""
         content = ""
@@ -425,6 +621,21 @@ class Residue():
         self.state = state
         self.test = test
 
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Residue object from JSON representation."""
+        aa = json_data["aa"]
+        loc = None
+        if "loc" in json_data.keys():
+            loc = json_data["loc"]
+        state = None
+        if "state" in json_data.keys():
+            state = State.from_json(json_data["state"])
+        test = True
+        if "test" in json_data.keys():
+            test = json_data["test"]
+        return cls(aa, loc, state, test)
+
     def __repr__(self):
         """Representation of a site."""
         content = ""
@@ -476,6 +687,15 @@ class State(object):
         self.name = name
         self.test = test
 
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Site object from JSON representation."""
+        name = json_data["name"]
+        test = True
+        if "test" in json_data.keys():
+            test = json_data["test"]
+        return cls(name, test)
+
     def __repr__(self):
         """Representation of a state."""
         return "State(name='{}', test={})".format(self.name, self.test)
@@ -501,6 +721,13 @@ class RegionActor(Actor):
         self.region = region
         self.gene = gene
 
+    @classmethod
+    def from_json(cls, json_data):
+        """Create RegionActor object from JSON representation."""
+        gene = Gene.from_json(json_data["gene"])
+        region = Region.from_json(json_data["region"])
+        return cls(gene, region)
+
     def __repr__(self):
         """Representation of a region actor object."""
         return "RegionActor(gene={}, region={})".format(
@@ -522,6 +749,16 @@ class SiteActor(Actor):
         self.region = normalize_to_set(region)
         self.gene = gene
 
+    @classmethod
+    def from_json(cls, json_data):
+        """Create RegionActor object from JSON representation."""
+        gene = Gene.from_json(json_data["gene"])
+        site = Site.from_json(json_data["site"])
+        region = None
+        if "region" in json_data.keys():
+            region = Region.from_json(json_data["region"])
+        return cls(gene, site, region)
+
     def __repr__(self):
         """Representation of a site actor object."""
         content = ""
@@ -536,6 +773,7 @@ class SiteActor(Actor):
         """String representation of a SiteActor object."""
         res = str(self.gene)
         if self.region is not None:
-            res += "_" + str(self.region)
+            for r in self.region:
+                res += "_" + str(r)
         res += "_" + str(self.site)
         return res
