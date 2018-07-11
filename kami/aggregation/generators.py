@@ -207,7 +207,7 @@ class Generator(object):
         for residue in site.residues:
             if residue.loc is not None and site.start is not None and\
                site.end is not None:
-                if residue.loc < site.start or residue.loc > site.end:
+                if residue.loc < int(site.start) or residue.loc > int(site.end):
                     raise KamiError(
                         "Residue '%s' of a site '%s' is not valid: "
                         "residue loc (%d) is out of the site range (%d-%d)" %
