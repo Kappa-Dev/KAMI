@@ -13,11 +13,7 @@ from kami.aggregation.bookkeeping import (anatomize_gene,
                                           reconnect_sites,
                                           connect_nested_fragments,
                                           connect_transitive_components)
-from kami.aggregation.generators import (ModGenerator,
-                                         SelfModGenerator,
-                                         LigandModGenerator,
-                                         AnonymousModGenerator,
-                                         BndGenerator)
+from kami.aggregation.generators import generate_from_interaction
 from kami.aggregation.semantics import (apply_mod_semantics,
                                         apply_bnd_semantics,
                                         add_nodes_from)
@@ -701,9 +697,21 @@ class KamiHierarchy(Hierarchy):
                 nugget_id = name + "_" + str(i)
         return nugget_id
 
+    def get_nugget_type(self, nugget_id):
+        """Get type of the nugget specified by id."""
+        return list(self.node[nugget_id].attrs["interaction_type"])[0]
+
+    def get_nugget_template_rel(self, nugget_id):
+        """Get relation of a nugget to a template."""
+        nugget_type = self.get_nugget_type(nugget_id)
+        return self.relation[nugget_id][nugget_type + "_template"]
+
     def add_nugget(self, nugget, nugget_type, add_agents=True,
                    anatomize=True, apply_semantics=True, name=None):
         """Add nugget to the hierarchy."""
+        if "action_graph" not in self.nodes():
+            self.create_empty_action_graph()
+
         nugget_id = self._generate_nugget_id()
 
         p = nx.DiGraph()
@@ -826,21 +834,21 @@ class KamiHierarchy(Hierarchy):
             self.create_empty_action_graph()
 
         # Generate nugget graph
-        if isinstance(interaction, SelfModification):
-            generator = SelfModGenerator(self)
-        elif isinstance(interaction, LigandModification):
-            generator = LigandModGenerator(self)
-        elif isinstance(interaction, AnonymousModification):
-            generator = AnonymousModGenerator(self)
-        elif isinstance(interaction, Modification):
-            generator = ModGenerator(self)
-        elif isinstance(interaction, Binding) or\
-                isinstance(interaction, Unbinding):
-            generator = BndGenerator(self)
-        else:
-            raise KamiHierarchyError(
-                "Unknown type of interaction: {}".format(type(interaction)))
-        nugget, nugget_type = generator.generate(interaction)
+        # if isinstance(interaction, SelfModification):
+        #     generator = SelfModGenerator(self)
+        # elif isinstance(interaction, LigandModification):
+        #     generator = LigandModGenerator(self)
+        # elif isinstance(interaction, AnonymousModification):
+        #     generator = AnonymousModGenerator(self)
+        # elif isinstance(interaction, Modification):
+        #     generator = ModGenerator(self)
+        # elif isinstance(interaction, Binding) or\
+        #         isinstance(interaction, Unbinding):
+        #     generator = BndGenerator(self)
+        # else:
+        #     raise KamiHierarchyError(
+        #         "Unknown type of interaction: {}".format(type(interaction)))
+        nugget, nugget_type = generate_from_interaction(interaction)
 
         # Add it to the hierarchy performing respective updates
         nugget_id = self.add_nugget(
