@@ -712,7 +712,7 @@ def kamistudio_export(hierarchy,
                             placed_nodes.append(new_target)
                 component = new_target
             else:
-                positions[right_label]  = {"x": x_right, "y": -200}
+                positions[right_label] = {"x": x_right, "y": -200}
                 placed_nodes.append(right_actor)
                 positions[target_label] = {"x": x_right, "y": -100}
                 placed_nodes.append(state_target)

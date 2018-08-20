@@ -555,7 +555,7 @@ class BioPaxImporter(object):
         right = self.process_protein(right_uri)
 
         if left is not None and right is not None:
-            bnds.append(Binding([left], [right]))
+            bnds.append(Binding(left, right))
 
         return bnds
 
