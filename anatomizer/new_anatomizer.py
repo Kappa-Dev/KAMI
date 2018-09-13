@@ -1265,6 +1265,7 @@ class GeneAnatomy:
                  nest_level=1, offline=False):
         # -1. Initialize all the possible fields with None (otherwise errors)
         self.uniprot_ac = None
+        self.uniprot_id = None
         self.hgnc_symbol = None
         self.hgnc_id = None
         self.selected_iso = None
@@ -1370,6 +1371,12 @@ class GeneAnatomy:
                     self.hgnc_symbol = 'Unknown'
                     self.hgnc_id = 'Unknown'
                     # print('Could not find corresponding HGNC symbol.')
+            # Also find the UniProt ID.
+            if self.found:
+                try:
+                    self.uniprot_id = entry.get("name")
+                except:
+                    self.uniprot_id = 'Unknown'
 
             # Third case possible: query is a HGNC symbol.
             if entry is None and not self.found:
@@ -1385,6 +1392,28 @@ class GeneAnatomy:
                     self.found = True
                 except:
                     self.uniprot_ac = None
+                    self.uniprot_id = None
+                    self.hgnc_symbol = None
+                    self.hgnc_id = None
+                    self.selected_iso = None
+                    self.found = None
+
+            # Fourth case possible: query is a UniProt ID.
+            if entry is None and not self.found:
+                try:
+                    entry2 = ipr_matches_root.find("protein[@name='%s']"
+                                                   % query)
+                    self.uniprot_ac = entry2.get("id")
+                    self.uniprot_id = query
+                    mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
+                                                     % self.uniprot_ac)
+                    self.hgnc_symbol = mapping.get("hgnc_symbol")
+                    self.hgnc_id = mapping.get("hgnc_id")
+                    self.selected_iso = 'canonical'
+                    self.found = True
+                except:
+                    self.uniprot_ac = None
+                    self.uniprot_id = None
                     self.hgnc_symbol = None
                     self.hgnc_id = None
                     self.selected_iso = None
@@ -1551,6 +1580,7 @@ class GeneAnatomy:
             print("           HGNC ID: %s" % self.hgnc_id)
             print("     HGNC Synonyms: %s" % " ".join(self.synonyms))
             print(" UniProt Accession: %s" % self.uniprot_ac)
+            print("        UniProt ID: %s" % self.uniprot_id)
             print()
             # Will need to incorporate that in protein.print_summary().
             print("=== Isoforms (length) ==")

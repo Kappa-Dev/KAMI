@@ -2,7 +2,7 @@
 
 import new_anatomizer as anatomizer
 
-ptnlist = ['Q9UJX6', 'EGFR', 'wrongid', 'Q6PH85']
+ptnlist = ['Q9UJX6', 'EGFR', 'wrongid', 'MP2K4_HUMAN']
 
 for ptn in ptnlist:
     # Create an object containing the "anatomy" of a chosen protein.
@@ -16,6 +16,7 @@ for ptn in ptnlist:
     
     # Print a text summary of the protein and its features.
     anatomy.anatomy_summary(fragments=True)
+    print(anatomy.__dict__)
 
     # Write anatomy to JSON if protein was found.
     if anatomy.found:
