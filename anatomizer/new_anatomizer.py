@@ -1374,7 +1374,7 @@ class GeneAnatomy:
             # Also find the UniProt ID.
             if self.found:
                 try:
-                    self.uniprot_id = entry.get("name")
+                    self.uniprot_id = mod_entry.get("name")
                 except:
                     self.uniprot_id = 'Unknown'
 
