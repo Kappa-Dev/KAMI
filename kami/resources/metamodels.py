@@ -66,7 +66,11 @@ add_nodes_from(
             "name": {
                 "phosphorylation",
                 "activity",
-                "acetylation"
+                "acetylation",
+                "ubiquitination",
+                "glycosylation",
+                "palmitoylation",
+                "myristoylation"
             },
             "test": {True, False}
         }),

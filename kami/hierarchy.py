@@ -48,6 +48,10 @@ class KamiHierarchy(Hierarchy):
         self.mod_template = self.node["mod_template"].graph
         self.bnd_template = self.node["bnd_template"].graph
         self.semantic_action_graph = self.node["semantic_action_graph"].graph
+        self.nugget = self.nugget_dict_factory()
+        for n in self.nodes():
+            if "nugget" in self.node[n].attrs["type"]:
+                self.nugget[n] = self.node[n].graph
 
     def rewrite(self, graph_id, rule, instance=None,
                 lhs_typing=None, rhs_typing=None,
@@ -248,6 +252,31 @@ class KamiHierarchy(Hierarchy):
                 if self.action_graph_typing[node] == type_name:
                     nodes.append(node)
         return nodes
+
+    def get_ag_node_data(self, node_id):
+        if node_id not in self.action_graph.nodes():
+            raise KamiHierarchyError(
+                "Node '{}' is not found in the action graph".format(node_id))
+        data = {}
+        node_attrs = self.action_graph.node[node_id]
+
+        for key, value in node_attrs.items():
+            data[key] = value.toset()
+
+        if self.action_graph_typing[node_id] == "residue":
+            gene_node = self.get_gene_of(node_id)
+            edge_attrs = self.action_graph.edge[node_id][gene_node]
+            if "loc" in edge_attrs:
+                data["loc"] = edge_attrs["loc"].toset()
+        elif self.action_graph_typing[node_id] == "site" or\
+                self.action_graph_typing[node_id] == "region":
+            if "start" in edge_attrs:
+                data["start"] = edge_attrs["start"].toset()
+            if "end" in edge_attrs:
+                data["end"] = edge_attrs["end"].toset()
+            if "order" in edge_attrs:
+                data["order"] = edge_attrs["order"].toset()
+        return data
 
     def genes(self):
         """Get a list of agent nodes in the action graph."""
@@ -848,7 +877,7 @@ class KamiHierarchy(Hierarchy):
         # else:
         #     raise KamiHierarchyError(
         #         "Unknown type of interaction: {}".format(type(interaction)))
-        nugget, nugget_type = generate_from_interaction(interaction)
+        nugget, nugget_type = generate_from_interaction(self, interaction)
 
         # Add it to the hierarchy performing respective updates
         nugget_id = self.add_nugget(

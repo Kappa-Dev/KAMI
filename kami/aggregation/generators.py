@@ -12,7 +12,7 @@ from kami.entities import (Gene, RegionActor,
                            )
 from kami.interactions import (Modification, SelfModification,
                                AnonymousModification, LigandModification,
-                               Binding)
+                               Binding, Unbinding)
 from kami.exceptions import (KamiError,
                              KamiWarning,
                              NuggetGenerationError)
@@ -907,18 +907,19 @@ class LigandModGenerator(Generator):
 
 def generate_from_interaction(hierarchy, interaction):
     """Generate nugget from an interaction object."""
+    print(interaction)
     if isinstance(interaction, Modification):
         gen = ModGenerator(hierarchy)
-        return gen.generate(interaction)
     elif isinstance(interaction, SelfModification):
         gen = SelfModGenerator(hierarchy)
-        return gen.generate(interaction)
     elif isinstance(interaction, AnonymousModification):
         gen = AnonymousModGenerator(hierarchy)
-        return gen.generate(interaction)
     elif isinstance(interaction, LigandModification):
         gen = LigandModGenerator(hierarchy)
-        return gen.generate(interaction)
-    elif isinstance(interaction, Binding):
+    elif isinstance(interaction, Binding) or\
+            isinstance(interaction, Unbinding):
         gen = BndGenerator(hierarchy)
-        return gen.generate(interaction)
+    else:
+        raise KamiError(
+            "Unknown type of interaction '{}'".format(type(interaction))) 
+    return gen.generate(interaction)
