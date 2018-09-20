@@ -1374,7 +1374,9 @@ class GeneAnatomy:
             # Also find the UniProt ID.
             if self.found:
                 try:
-                    self.uniprot_id = mod_entry.get("name")
+                    mod_entry2 = ipr_matches_root.find("protein[@id='%s']"
+                                                      % self.uniprot_ac)
+                    self.uniprot_id = mod_entry2.get("name")
                 except:
                     self.uniprot_id = 'Unknown'
 
