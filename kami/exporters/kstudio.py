@@ -1,6 +1,10 @@
 import math
 import json
 import warnings
+import networkx as nx
+from regraph.rules import Rule
+from regraph.primitives import (add_nodes_from,
+                                add_edges_from)
 from kami.exceptions import (KamiError,
                              KamiWarning)
 
@@ -1008,3 +1012,146 @@ def create_layout(hierarchy,
                 layout[ag_node] = {"x": 0, "y": 0}
 
     return layout
+
+# ============= Custom node merging functions ===============
+def merge_actions(hierarchy, same_genes=False):
+    """
+    Merge action nodes that are of same type (mod or bnd) and that are
+    connected to the same component nodes.
+    """
+    # If same_genes is set to True, further merge them also if they are
+    # connected to the same genes.
+    node_list = hierarchy.graph["action_graph"].nodes()
+    edge_list = hierarchy.graph['action_graph'].edges()
+    action_graph_typing = hierarchy.typing['action_graph']['kami']
+    action_groups = get_action_groups(hierarchy, action_graph_typing,
+                                      node_list, edge_list, same_genes)
+    for node_group in action_groups:
+        if len(node_group) > 1:
+            ag_merge(hierarchy, node_group)
+
+def get_action_groups(hierarchy, ag_typing, nod_list, edg_list, same_genes):
+    """ Create the groups of action nodes that will have to be merged."""
+    # Get the genes that are connected to every action node.
+    bnd_dict = {}
+    mod_dict = {}
+    ano_dict = {}
+    for ag_node in nod_list:
+        node_type = ag_typing[ag_node]
+        if node_type == "bnd":
+            if same_genes == True:
+                nodes = find_connected_genes(hierarchy, ag_typing,
+                                             edg_list, ag_node)
+            else:
+                nodes = find_connected_nodes(hierarchy,
+                                             edg_list, ag_node)
+            bnd_dict[ag_node] = nodes
+        if node_type == "mod":
+            if same_genes == True:
+                nodes = find_connected_genes(hierarchy, ag_typing,
+                                             edg_list, ag_node)
+            else:
+                nodes = find_connected_nodes(hierarchy,
+                                             edg_list, ag_node)
+            # if mod node has no incoming edge, then
+            # it is an anonymous modification.
+            anonymous = True
+            for edge in edg_list:
+                if edge[1] == ag_node:
+                    anonymous = False
+                    break
+            if anonymous == True:
+                ano_dict[ag_node] = nodes
+            else:
+                mod_dict[ag_node] = nodes
+    action_groups = action_node_groups(bnd_dict, mod_dict, ano_dict)
+    return action_groups
+
+def find_connected_nodes(hierarchy, edg_list, node_id):
+    """
+    Find every node directly connected to a given action node.
+    """
+    actor_nodes = []
+    actor = None
+    for edge in edg_list:
+        if edge[0] == node_id:
+            actor = edge[1]
+        if edge[1] == node_id:
+            actor = edge[0]
+        if actor != None:
+            actor_nodes.append(actor)
+        actor = None
+    actor_set = list(set(actor_nodes))
+    actor_sort = sorted(actor_set)
+    return actor_sort
+
+
+def find_connected_genes(hierarchy, ag_typing, edg_list, node_id):
+    """
+    Find every gene connecting to a given action node.
+    Inspired of function findGeneNode from InteractiveGraph.js.
+    """
+    seen_nodes = []
+    actor = None
+    for edge in edg_list:
+        if edge[0] == node_id:
+            actor = edge[1]
+        if edge[1] == node_id:
+            actor = edge[0]
+        # Find every gene that is connected to the actor
+        # (there may be more than one with composed sites)
+        if actor != None:
+            actors = [actor]
+            seen_nodes.append(actor)
+            while len(actors) > 0:
+                target_nodes = []
+                next_step = []
+                for edge in edg_list:
+                    if edge[0] in actors:
+                        target_type = ag_typing[edge[1]]
+                        if target_type != "bnd" and target_type != "mod":
+                            target_nodes.append(edge[1])
+                for target_node in target_nodes:
+                    if target_node not in seen_nodes:
+                        seen_nodes.append(target_node)
+                    if target_node not in next_step:
+                        next_step.append(target_node)
+                actors = next_step
+        actor = None
+    gene_nodes = []
+    for seen_node in seen_nodes:
+        target_type = ag_typing[seen_node]
+        if target_type == "gene":
+            gene_nodes.append(seen_node)
+    gene_set = list(set(gene_nodes))
+    gene_sort = sorted(gene_set)
+    return gene_sort
+
+def action_node_groups(bnd_dico, mod_dico, ano_dico):
+    """
+    Find every action node than connect to the same elements and group them.
+    """
+    node_groups = []
+    for action_dict in [bnd_dico, mod_dico]:
+        seen_keys = []
+        for action_node1 in action_dict.keys():
+            if action_node1 not in seen_keys:
+                seen_keys.append(action_node1)
+                node_group = [action_node1]
+                for action_node2 in action_dict.keys():
+                    if action_node2 not in seen_keys:
+                        if action_dict[action_node1] == action_dict[action_node2]:
+                            node_group.append(action_node2)
+                            seen_keys.append(action_node2)
+                node_groups.append(node_group)
+    return node_groups
+
+def ag_merge(hierarchy, to_merge_list):
+    """ Merge all the nodes in the to_merge_list inside the action_graph."""
+    pattern = nx.DiGraph()
+    add_nodes_from(pattern, to_merge_list)
+    node_merge_rule = Rule.from_transform(pattern)
+    node_merge_rule.inject_merge_nodes(to_merge_list)
+    hierarchy.rewrite("action_graph", node_merge_rule)
+
+# =========================================================
