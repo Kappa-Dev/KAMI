@@ -57,10 +57,14 @@ def kamistudio_export(hierarchy,
         if node_typ == "gene":
             try:
                 field = (hierarchy.graph[graph_level]
-                         .node[node_id][gene_label])
+                         .node[node_id]["label"])
             except:
-                field = (hierarchy.graph[graph_level]
-                         .node[node_id]["uniprotid"])
+                try:
+                    field = (hierarchy.graph[graph_level]
+                             .node[node_id][gene_label])
+                except:
+                    field = (hierarchy.graph[graph_level]
+                             .node[node_id]["uniprotid"])
             label = list(field)[0]
         if node_typ == "region":
             try:
@@ -244,12 +248,7 @@ def kamistudio_export(hierarchy,
         attributes = list(hierarchy.graph['action_graph']
                         .node[ag_node].keys())
         for attribute in attributes:
-            if attribute != "rate":
-                ## Change the attribute "uniprotid" to "uniprot_ac".
-                #if attribute == "uniprotid":
-                #    attrs["uniprot_ac"] = {"numSet": {"pos_list": []},
-                #                           "strSet": {"pos_list": []}}
-                #else:
+            if attribute != "rate" and attribute != "label":
                 attrs[attribute] = {"numSet": {"pos_list": []},
                                     "strSet": {"pos_list": []}}
                 vals = list(hierarchy.graph['action_graph']
@@ -266,10 +265,6 @@ def kamistudio_export(hierarchy,
                         num_value_list.append(val)
                     except:
                         str_value_list.append(val)
-                #if attribute == "uniprotid":
-                #    attrs["uniprot_ac"]["numSet"]["pos_list"] = num_value_list
-                #    attrs["uniprot_ac"]["strSet"]["pos_list"] = str_value_list
-                #else:
                 attrs[attribute]["numSet"]["pos_list"] = num_value_list
                 attrs[attribute]["strSet"]["pos_list"] = str_value_list
         # I put ranges from edges into nodes for now as there seem to be
@@ -393,12 +388,7 @@ def kamistudio_export(hierarchy,
             attributes = list(hierarchy.graph[nugget_id]
                             .node[nugget_node].keys())
             for attribute in attributes:
-                if attribute != "rate":
-                    ## Change the attribute "uniprotid" to "uniprot_ac".
-                    #if attribute == "uniprotid":
-                    #    attrs["uniprot_ac"] = {"numSet": {"pos_list": []},
-                    #                           "strSet": {"pos_list": []}}
-                    #else:
+                if attribute != "rate" and attribute != "label":
                     attrs[attribute] = {"numSet": {"pos_list": []},
                                         "strSet": {"pos_list": []}}
                     vals = list(hierarchy.graph[nugget_id]
@@ -415,10 +405,6 @@ def kamistudio_export(hierarchy,
                             num_value_list.append(val)
                         except:
                             str_value_list.append(val)
-                    #if attribute == "uniprotid":
-                    #    attrs["uniprot_ac"]["numSet"]["pos_list"] = num_value_list
-                    #    attrs["uniprot_ac"]["strSet"]["pos_list"] = str_value_list
-                    #else:
                     attrs[attribute]["numSet"]["pos_list"] = num_value_list
                     attrs[attribute]["strSet"]["pos_list"] = str_value_list
             # I put ranges from edges into nodes for now as there seem to be
