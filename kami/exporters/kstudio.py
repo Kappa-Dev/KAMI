@@ -34,6 +34,83 @@ def ag_to_edge_list(hierarchy, agent_ids="hgnc_symbol"):
         edge_list.append((n1, n2))
     return edge_list
 
+def find_label(hierarchy, node_id, node_typ, counter_dict, graph_level,
+               gene_label, region_label):
+    """Find appropriate node labels based on the types of label chosen."""
+
+    label = node_typ
+    if node_typ == "gene":
+        try:
+            field = (hierarchy.graph[graph_level]
+                     .node[node_id]["label"])
+        except:
+            try:
+                field = (hierarchy.graph[graph_level]
+                         .node[node_id][gene_label])
+            except:
+                field = (hierarchy.graph[graph_level]
+                         .node[node_id]["uniprotid"])
+        label = list(field)[0]
+    if node_typ == "region":
+        try:
+            field = (hierarchy.graph[graph_level]
+                     .node[node_id][region_label])
+        except:
+            field = (hierarchy.graph[graph_level]
+                     .node[node_id]["name"])
+        label = list(field)[0]
+    if node_typ == "site":
+        field = (hierarchy.graph[graph_level]
+                 .node[node_id]["name"])
+        label = list(field)[0]
+    if node_typ == "residue":
+        aa_field = (hierarchy.graph[graph_level]
+                    .node[node_id]["aa"])
+        aa = list(aa_field)[0]
+        # Location is now an attribute of edges.
+        out_edges = (hierarchy.graph[graph_level]
+                     .edge[node_id].keys())
+        aa_locations = []
+        for out_edge in out_edges:
+            try:
+                loc_field = (hierarchy.graph[graph_level]
+                             .edge[node_id][out_edge]["loc"])
+                aa_locations.append(list(loc_field)[0])
+            except:
+                pass
+        if len(aa_locations) == 0:
+            loc = 'unknown'
+        else:
+            if len(set(aa_locations)) == 1:
+                loc = aa_locations[0]
+            else:
+                loc = 'unknown'
+                warnings.warn(
+                    "Conflicting information about location of residue %s."
+                    % node_id, KamiWarning)
+        if loc == 'unknown':
+            label = '%s' % (aa)
+        else:
+            label = '%s%s' % (aa, loc)
+    if node_typ == "state":
+        field = (hierarchy.graph[graph_level]
+                 .node[node_id]["name"])
+        state_name = list(field)[0]
+        if state_name == "phosphorylation":
+            label = "phos"
+        else:
+            label = state_name
+
+    # Add a count number to uniquely identify nodes with a same label.
+    if label in counter_dict.keys():
+        label_with_count = "%s %i" % (label, counter_dict[label])
+        counter_dict[label] = counter_dict[label] + 1
+    elif label not in counter_dict.keys():
+        label_with_count = label
+        counter_dict[label] = 2
+
+    return label_with_count, counter_dict
+
 
 def kamistudio_export(hierarchy,
                   gene_label="hgnc_symbol", region_label="label",
@@ -46,85 +123,6 @@ def kamistudio_export(hierarchy,
     If I use a newlayout created with function create_layout, the keys of the
     dict are node ids. If I use a prevlayout, the keys are rather node labels.
     """
-
-    def find_studio_label(node_id, node_typ, counter_dict, graph_level):
-        """
-        Subfunction to find appropriate node labels based on the types
-        of labels chosen on get_studio_v1 call.
-        """
-
-        label = node_typ
-        if node_typ == "gene":
-            try:
-                field = (hierarchy.graph[graph_level]
-                         .node[node_id]["label"])
-            except:
-                try:
-                    field = (hierarchy.graph[graph_level]
-                             .node[node_id][gene_label])
-                except:
-                    field = (hierarchy.graph[graph_level]
-                             .node[node_id]["uniprotid"])
-            label = list(field)[0]
-        if node_typ == "region":
-            try:
-                field = (hierarchy.graph[graph_level]
-                         .node[node_id][region_label])
-            except:
-                field = (hierarchy.graph[graph_level]
-                         .node[node_id]["name"])
-            label = list(field)[0]
-        if node_typ == "site":
-            field = (hierarchy.graph[graph_level]
-                     .node[node_id]["name"])
-            label = list(field)[0]
-        if node_typ == "residue":
-            aa_field = (hierarchy.graph[graph_level]
-                        .node[node_id]["aa"])
-            aa = list(aa_field)[0]
-            # Location is now an attribute of edges.
-            out_edges = (hierarchy.graph[graph_level]
-                         .edge[node_id].keys())
-            aa_locations = []
-            for out_edge in out_edges:
-                try:
-                    loc_field = (hierarchy.graph[graph_level]
-                                 .edge[node_id][out_edge]["loc"])
-                    aa_locations.append(list(loc_field)[0])
-                except:
-                    pass
-            if len(aa_locations) == 0:
-                loc = 'unknown'
-            else:
-                if len(set(aa_locations)) == 1:
-                    loc = aa_locations[0]
-                else:
-                    loc = 'unknown'
-                    warnings.warn(
-                        "Conflicting information about location of residue %s."
-                        % node_id, KamiWarning)
-            if loc == 'unknown':
-                label = '%s' % (aa)
-            else:
-                label = '%s%s' % (aa, loc)
-        if node_typ == "state":
-            field = (hierarchy.graph[graph_level]
-                     .node[node_id]["name"])
-            state_name = list(field)[0]
-            if state_name == "phosphorylation":
-                label = "phos"
-            else:
-                label = state_name
-
-        # Add a count number to uniquely identify nodes with a same label.
-        if label in counter_dict.keys():
-            label_with_count = "%s %i" % (label, counter_dict[label])
-            counter_dict[label] = counter_dict[label] + 1
-        elif label not in counter_dict.keys():
-            label_with_count = label
-            counter_dict[label] = 2
-
-        return label_with_count, counter_dict
 
     # Create graph hierarchy root.
     kami_v1_dict = {}
@@ -238,10 +236,9 @@ def kamistudio_export(hierarchy,
     positions = {}
     for ag_node in hierarchy.graph['action_graph'].nodes():
         node_type = action_graph_typing[ag_node]
-        node_label, counters = find_studio_label(ag_node,
-                                                 node_type,
-                                                 counters,
-                                                 "action_graph")
+        node_label, counters = find_label(hierarchy, ag_node, node_type,
+                                          counters, "action_graph",
+                                          gene_label, region_label)
         label_tracker[ag_node] = node_label
         # ----- Get all attributes of the action graph node (except rate) -----
         attrs = {}
@@ -376,10 +373,10 @@ def kamistudio_export(hierarchy,
         for nugget_node in hierarchy.graph[nugget_id].nodes():
             node_type_ag = nugget_graph_typing[nugget_node]
             node_metatype = action_graph_typing[node_type_ag]
-            node_label, ngt_counters = find_studio_label(nugget_node,
-                                                         node_metatype,
-                                                         ngt_counters,
-                                                         nugget_id)
+            node_label, ngt_counters = find_label(hierarchy, nugget_node,
+                                                  node_metatype,
+                                                  ngt_counters, nugget_id,
+                                                  gene_label, region_label)
             node_type_studio = label_tracker[node_type_ag]
             nugget_label_tracker[nugget_node] = node_label
 
