@@ -247,13 +247,16 @@ def _find_gene(actor, edge_list, typing):
     return gene
 
 
-def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
+def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
+               all_agents):
     """Write the Kappa rule from a nugget."""
-    rule = ""
-    # Find bindings and bound tests.
+    rule = "'{}' ".format(name)
+    agents = {}
+    rule_type = None
     bond_id = 1
     unkn_count = len(unkn_sites)
     for nugget_node in nug.nodes():
+        # Find bindings and bound tests.
         if mm_typing[nugget_node] == "bnd":
             attrs = nug.node[nugget_node]
             ag_bnd_node = ag_typing[nugget_node]
@@ -273,7 +276,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
                     # This is an unbound test.
                     bracket = "[.]"
             bond_id += 1
-            # Find the partners of the binding.
+            # Find the immediate actors of the binding.
             actors = []
             for nugget_edge in nug.edges():
                 if nugget_edge[1] == nugget_node:
@@ -305,7 +308,12 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
                     gene = _find_gene(actor, nug.edges(), mm_typing)
                     genes.append(gene)
                     sites.append(actor)
-            # Write the rule.
+            # Hacky way to find dimerization. Will have to improve this.
+            same_gene_node = False
+            if genes[0] == genes[1]:
+                same_gene_node = True
+            # Find labels for the genes and sites.
+            prev_label = None
             for i in range(len(genes)):
                 ag_gene = ag_typing[genes[i]]
                 gene_label = labels[ag_gene]
@@ -330,13 +338,18 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
                 # Replace all other spaces by underscore, else KaSim would
                 # give errors.
                 site_label_usc = site_label_crop.replace(" ", "_")
-                agent = "{}({}{})".format(gene_label, site_label_usc, bracket)
-                rule += agent
-                if i < len(genes)-1:
-                   rule += ", "
-
-    # Find mods and states.
-    for nugget_node in nug.nodes():
+                site_string = "{}{}".format(site_label_usc, bracket)
+                # Add final gene and site to the agents of the rule.
+                if prev_label != None:
+                    if same_gene_node == False and gene_label == prev_label:
+                        gene_label = "{} dim".format(gene_label)
+                prev_label = gene_label
+                if gene_label not in agents.keys():
+                    agents[gene_label] = [site_string]
+                else:
+                    if site_string not in agents[gene_label]:
+                        agents[gene_label].append(site_string)
+        # Find mods and states.
         if mm_typing[nugget_node] == "state":
             state_attrs = nug.node[nugget_node]
             test = list(state_attrs["test"])[0]
@@ -378,7 +391,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
                         else:
                             source_gene = _find_gene(source_node, nug.edges(),
                                                      mm_typing)
-            # Write the rule.
+            # Find labels for the genes and sites.
             ag_state_gene = ag_typing[state_gene]
             state_gene_label = labels[ag_state_gene]
             ag_state = ag_typing[nugget_node]
@@ -402,16 +415,57 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
             if source_gene != None:
                 ag_source_gene = ag_typing[source_gene]
                 source_gene_label = labels[ag_source_gene]
-                agent = "{}(), ".format(source_gene_label)
-                rule += agent
+                # Add source gene to agents.
+                if source_gene_label not in agents.keys():
+                    agents[source_gene_label] = [""]
             if attached_node != None:
                 ag_attached_node = ag_typing[attached_node]
                 attached_label = labels[ag_attached_node]
                 site_label = "{}_{}".format(attached_label, state_label_usc)
             else:
                 site_label = state_label_usc
-            agent = "{}({}{}), ".format(state_gene_label, site_label, curls)
-            rule += agent
+            site_string = "{}{}".format(site_label, curls)
+            # Add final gene and site to the agents of the rule.
+            if state_gene_label not in agents.keys():
+                agents[state_gene_label] = [site_string]
+            else:
+                if site_string not in agents[state_gene_label]:
+                    agents[state_gene_label].append(site_string)
+
+    # Write the rule.
+    num_agents = len(agents.keys())
+    for i, agent in enumerate(agents.keys()):
+        agent_str = agent
+        if agent[-4:] == " dim":
+            agent_str = agent[:-4]
+        rule += "{}(".format(agent_str)
+        sites = agents[agent]
+        num_sites = len(sites)
+        for j, site in enumerate(sites):
+            rule += "{}".format(site)
+            if j < num_sites - 1 and site != "":
+                rule += " "
+        rule += ")"
+        if i < num_agents - 1:
+            rule += ", "
+    rule += " @ {}".format(rate)
+
+    # Update the list of all agents.
+    for agent in agents.keys():
+        if agent[-4:] != " dim":
+            if agent not in all_agents.keys():
+                all_agents[agent] = []
+            sites = agents[agent]
+            for site in sites:
+                site_str = site
+                if "[" in site:
+                    bra = site.index("[")
+                    site_str = site[:bra]
+                if "{" in site:
+                    curl = site.index("{")
+                    site_str = "{}{{False,True}}".format(site[:curl])
+                if site_str not in all_agents[agent]:
+                    all_agents[agent].append(site_str)
 
     #loci_defs = {}
     #for loc in nug.nodes():
@@ -520,7 +574,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels):
     #            agent_defs[agent].prefix = "-"
 
     #return KappaRule(name, rate, agent_defs.values()), unkn_sites
-    return rule, unkn_sites
+    return rule, unkn_sites, all_agents
 
 
 def export_model(hie, gene_label="hgnc_symbol", region_label="label"):
@@ -539,6 +593,7 @@ def export_model(hie, gene_label="hgnc_symbol", region_label="label"):
     # Build rule definitions.
     rules_list = []
     unkn_sites = {}
+    agent_list = {}
     for nugget_id in hie.nugget.keys():
         description =  hie.node[nugget_id].attrs["desc"]
         graph = hie.graph[nugget_id]
@@ -550,16 +605,35 @@ def export_model(hie, gene_label="hgnc_symbol", region_label="label"):
             node_type_ag = nugget_ag_typing[nugget_node]
             node_metatype = ag_meta_typing[node_type_ag]
             nugget_meta_typing[nugget_node] = node_metatype
-        kappa_rule, unkn_sites = _rule_decl(nugget_ag_typing, 
-                                            nugget_meta_typing,
-                                            graph, description, unkn_sites,
-                                            label_tracker)
+        kappa_rule, unkn_sites, agent_list = _rule_decl(nugget_ag_typing, 
+            nugget_meta_typing, graph, description, unkn_sites,
+            label_tracker, agent_list)
         rules_list.append(kappa_rule)        
     # build variable definitions.
     variables = []
 
+    # Write a Kappa input file.
+    kappa_txt = "/* Signatures */\n"
+    for agent in agent_list.keys():
+        kappa_txt += "%agent: {}(".format(agent)
+        sites = agent_list[agent]
+        num_sites = len(sites)
+        for i, site in enumerate(sites):
+            kappa_txt += "{}".format(site)
+            if i < num_sites - 1 and site != "":
+                kappa_txt += " "
+        kappa_txt += ")\n"
+    kappa_txt += "\n"
+    kappa_txt += "/* Rules */\n"
+    for kappa_rule in rules_list:
+        kappa_txt += "{}\n".format(kappa_rule)
+    kappa_txt += "\n"
+    kappa_txt += "/* Initial conditions */\n"
+    for agent in agent_list.keys():
+        kappa_txt += "%init: 100 {}()\n".format(agent)
+
     #return str(KappaModel(agents_list, rules_list, variables))
-    return rules_list
+    return kappa_txt
 
 
 def subgraph_by_types(graph, types, typing):
