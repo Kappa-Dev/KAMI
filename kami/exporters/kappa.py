@@ -577,7 +577,8 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
     return rule, unkn_sites, all_agents
 
 
-def export_model(hie, gene_label="hgnc_symbol", region_label="label"):
+def export_model(hie, gene_label="hgnc_symbol", region_label="label",
+                 default_amount=100):
     """Export an action graph to kappa code."""
     # Get typing of the action graph by the meta model.
     ag_meta_typing = hie.typing['action_graph']['kami']
@@ -630,7 +631,7 @@ def export_model(hie, gene_label="hgnc_symbol", region_label="label"):
     kappa_txt += "\n"
     kappa_txt += "/* Initial conditions */\n"
     for agent in agent_list.keys():
-        kappa_txt += "%init: 100 {}()\n".format(agent)
+        kappa_txt += "%init: {} {}()\n".format(default_amount, agent)
 
     #return str(KappaModel(agents_list, rules_list, variables))
     return kappa_txt

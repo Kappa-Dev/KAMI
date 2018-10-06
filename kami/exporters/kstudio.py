@@ -112,9 +112,9 @@ def find_label(hierarchy, node_id, node_typ, counter_dict, graph_level,
     return label_with_count, counter_dict
 
 
-def kamistudio_export(hierarchy,
-                  gene_label="hgnc_symbol", region_label="label",
-                  newlayout=None, prevlayout=None):
+def export_model(hierarchy,
+                 gene_label="hgnc_symbol", region_label="label",
+                 newlayout=None, prevlayout=None):
     """
     Convert a Kami hierarchy to a dictionary formatted for the old KamiStudio.
     To convert a Kami model into a KamiStudio readable file:
