@@ -1,8 +1,8 @@
 """Semantic AG."""
 import networkx as nx
 
-from regraph.primitives import (add_nodes_from,
-                                add_edges_from)
+from regraph.networkx.primitives import (add_nodes_from,
+                                         add_edges_from)
 
 
 action_graph = nx.DiGraph()

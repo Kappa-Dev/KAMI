@@ -5,8 +5,8 @@ import warnings
 from kami.exceptions import KamiHierarchyWarning
 
 from regraph.rules import Rule
-from regraph.primitives import (add_nodes_from,
-                                add_edges_from)
+from regraph.networkx.primitives import (add_nodes_from,
+                                         add_edges_from)
 
 
 def _propagate_semantics_to_ag(hierarchy, nugget_id,

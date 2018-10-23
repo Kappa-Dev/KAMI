@@ -1,8 +1,8 @@
 """Unit testing of black box functionality."""
 
-from regraph.primitives import (print_graph)
+from regraph.networkx.primitives import (print_graph)
 
-from kami.export.old_kami import ag_to_edge_list
+from kami.exporters.old_kami import ag_to_edge_list
 from kami.interactions import (Modification, Binding, LigandModification)
 from kami.entities import (Gene, Region, RegionActor, Residue,
                            Site, SiteActor, State)

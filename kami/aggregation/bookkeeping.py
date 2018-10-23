@@ -3,10 +3,10 @@ import networkx as nx
 import warnings
 
 from regraph import Rule
-from regraph.primitives import (add_edge,
-                                add_nodes_from,
-                                add_edges_from,
-                                add_edge_attrs)
+from regraph.networkx.primitives import (add_edge,
+                                         add_nodes_from,
+                                         add_edges_from,
+                                         add_edge_attrs)
 
 from anatomizer.new_anatomizer import GeneAnatomy
 from kami import Region

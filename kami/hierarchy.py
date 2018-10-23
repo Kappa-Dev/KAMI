@@ -2,8 +2,8 @@
 import copy
 import networkx as nx
 
-from regraph import Rule, Hierarchy
-from regraph.primitives import (add_node, add_edge)
+from regraph import Rule, NetworkXHierarchy
+from regraph.networkx.primitives import (add_node, add_edge)
 
 from kami.resources import default_components
 from kami.utils.generic import normalize_to_set
@@ -27,7 +27,7 @@ from kami.interactions import (Modification,
                                Binding, Unbinding)
 
 
-class KamiHierarchy(Hierarchy):
+class KamiHierarchy(NetworkXHierarchy):
     """Kami-specific hierarchy class."""
 
     nugget_dict_factory = dict
@@ -98,7 +98,7 @@ class KamiHierarchy(Hierarchy):
         `self.mod_template` and `self.bnd_template` -- direct access to
         the nugget template graphs.
         """
-        Hierarchy.__init__(self)
+        NetworkXHierarchy.__init__(self)
 
         # Add KAMI-specific invariant components of the hierarchy
         for graph_id, graph, attrs in default_components.GRAPHS:

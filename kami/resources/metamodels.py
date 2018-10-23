@@ -2,7 +2,7 @@
 import math
 import networkx as nx
 
-from regraph.primitives import (add_nodes_from,
+from regraph.networkx.primitives import (add_nodes_from,
                                 add_edges_from)
 from regraph.attribute_sets import RegexSet, IntegerSet, UniversalSet
 
@@ -39,7 +39,7 @@ add_nodes_from(
     kami,
     [
         ("gene", {
-            "uniprotid": RegexSet(UNIPROT_REGEX),
+            "uniprotid": RegexSet.universal(),
             "hgnc_symbol": RegexSet.universal(),
             "synonyms": RegexSet.universal(),
             "xrefs": UniversalSet()
