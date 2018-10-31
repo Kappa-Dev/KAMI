@@ -23,7 +23,7 @@ class Interaction(object):
         """Convert interaction to attribute dictionary."""
         attrs = dict()
         if self.rate is not None:
-            attrs["rate"] = {self.rate}
+            attrs["rate"] = {str(self.rate)}
         if self.annotation is not None:
             attrs["text"] = {self.annotation}
         return attrs
