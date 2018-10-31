@@ -3,8 +3,9 @@ from kami.resources import (metamodels,
                             templates,
                             semantics)
 
+
 GRAPHS = [
-    ("kami", metamodels.kami, {"type": "meta_model"}),
+    ("meta_model", metamodels.meta_model, {"type": "meta_model"}),
     ("semantic_action_graph",
      semantics.action_graph,
      {"type": "semantic_action_graph"}),
@@ -23,17 +24,17 @@ GRAPHS = [
 ]
 
 TYPING = [
-    ("semantic_action_graph", "kami", semantics.sag_kami_typing, None),
-    ("bnd_template", "kami", templates.bnd_kami_typing, None),
-    ("mod_template", "kami", templates.mod_kami_typing, None),
+    ("semantic_action_graph", "meta_model", semantics.sag_meta_typing, None),
+    ("bnd_template", "meta_model", templates.bnd_meta_typing, None),
+    ("mod_template", "meta_model", templates.mod_meta_typing, None),
     ("phosphorylation", "semantic_action_graph",
      semantics.phosphorylation_semantic_AG, None),
     ("sh2_pY_binding", "semantic_action_graph",
      semantics.sh2_pY_semantic_AG, None),
-    ("phosphorylation", "kami",
-     semantics.phosphorylation_kami_typing, None),
-    ("sh2_pY_binding", "kami",
-     semantics.sh2_pY_kami_typing, None)
+    ("phosphorylation", "meta_model",
+     semantics.phosphorylation_meta_typing, None),
+    ("sh2_pY_binding", "meta_model",
+     semantics.sh2_pY_meta_typing, None)
 ]
 
 # In the future we may accomodate some default rules in the KAMI hierarchy

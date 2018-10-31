@@ -1,9 +1,6 @@
 """Collection of metamodels used in Kami."""
 import math
-import networkx as nx
 
-from regraph.networkx.primitives import (add_nodes_from,
-                                add_edges_from)
 from regraph.attribute_sets import RegexSet, IntegerSet, UniversalSet
 
 
@@ -12,46 +9,40 @@ UNIPROT_REGEX =\
 
 INTERPRO_REGEX = "IPR\d{6}"
 
-base_kami = nx.DiGraph()
-add_nodes_from(
-    base_kami,
-    [
+base_graph = {
+    "nodes": [
         "component",
         "state",
         "action"
-    ]
-)
-
-add_edges_from(
-    base_kami,
-    [
+    ],
+    "edges": [
         ("component", "component"),
         ("state", "component"),
         ("component", "action"),
         ("action", "component"),
         ("action", "state")
     ]
-)
+}
 
-kami = nx.DiGraph()
-
-add_nodes_from(
-    kami,
-    [
+meta_model = {
+    "nodes": [
         ("gene", {
             "uniprotid": RegexSet.universal(),
             "hgnc_symbol": RegexSet.universal(),
             "synonyms": RegexSet.universal(),
-            "xrefs": UniversalSet()
+            "xrefs": RegexSet.universal()
+            # "xrefs": UniversalSet()
         }),
         ("region", {
             "name": RegexSet.universal(),
-            "interproid": RegexSet(INTERPRO_REGEX),
+            "interproid": RegexSet.universal(),
+            # "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal()
         }),
         ("site", {
             "name": RegexSet.universal(),
-            "interproid": RegexSet(INTERPRO_REGEX),
+            "interproid": RegexSet.universal(),
+            # "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal()
         }),
         ("residue", {
@@ -77,8 +68,10 @@ add_nodes_from(
         ("mod", {
             "value": {True, False},
             "text": RegexSet.universal(),
-            "rate": UniversalSet(),
-            "unimolecular_rate": UniversalSet()
+            "rate": RegexSet.universal(),
+            "unimolecular_rate": RegexSet.universal()
+            # "rate": UniversalSet(),
+            # "unimolecular_rate": UniversalSet()
         }),
         "syn",
         "deg",
@@ -86,47 +79,58 @@ add_nodes_from(
             "type": {"do", "be"},
             "test": {True, False},
             "text": RegexSet.universal(),
-            "rate": UniversalSet(),
-            "unimolecular_rate": UniversalSet()
+            "rate": RegexSet.universal(),
+            "unimolecular_rate": RegexSet.universal()
+            # "rate": UniversalSet(),
+            # "unimolecular_rate": UniversalSet()
         })
-    ]
-)
+    ],
 
-add_edges_from(
-    kami,
-    [
+    "edges": [
         (
             "region", "gene",
-            {"start": IntegerSet([(1, math.inf)]),
-             "end": IntegerSet([(1, math.inf)]),
-             "order": IntegerSet([(1, math.inf)])}
+            {"start": IntegerSet.universal(),
+             "end": IntegerSet.universal(),
+             "order": IntegerSet.universal()}
+            # {"start": IntegerSet([(1, math.inf)]),
+            #  "end": IntegerSet([(1, math.inf)]),
+            #  "order": IntegerSet([(1, math.inf)])}
         ),
         (
             "site", "gene",
-            {"start": IntegerSet([(1, math.inf)]),
-             "end": IntegerSet([(1, math.inf)]),
-             "order": IntegerSet([(1, math.inf)]),
+            # {"start": IntegerSet([(1, math.inf)]),
+            #  "end": IntegerSet([(1, math.inf)]),
+            #  "order": IntegerSet([(1, math.inf)]),
+            {"start": IntegerSet.universal(),
+             "end": IntegerSet.universal(),
+             "order": IntegerSet.universal(),
              "type": {"transitive"}}
         ),
         (
             "site", "region",
-            {"start": IntegerSet([(1, math.inf)]),
-             "end": IntegerSet([(1, math.inf)]),
-             "order": IntegerSet([(1, math.inf)])}
+            {"start": IntegerSet.universal(),
+             "end": IntegerSet.universal(),
+             "order": IntegerSet.universal()}
+            # {"start": IntegerSet([(1, math.inf)]),
+            #  "end": IntegerSet([(1, math.inf)]),
+            #  "order": IntegerSet([(1, math.inf)])}
         ),
         (
             "residue", "gene",
-            {"loc": IntegerSet([(1, math.inf)]),
+            # {"loc": IntegerSet([(1, math.inf)]),
+            {"loc": IntegerSet.universal(),
              "type": {"transitive"}}
         ),
         (
             "residue", "region",
-            {"loc": IntegerSet([(1, math.inf)]),
+            # {"loc": IntegerSet([(1, math.inf)]),
+            {"loc": IntegerSet.universal(),
              "type": {"transitive"}}
         ),
         (
             "residue", "site",
-            {"loc": IntegerSet([(1, math.inf)])}
+            # {"loc": IntegerSet([(1, math.inf)])}
+            {"loc": IntegerSet.universal()}
         ),
         ("state", "gene"),
         ("state", "region"),
@@ -142,9 +146,8 @@ add_edges_from(
         ("region", "mod"),
         ("site", "mod")
     ]
-)
-
-kami_base_kami_typing = {
+}
+meta_model_base_typing = {
     "gene": "component",
     "region": "component",
     "site": "component",
