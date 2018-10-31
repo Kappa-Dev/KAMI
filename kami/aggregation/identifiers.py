@@ -3,6 +3,7 @@ import networkx as nx
 import numpy as np
 
 from regraph import Rule
+from regraph.primitives import get_node, get_edge, add_node_attrs
 
 from kami.exceptions import KamiHierarchyError
 
@@ -84,52 +85,54 @@ def find_fragment(a_meta_data, a_location, dict_of_b):
         return None
 
 
-def identify_gene(hierarchy, gene):
+def identify_gene(model, gene):
     """Find corresponding gene in action graph."""
-    for node in hierarchy.genes():
-        if "uniprotid" in hierarchy.action_graph.node[node].keys() and\
-           gene.uniprotid in hierarchy.action_graph.node[node]["uniprotid"]:
+    for node in model.genes():
+        gene_attrs = get_node(model.action_graph, node)
+        if "uniprotid" in gene_attrs.keys() and\
+           gene.uniprotid in gene_attrs["uniprotid"]:
             return node
     return None
 
 
-def _identify_fragment(hierarchy, fragment, ref_agent, fragment_type):
-    fragment_candidates = hierarchy.ag_predecessors_of_type(
+def _identify_fragment(model, fragment, ref_agent, fragment_type):
+    fragment_candidates = model.ag_predecessors_of_type(
         ref_agent, fragment_type)
     return find_fragment(
         fragment.meta_data(), fragment.location(),
         {
             f: (
-                hierarchy.action_graph.node[f],
-                hierarchy.action_graph.edge[f][ref_agent])
+                get_node(model.action_graph, f),
+                get_edge(model.action_graph, f, ref_agent)
+            )
             for f in fragment_candidates
         }
     )
 
 
-def identify_region(hierarchy, region, ref_agent):
+def identify_region(model, region, ref_agent):
     """Find corresponding region in action graph."""
-    if ref_agent not in hierarchy.genes():
+    if ref_agent not in model.genes():
         raise KamiHierarchyError(
             "Agent with UniProtID '%s' is not found in the action graph" %
             ref_agent
         )
     else:
-        return _identify_fragment(hierarchy, region, ref_agent, "region")
+        return _identify_fragment(model, region, ref_agent, "region")
 
 
-def identify_site(hierarchy, site, ref_agent):
+def identify_site(model, site, ref_agent):
     """Find corresponding site in action graph."""
-    if ref_agent not in hierarchy.genes() and ref_agent not in hierarchy.regions():
+    if ref_agent not in model.genes() and ref_agent not in model.regions():
         raise KamiHierarchyError(
             "Gene with the UniProtAC '%s' is not found in the action graph" %
             ref_agent
         )
     else:
-        return _identify_fragment(hierarchy, site, ref_agent, "site")
+        return _identify_fragment(model, site, ref_agent, "site")
 
 
-def identify_residue(hierarchy, residue, ref_agent,
+def identify_residue(model, residue, ref_agent,
                      add_aa=False, rewriting=False):
     """Find corresponding residue.
 
@@ -145,15 +148,17 @@ def identify_residue(hierarchy, residue, ref_agent,
         If True, add aa value using SqPO rewriting, otherwise
         using primitives (used if `add_aa` is True)
     """
-    ref_gene = hierarchy.get_gene_of(ref_agent)
-    residue_candidates = hierarchy.get_attached_residues(ref_gene)
+    ref_gene = model.get_gene_of(ref_agent)
+    residue_candidates = model.get_attached_residues(ref_gene)
     if residue.loc is not None:
         for res in residue_candidates:
-            if "loc" in hierarchy.action_graph.edge[res][ref_agent].keys():
-                if residue.loc == int(list(hierarchy.action_graph.edge[res][
-                        ref_agent]["loc"])[0]):
+            res_agent_edge = get_edge(
+                model.action_graph, res, ref_agent)
+            if "loc" in res_agent_edge.keys():
+                if residue.loc == int(list(res_agent_edge["loc"])[0]):
+                    res_node = get_node(model.action_graph, res)
                     if not residue.aa.issubset(
-                        hierarchy.action_graph.node[res]["aa"]) and\
+                        res_node["aa"]) and\
                             add_aa is True:
                         if rewriting:
                             pattern = nx.DiGraph()
@@ -161,19 +166,21 @@ def identify_residue(hierarchy, residue, ref_agent,
                             rule = Rule.from_transform(pattern)
                             rule.inject_add_node_attrs(
                                 res, {"aa": {residue.aa}})
-                            hierarchy.rewrite(
+                            model.rewrite(
                                 "action_graph", rule, instance={res: res})
                         else:
-                            hierarchy.action_graph.node[res]["aa"] =\
-                                hierarchy.action_graph.node[res]["aa"].union(
-                                    residue.aa
-                            )
+                            add_node_attrs(
+                                model.action_graph,
+                                res,
+                                {"aa": res_node["aa"].union(residue.aa)})
                     return res
     else:
         for res in residue_candidates:
-            if "loc" not in hierarchy.action_graph.edge[res][ref_agent].keys() or\
-               hierarchy.action_graph.edge[res][ref_agent]["loc"].is_empty():
-                if residue.aa <= hierarchy.action_graph.node[res]["aa"]:
+            res_agent_edge = get_edge(model.action_graph, res, ref_agent)
+            if "loc" not in res_agent_edge.keys() or\
+               res_agent_edge["loc"].is_empty():
+                res_node = get_node(model.action_graph, res)
+                if residue.aa <= ["aa"]:
                     return res
                 elif add_aa is True:
                     if rewriting:
@@ -182,27 +189,31 @@ def identify_residue(hierarchy, residue, ref_agent,
                         rule = Rule.from_transform(pattern)
                         rule.inject_add_node_attrs(
                             res, {"aa": {residue.aa}})
-                        hierarchy.rewrite(
-                            "action_graph", rule, instance={res: res})
+                        instance = {
+                            n: n for n in pattern.nodes()
+                        }
+                        instance[res] = res
+                        model.rewrite(
+                            "action_graph", rule, instance=instance)
                     else:
-                        hierarchy.action_graph.node[res]["aa"] =\
-                            hierarchy.action_graph.node[res]["aa"].union(
-                            residue.aa
-                        )
+                        add_node_attrs(
+                            model.action_graph,
+                            res,
+                            {"aa": res_node["aa"].union(residue.aa)})
                     return res
     return None
 
 
-def identify_state(hierarchy, state, ref_agent):
+def identify_state(model, state, ref_agent):
     """Find corresponding state of reference agent."""
-    state_candidates = hierarchy.get_attached_states(ref_agent)
+    state_candidates = model.get_attached_states(ref_agent)
     for s in state_candidates:
-        name = list(hierarchy.action_graph.node[s]["name"])[0]
-        # values = hierarchy.action_graph.node[pred][name]
+        name = list(get_node(model.action_graph, s)["name"])[0]
+        # values = model.action_graph.node[pred][name]
         if state.name == name:
                 # if state.value not in values:
                 #     add_node_attrs(
-                #         hierarchy.action_graph,
+                #         model.action_graph,
                 #         pred,
                 #         {name: {state.value}})
             return s
