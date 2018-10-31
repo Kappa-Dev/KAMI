@@ -183,11 +183,11 @@ def check_local_ver(local_dir):
         if 'ipr_reviewed_human_match-' in loc_file and 'xml.gz' in loc_file:
             match_files.append(loc_file)
     mapping_ver = latest_version(mapping_files)
-    shrtnam_ver = latest_version(shortname_files)
+    shortname_ver = latest_version(shortname_files)
     match_ver = latest_version(match_files)
     # If the version of all 3 files does not match, return the one
     # with the oldest version.
-    if mapping_ver != shrtnam_ver or mapping_ver != match_ver:
+    if mapping_ver != shortname_ver or mapping_ver != match_ver:
         warnings.warn(
             'InterPro files versions do not match.\n'
             'Will try to resolve the issue using remote files.',
