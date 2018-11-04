@@ -2,6 +2,7 @@ import logging
 
 from kami.entities import *
 from kami.hierarchy import KamiHierarchy
+from kami.models import Model
 from kami.interactions import *
 
 
