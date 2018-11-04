@@ -169,6 +169,10 @@ class Model(object):
     def rewrite(self, graph_id, rule, instance=None,
                 rhs_typing=None, strict=False):
         """Overloading of the rewrite method."""
+        if instance is None:
+            instance = {
+                n: n for n in rule.lhs.nodes()
+            }
         g_prime, r_g_prime = self._hierarchy.rewrite(
             graph_id, rule, instance,
             rhs_typing, strict)
@@ -818,11 +822,12 @@ class Model(object):
 
         # Get a set of genes added by the nugget
         new_gene_nodes = set()
-        for node in self.nugget[nugget_id].nodes():
+        for node in nugget.graph.nodes():
+            new_nugget_node = r_g_prime[node]
             ag_node = self._hierarchy.get_typing(
-                nugget_id, "action_graph")[node]
+                nugget_id, "action_graph")[new_nugget_node]
             if self.get_action_graph_typing()[ag_node] == "gene":
-                if node not in nugget.ag_typing:
+                if node not in nugget.ag_typing.keys():
                     new_gene_nodes.add(ag_node)
 
         # Check if all new genes agents from the nugget should be
@@ -841,7 +846,11 @@ class Model(object):
                 add_nodes_from(pattern, v)
                 rule = Rule.from_transform(pattern)
                 rule.inject_merge_nodes(v, node_id=k)
-                _, rhs_instance = self.rewrite("action_graph", rule)
+                _, rhs_instance = self.rewrite(
+                    "action_graph", rule,
+                    instance = {
+                        n: n for n in pattern.nodes()
+                    })
 
                 # self.rename_node("action_graph", rhs_instance[k], k)
                 merge_result = rhs_instance[k]
@@ -919,6 +928,7 @@ class Model(object):
         """Add a collection of interactions to the model."""
         nugget_ids = []
         for i in interactions:
+            print(i)
             nugget_id = self.add_interaction(
                 i, add_agents, anatomize, apply_semantics)
             nugget_ids.append(nugget_id)
