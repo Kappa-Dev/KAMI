@@ -74,26 +74,54 @@ def apply_mod_semantics(model, nugget_id):
             phospho_semantic_rel[mod_residue] = "target_residue"
 
         if "enzyme_region" in template_rel.keys():
+            # Enzyme region is specified in the nugget
             enz_region = list(template_rel["enzyme_region"])[0]
             ag_enz_region = ag_typing[enz_region]
             if ag_enz_region in ag_sag_rel.keys() and\
                     "protein_kinase" in ag_sag_rel[ag_enz_region]:
+                # This enzyme region is typed by the protein kinase
+                # in the action graph
                 phospho_semantic_rel[enz_region] = "protein_kinase"
+
+                # 1. MOD action merge
+                kinase_mods =\
+                    model.ag_successors_of_type(
+                        ag_enz_region, "mod")
+
+                if len(kinase_mods) > 1:
+                    pattern = nx.DiGraph()
+                    add_nodes_from(
+                        pattern, [ag_enz_region] + kinase_mods)
+
+                    mod_merge_rule = Rule.from_transform(pattern)
+                    new_mod_id = mod_merge_rule.inject_merge_nodes(
+                        kinase_mods)
+
+                    _, rhs_ag = model.rewrite(
+                        "action_graph", mod_merge_rule,
+                        instance={
+                            n: n for n in pattern.nodes()
+                        })
+
+                # 2. Autocompletion
                 enz_region_predecessors = model.nugget[
                     nugget_id].predecessors(enz_region)
+
+                # Check if kinase activity is specified in the nugget
                 activity_found = False
                 for pred in enz_region_predecessors:
                     ag_pred = ag_typing[pred]
-                    ag_pred_type = model.get_action_graph_typing()[ag_pred]
+                    ag_pred_type = ag_typing[ag_pred]
+                    pred_attrs = get_node(model.nugget[nugget_id], pred)
                     if ag_pred_type == "state" and\
-                       "activity" in get_node(model.nugget[
-                            nugget_id], pred)["name"] and\
-                       True in get_node(model.nugget[
-                            nugget_id], pred)["test"]:
+                       "activity" in pred_attrs["name"] and\
+                       True in pred_attrs["test"]:
                         phospho_semantic_rel[pred] = "protein_kinase_activity"
                         activity_found = True
                         break
                 if activity_found is False:
+                    # If activity is not specified, we autocomplete
+                    # nugget with it
                     autocompletion_rule = Rule.from_transform(
                         model.nugget[nugget_id])
                     new_activity_state = "{}_activity".format(enzyme)
@@ -102,20 +130,23 @@ def apply_mod_semantics(model, nugget_id):
                         {"name": "activity", "test": True})
                     autocompletion_rule.inject_add_edge(
                         new_activity_state, enz_region)
-                    # identify if there exists the activity state
+                    # identify if there already exists the activity state
                     # in the action graph
                     rhs_typing = {"action_graph": {}}
                     ag_activity = model.get_activity_state(ag_enz_region)
                     if ag_activity is not None:
                         rhs_typing["action_graph"][new_activity_state] =\
                             ag_activity
-
+                    # Apply autocompletion rule
                     _, rhs_g = model.rewrite(
                         nugget_id, autocompletion_rule,
                         rhs_typing=rhs_typing)
                     phospho_semantic_rel[rhs_g[new_activity_state]] =\
                         "protein_kinase_activity"
+
             else:
+                # Phosphorylation is performed by the region not
+                # identified as a protein kinase
                 warnings.warn(
                     "Region '%s' performing phosphorylation is not "
                     "a protein kinase region" % ag_enz_region,
@@ -123,11 +154,15 @@ def apply_mod_semantics(model, nugget_id):
         elif "enzyme_site" in template_rel:
             pass
         else:
+            # Enzyme region is NOT specified in the nugget
             enz_region = None
+            # Search for the unique kinase region associated
+            # with respective gene in the action graph
             unique_kinase_region =\
                 model.unique_kinase_region(ag_enzyme)
-            if unique_kinase_region is not None:
 
+            if unique_kinase_region is not None:
+                # 1. MOD action merge
                 kinase_mods =\
                     model.ag_successors_of_type(
                         unique_kinase_region, "mod")
@@ -152,6 +187,7 @@ def apply_mod_semantics(model, nugget_id):
                         n: n for n in pattern.nodes()
                     })
 
+                # 2. Autocompletion
                 if len(kinase_mods) > 0:
                     new_ag_mod = rhs_ag[new_mod_id]
                 else:
@@ -198,17 +234,19 @@ def apply_mod_semantics(model, nugget_id):
                         nugget_id, "action_graph").items():
                     if v == ag_activity:
                         nugget_activity = k
-                print(rhs_nugget, nugget_activity, activity_state)
                 phospho_semantic_rel[rhs_nugget[activity_state]] =\
                     "protein_kinase_activity"
                 model._hierarchy.set_node_relation(
                     nugget_id, "mod_template", enz_region, "enz_region")
             else:
+                # The repective gene in the action graph contains
+                # either no or multiple kinase regions
                 warnings.warn(
                     "Could not find the unique protein kinase "
                     "region associated with the gene '%s'" % ag_enzyme,
                     KamiHierarchyWarning)
 
+        # Add a relation to the phosporylation semantic nugget
         model.add_semantic_nugget_rel(
             nugget_id,
             "phosphorylation",

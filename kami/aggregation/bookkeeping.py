@@ -195,8 +195,9 @@ def connect_transitive_components(model, new_nodes):
         _, rhs_instance = model.rewrite(
             "action_graph", gene_region_residue_rule, instance)
 
-        res_region_edge = model.action_graph.edge[
-            instance["residue"]][instance["region"]]
+        res_region_edge = get_edge(
+            model.action_graph,
+            instance["residue"], instance["region"])
         if "loc" in res_region_edge:
             loc = res_region_edge["loc"]
             add_edge_attrs(model.action_graph,
@@ -342,7 +343,9 @@ def anatomize_gene(model, gene):
                     region_id] = "region"
                 # Resolve semantics
                 semantic_relations[region_id] = set()
-                if "IPR000719" in domain.ipr_ids:
+                if "IPR000719" in domain.ipr_ids or\
+                   "IPR001245" in domain.ipr_ids or\
+                   "IPR020635" in domain.ipr_ids:
                     semantic_relations[region_id].add("protein_kinase")
                     # autocomplete with activity
                     activity_state_id = "{}_activity".format(region_id)
@@ -378,9 +381,11 @@ def anatomize_gene(model, gene):
                 semantic_relations[new_name] = semantic_relations[
                     matching_region]
                 del semantic_relations[matching_region]
-                del anatomization_rule_typing["meta_model"][matching_region]
-                # anatomization_rule_typing["meta_model"][new_name] =\
-                #     "region"
+                if matching_region in anatomization_rule_typing[
+                        "meta_model"].keys():
+                    del anatomization_rule_typing["meta_model"][
+                        matching_region]
+
                 new_regions.remove(matching_region)
                 new_regions.append(new_name)
 

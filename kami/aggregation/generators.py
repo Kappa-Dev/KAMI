@@ -907,7 +907,6 @@ class LigandModGenerator(Generator):
 
 def generate_from_interaction(hierarchy, interaction):
     """Generate nugget from an interaction object."""
-    print(interaction)
     if isinstance(interaction, Modification):
         gen = ModGenerator(hierarchy)
     elif isinstance(interaction, SelfModification):
