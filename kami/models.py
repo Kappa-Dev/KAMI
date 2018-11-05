@@ -6,7 +6,9 @@ from kami.resources import default_components
 
 from regraph import (Rule, Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_node, add_edge,
-                                get_node, get_edge)
+                                get_node, get_edge,
+                                add_nodes_from,
+                                add_edges_from)
 
 from kami.resources import default_components
 from kami.utils.generic import normalize_to_set
@@ -28,7 +30,6 @@ from kami.interactions import (Modification,
                                LigandModification,
                                AnonymousModification,
                                Binding, Unbinding)
-
 
 
 class Model(object):
@@ -99,8 +100,8 @@ class Model(object):
             if graph_id not in self._hierarchy.graphs():
                 self._hierarchy.add_empty_graph(graph_id, attrs)
                 g = self._hierarchy.get_graph(graph_id)
-                g.add_nodes_from(graph["nodes"])
-                g.add_edges_from(graph["edges"])
+                add_nodes_from(g, graph["nodes"])
+                add_edges_from(g, graph["edges"])
 
         for s, t, mapping, attrs in default_components.TYPING:
             if (s, t) not in self._hierarchy.typings():
@@ -237,8 +238,10 @@ class Model(object):
         """Get a list of nuggets in the hierarchy."""
         nuggets = []
         for node_id in self._hierarchy.graphs():
-            if "nugget" in self._hierarchy.get_graph_attrs(node_id)["type"]:
-                nuggets.append(node_id)
+            graph_attrs = self._hierarchy.get_graph_attrs(node_id)
+            if "type" in graph_attrs.keys():
+                if "nugget" in graph_attrs["type"]:
+                    nuggets.append(node_id)
         return nuggets
 
     def semantic_nuggets(self):
@@ -976,8 +979,31 @@ class Model(object):
                 return state
         return None
 
+    def get_nugget_desc(self, nugget_id):
+        nugget_attrs = self._hierarchy.get_graph_attrs(nugget_id)
+        if 'desc' in nugget_attrs.keys():
+            if type(nugget_attrs['desc']) == str:
+                nugget_desc = nugget_attrs['desc']
+            else:
+                nugget_desc = list(nugget_attrs['desc'])[0]
+        else:
+            nugget_desc = ""
+        return nugget_desc
 
+    def get_nugget_typing(self, nugget_id):
+        return self._hierarchy.get_typing(
+            nugget_id, "action_graph")
 
+    def get_action_graph_attrs(self):
+        return self._hierarchy.get_graph_attrs(
+            "action_graph")
 
-class Instance(object):
-    pass
+    def set_action_graph_attrs(self, attrs):
+        self._hierarchy.set_graph_attrs(
+            "action_graph", attrs)
+
+    def get_ag_node(self, node):
+        return get_node(self.action_graph, node)
+
+    def export_json(self, filename):
+        self._hierarchy.export(filename)

@@ -1,20 +1,27 @@
+from regraph import get_node
+
+
 def ag_to_edge_list(hierarchy, agent_ids="hgnc_symbol"):
     edge_list = []
+    ag_typing = hierarchy.get_action_graph_typing()
+    print(ag_typing)
     for u, v in hierarchy.action_graph.edges():
-        if hierarchy.action_graph_typing[u] == "gene":
+        if ag_typing[u] == "gene":
             hgnc = None
-            if "hgnc_symbol" in hierarchy.action_graph.node[u].keys():
-                hgnc = list(hierarchy.action_graph.node[u]["hgnc_symbol"])[0]
+            gene_node = get_node(hierarchy.action_graph, u)
+            if "hgnc_symbol" in gene_node.keys():
+                hgnc = list(gene_node["hgnc_symbol"])[0]
             if hgnc is not None:
                 n1 = hgnc
             else:
                 n1 = u
         else:
             n1 = u.replace(",", "").replace(" ", "")
-        if hierarchy.action_graph_typing[v] == "gene":
+        if ag_typing[v] == "gene":
             hgnc = None
-            if "hgnc_symbol" in hierarchy.action_graph.node[v].keys():
-                hgnc = list(hierarchy.action_graph.node[v]["hgnc_symbol"])[0]
+            gene_node = get_node(hierarchy.action_graph, v)
+            if "hgnc_symbol" in gene_node.keys():
+                hgnc = list(gene_node["hgnc_symbol"])[0]
             if hgnc is not None:
                 n2 = hgnc
             else:

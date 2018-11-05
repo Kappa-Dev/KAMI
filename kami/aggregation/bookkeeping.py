@@ -204,7 +204,6 @@ def connect_transitive_components(model, new_nodes):
                            rhs_instance["residue"],
                            rhs_instance["gene"],
                            {"loc": loc})
-
     gene_site_residue = nx.DiGraph()
     add_nodes_from(gene_site_residue, ["gene", "site", "residue"])
     add_edges_from(

@@ -2,8 +2,8 @@
 import copy
 import networkx as nx
 
-from regraph import Rule, NetworkXHierarchy
-from regraph.networkx.primitives import (add_node, add_edge)
+from regraph import Rule, NetworkXHierarchy, Neo4jHierarchy
+from regraph.primitives import (add_node, add_edge)
 
 from kami.resources import default_components
 from kami.utils.generic import normalize_to_set
@@ -19,12 +19,6 @@ from kami.aggregation.semantics import (apply_mod_semantics,
                                         add_nodes_from)
 from kami.aggregation.identifiers import identify_residue
 from kami.exceptions import KamiHierarchyError
-
-from kami.interactions import (Modification,
-                               SelfModification,
-                               LigandModification,
-                               AnonymousModification,
-                               Binding, Unbinding)
 
 
 class KamiHierarchy(NetworkXHierarchy):
