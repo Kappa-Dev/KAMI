@@ -7,12 +7,13 @@ import networkx as nx
 from regraph import (add_edge,
                      add_node)
 
-from kami.entities import (Gene, RegionActor,
-                           Residue, SiteActor, State
-                           )
-from kami.interactions import (Modification, SelfModification,
-                               AnonymousModification, LigandModification,
-                               Binding, Unbinding)
+from kami.data_structures.entities import (Gene, RegionActor,
+                                           Residue, SiteActor, State
+                                           )
+from kami.data_structures.interactions import (Modification, SelfModification,
+                                               AnonymousModification,
+                                               LigandModification,
+                                               Binding, Unbinding)
 from kami.exceptions import (KamiError,
                              KamiWarning,
                              NuggetGenerationError)
@@ -55,7 +56,7 @@ class NuggetContainer:
             self.graph = nx.DiGraph()
 
         self.node = self.graph.node
-        self.edge = self.graph.edge
+        self.edge = self.graph.adj
 
         if meta_typing:
             self.meta_typing = copy.deepcopy(meta_typing)

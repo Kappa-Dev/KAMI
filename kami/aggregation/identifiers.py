@@ -180,7 +180,7 @@ def identify_residue(model, residue, ref_agent,
             if "loc" not in res_agent_edge.keys() or\
                res_agent_edge["loc"].is_empty():
                 res_node = get_node(model.action_graph, res)
-                if residue.aa <= ["aa"]:
+                if residue.aa <= res_node["aa"]:
                     return res
                 elif add_aa is True:
                     if rewriting:

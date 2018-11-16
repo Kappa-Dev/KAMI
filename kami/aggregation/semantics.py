@@ -13,20 +13,16 @@ from regraph.primitives import (add_nodes_from,
 def _propagate_semantics_to_ag(hierarchy, nugget_id,
                                semantic_nugget_id):
     """Propagate semantic rels from a nugget to the ag."""
-    ag_sag_rel = hierarchy.get_relation(
-        "action_graph",
-        "semantic_action_graph")
+    semantic_nugget_typing = hierarchy.get_typing(
+        semantic_nugget_id, "semantic_action_graph")
     for nugget_node, semantics in hierarchy.get_relation(
             nugget_id, semantic_nugget_id).items():
         ag_node = hierarchy.get_typing(
             nugget_id, "action_graph")[nugget_node]
-        if ag_node not in ag_sag_rel.keys():
-            ag_sag_rel[ag_node] = set()
         for s in semantics:
-            ag_sag_rel[ag_node].add(
-                hierarchy.get_typing(
-                    semantic_nugget_id,
-                    "semantic_action_graph")[s])
+            hierarchy.set_node_relation(
+                "action_graph", "semantic_action_graph",
+                ag_node, semantic_nugget_typing[s])
 
 
 def apply_mod_semantics(model, nugget_id):
@@ -68,10 +64,10 @@ def apply_mod_semantics(model, nugget_id):
     if phospho:
         phospho_semantic_rel = {
             "mod": "phospho",
-            mod_state: "target_state",
+            mod_state: "phospho_state",
         }
         if mod_residue is not None:
-            phospho_semantic_rel[mod_residue] = "target_residue"
+            phospho_semantic_rel[mod_residue] = "phospho_target_residue"
 
         if "enzyme_region" in template_rel.keys():
             # Enzyme region is specified in the nugget
@@ -100,7 +96,7 @@ def apply_mod_semantics(model, nugget_id):
                     _, rhs_ag = model.rewrite(
                         "action_graph", mod_merge_rule,
                         instance={
-                            n: n for n in pattern.nodes()
+                            n: n for n in mod_merge_rule.lhs.nodes()
                         })
 
                 # 2. Autocompletion
@@ -184,7 +180,7 @@ def apply_mod_semantics(model, nugget_id):
                 _, rhs_ag = model.rewrite(
                     "action_graph", mod_merge_rule,
                     instance={
-                        n: n for n in pattern.nodes()
+                        n: n for n in mod_merge_rule.lhs.nodes()
                     })
 
                 # 2. Autocompletion
@@ -196,7 +192,7 @@ def apply_mod_semantics(model, nugget_id):
                     model.nugget[nugget_id])
                 autocompletion_rule.inject_add_node(
                     unique_kinase_region,
-                    model.action_graph.get_node(unique_kinase_region))
+                    get_node(model.action_graph, unique_kinase_region))
 
                 activity_state = "{}_activity".format(unique_kinase_region)
 
@@ -306,8 +302,8 @@ def apply_bnd_semantics(model, nugget_id):
                             ag_residue_pred = ag_typing[residue_pred]
                             if model.get_action_graph_typing()[
                                     ag_residue_pred] == "state" and\
-                               "phosphorylation" in nugget.get_node(
-                                    residue_pred, "name"):
+                               "phosphorylation" in get_node(
+                                    nugget, residue_pred)["name"]:
                                 py_residue_states.append((pred, residue_pred))
                 # if pY residue was not found it, autocomplete nugget with it
                 if len(py_residue_states) == 0:
@@ -331,7 +327,7 @@ def apply_bnd_semantics(model, nugget_id):
                     }
                     _, rhs_nugget = model.rewrite(
                         nugget_id, autocompletion_rule, instance={
-                            n: n for n in pattern.nodes()
+                            n: n for n in autocompletion_rule.lhs.nodes()
                         },
                         rhs_typing=rhs_typing, strict=False)
                     # add necessary semantic rels
@@ -341,7 +337,7 @@ def apply_bnd_semantics(model, nugget_id):
                 else:
                     # Update action graph by merging all the sites
                     # sharing the same residue
-                    ag_gene = model.ag_typing[partner_gene]
+                    ag_gene = ag_typing[partner_gene]
                     sites = [
                         s for s in model.get_attached_sites(ag_gene)
                         if s != partner_site]
@@ -350,8 +346,7 @@ def apply_bnd_semantics(model, nugget_id):
                     for residue, state in py_residue_states:
                         sh2_semantic_rel[residue] = "pY_residue"
                         sh2_semantic_rel[state] = "phosphorylation"
-                        ag_residue = model.typing[
-                            nugget_id]["action_graph"][residue]
+                        ag_residue = ag_typing[residue]
                         for s in sites:
                             if ag_residue in model.get_attached_residues(s):
                                 sites_to_merge.add(s)

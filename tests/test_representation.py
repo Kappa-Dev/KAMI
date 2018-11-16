@@ -2,13 +2,13 @@
 
 from regraph import print_graph
 
-from kami.entities import (Gene, Region, RegionActor, Residue,
-                           Site, SiteActor, State)
-from kami.interactions import (Modification,
-                               Binding,
-                               SelfModification,
-                               LigandModification,
-                               AnonymousModification)
+from kami import (Gene, Region, RegionActor, Residue,
+                  Site, SiteActor, State)
+from kami import (Modification,
+                  Binding,
+                  SelfModification,
+                  LigandModification,
+                  AnonymousModification)
 
 
 class TestRepresentation(object):

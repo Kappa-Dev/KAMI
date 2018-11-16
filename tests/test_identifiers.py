@@ -1,8 +1,8 @@
 """Unit testing of entity identification used in aggregation."""
 from kami.aggregation import identifiers
-from kami.entities import (Gene, Region, Residue,
-                           Site, State)
-from kami.hierarchy import KamiHierarchy
+from kami import (Gene, Region, Residue,
+                  Site, State)
+from kami import KamiCorpus
 
 # from regraph.primitives import print_graph
 
@@ -12,7 +12,7 @@ class TestIdentifiers(object):
 
     def __init__(self):
         """Initialize with common hierarchy."""
-        self.hierarchy = KamiHierarchy()
+        self.hierarchy = KamiCorpus()
 
         gene = Gene("A")
         self.gene_id = self.hierarchy.add_gene(gene)

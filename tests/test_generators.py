@@ -6,12 +6,12 @@ from kami.aggregation.generators import (NuggetContainer, Generator,
                                          ModGenerator, SelfModGenerator,
                                          LigandModGenerator, BndGenerator,
                                          AnonymousModGenerator)
-from kami.interactions import (Modification,
-                               Binding, SelfModification,
-                               LigandModification, AnonymousModification)
-from kami.entities import (Gene, Region, RegionActor, Residue,
-                           Site, SiteActor, State)
-from kami.hierarchy import KamiHierarchy
+from kami import (Modification,
+                  Binding, SelfModification,
+                  LigandModification, AnonymousModification)
+from kami import (Gene, Region, RegionActor, Residue,
+                  Site, SiteActor, State)
+from kami import KamiCorpus
 from kami.exceptions import KamiError
 
 
@@ -19,11 +19,11 @@ class TestGenerators(object):
     """Test class for `kami.resolvers.generators` module."""
 
     def __init__(self):
-        """Define some initial content of the hierarchy."""
-        hierarchy = KamiHierarchy()
+        """Define some initial content of the corpus."""
+        corpus = KamiCorpus()
         gene = Gene("A")
-        gene_id = hierarchy.add_gene(gene)
-        self.generator = Generator(hierarchy)
+        gene_id = corpus.add_gene(gene)
+        self.generator = Generator(corpus)
         self.default_ag_gene = gene_id
 
     def test_state_generator(self):
@@ -416,8 +416,8 @@ class TestGenerators(object):
             substrate=substrate_site_actor,
             target=residue_mod_target
         )
-        hierarchy = KamiHierarchy()
-        generator = ModGenerator(hierarchy)
+        corpus = KamiCorpus()
+        generator = ModGenerator(corpus)
         n, t = generator.generate(mod5)
         print_graph(n.graph)
 
@@ -433,8 +433,8 @@ class TestGenerators(object):
             Residue("Y", 100, State("phosphorylation", False)),
             value=True)
 
-        hierarchy = KamiHierarchy()
-        generator = AnonymousModGenerator(hierarchy)
+        corpus = KamiCorpus()
+        generator = AnonymousModGenerator(corpus)
         n, t = generator.generate(mod)
         print_graph(n.graph)
 
@@ -452,8 +452,8 @@ class TestGenerators(object):
             substrate_region=Region("Region"),
             substrate_site=Site("Site"))
 
-        hierarchy = KamiHierarchy()
-        generator = SelfModGenerator(hierarchy)
+        corpus = KamiCorpus()
+        generator = SelfModGenerator(corpus)
         n, t = generator.generate(automod)
         print_graph(n.graph)
 
@@ -475,8 +475,8 @@ class TestGenerators(object):
             substrate_bnd_region=Region("SbndRegion"),
             substrate_bnd_site=Site("SbndSite"))
 
-        hierarchy = KamiHierarchy()
-        generator = LigandModGenerator(hierarchy)
+        corpus = KamiCorpus()
+        generator = LigandModGenerator(corpus)
         n, t = generator.generate(automod)
         print_graph(n.graph)
 
@@ -500,9 +500,9 @@ class TestGenerators(object):
             substrate_bnd_site=Site(name='pY394',
                                     start=391, end=397)
         )
-        hierarchy = KamiHierarchy()
-        hierarchy.add_interaction(inter, anatomize=False)
-        print_graph(hierarchy.graph['nugget_1'])
+        corpus = KamiCorpus()
+        corpus.add_interaction(inter, anatomize=False)
+        print_graph(corpus.nugget['nugget_1'])
 
     def test_bnd_generation(self):
         """Test generation of a binding nugget graph."""
@@ -510,16 +510,16 @@ class TestGenerators(object):
         right = Gene("B")
         bnd = Binding(left, right)
 
-        hierarchy = KamiHierarchy()
-        generator = BndGenerator(hierarchy)
+        corpus = KamiCorpus()
+        generator = BndGenerator(corpus)
         n, t = generator.generate(bnd)
         print_graph(n.graph)
 
     def test_advanced_ligand_mod_generator(self):
         """Test generation with advanced usage of LigandModification."""
 
-        hierarchy = KamiHierarchy()
-        generator = LigandModGenerator(hierarchy)
+        corpus = KamiCorpus()
+        generator = LigandModGenerator(corpus)
 
         enzyme = SiteActor(
             gene=Gene("A"),
