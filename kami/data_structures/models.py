@@ -1,0 +1,2 @@
+class KamiModel(object):
+    pass

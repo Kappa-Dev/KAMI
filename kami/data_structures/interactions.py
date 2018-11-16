@@ -1,6 +1,6 @@
 """Collection of classes implementing interactions."""
-from kami.entities import (Gene, SiteActor, RegionActor,
-                           Residue, State, Region, Site, actor_from_json)
+from .entities import (Gene, SiteActor, RegionActor,
+                       Residue, State, Region, Site, actor_from_json)
 
 from kami.exceptions import KamiError
 

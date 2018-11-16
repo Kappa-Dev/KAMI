@@ -1,4 +1,10 @@
+"""Classes for KAMI knowledge corpora.
+
+Corpora in KAMI are decontextualised signalling knowledge bases.
+"""
+
 import copy
+import time
 
 import networkx as nx
 
@@ -10,7 +16,6 @@ from regraph.primitives import (add_node, add_edge,
                                 add_nodes_from,
                                 add_edges_from)
 
-from kami.resources import default_components
 from kami.utils.generic import normalize_to_set
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
@@ -20,19 +25,12 @@ from kami.aggregation.bookkeeping import (anatomize_gene,
                                           connect_transitive_components)
 from kami.aggregation.generators import generate_from_interaction
 from kami.aggregation.semantics import (apply_mod_semantics,
-                                        apply_bnd_semantics,
-                                        add_nodes_from)
+                                        apply_bnd_semantics)
 from kami.aggregation.identifiers import identify_residue
 from kami.exceptions import KamiHierarchyError
 
-from kami.interactions import (Modification,
-                               SelfModification,
-                               LigandModification,
-                               AnonymousModification,
-                               Binding, Unbinding)
 
-
-class Model(object):
+class KamiCorpus(object):
     """Class for KAMI modelss."""
 
     nugget_dict_factory = dict
@@ -54,6 +52,7 @@ class Model(object):
         for n in self._hierarchy.graphs():
             if "nugget" in self._hierarchy.get_graph_attrs(n)["type"]:
                 self.nugget[n] = self._hierarchy.get_graph(n)
+        self._nugget_count = len(self.nuggets())
 
     def create_empty_action_graph(self):
         """Creat an empty action graph in the hierarchy."""
@@ -90,6 +89,8 @@ class Model(object):
         `self.mod_template` and `self.bnd_template` -- direct access to
         the nugget template graphs.
         """
+
+        self._backend = backend
         if backend == "networkx":
             self._hierarchy = NetworkXHierarchy()
         elif backend == "neo4j":
@@ -175,8 +176,8 @@ class Model(object):
                 n: n for n in rule.lhs.nodes()
             }
         g_prime, r_g_prime = self._hierarchy.rewrite(
-            graph_id, rule, instance,
-            rhs_typing, strict)
+            graph_id, rule=rule, instance=instance,
+            rhs_typing=rhs_typing, strict=strict)
         self._init_shortcuts()
         return (g_prime, r_g_prime)
 
@@ -212,36 +213,51 @@ class Model(object):
 
     @classmethod
     def from_hierarchy(cls, hierarchy):
-        """Initialize Model obj from a graph hierarchy."""
+        """Initialize KamiCorpus obj from a graph hierarchy."""
         model = cls()
         model._hierarchy = hierarchy
         model._init_shortcuts()
         return model
 
     @classmethod
+    def copy(cls, corpus):
+        """Create a copy of the corpus."""
+        if corpus._backend == "networkx":
+            hierarchy_copy = NetworkXHierarchy.copy(corpus._hierarchy)
+        elif corpus._backend == "neo4j":
+            hierarchy_copy = Neo4jHierarchy.copy(corpus._hierarchy)
+        return cls.from_hierarchy(hierarchy_copy)
+
+    @classmethod
     def load(cls, filename, backend="networkx", directed=True):
-        """Load a Model from its json representation."""
+        """Load a KamiCorpus from its json representation."""
         if backend == "networkx":
             hierarchy = NetworkXHierarchy.load(filename)
         elif backend == "neo4j":
             hierarchy = Neo4jHierarchy.load(filename)
-        return Model.from_hierarchy(hierarchy)
+        return KamiCorpus.from_hierarchy(hierarchy)
 
     def get_action_graph_typing(self):
+        """Get typing of the action graph by meta model."""
         typing = dict()
         if ("action_graph", "meta_model") in self._hierarchy.typings():
             typing =\
                 self._hierarchy.get_typing("action_graph", "meta_model")
         return typing
 
+    def is_nugget_graph(self, node_id):
+        graph_attrs = self._hierarchy.get_graph_attrs(node_id)
+        if "type" in graph_attrs.keys():
+            if "nugget" in graph_attrs["type"]:
+                return True
+        return False
+
     def nuggets(self):
         """Get a list of nuggets in the hierarchy."""
         nuggets = []
         for node_id in self._hierarchy.graphs():
-            graph_attrs = self._hierarchy.get_graph_attrs(node_id)
-            if "type" in graph_attrs.keys():
-                if "nugget" in graph_attrs["type"]:
-                    nuggets.append(node_id)
+            if self.is_nugget_graph(node_id):
+                nuggets.append(node_id)
         return nuggets
 
     def semantic_nuggets(self):
@@ -251,6 +267,13 @@ class Model(object):
             if "semantic_nugget" in self._hierarchy.get_graph_attrs(node_id)["type"]:
                 nuggets.append(node_id)
         return nuggets
+
+    def nugget_relations(self):
+        nugget_rels = list()
+        for u, v in self._hierarchy.relations():
+            if self.is_nugget_graph(u):
+                nugget_rels.append((u, v))
+        return nugget_rels
 
     def templates(self):
         """Get a list of templates in the hierarchy."""
@@ -300,7 +323,7 @@ class Model(object):
         if node_id not in self.action_graph.nodes():
             raise KamiHierarchyError(
                 "Node '{}' is not found in the action graph".format(node_id))
-        data = {}
+        data = dict()
         node_attrs = get_node(self.action_graph, node_id)
 
         for key, value in node_attrs.items():
@@ -440,7 +463,7 @@ class Model(object):
             rhs_typing = {"meta_model": {gene_id: "gene"}}
             _, rhs_instance = self.rewrite(
                 "action_graph", rule, instance={},
-                rhs_typing=rhs_typing, inplace=True)
+                rhs_typing=rhs_typing)
             return rhs_instance[gene_id]
         else:
             add_node(self.action_graph, gene_id, gene.meta_data())
@@ -469,7 +492,7 @@ class Model(object):
             rhs_typing = {"meta_model": {mod_id: "mod"}}
             _, rhs_instance = self.rewrite(
                 "action_graph", rule, instance={},
-                rhs_typing=rhs_typing, inplace=True)
+                rhs_typing=rhs_typing)
             res_mod_id = rhs_instance[mod_id]
         else:
             add_node(self.action_graph, mod_id, attrs)
@@ -533,7 +556,7 @@ class Model(object):
             rhs_typing = {"meta_model": {region_id: "region"}}
             _, rhs_instance = self.rewrite(
                 "action_graph", rule, instance={ref_gene: ref_gene},
-                rhs_typing=rhs_typing, inplace=True)
+                rhs_typing=rhs_typing)
             res_region_id = rhs_instance[region_id]
         else:
             add_node(self.action_graph, region_id, region.meta_data())
@@ -742,25 +765,14 @@ class Model(object):
                 self.add_ag_node_semantics(state_id, s)
         return state_id
 
-    def _generate_nugget_id(self, name=None):
+    def _generate_next_nugget_id(self, name=None):
         """Generate id for a new nugget."""
-        if name:
-            if name not in self._hierarchy.graphs():
-                nugget_id = name
-            else:
-                i = 1
-                nugget_id = name + "_" + str(i)
-                while nugget_id in self._hierarchy.graphs():
-                    i += 1
-                    nugget_id = name + "_" + str(i)
-        else:
+        if self._nugget_count is None:
+            self._nugget_count = len(self.nuggets())
+        self._nugget_count += 1
+        if name is None:
             name = "nugget"
-            i = 1
-            nugget_id = name + "_" + str(i)
-            while nugget_id in self._hierarchy.graphs():
-                i += 1
-                nugget_id = name + "_" + str(i)
-        return nugget_id
+        return name + "_" + str(self._nugget_count)
 
     def get_nugget_type(self, nugget_id):
         """Get type of the nugget specified by id."""
@@ -778,12 +790,13 @@ class Model(object):
         if "action_graph" not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
-        nugget_id = self._generate_nugget_id()
+        start = time.time()
 
-        p = nx.DiGraph()
-        lhs = nx.DiGraph()
+        nugget_id = self._generate_next_nugget_id()
 
         # 2. Create a generation rule for this nugget
+        p = nx.DiGraph()
+        lhs = nx.DiGraph()
         generation_rule = Rule(p, lhs, nugget.graph)
         rhs_typing = {
             "action_graph": nugget.ag_typing,
@@ -791,16 +804,13 @@ class Model(object):
         }
 
         # 3. Add empty graph as a nugget to the hierarchy
-        self._hierarchy.add_empty_graph(
-            nugget_id,
-            {
-                "type": "nugget",
-                "interaction_type": nugget_type
-            }
-        )
+        attrs = {
+            "type": "nugget",
+            "interaction_type": nugget_type
+        }
         if nugget.desc is not None:
-            self._hierarchy.set_node_attrs(
-                nugget_id, {'desc': nugget.desc})
+            attrs["desc"] = nugget.desc
+        self._hierarchy.add_empty_graph(nugget_id, attrs=attrs)
 
         self.nugget[nugget_id] = self._hierarchy.get_graph(nugget_id)
         self._hierarchy.add_typing(nugget_id, "action_graph", dict())
@@ -811,7 +821,7 @@ class Model(object):
             rhs_typing=rhs_typing,
             strict=(not add_agents))
 
-        template_rel = {}
+        template_rel = dict()
         for rhs_node, template_nodes in nugget.template_rel.items():
             if len(template_nodes) > 0:
                 nugget_node = r_g_prime[rhs_node]
@@ -822,7 +832,9 @@ class Model(object):
         self.add_template_rel(
             nugget_id, nugget.template_id,
             template_rel)
+        print("\tTime to apply nugget generation rule: ", time.time() - start)
 
+        start = time.time()
         # Get a set of genes added by the nugget
         new_gene_nodes = set()
         for node in nugget.graph.nodes():
@@ -851,7 +863,7 @@ class Model(object):
                 rule.inject_merge_nodes(v, node_id=k)
                 _, rhs_instance = self.rewrite(
                     "action_graph", rule,
-                    instance = {
+                    instance={
                         n: n for n in pattern.nodes()
                     })
 
@@ -863,15 +875,19 @@ class Model(object):
                     if vv in new_gene_nodes:
                         new_gene_nodes.remove(vv)
                 new_gene_nodes.add(merge_result)
+        print("\tTime to check gene duplicates: ", time.time() - start)
 
         # 5. Anatomize new genes added as the result of nugget creation
+        start = time.time()
         new_ag_regions = []
         if anatomize is True:
             if len(new_gene_nodes) > 0:
                 for gene in new_gene_nodes:
                     added_regions = anatomize_gene(self, gene)
                     new_ag_regions += added_regions
+        print("\tTime to anatomize new genes: ", time.time() - start)
 
+        start = time.time()
         all_genes = [
             self._hierarchy.get_typing(nugget_id, "action_graph")[node]
             for node in self.nugget[nugget_id].nodes()
@@ -880,10 +896,12 @@ class Model(object):
 
         # Apply bookkeeping updates
         connect_nested_fragments(self, all_genes)
+        start_nested = time.time()
         connect_transitive_components(self, [
             self._hierarchy.get_typing(nugget_id, "action_graph")[n]
             for n in self.nugget[nugget_id].nodes()
         ] + new_ag_regions)
+        print("\t\tTime to conntect transitive components: ", time.time() - start_nested)
 
         for g in all_genes:
             residues = self.get_attached_residues(g)
@@ -891,8 +909,10 @@ class Model(object):
             regions = self.get_attached_regions(g)
             reconnect_residues(self, g, residues, regions, sites)
             reconnect_sites(self, g, sites, regions)
+        print("\tTime apply bookkeeping upds: ", time.time() - start)
 
         # 6. Apply semantics to the nugget
+        start = time.time()
         if apply_semantics is True:
             if "mod" in self._hierarchy.get_graph_attrs(
                nugget_id)["interaction_type"]:
@@ -907,7 +927,7 @@ class Model(object):
             self.add_semantic_nugget_rel(
                 nugget_id, semantic_nugget, rel
             )
-
+        print("\tTime to perform semantic upd: ", time.time() - start)
         return nugget_id
 
     def add_interaction(self, interaction, add_agents=True,
@@ -916,14 +936,18 @@ class Model(object):
         if "action_graph" not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
+        start = time.time()
         nugget, nugget_type = generate_from_interaction(self, interaction)
+        print("Time to generate nugget: ", time.time() - start)
 
         # Add it to the hierarchy performing respective updates
+        start = time.time()
         nugget_id = self.add_nugget(
             nugget, nugget_type,
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
+        print("Time to add nugget to the model: ", time.time() - start)
         return nugget_id
 
     def add_interactions(self, interactions, add_agents=True,
@@ -972,6 +996,7 @@ class Model(object):
         return kinase
 
     def get_activity_state(self, gene):
+        """Get activity state of a gene in the action graph."""
         states = self.get_attached_states(gene)
 
         for state in states:
@@ -980,6 +1005,7 @@ class Model(object):
         return None
 
     def get_nugget_desc(self, nugget_id):
+        """Get nugget description string."""
         nugget_attrs = self._hierarchy.get_graph_attrs(nugget_id)
         if 'desc' in nugget_attrs.keys():
             if type(nugget_attrs['desc']) == str:
@@ -991,19 +1017,24 @@ class Model(object):
         return nugget_desc
 
     def get_nugget_typing(self, nugget_id):
+        """Get typing of the nugget by the action graph."""
         return self._hierarchy.get_typing(
             nugget_id, "action_graph")
 
     def get_action_graph_attrs(self):
+        """Get action graph attributes."""
         return self._hierarchy.get_graph_attrs(
             "action_graph")
 
     def set_action_graph_attrs(self, attrs):
+        """Set action graph attributes."""
         self._hierarchy.set_graph_attrs(
             "action_graph", attrs)
 
     def get_ag_node(self, node):
+        """Get node from the action graph."""
         return get_node(self.action_graph, node)
 
     def export_json(self, filename):
+        """Export moodel to json."""
         self._hierarchy.export(filename)
