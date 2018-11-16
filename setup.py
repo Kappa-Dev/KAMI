@@ -14,6 +14,7 @@ setup(name='kami',
                 'kami.resources',
                 'kami.instantiation',
                 'kami.utils',
+                'kami.data_structures',
                 'anatomizer'],
       package_data={
           'anatomizer': ['resources/*'],
