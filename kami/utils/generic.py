@@ -11,5 +11,7 @@ def normalize_to_set(arg):
             return set(arg)
         elif not isinstance(arg, collections.Iterable):
             return set([arg])
+        else:
+            return arg
     else:
         return []
