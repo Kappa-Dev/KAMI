@@ -1,4 +1,4 @@
-"""Collection of untils for identification of entities in a KAMI model."""
+"""Collection of untils for identification of entities in a KAMI."""
 import networkx as nx
 import numpy as np
 
@@ -85,136 +85,260 @@ def find_fragment(a_meta_data, a_location, dict_of_b):
         return None
 
 
-def identify_gene(model, gene):
-    """Find corresponding gene in action graph."""
-    for node in model.genes():
-        gene_attrs = get_node(model.action_graph, node)
-        if "uniprotid" in gene_attrs.keys() and\
-           gene.uniprotid in gene_attrs["uniprotid"]:
-            return node
-    return None
+class EntityIdentifier:
 
+    def __init__(self, graph, meta_typing, immediate=True,
+                 hierarchy=None, graph_id=None):
+        self.graph = graph
+        self.meta_typing = meta_typing
+        self.immediate = immediate
+        self.hierarchy = hierarchy
+        self.graph_id = graph_id
 
-def _identify_fragment(model, fragment, ref_agent, fragment_type):
-    fragment_candidates = model.ag_predecessors_of_type(
-        ref_agent, fragment_type)
-    return find_fragment(
-        fragment.meta_data(), fragment.location(),
-        {
-            f: (
-                get_node(model.action_graph, f),
-                get_edge(model.action_graph, f, ref_agent)
+    def nodes_of_type(self, type_name):
+        """Get action graph nodes of a specified type."""
+        nodes = []
+        for node in self.graph.nodes():
+            if self.meta_typing[node] == type_name:
+                nodes.append(node)
+        return nodes
+
+    def get_genes(self):
+        return self.nodes_of_type("gene")
+
+    def get_regions(self):
+        return self.nodes_of_type("region")
+
+    def predecessors_of_type(self, node_id, meta_type):
+        preds = []
+        for pred in self.graph.predecessors(node_id):
+            if self.meta_typing[pred] == meta_type:
+                preds.append(pred)
+        return preds
+
+    def ancestors_of_type(self, node_id, meta_type):
+        ancestors = self.predecessors_of_type(node_id, meta_type)
+        visited = set()
+        next_level_to_visit = set(self.graph.predecessors(node_id))
+        while len(next_level_to_visit) > 0:
+            new_level_to_visit = set()
+            for n in next_level_to_visit:
+                if n not in visited:
+                    visited.add(n)
+                    ancestors += self.predecessors_of_type(n, meta_type)
+                new_level_to_visit.update(
+                    set(self.graph.successors(n)))
+            next_level_to_visit = new_level_to_visit
+        return ancestors
+
+    def get_gene_of(self, node_id):
+        if self.meta_typing[node_id] == "gene":
+            return node_id
+        else:
+            # bfs to find a gene
+            visited = set()
+            next_level_to_visit = set(self.graph.successors(node_id))
+            while len(next_level_to_visit) > 0:
+                new_level_to_visit = set()
+                for n in next_level_to_visit:
+                    if n not in visited:
+                        visited.add(n)
+                        if self.meta_typing[n] == "gene":
+                            return n
+                    new_level_to_visit.update(
+                        set(self.graph.successors(n)))
+                next_level_to_visit = new_level_to_visit
+        raise ValueError(
+            "No gene node is associated with an element '{}'".fromat(
+                node_id))
+        return None
+
+    def get_attached_residues(self, node_id):
+        if self.immediate:
+            return self.predecessors_of_type(node_id, "residue")
+        else:
+            return self.ancestors_of_type(node_id, "residue")
+
+    def get_attached_states(self, node_id):
+        if self.immediate:
+            return self.predecessors_of_type(node_id, "state")
+        else:
+            return self.ancestors_of_type(node_id, "state")
+
+    def identify_gene(self, gene):
+        """Find corresponding gene in action graph."""
+        for node in self.get_genes():
+            gene_attrs = get_node(self.graph, node)
+            if "uniprotid" in gene_attrs.keys() and\
+               gene.uniprotid in gene_attrs["uniprotid"]:
+                return node
+        return None
+
+    def _identify_fragment(self, fragment,
+                           ref_agent, fragment_type):
+        if self.immediate:
+            fragment_candidates = self.predecessors_of_type(
+                ref_agent, fragment_type)
+            return find_fragment(
+                fragment.meta_data(), fragment.location(),
+                {
+                    f: (
+                        get_node(self.graph, f),
+                        get_edge(self.graph, f, ref_agent)
+                    )
+                    for f in fragment_candidates
+                }
             )
-            for f in fragment_candidates
-        }
-    )
+        else:
+            fragment_candidates = self.ancestors_of_type(
+                ref_agent, fragment_type)
+            candidates_data = dict()
+            for f in fragment_candidates:
+                node_data = get_node(self.graph, f)
+                for s in self.graph.successors(f):
+                    location_data = get_edge(self.graph, f, s)
+                    candidates_data[f] = (node_data, location_data)
 
+            return find_fragment(
+                fragment.meta_data(), fragment.location(),
+                {
+                    f: (
+                        get_node(self.graph, f),
+                        get_edge(self.graph, f, ref_agent)
+                    )
+                    for f in fragment_candidates
+                }
+            )
 
-def identify_region(model, region, ref_agent):
-    """Find corresponding region in action graph."""
-    if ref_agent not in model.genes():
-        raise KamiHierarchyError(
-            "Agent with UniProtID '%s' is not found in the action graph" %
-            ref_agent
-        )
-    else:
-        return _identify_fragment(model, region, ref_agent, "region")
+    def identify_region(self, region, ref_agent):
+        """Find corresponding region in action graph."""
+        if ref_agent not in self.get_genes():
+            raise KamiHierarchyError(
+                "Agent with UniProtID '%s' is not found in the action graph" %
+                ref_agent
+            )
+        else:
+            return self._identify_fragment(
+                region, ref_agent, "region")
 
+    def identify_site(self, site, ref_agent):
+        """Find corresponding site in action graph."""
+        if ref_agent not in self.get_genes() and\
+           ref_agent not in self.get_regions():
+            raise KamiHierarchyError(
+                "Gene with the UniProtAC '%s' is not found in the action graph" %
+                ref_agent
+            )
+        else:
+            return self._identify_fragment(site, ref_agent, "site")
 
-def identify_site(model, site, ref_agent):
-    """Find corresponding site in action graph."""
-    if ref_agent not in model.genes() and ref_agent not in model.regions():
-        raise KamiHierarchyError(
-            "Gene with the UniProtAC '%s' is not found in the action graph" %
-            ref_agent
-        )
-    else:
-        return _identify_fragment(model, site, ref_agent, "site")
+    def identify_residue(self, residue, ref_agent,
+                         add_aa=False, rewriting=False):
+        """Find corresponding residue.
 
+        residue : kami.entities.residue
+            Input residue entity to search for
+        ref_agent
+            Id of the reference agent to which residue belongs,
+            can reference either to a gene, a region or a site
+            of the action graph
+        add_aa : bool
+            Add aa value if location is found but aa is not
+        rewriting : bool
+            If True, add aa value using SqPO rewriting, otherwise
+            using primitives (used if `add_aa` is True)
+        """
+        ref_gene = self.get_gene_of(ref_agent)
+        residue_candidates = self.get_attached_residues(ref_gene)
 
-def identify_residue(model, residue, ref_agent,
-                     add_aa=False, rewriting=False):
-    """Find corresponding residue.
+        if residue.loc is not None:
+            for res in residue_candidates:
+                if (self.immediate):
+                    res_agent_edges = [get_edge(
+                        self.graph, res, ref_agent)]
+                else:
+                    res_agent_edges = [
+                        get_edge(self.graph, res, s)
+                        for s in self.graph.successors(res)]
+                for res_agent_edge in res_agent_edges:
+                    if "loc" in res_agent_edge.keys():
+                        if residue.loc == int(list(res_agent_edge["loc"])[0]):
+                            res_node = get_node(self.graph, res)
+                            if not residue.aa.issubset(
+                                res_node["aa"]) and\
+                                    add_aa is True:
+                                if rewriting:
+                                    pattern = nx.DiGraph()
+                                    pattern.add_node(res)
+                                    rule = Rule.from_transform(pattern)
+                                    rule.inject_add_node_attrs(
+                                        res, {"aa": {residue.aa}})
+                                    if self.hierarchy is not None:
+                                        self.hierarchy.rewrite(
+                                            self.graph_id, rule,
+                                            instance={res: res})
+                                    else:
+                                        rule.apply_to(
+                                            self.graph, instance={res: res},
+                                            inplace=True)
+                                else:
+                                    add_node_attrs(
+                                        self.graph,
+                                        res,
+                                        {"aa": res_node["aa"].union(residue.aa)})
+                            return res
+        else:
+            for res in residue_candidates:
+                if (self.immediate):
+                    res_agent_edges = [get_edge(
+                        self.graph, res, ref_agent)]
+                else:
+                    res_agent_edges = [
+                        get_edge(self.graph, res, s)
+                        for s in self.graph.successors(res)]
+                for res_agent_edge in res_agent_edges:
+                    if "loc" not in res_agent_edge.keys() or\
+                       res_agent_edge["loc"].is_empty():
+                        res_node = get_node(self.graph, res)
+                        if residue.aa <= res_node["aa"]:
+                            return res
+                        elif add_aa is True:
+                            if rewriting:
+                                pattern = nx.DiGraph()
+                                pattern.add_node(res)
+                                rule = Rule.from_transform(pattern)
+                                rule.inject_add_node_attrs(
+                                    res, {"aa": {residue.aa}})
+                                instance = {
+                                    n: n for n in pattern.nodes()
+                                }
+                                instance[res] = res
+                                if self.hierarchy is not None:
+                                    self.hierarchy.rewrite(
+                                        self.graph_id, rule, instance=instance)
+                                else:
+                                    rule.apply_to(
+                                        self.graph, instance=instance,
+                                        inplace=True)
+                            else:
+                                add_node_attrs(
+                                    self.graph,
+                                    res,
+                                    {"aa": res_node["aa"].union(residue.aa)})
+                            return res
+        return None
 
-    residue : kami.entities.residue
-        Input residue entity to search for
-    ref_agent
-        Id of the reference agent to which residue belongs,
-        can reference either to a gene, a region or a site
-        of the action graph
-    add_aa : bool
-        Add aa value if location is found but aa is not
-    rewriting : bool
-        If True, add aa value using SqPO rewriting, otherwise
-        using primitives (used if `add_aa` is True)
-    """
-    ref_gene = model.get_gene_of(ref_agent)
-    residue_candidates = model.get_attached_residues(ref_gene)
-    if residue.loc is not None:
-        for res in residue_candidates:
-            res_agent_edge = get_edge(
-                model.action_graph, res, ref_agent)
-            if "loc" in res_agent_edge.keys():
-                if residue.loc == int(list(res_agent_edge["loc"])[0]):
-                    res_node = get_node(model.action_graph, res)
-                    if not residue.aa.issubset(
-                        res_node["aa"]) and\
-                            add_aa is True:
-                        if rewriting:
-                            pattern = nx.DiGraph()
-                            pattern.add_node(res)
-                            rule = Rule.from_transform(pattern)
-                            rule.inject_add_node_attrs(
-                                res, {"aa": {residue.aa}})
-                            model.rewrite(
-                                "action_graph", rule, instance={res: res})
-                        else:
-                            add_node_attrs(
-                                model.action_graph,
-                                res,
-                                {"aa": res_node["aa"].union(residue.aa)})
-                    return res
-    else:
-        for res in residue_candidates:
-            res_agent_edge = get_edge(model.action_graph, res, ref_agent)
-            if "loc" not in res_agent_edge.keys() or\
-               res_agent_edge["loc"].is_empty():
-                res_node = get_node(model.action_graph, res)
-                if residue.aa <= res_node["aa"]:
-                    return res
-                elif add_aa is True:
-                    if rewriting:
-                        pattern = nx.DiGraph()
-                        pattern.add_node(res)
-                        rule = Rule.from_transform(pattern)
-                        rule.inject_add_node_attrs(
-                            res, {"aa": {residue.aa}})
-                        instance = {
-                            n: n for n in pattern.nodes()
-                        }
-                        instance[res] = res
-                        model.rewrite(
-                            "action_graph", rule, instance=instance)
-                    else:
-                        add_node_attrs(
-                            model.action_graph,
-                            res,
-                            {"aa": res_node["aa"].union(residue.aa)})
-                    return res
-    return None
-
-
-def identify_state(model, state, ref_agent):
-    """Find corresponding state of reference agent."""
-    state_candidates = model.get_attached_states(ref_agent)
-    for s in state_candidates:
-        name = list(get_node(model.action_graph, s)["name"])[0]
-        # values = model.action_graph.node[pred][name]
-        if state.name == name:
-                # if state.value not in values:
-                #     add_node_attrs(
-                #         model.action_graph,
-                #         pred,
-                #         {name: {state.value}})
-            return s
-    return None
+    def identify_state(self, state, ref_agent):
+        """Find corresponding state of reference agent."""
+        state_candidates = self.get_attached_states(ref_agent)
+        for s in state_candidates:
+            name = list(get_node(self.graph, s)["name"])[0]
+            # values = action_graph.node[pred][name]
+            if state.name == name:
+                    # if state.value not in values:
+                    #     add_node_attrs(
+                    #         action_graph,
+                    #         pred,
+                    #         {name: {state.value}})
+                return s
+        return None

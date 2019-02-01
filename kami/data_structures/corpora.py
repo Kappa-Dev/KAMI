@@ -23,57 +23,30 @@ from kami.aggregation.bookkeeping import (anatomize_gene,
                                           reconnect_sites,
                                           connect_nested_fragments,
                                           connect_transitive_components)
-from kami.aggregation.generators import generate_from_interaction
+from kami.aggregation.generators import generate_nugget
 from kami.aggregation.semantics import (apply_mod_semantics,
                                         apply_bnd_semantics)
-from kami.aggregation.identifiers import identify_residue
+from kami.aggregation.identifiers import EntityIdentifier
 from kami.exceptions import KamiHierarchyError
 
 
 class KamiCorpus(object):
-    """Class for KAMI modelss."""
+    """Class for Kami corpora (de-contextualized knowledge).
+
+    Attributes
+    ----------
+    _backend : str, "networkx" or "neo4j"
+    _hierarchy :
+    _nugget_count :
+    action_graph :
+    nugget :
+    mod_template :
+    bnd_templae :
+    semantic_action_graph :
+    """
 
     nugget_dict_factory = dict
     semantic_nugget_dict_factory = dict
-
-    def _init_shortcuts(self):
-        """Initialize kami-specific shortcuts."""
-        if "action_graph" in self._hierarchy.graphs():
-            self.action_graph =\
-                self._hierarchy.get_graph("action_graph")
-        else:
-            self.action_graph = None
-
-        self.mod_template = self._hierarchy.get_graph("mod_template")
-        self.bnd_template = self._hierarchy.get_graph("bnd_template")
-        self.semantic_action_graph = self._hierarchy.get_graph(
-            "semantic_action_graph")
-        self.nugget = self.nugget_dict_factory()
-        for n in self._hierarchy.graphs():
-            if "nugget" in self._hierarchy.get_graph_attrs(n)["type"]:
-                self.nugget[n] = self._hierarchy.get_graph(n)
-        self._nugget_count = len(self.nuggets())
-
-    def create_empty_action_graph(self):
-        """Creat an empty action graph in the hierarchy."""
-        self._hierarchy.add_empty_graph(
-            "action_graph",
-            {"type": "action_graph"}
-        )
-        self._hierarchy.add_typing(
-            "action_graph",
-            "meta_model",
-            dict()
-        )
-        self._hierarchy.add_relation(
-            "action_graph",
-            "semantic_action_graph",
-            dict()
-        )
-        self.action_graph = self._hierarchy.get_graph("action_graph")
-        self.action_graph_typing = self._hierarchy.get_typing(
-            "action_graph", "meta_model")
-        return
 
     def __init__(self, ag=None, ag_typing=None, ag_semantics=None,
                  nuggets=None, nuggets_template_rels=None,
@@ -89,7 +62,6 @@ class KamiCorpus(object):
         `self.mod_template` and `self.bnd_template` -- direct access to
         the nugget template graphs.
         """
-
         self._backend = backend
         if backend == "networkx":
             self._hierarchy = NetworkXHierarchy()
@@ -166,6 +138,45 @@ class KamiCorpus(object):
                     )
 
         self._init_shortcuts()
+        return
+
+    def _init_shortcuts(self):
+        """Initialize kami-specific shortcuts."""
+        if "action_graph" in self._hierarchy.graphs():
+            self.action_graph =\
+                self._hierarchy.get_graph("action_graph")
+        else:
+            self.action_graph = None
+
+        self.mod_template = self._hierarchy.get_graph("mod_template")
+        self.bnd_template = self._hierarchy.get_graph("bnd_template")
+        self.semantic_action_graph = self._hierarchy.get_graph(
+            "semantic_action_graph")
+        self.nugget = self.nugget_dict_factory()
+        for n in self._hierarchy.graphs():
+            if "nugget" in self._hierarchy.get_graph_attrs(n)["type"]:
+                self.nugget[n] = self._hierarchy.get_graph(n)
+        self._nugget_count = len(self.nuggets())
+
+    def create_empty_action_graph(self):
+        """Creat an empty action graph in the hierarchy."""
+        self._hierarchy.add_empty_graph(
+            "action_graph",
+            {"type": "action_graph"}
+        )
+        self._hierarchy.add_typing(
+            "action_graph",
+            "meta_model",
+            dict()
+        )
+        self._hierarchy.add_relation(
+            "action_graph",
+            "semantic_action_graph",
+            dict()
+        )
+        self.action_graph = self._hierarchy.get_graph("action_graph")
+        # self.action_graph_typing = self._hierarchy.get_typing(
+        #  "action_graph", "meta_model")
         return
 
     def rewrite(self, graph_id, rule, instance=None,
@@ -661,9 +672,14 @@ class KamiCorpus(object):
 
         semantics = normalize_to_set(semantics)
 
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, "action_graph")
+
         # try to find an existing residue with this
-        residue_id = identify_residue(
-            self, residue, ref_agent, add_aa=True, rewriting=rewriting)
+        residue_id = identifier.identify_residue(
+            residue, ref_agent, add_aa=True, rewriting=rewriting)
 
         # if residue with this loc does not exist: create one
         if residue_id is None:
@@ -784,8 +800,11 @@ class KamiCorpus(object):
         return self._hierarchy.get_relation(
             nugget_id, nugget_type + "_template")
 
-    def add_nugget(self, nugget, nugget_type, add_agents=True,
-                   anatomize=True, apply_semantics=True, name=None):
+    def add_nugget(self, nugget_container, nugget_type,
+                   template_id=None,
+                   template_rel=None, desc=None,
+                   add_agents=True, anatomize=True,
+                   apply_semantics=True):
         """Add nugget to the hierarchy."""
         if "action_graph" not in self._hierarchy.graphs():
             self.create_empty_action_graph()
@@ -797,10 +816,10 @@ class KamiCorpus(object):
         # 2. Create a generation rule for this nugget
         p = nx.DiGraph()
         lhs = nx.DiGraph()
-        generation_rule = Rule(p, lhs, nugget.graph)
+        generation_rule = Rule(p, lhs, nugget_container.graph)
         rhs_typing = {
-            "action_graph": nugget.ag_typing,
-            "meta_model": nugget.meta_typing
+            "action_graph": nugget_container.reference_typing,
+            "meta_model": nugget_container.meta_typing
         }
 
         # 3. Add empty graph as a nugget to the hierarchy
@@ -808,8 +827,8 @@ class KamiCorpus(object):
             "type": "nugget",
             "interaction_type": nugget_type
         }
-        if nugget.desc is not None:
-            attrs["desc"] = nugget.desc
+        if desc is not None:
+            attrs["desc"] = desc
         self._hierarchy.add_empty_graph(nugget_id, attrs=attrs)
 
         self.nugget[nugget_id] = self._hierarchy.get_graph(nugget_id)
@@ -821,28 +840,29 @@ class KamiCorpus(object):
             rhs_typing=rhs_typing,
             strict=(not add_agents))
 
-        template_rel = dict()
-        for rhs_node, template_nodes in nugget.template_rel.items():
-            if len(template_nodes) > 0:
-                nugget_node = r_g_prime[rhs_node]
-                template_rel[nugget_node] = set()
-                for el in template_nodes:
-                    template_rel[nugget_node].add(el)
+        if template_id is not None:
+            template_rel = dict()
+            for rhs_node, template_nodes in template_rel.items():
+                if len(template_nodes) > 0:
+                    nugget_node = r_g_prime[rhs_node]
+                    template_rel[nugget_node] = set()
+                    for el in template_nodes:
+                        template_rel[nugget_node].add(el)
 
-        self.add_template_rel(
-            nugget_id, nugget.template_id,
-            template_rel)
+            self.add_template_rel(
+                nugget_id, template_id,
+                template_rel)
         print("\tTime to apply nugget generation rule: ", time.time() - start)
 
         start = time.time()
         # Get a set of genes added by the nugget
         new_gene_nodes = set()
-        for node in nugget.graph.nodes():
+        for node in nugget_container.graph.nodes():
             new_nugget_node = r_g_prime[node]
             ag_node = self._hierarchy.get_typing(
                 nugget_id, "action_graph")[new_nugget_node]
             if self.get_action_graph_typing()[ag_node] == "gene":
-                if node not in nugget.ag_typing.keys():
+                if node not in nugget_container.reference_typing.keys():
                     new_gene_nodes.add(ag_node)
 
         # Check if all new genes agents from the nugget should be
@@ -853,7 +873,8 @@ class KamiCorpus(object):
         }
         for gene in new_gene_nodes:
             genes_to_merge[
-                list(get_node(self.action_graph, gene)["uniprotid"])[0]].add(gene)
+                list(get_node(self.action_graph, gene)["uniprotid"])[0]].add(
+                    gene)
 
         for k, v in genes_to_merge.items():
             if len(v) > 1:
@@ -901,7 +922,9 @@ class KamiCorpus(object):
             self._hierarchy.get_typing(nugget_id, "action_graph")[n]
             for n in self.nugget[nugget_id].nodes()
         ] + new_ag_regions)
-        print("\t\tTime to conntect transitive components: ", time.time() - start_nested)
+        print(
+            "\t\tTime to conntect transitive components: ",
+            time.time() - start_nested)
 
         for g in all_genes:
             residues = self.get_attached_residues(g)
@@ -922,11 +945,6 @@ class KamiCorpus(object):
                     nugget_id)["interaction_type"]:
                 apply_bnd_semantics(self, nugget_id)
 
-        # 7. Add semantic relations found for the nugget
-        for semantic_nugget, rel in nugget.semantic_rels.items():
-            self.add_semantic_nugget_rel(
-                nugget_id, semantic_nugget, rel
-            )
         print("\tTime to perform semantic upd: ", time.time() - start)
         return nugget_id
 
@@ -936,14 +954,29 @@ class KamiCorpus(object):
         if "action_graph" not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, "action_graph")
+
         start = time.time()
-        nugget, nugget_type = generate_from_interaction(self, interaction)
+        (
+            nugget_container,
+            nugget_type,
+            template_id,
+            template_rel,
+            desc
+        ) = generate_nugget(identifier, interaction)
         print("Time to generate nugget: ", time.time() - start)
 
         # Add it to the hierarchy performing respective updates
         start = time.time()
         nugget_id = self.add_nugget(
-            nugget, nugget_type,
+            nugget_container=nugget_container,
+            nugget_type=nugget_type,
+            template_id=template_id,
+            template_rel=template_rel,
+            desc=desc,
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
