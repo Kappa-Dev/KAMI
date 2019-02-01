@@ -221,6 +221,22 @@ class Gene(Actor, PhysicalEntity):
         """String represenation of a gene."""
         return str(self.uniprotid)
 
+    def same_reference(self, gene):
+        """Test if the input gene has the same reference UniprotAC."""
+        return self.uniprotid == gene.uniprotid
+
+    def __eq__(self, gene):
+        """Test equality."""
+        equal_componets =\
+            set(gene.regions) == set(self.regions) and\
+            set(gene.sites) == set(self.sites) and\
+            set(gene.residues) == set(self.residues) and\
+            set(gene.states) == set(self.states) and\
+            set(gene.bound_to) == set(self.bound_to) and\
+            set(gene.unbound_from) == set(self.unbound_from)
+
+        return self.same_reference(gene) and equal_componets
+
     def meta_data(self):
         """Convert agent object to attrs."""
         agent_attrs = {
@@ -243,6 +259,15 @@ class Gene(Actor, PhysicalEntity):
         """Add a site to a list of sites of the entity."""
         self.sites.append(site)
         return
+
+    def issubset(self, gene):
+        """Test if self is superentity of the input gene."""
+        contains_components =\
+            set(gene.regions).issubset(self.regions) and\
+            set(gene.sites).issubset(self.sites) and\
+            set(gene.residues).issubset(self.residues) and\
+            set(gene.states).issubset(self.states)
+        return self.same_reference(gene) and contains_components
 
 
 class Region(PhysicalEntity):
@@ -410,6 +435,21 @@ class Region(PhysicalEntity):
 
         return res
 
+    def same_reference(self, gene):
+        """TODO: elaborate, Test if the input gene has the same reference UniprotAC."""
+        return self.name == gene.name
+
+    def __eq__(self, region):
+        """Test equality."""
+        equal_componets =\
+            set(region.sites) == set(self.sites) and\
+            set(region.residues) == set(self.residues) and\
+            set(region.states) == set(self.states) and\
+            set(region.bound_to) == set(self.bound_to) and\
+            set(region.unbound_from) == set(self.unbound_from)
+
+        return self.same_reference(region) and equal_componets
+
     def meta_data(self):
         """Get a dictionary with region's meta-data."""
         res = dict()
@@ -436,6 +476,35 @@ class Region(PhysicalEntity):
         """Add a site to a list of sites of the entity."""
         self.sites.append(site)
         return
+
+    def issubset(self, region):
+        """Test if self is superentity of the input region."""
+        for site in self.sites:
+            found_in_region = False
+            for reference_site in region.sites:
+                if site.issubset(reference_site):
+                    found_in_region = True
+                    break
+            if not found_in_region:
+                return False
+        for residue in self.residues:
+            found_in_region = False
+            for reference_residue in region.residues:
+                if residue.issubset(reference_residue):
+                    found_in_region = True
+                    break
+            if not found_in_region:
+                return False
+        for state in self.states:
+            found_in_region = False
+            for reference_state in region.states:
+                if state.issubset(reference_state):
+                    found_in_region = True
+                    break
+            if not found_in_region:
+                return False
+
+        return self.same_reference(region)
 
 
 class Site(PhysicalEntity):
@@ -605,14 +674,36 @@ class Site(PhysicalEntity):
             res["order"] = {self.order}
         return res
 
+    def issubset(self, site):
+        """Test if self is superentity of the input site."""
+
+        for residue in self.residues:
+            found_in_region = False
+            for reference_residue in site.residues:
+                if residue.issubset(reference_residue):
+                    found_in_region = True
+                    break
+            if not found_in_region:
+                return False
+        for state in self.states:
+            found_in_region = False
+            for reference_state in site.states:
+                if state.issubset(reference_state):
+                    found_in_region = True
+                    break
+            if not found_in_region:
+                return False
+        contains_components =\
+            set(site.residues).issubset(self.residues) and\
+            set(site.states).issubset(self.states)
+        return self.same_reference(site) and contains_components
+
 
 class Residue():
     """Class for a residue."""
 
     def __init__(self, aa, loc=None, state=None, test=True):
         """Init residue object."""
-        if type(aa) == set:
-            pass
         self.aa = normalize_to_set(aa)
         if loc is not None:
             self.loc = int(loc)
@@ -678,6 +769,25 @@ class Residue():
             res["loc"] = {int(self.loc)}
         return res
 
+    def issubset(self, residue):
+        residue_has_state = True
+        if self.state:
+            if residue.state:
+                residue_has_state = self.state == residue.state
+            else:
+                residue_has_state = False
+        residue_has_loc = True
+        if residue.loc:
+            if self.loc:
+                residue_has_loc = self.loc == residue.loc
+            else:
+                residue_has_loc = False
+        return (
+            self.aa.issubset(residue.aa) and
+            residue_has_loc and
+            self.test == residue.test and
+            residue_has_state)
+
 
 class State(object):
     """Class for a KAMI state."""
@@ -704,6 +814,10 @@ class State(object):
         """Str representation of a state."""
         res = str(self.name)
         return res
+
+    def __eq__(self, state):
+        """Test equality."""
+        return self.name == state.name and self.test == state.test
 
     def meta_data(self):
         """Convert agent object to attrs."""
