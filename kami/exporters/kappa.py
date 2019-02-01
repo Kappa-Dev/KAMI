@@ -1,51 +1,39 @@
-"""
-Exporter from KAMI to Kappa.
-"""
+"""Exporter from KAMI to Kappa.
 
-# Notes from Sebastien Legare,
-# 
-# Forced binding [#] and bound to anything [_] are not implemented yet.
-# (It seems they were not implemented in "to kasim 3" either).
-#
-# This file also contains functions used by the old KAMI studio
-# (i.e. link_components, remove_conflict and others). I do not know why they
-# were put in this file in the first place. I still leave them here, not to
-# lose them if they become useful again at some point in the future.
-#
-# The "labelling" problem comes back, as in any export. This is the same
-# problem we get when chosing how to label nodes in KAMIStudio. Ideally,
-# every component type should have a "label" field that would be used both on
-# the nodes displayed in KAMIStudio and the agent names in the Kappa file.
-# For now, I assign the labels the same way I do in the kamistudio exporter.
+Notes from Sebastien Legare,
 
+Forced binding [#] and bound to anything [_] are not implemented yet.
+(It seems they were not implemented in "to kasim 3" either).
+
+This file also contains functions used by the old KAMI studio
+(i.e. link_components, remove_conflict and others). I do not know why they
+were put in this file in the first place. I still leave them here, not to
+lose them if they become useful again at some point in the future.
+
+The "labeling" problem comes back, as in any export. This is the same
+problem we get when chosing how to label nodes in KAMIStudio. Ideally,
+every component type should have a "label" field that would be used both on
+the nodes displayed in KAMIStudio and the agent names in the Kappa file.
+For now, I assign the labels the same way I do in the kamistudio exporter.
+"""
 
 from kami.exporters.kstudio import find_label
 
-#import regraph.tree as tree
-#from regraph.category_op import (pullback, pushout,
-#                                 compose_homomorphisms,
-#                                 multi_pullback_pushout,
-#                                 pushout_from_partial_mapping,
-#                                 merge_classes,
-#                                 subgraph,
-#                                 pullback_pushout)
-#from regraph.utils import (keys_by_value, restrict_mapping,
-#                           union_mappings, id_of,
-#                           reverse_image)
-#
-#from regraph.rules import Rule
-#from regraph.primitives import (unique_node_id, add_node, add_edge, remove_node)
-#import regraph.primitives as prim
-#from math import sqrt
-#import networkx as nx
-#import functools 
-#import copy
-#from itertools import product, combinations
-# from profilehooks import profile
-
 
 class KappaModel(object):
-    """A kappa model"""
+    """Class for Kappa models.
+
+    Instances of this class represent
+
+    Attributes
+    ----------
+    agents :
+    variables :
+    rules :
+    observables :
+    init_conditions :
+    """
+
     def __init__(self, agent_decls, rules, variables):
         self.agent_decls = agent_decls
         self.rules = rules
@@ -53,21 +41,22 @@ class KappaModel(object):
 
     def __str__(self):
         return "{}\n\n{}\n\n{}".format(
-            #'%def: "syntaxVersion" "4"',
+            # '%def: "syntaxVersion" "4"',
             "\n".join(map(str, self.agent_decls)),
             "\n".join(map(str, self.rules)),
             "\n".join(map(str, self.variables)))
 
 
 class AgentDecl(object):
-    """Agent delcaration"""
+    """Agent delcaration."""
+
     def __init__(self, name, sites_decl):
         self.name = name
         self.sites_decl = sites_decl
 
     def __str__(self):
         return "%agent: {}({})".format(
-            self.name.replace(" ", "_"), 
+            self.name.replace(" ", "_"),
             " ".join([s.replace(" ", "_") for s in map(str, self.sites_decl)]))
 
 
@@ -143,8 +132,9 @@ class StateSite(object):
         if self.new_state is None:
             return "{}{{{}}}".format(self.name, self.old_state)
         else:
-            return "{}{{{}/{}}}".format(self.name, self.old_state,
-                                      self.new_state)
+            return "{}{{{}/{}}}".format(
+                self.name, self.old_state,
+                self.new_state)
 
 
 class Variable(object):
@@ -230,10 +220,11 @@ def _agents_decl(hie, ag_id, ag_nodes, metamodel_id):
                                        agent))
     return agent_decls
 
+
 def _find_gene(actor, edge_list, typing):
     """Find the gene that contains a given node."""
     component = actor
-    while component != None:
+    while component is not None:
         next_component = None
         for nugget_edge in edge_list:
             if nugget_edge[0] == component:
@@ -262,17 +253,17 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
             ag_bnd_node = ag_typing[nugget_node]
             if list(attrs["type"])[0] == "do":
                 rate = list(attrs["rate"])[0]
-                if list(attrs["test"])[0] == True:
+                if list(attrs["test"])[0] is True:
                     # This is a binding.
                     bracket = "[./{}]".format(bond_id)
-                if list(attrs["test"])[0] == False:
+                if list(attrs["test"])[0] is False:
                     # This is an unbinding.
                     bracket = "[{}/.]".format(bond_id)
             if list(attrs["type"])[0] == "be":
-                if list(attrs["test"])[0] == True:
+                if list(attrs["test"])[0] is True:
                     # This is a bound test.
                     bracket = "[{}]".format(bond_id)
-                if list(attrs["test"])[0] == False:
+                if list(attrs["test"])[0] is False:
                     # This is an unbound test.
                     bracket = "[.]"
             bond_id += 1
@@ -329,7 +320,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
                 site_label_crop = site_label
                 if " " in site_label:
                     space = site_label.rfind(" ")
-                    last_str = site_label[space+1:]
+                    last_str = site_label[space + 1:]
                     try:
                         int(last_str)
                         site_label_crop = site_label[:space]
@@ -340,8 +331,8 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
                 site_label_usc = site_label_crop.replace(" ", "_")
                 site_string = "{}{}".format(site_label_usc, bracket)
                 # Add final gene and site to the agents of the rule.
-                if prev_label != None:
-                    if same_gene_node == False and gene_label == prev_label:
+                if prev_label is not None:
+                    if same_gene_node is False and gene_label == prev_label:
                         gene_label = "{} dim".format(gene_label)
                 prev_label = gene_label
                 if gene_label not in agents.keys():
@@ -359,7 +350,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
                 if nugget_edge[1] == nugget_node:
                     if mm_typing[nugget_edge[0]] == "mod":
                         mod_node = nugget_edge[0]
-            if mod_node != None:
+            if mod_node is None:
                 # This is a modification.
                 mod_attrs = nug.node[mod_node]
                 rate = list(mod_attrs["rate"])[0]
@@ -382,7 +373,7 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
             state_gene = _find_gene(nugget_node, nug.edges(), mm_typing)
             # Find the gene that does the mod if there is one.
             source_gene = None
-            if mod_node != None:
+            if mod_node is None:
                 for nugget_edge in nug.edges():
                     if nugget_edge[1] == mod_node:
                         source_node = nugget_edge[0]
@@ -396,14 +387,14 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
             state_gene_label = labels[ag_state_gene]
             ag_state = ag_typing[nugget_node]
             state_label = labels[ag_state]
-            # I remove the number at the end of the state label. This is a 
+            # I remove the number at the end of the state label. This is a
             # quick fix to make kappa agent definitions "prettier". It could
             # however evetually lead to having two kappa sites with the same
             # name on a given agent, which would give an errors in kappa.
             state_label_crop = state_label
             if " " in state_label:
                 space = state_label.rfind(" ")
-                last_str = state_label[space+1:]
+                last_str = state_label[space + 1:]
                 try:
                     int(last_str)
                     state_label_crop = state_label[:space]
@@ -412,13 +403,13 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
             # Replace all other spaces by underscore, else KaSim would
             # give errors.
             state_label_usc = state_label_crop.replace(" ", "_")
-            if source_gene != None:
+            if source_gene is None:
                 ag_source_gene = ag_typing[source_gene]
                 source_gene_label = labels[ag_source_gene]
                 # Add source gene to agents.
                 if source_gene_label not in agents.keys():
                     agents[source_gene_label] = [""]
-            if attached_node != None:
+            if attached_node is None:
                 ag_attached_node = ag_typing[attached_node]
                 attached_label = labels[ag_attached_node]
                 site_label = "{}_{}".format(attached_label, state_label_usc)
@@ -467,8 +458,8 @@ def _rule_decl(ag_typing, mm_typing, nug, name, unkn_sites, labels,
                 if site_str not in all_agents[agent]:
                     all_agents[agent].append(site_str)
 
-    #loci_defs = {}
-    #for loc in nug.nodes():
+    # loci_defs = {}
+    # for loc in nug.nodes():
     #    if mm_typing[loc] == "locus":
     #        before = None
     #        after = None
