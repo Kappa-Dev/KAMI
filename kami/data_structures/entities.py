@@ -29,7 +29,9 @@ The implemented data structures include:
 * (under construction) `NuggetAnnotation`
 
 """
-from kami.utils.generic import normalize_to_set
+from collections.abc import Iterable
+
+from kami.utils.generic import normalize_to_set, normalize_to_iterable
 from kami.exceptions import KamiEntityError
 
 
@@ -119,8 +121,8 @@ class Gene(Actor, PhysicalEntity):
             states = []
         self.states = states
 
-        self.bound_to = normalize_to_set(bound_to)
-        self.unbound_from = normalize_to_set(unbound_from)
+        self.bound_to = normalize_to_iterable(bound_to)
+        self.unbound_from = normalize_to_iterable(unbound_from)
         return
 
     @classmethod
@@ -302,8 +304,8 @@ class Region(PhysicalEntity):
             states = []
         self.states = states
 
-        self.bound_to = normalize_to_set(bound_to)
-        self.unbound_from = normalize_to_set(unbound_from)
+        self.bound_to = normalize_to_iterable(bound_to)
+        self.unbound_from = normalize_to_iterable(unbound_from)
         return
 
     @classmethod
@@ -529,8 +531,8 @@ class Site(PhysicalEntity):
             states = []
         self.states = states
 
-        self.bound_to = normalize_to_set(bound_to)
-        self.unbound_from = normalize_to_set(unbound_from)
+        self.bound_to = normalize_to_iterable(bound_to)
+        self.unbound_from = normalize_to_iterable(unbound_from)
         return
 
     @classmethod
@@ -860,7 +862,8 @@ class SiteActor(Actor):
     def __init__(self, gene, site, region=None):
         """Initialize SiteActor object."""
         self.site = site
-        self.region = normalize_to_set(region)
+        # We normalize region to be iterable
+        self.region = normalize_to_iterable(region)
         self.gene = gene
 
     @classmethod

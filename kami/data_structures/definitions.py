@@ -1,13 +1,30 @@
 """Collection of data structures for protein products/families definitions."""
 import copy
-from regraph import Rule, get_node
+from regraph import Rule
 
 from kami.aggregation.generators import Generator, KamiGraph
 from kami.aggregation.identifiers import EntityIdentifier
 
 
 class Definition:
-    """."""
+    """Class for protein product definitions.
+
+    Attributes
+    ----------
+    protoform : kami.data_structures.entities.Gene
+        Original de-contextualised protoform object (including
+        all required components that will be subjected to removal
+        or cloning)
+    product_names : iterable
+        Iterable with product names
+    product_components : dict
+        Dictionary whose keys are product names and whose values
+        are dictionaries of components. Dictionaries with components
+        are of the form {<component_type>: <collection_of_components>},
+        e.g. {"regions": [Region(name="SH2")],
+        "residues": [Residue("Y", 100)]}. Represent the components
+        that stay preserved after instantiation from the protoform.
+    """
 
     def _valid(self):
         """Validate product definition.
@@ -90,6 +107,19 @@ class Definition:
             rhs=products_graph.graph,
             p_lhs=products_graph.reference_typing)
         return rule
+
+    def to_json(self):
+        """Convert Definition object to JSON dictionary."""
+        json_dict = {}
+        json_dict["protoform"] = self.protoform.to_json()
+        json_dict["product_names"] = self.product_names
+        json_dict["product_components"] = dict()
+        for product, components in self.product_components.items():
+            json_dict["product_components"][product] = {
+                name: [el.to_json() for el in elements]
+                for name, elements in components.items()
+            }
+        return json_dict
 
 
 class Family:
