@@ -14,7 +14,7 @@ class TestBlackBox(object):
 
     def __init__(self):
         """Initialize with an empty corpus."""
-        self.corpus = KamiCorpus()
+        self.corpus = KamiCorpus("test")
 
     def test_simple_mod_nugget(self):
         """Simple modification interaction example."""
@@ -109,17 +109,17 @@ class TestBlackBox(object):
 
         interactions = [mod1, mod2, mod3, mod4]
 
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(
             interactions,
             add_agents=True,
             anatomize=True
         )
         print(corpus.action_graph.nodes())
-        print(corpus._hierarchy.relation["action_graph"]["semantic_action_graph"])
+        print(corpus._hierarchy.relation["test_action_graph"]["semantic_action_graph"])
         print(corpus)
         print_graph(corpus.action_graph)
-        print(corpus._hierarchy.relation["action_graph"]["semantic_action_graph"])
+        print(corpus._hierarchy.relation["test_action_graph"]["semantic_action_graph"])
 
     def test_sh2_py_semantics(self):
         """."""
@@ -137,7 +137,7 @@ class TestBlackBox(object):
 
         bnd = Binding(dok1_py398, abl2_sh2)
 
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         nugget_id = corpus.add_interaction(bnd)
 
         semantic_entities = [
@@ -151,11 +151,11 @@ class TestBlackBox(object):
         assert("pY_residue" in corpus.nugget[nugget_id].nodes())
         assert("pY_residue_phospho" in corpus.nugget[nugget_id].nodes())
 
-        assert((nugget_id, "sh2_pY_binding") in corpus.nugget_relations())
+        assert((nugget_id, "sh2_pY_binding_semantic_nugget") in corpus.nugget_relations())
 
         for entity in semantic_entities:
             assert(entity in corpus._hierarchy.relation[
-                "sh2_pY_binding"][nugget_id].keys())
+                "sh2_pY_binding_semantic_nugget"][nugget_id].keys())
 
         site_actor_no_residue = SiteActor(
             Gene("A"),
@@ -170,11 +170,11 @@ class TestBlackBox(object):
                 binding_nodes.append(n)
         assert(len(binding_nodes) == 1)
 
-        assert((nugget_id, "sh2_pY_binding") in corpus.nugget_relations())
+        assert((nugget_id, "sh2_pY_binding_semantic_nugget") in corpus.nugget_relations())
 
         for entity in semantic_entities:
             assert(entity in corpus._hierarchy.relation[
-                "sh2_pY_binding"][nugget_id].keys())
+                "sh2_pY_binding_semantic_nugget"][nugget_id].keys())
 
         site_actor_no_phospho = SiteActor(
             Gene("A"),
@@ -187,11 +187,11 @@ class TestBlackBox(object):
             if corpus.get_action_graph_typing()[n] == "bnd":
                 binding_nodes.append(n)
         assert(len(binding_nodes) == 1)
-        assert((nugget_id, "sh2_pY_binding") in corpus.nugget_relations())
+        assert((nugget_id, "sh2_pY_binding_semantic_nugget") in corpus.nugget_relations())
 
         for entity in semantic_entities:
             assert(entity in corpus._hierarchy.relation[
-                "sh2_pY_binding"][nugget_id].keys())
+                "sh2_pY_binding_semantic_nugget"][nugget_id].keys())
 
         site_actor_with_residue = SiteActor(
             Gene("A"),
@@ -208,11 +208,11 @@ class TestBlackBox(object):
             if corpus.get_action_graph_typing()[n] == "bnd":
                 binding_nodes.append(n)
         assert(len(binding_nodes) == 1)
-        assert((nugget_id, "sh2_pY_binding") in corpus.nugget_relations())
+        assert((nugget_id, "sh2_pY_binding_semantic_nugget") in corpus.nugget_relations())
 
         for entity in semantic_entities:
             assert(entity in corpus._hierarchy.relation[
-                "sh2_pY_binding"][nugget_id].keys())
+                "sh2_pY_binding_semantic_nugget"][nugget_id].keys())
 
         site_actor_with_residue1 = SiteActor(
             Gene("B"),
@@ -255,7 +255,7 @@ class TestBlackBox(object):
         bnds = []
         bnds.append(Binding(frs2_py196, pik3r1_sh2n))
         bnds.append(Binding(frs2_py349, pik3r1_sh2c))
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(bnds, anatomize=True)
 
     def test_sites(self):
@@ -273,9 +273,9 @@ class TestBlackBox(object):
         # This does not work (SiteActor)
         inters.append(Binding(egfr, grb2_site))
 
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(inters, anatomize=True)
-        print_graph(corpus.nugget["nugget_1"])
+        print_graph(corpus.nugget["test_nugget_1"])
 
     def test_regionactor(self):
         # Phosphorylated and unphosphrylated states.
@@ -298,9 +298,9 @@ class TestBlackBox(object):
         )
         inters.append(m)
 
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(inters, anatomize=True)
-        print_graph(corpus.nugget["nugget_1"])
+        print_graph(corpus.nugget["test_nugget_1"])
 
     def test_siteactor(self):
         """Generate sh2 pY bnd interactions."""
@@ -331,7 +331,7 @@ class TestBlackBox(object):
             target=Residue(aa="Y", loc=location, state=unphos),
             value=True)
         inters.append(m)
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(inters, anatomize=True)
 
     def test_complicated_site_actor(self):
@@ -354,9 +354,9 @@ class TestBlackBox(object):
             target=Residue("Y", 100, State("phosphorylation", False)),
             value=True
         )
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions([m], anatomize=True)
-        print_graph(corpus.nugget["nugget_1"])
+        print_graph(corpus.nugget["test_nugget_1"])
         print(ag_to_edge_list(corpus))
 
     def test_advanced_site_actor(self):
@@ -400,7 +400,7 @@ class TestBlackBox(object):
             RegionActor(gene=Gene("P62993", hgnc_symbol="GRB2"), region=sh2)
         )
         inters.append(b)
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(inters, anatomize=True)
 
     def test_site_residue_reconnect(self):
@@ -414,7 +414,7 @@ class TestBlackBox(object):
                       site=Site(name="motif1092", start=1088, end=1096)),
             RegionActor(gene=Gene("P62993", hgnc_symbol="GRB2"), region=sh2)
         )
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interaction(b)
 
     def test_bookkeeping(self):
@@ -439,5 +439,5 @@ class TestBlackBox(object):
                 Site(start=799, end=900)))
         interactions.append(i3)
 
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interactions(interactions)

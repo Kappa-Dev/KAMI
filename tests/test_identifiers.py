@@ -1,5 +1,5 @@
 """Unit testing of entity identification used in aggregation."""
-from kami.aggregation import identifiers
+from kami.aggregation.identifiers import EntityIdentifier
 from kami import (Gene, Region, Residue,
                   Site, State)
 from kami import KamiCorpus
@@ -12,7 +12,7 @@ class TestIdentifiers(object):
 
     def __init__(self):
         """Initialize with common hierarchy."""
-        self.hierarchy = KamiCorpus()
+        self.hierarchy = KamiCorpus("test")
 
         gene = Gene("A")
         self.gene_id = self.hierarchy.add_gene(gene)
@@ -64,82 +64,97 @@ class TestIdentifiers(object):
         """Test gene identification."""
         gene1 = Gene("A")
         gene2 = Gene("B")
-        result1 = identifiers.identify_gene(self.hierarchy, gene1)
-        result2 = identifiers.identify_gene(self.hierarchy, gene2)
+        identifier = EntityIdentifier(
+            self.hierarchy.action_graph,
+            self.hierarchy.get_action_graph_typing())
+        result1 = identifier.identify_gene(gene1)
+        result2 = identifier.identify_gene(gene2)
         assert(result1 == self.gene_id)
         assert(result2 is None)
 
     def test_identify_region(self):
         """Test region identification."""
-        res = identifiers.identify_region(
-            self.hierarchy, Region("Protein kinase"), self.gene_id)
+        identifier = EntityIdentifier(
+            self.hierarchy.action_graph,
+            self.hierarchy.get_action_graph_typing())
+        res = identifier.identify_region(
+            Region("Protein kinase"), self.gene_id)
         assert(res == self.named_region)
-        res = identifiers.identify_region(
-            self.hierarchy, Region(start=101, end=199), self.gene_id)
+        res = identifier.identify_region(
+            Region(start=101, end=199), self.gene_id)
         assert(res == self.interval_region)
-        res = identifiers.identify_region(
-            self.hierarchy, Region("SH2"), self.gene_id)
+        res = identifier.identify_region(
+            Region("SH2"), self.gene_id)
         assert(res is None)
-        res = identifiers.identify_region(
-            self.hierarchy, Region("SH2", order=1), self.gene_id)
+        res = identifier.identify_region(
+            Region("SH2", order=1), self.gene_id)
         assert(res == self.named_ordered_region1)
-        res = identifiers.identify_region(
-            self.hierarchy, Region("SH2", order=5), self.gene_id)
+        res = identifier.identify_region(
+            Region("SH2", order=5), self.gene_id)
         assert(res is None)
-        res = identifiers.identify_region(
-            self.hierarchy, Region("SH2", start=101, end=185, order=2),
+        res = identifier.identify_region(
+            Region("SH2", start=101, end=185, order=2),
             self.gene_id)
         assert(res == self.interval_region)
 
     def test_identify_site(self):
         """Test site identification."""
-        res = identifiers.identify_site(
-            self.hierarchy, Site("ATP bind"), self.gene_id)
+        identifier = EntityIdentifier(
+            self.hierarchy.action_graph,
+            self.hierarchy.get_action_graph_typing())
+        res = identifier.identify_site(
+            Site("ATP bind"), self.gene_id)
         assert(res == self.named_site)
-        res = identifiers.identify_site(
-            self.hierarchy, Site("ATP binding site"), self.gene_id)
+        res = identifier.identify_site(
+            Site("ATP binding site"), self.gene_id)
         assert(res == self.named_site)
 
-        res = identifiers.identify_site(
-            self.hierarchy, Site(start=101, end=199), self.gene_id)
+        res = identifier.identify_site(
+            Site(start=101, end=199), self.gene_id)
         assert(res == self.interval_site)
-        res = identifiers.identify_site(
-            self.hierarchy, Site("pY"), self.gene_id)
+        res = identifier.identify_site(
+            Site("pY"), self.gene_id)
         assert(res is None)
-        res = identifiers.identify_site(
-            self.hierarchy, Site("pY", order=1), self.gene_id)
+        res = identifier.identify_site(
+            Site("pY", order=1), self.gene_id)
         assert(res == self.named_ordered_site1)
-        res = identifiers.identify_site(
-            self.hierarchy, Site("pY", order=5), self.gene_id)
+        res = identifier.identify_site(
+            Site("pY", order=5), self.gene_id)
         assert(res is None)
-        res = identifiers.identify_site(
-            self.hierarchy, Site("pY", start=101, end=185, order=2),
+        res = identifier.identify_site(
+            Site("pY", start=101, end=185, order=2),
             self.gene_id)
         assert(res == self.interval_site)
 
     def test_identify_residue(self):
         """Test residue identification."""
-        res = identifiers.identify_residue(
-            self.hierarchy, Residue("S", 150), self.gene_id)
+        identifier = EntityIdentifier(
+            self.hierarchy.action_graph,
+            self.hierarchy.get_action_graph_typing())
+        res = identifier.identify_residue(
+            Residue("S", 150), self.gene_id)
         assert(res == self.residue)
-        res = identifiers.identify_residue(
-            self.hierarchy, Residue("T"), self.gene_id)
+        res = identifier.identify_residue(
+            Residue("T"), self.gene_id)
         assert(res == self.residue_no_loc)
-        res = identifiers.identify_residue(
-            self.hierarchy, Residue("S"), self.gene_id)
+        res = identifier.identify_residue(
+            Residue("S"), self.gene_id)
         assert(res is None)
 
     def test_identify_state(self):
         """Test state identification."""
-        res = identifiers.identify_state(
-            self.hierarchy, State("activity", False), self.residue)
+        identifier = EntityIdentifier(
+            self.hierarchy.action_graph,
+            self.hierarchy.get_action_graph_typing())
+        res = identifier.identify_state(
+            State("activity", False), self.residue)
         assert(res == self.residue_state)
-        res = identifiers.identify_state(
-            self.hierarchy, State("activity", False), self.named_site)
+        res = identifier.identify_state(
+            State("activity", False), self.named_site)
         assert(res == self.site_state)
-        res = identifiers.identify_state(
-            self.hierarchy, State("activity", False), self.named_region)
+        res = identifier.identify_state(
+            State("activity", False), self.named_region)
         assert(res == self.region_state)
-        res = identifiers.identify_state(
-            self.hierarchy, State("activity", False), self.gene_id)
+        res = identifier.identify_state(
+            State("activity", False), self.gene_id)
         assert(res == self.gene_state)

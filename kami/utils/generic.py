@@ -15,3 +15,18 @@ def normalize_to_set(arg):
             return arg
     else:
         return []
+
+
+def normalize_to_iterable(arg):
+    """Normalize argument to be an iterable."""
+    if arg is not None:
+        if type(arg) == str:
+            return [arg]
+        elif type(arg) == list:
+            return arg
+        elif not isinstance(arg, collections.Iterable):
+            return [arg]
+        else:
+            return arg
+    else:
+        return []

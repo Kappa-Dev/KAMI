@@ -5,7 +5,7 @@ from kami import KamiCorpus
 from kami import (Gene, Region, Site, Residue,
                   State, RegionActor, SiteActor)
 from kami import Binding, Modification
-from kami.aggregation.identifiers import identify_gene
+from kami.aggregation.identifiers import EntityIdentifier
 
 
 class TestKamiCorpus(object):
@@ -13,7 +13,7 @@ class TestKamiCorpus(object):
 
     def __init__(self):
         """Initialize test class with a model."""
-        self.model = KamiCorpus()
+        self.model = KamiCorpus("test")
 
         egfr = Gene("P00533")
         fgfr1 = Gene("P11362")
@@ -39,13 +39,13 @@ class TestKamiCorpus(object):
 
     def test_empty_hierarchy(self):
         """Test getters for various model components."""
-        model = KamiCorpus()
-        assert(model.action_graph is None)
+        model = KamiCorpus("test")
+        assert(model.action_graph is not None)
         assert(len(model.nuggets()) == 0)
         assert(model.empty())
 
         model.export_json("test_empty_hierarchy.json")
-        new_model = KamiCorpus.load("test_empty_hierarchy.json")
+        new_model = KamiCorpus.load("test", "test_empty_hierarchy.json")
         assert(isinstance(new_model, KamiCorpus))
         assert(new_model._hierarchy == model._hierarchy)
 
@@ -57,7 +57,7 @@ class TestKamiCorpus(object):
 
     def test_non_empty_hierarchy(self):
         """."""
-        model = KamiCorpus()
+        model = KamiCorpus("test")
 
         plcg1_pY1253 = Gene(
             "P19174",
@@ -78,13 +78,16 @@ class TestKamiCorpus(object):
         assert(model.empty() is False)
 
         model.export_json("test_non_empty_hierarchy.json")
-        new_model = KamiCorpus.load("test_non_empty_hierarchy.json")
+        new_model = KamiCorpus.load("test", "test_non_empty_hierarchy.json")
         assert(isinstance(new_model, KamiCorpus))
-        assert(("action_graph", "meta_model") in new_model._hierarchy.edges())
+        assert(("test_action_graph", "meta_model") in new_model._hierarchy.edges())
         assert(model._hierarchy == new_model._hierarchy)
 
     def test_add_gene_component(self):
-        gene = identify_gene(self.model, Gene("P00533"))
+        identifier = EntityIdentifier(
+            self.model.action_graph,
+            self.model.get_action_graph_typing())
+        gene = identifier.identify_gene(Gene("P00533"))
 
         residue = Residue("Y", 200)
         residue_id = self.model.add_residue(residue, gene)

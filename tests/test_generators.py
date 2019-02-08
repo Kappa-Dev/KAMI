@@ -2,7 +2,8 @@
 
 from regraph import print_graph
 
-from kami.aggregation.generators import (NuggetContainer, Generator,
+from kami.aggregation.identifiers import EntityIdentifier
+from kami.aggregation.generators import (KamiGraph, Generator,
                                          ModGenerator, SelfModGenerator,
                                          LigandModGenerator, BndGenerator,
                                          AnonymousModGenerator)
@@ -20,10 +21,13 @@ class TestGenerators(object):
 
     def __init__(self):
         """Define some initial content of the corpus."""
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         gene = Gene("A")
         gene_id = corpus.add_gene(gene)
-        self.generator = Generator(corpus)
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        self.generator = Generator(identifier)
         self.default_ag_gene = gene_id
 
     def test_state_generator(self):
@@ -31,21 +35,21 @@ class TestGenerators(object):
         state_true = State("activity", True)
         state_false = State("activity", False)
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
-        state1 = self.generator._generate_state(
+        state1 = self.generator.generate_state(
             nugget, state_true, self.default_ag_gene)
 
         state2 =\
-            self.generator._generate_state(
+            self.generator.generate_state(
                 nugget, state_true, self.default_ag_gene)
         state3 =\
-            self.generator._generate_state(
+            self.generator.generate_state(
                 nugget, state_false, self.default_ag_gene)
 
         state4 =\
-            self.generator._generate_state(
+            self.generator.generate_state(
                 nugget, state_false, self.default_ag_gene)
 
         assert(len(nugget.graph.nodes()) == 4)
@@ -73,30 +77,30 @@ class TestGenerators(object):
         y100_phospho = Residue("Y", 100, State("phosphorylation", True))
         y100_active = Residue("Y", 100, State("activity", True))
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         residue1, state1 =\
-            self.generator._generate_residue(
+            self.generator.generate_residue(
                 nugget, t, self.default_ag_gene, self.default_ag_gene)
         assert(state1 is None)
         assert(residue1 in nugget.nodes())
 
         residue2, _ =\
-            self.generator._generate_residue(
+            self.generator.generate_residue(
                 nugget, t, self.default_ag_gene, self.default_ag_gene)
 
         residue3, _ =\
-            self.generator._generate_residue(
+            self.generator.generate_residue(
                 nugget, t100, self.default_ag_gene, self.default_ag_gene)
 
         residue4, state4 =\
-            self.generator._generate_residue(
+            self.generator.generate_residue(
                 nugget, y100_phospho, self.default_ag_gene, self.default_ag_gene)
         assert(state4 is not None)
 
         residue5, state5 =\
-            self.generator._generate_residue(
+            self.generator.generate_residue(
                 nugget, y100_active, self.default_ag_gene, self.default_ag_gene)
 
         assert(len(nugget.nodes()) == 7)
@@ -121,40 +125,40 @@ class TestGenerators(object):
         site_bob_1 = Site(name="bob", order=1)
         site_bob_2 = Site(name="bob", order=2)
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         site_bob_id_1 =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site_bob, self.default_ag_gene, self.default_ag_gene)
         assert(site_bob_id_1 in nugget.nodes())
 
         site_bob_id_2 =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site_bob, self.default_ag_gene, self.default_ag_gene)
         assert(site_bob_id_2 in nugget.nodes())
-        # assert(site_bob_id_2 in nugget.ag_typing.keys())
+        # assert(site_bob_id_2 in nugget.reference_typing.keys())
 
         site100_200_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site100_200, self.default_ag_gene, self.default_ag_gene)
         site110_150_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site110_150, self.default_ag_gene, self.default_ag_gene)
 
         site_bob_500_600_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site_bob_500_600,
                 self.default_ag_gene, self.default_ag_gene)
         site_bob_800_1000_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site_bob_800_1000,
                 self.default_ag_gene, self.default_ag_gene)
         site_bob_1_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site_bob_1, self.default_ag_gene, self.default_ag_gene)
         site_bob_2_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site_bob_2, self.default_ag_gene, self.default_ag_gene)
         assert(len(nugget.nodes()) == 8)
 
@@ -165,7 +169,7 @@ class TestGenerators(object):
             residues=[Residue("Y", 1000, State('phosphorylation', True))],
         )
         try:
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, complex_site, self.default_ag_gene, self.default_ag_gene)
             raise ValueError("Invalid residue was not caught!")
         except:
@@ -176,11 +180,11 @@ class TestGenerators(object):
             states=[State('active', True)],
             residues=[Residue("Y", 505, State('phosphorylation', True))]
         )
-        complex_site_id = self.generator._generate_site(
+        complex_site_id = self.generator.generate_site(
             nugget, complex_site, self.default_ag_gene, self.default_ag_gene)
         # assert(
-        #     nugget.ag_typing[complex_site_id] ==
-        #     nugget.ag_typing[site_bob_500_600_id])
+        #     nugget.reference_typing[complex_site_id] ==
+        #     nugget.reference_typing[site_bob_500_600_id])
         assert(len(nugget.nodes()) == 13)
         assert(len(nugget.edges()) == 3)
 
@@ -194,11 +198,11 @@ class TestGenerators(object):
             residues=[Residue("Y", 1000)],
         )
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         try:
-            self.generator._generate_region(
+            self.generator.generate_region(
                 nugget, kinase_region, self.default_ag_gene)
             raise ValueError("Invalid residue was not caught!")
         except KamiError:
@@ -216,14 +220,14 @@ class TestGenerators(object):
             ]
         )
         try:
-            self.generator._generate_region(
+            self.generator.generate_region(
                 nugget, kinase_region, self.default_ag_gene)
             raise ValueError("Invalid site was not caught!")
         except KamiError:
             pass
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         kinase_region = Region(
             name="Pkinase",
@@ -236,24 +240,24 @@ class TestGenerators(object):
             ]
         )
 
-        kinase_region_id = self.generator._generate_region(
+        kinase_region_id = self.generator.generate_region(
             nugget, kinase_region, self.default_ag_gene)
 
         assert(len(nugget.nodes()) == 5)
 
     def test_gene_generator(self):
         """Test generation of graph components for a Gene object."""
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         gene1 = Gene("B")
 
-        self.generator._generate_gene(nugget, gene1)
-        self.generator._generate_gene(
+        self.generator.generate_gene(nugget, gene1)
+        self.generator.generate_gene(
             nugget, gene1)
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         gene2 = Gene(
             "P00519",
@@ -279,7 +283,7 @@ class TestGenerators(object):
             bound_to=[gene1],
         )
 
-        gene_id = self.generator._generate_gene(nugget, gene2)
+        gene_id = self.generator.generate_gene(nugget, gene2)
 
         # check it is consistent
         assert(len(nugget.nodes()) == 17)
@@ -292,11 +296,11 @@ class TestGenerators(object):
         region_actor = RegionActor(
             gene=Gene("B"), region=Region("SH2"))
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         (gene_id, region_id) =\
-            self.generator._generate_region_actor(nugget, region_actor)
+            self.generator.generate_region_actor(nugget, region_actor)
 
         assert((region_id, gene_id) in nugget.edges())
 
@@ -306,11 +310,11 @@ class TestGenerators(object):
         site_actor = SiteActor(
             gene=Gene("B"), site=Site("pY"))
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         (gene_id, site_id, region_id) =\
-            self.generator._generate_site_actor(nugget, site_actor)
+            self.generator.generate_site_actor(nugget, site_actor)
         assert((site_id, gene_id) in nugget.edges())
 
         # with a region in the middle
@@ -318,7 +322,7 @@ class TestGenerators(object):
             gene=Gene("B"), site=Site("pY"), region=Region("kinase"))
 
         (gene_id, site_id, region_id) =\
-            self.generator._generate_site_actor(nugget, site_actor_with_region)
+            self.generator.generate_site_actor(nugget, site_actor_with_region)
 
         assert((site_id, region_id) in nugget.edges())
         assert((region_id, gene_id) in nugget.edges())
@@ -330,38 +334,38 @@ class TestGenerators(object):
         region_actor = RegionActor(
             gene=Gene("A"), region=Region("Pkinase"))
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         site = Site(
             "lala",
             bound_to=[gene, gene]
         )
         site_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site,
                 self.default_ag_gene, self.default_ag_gene)
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         site = Site(
             "lala",
             bound_to=[site_actor]
         )
         site_id =\
-            self.generator._generate_site(
+            self.generator.generate_site(
                 nugget, site, self.default_ag_gene,
                 self.default_ag_gene)
 
-        nugget = NuggetContainer()
-        nugget.ag_typing[self.default_ag_gene] = self.default_ag_gene
+        nugget = KamiGraph()
+        nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         site = Site(
             "lala",
             bound_to=[region_actor]
         )
-        self.generator._generate_site(
+        self.generator.generate_site(
             nugget, site, self.default_ag_gene, self.default_ag_gene)
 
     def test_mod_generator(self):
@@ -416,9 +420,12 @@ class TestGenerators(object):
             substrate=substrate_site_actor,
             target=residue_mod_target
         )
-        corpus = KamiCorpus()
-        generator = ModGenerator(corpus)
-        n, t = generator.generate(mod5)
+        corpus = KamiCorpus("test")
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        generator = ModGenerator(identifier)
+        n, _, _, _, _= generator.generate(mod5)
         print_graph(n.graph)
 
     def test_anonymous_mod_generation(self):
@@ -433,9 +440,12 @@ class TestGenerators(object):
             Residue("Y", 100, State("phosphorylation", False)),
             value=True)
 
-        corpus = KamiCorpus()
-        generator = AnonymousModGenerator(corpus)
-        n, t = generator.generate(mod)
+        corpus = KamiCorpus("test")
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        generator = AnonymousModGenerator(identifier)
+        n, _, _, _, _= generator.generate(mod)
         print_graph(n.graph)
 
     def test_selfmod_generation(self):
@@ -452,9 +462,12 @@ class TestGenerators(object):
             substrate_region=Region("Region"),
             substrate_site=Site("Site"))
 
-        corpus = KamiCorpus()
-        generator = SelfModGenerator(corpus)
-        n, t = generator.generate(automod)
+        corpus = KamiCorpus("test")
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        generator = SelfModGenerator(identifier)
+        n, _, _, _, _= generator.generate(automod)
         print_graph(n.graph)
 
     def test_ligandmod_generation(self):
@@ -475,9 +488,12 @@ class TestGenerators(object):
             substrate_bnd_region=Region("SbndRegion"),
             substrate_bnd_site=Site("SbndSite"))
 
-        corpus = KamiCorpus()
-        generator = LigandModGenerator(corpus)
-        n, t = generator.generate(automod)
+        corpus = KamiCorpus("test")
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        generator = LigandModGenerator(identifier)
+        n, _, _, _, _= generator.generate(automod)
         print_graph(n.graph)
 
         inter = LigandModification(
@@ -500,9 +516,9 @@ class TestGenerators(object):
             substrate_bnd_site=Site(name='pY394',
                                     start=391, end=397)
         )
-        corpus = KamiCorpus()
+        corpus = KamiCorpus("test")
         corpus.add_interaction(inter, anatomize=False)
-        print_graph(corpus.nugget['nugget_1'])
+        print_graph(corpus.nugget['test_nugget_1'])
 
     def test_bnd_generation(self):
         """Test generation of a binding nugget graph."""
@@ -510,16 +526,22 @@ class TestGenerators(object):
         right = Gene("B")
         bnd = Binding(left, right)
 
-        corpus = KamiCorpus()
-        generator = BndGenerator(corpus)
-        n, t = generator.generate(bnd)
+        corpus = KamiCorpus("test")
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        generator = BndGenerator(identifier)
+        n, _, _, _, _ = generator.generate(bnd)
         print_graph(n.graph)
 
     def test_advanced_ligand_mod_generator(self):
         """Test generation with advanced usage of LigandModification."""
 
-        corpus = KamiCorpus()
-        generator = LigandModGenerator(corpus)
+        corpus = KamiCorpus("test")
+        identifier = EntityIdentifier(
+            corpus.action_graph,
+            corpus.get_action_graph_typing())
+        generator = LigandModGenerator(identifier)
 
         enzyme = SiteActor(
             gene=Gene("A"),
@@ -542,7 +564,7 @@ class TestGenerators(object):
                     enzyme_bnd_subactor=ea,
                     substrate_bnd_subactor=sa)
 
-            n, t = generator.generate(mod)
+            n, _, _, _, _ = generator.generate(mod)
 
         mod = LigandModification(
             enzyme=enzyme,
@@ -552,7 +574,7 @@ class TestGenerators(object):
             enzyme_bnd_region=Region(name="SpecialBindingRegion"),
             substrate_bnd_region=Region(name="SpecialBindingRegion"))
 
-        n, t = generator.generate(mod)
+        n, _, _, _, _ = generator.generate(mod)
 
         mod = LigandModification(
             enzyme=enzyme,
@@ -564,7 +586,7 @@ class TestGenerators(object):
             enzyme_bnd_site=Site(name="SpecialBindingSite"),
             substrate_bnd_site=Site(name="SpecialBindingSite"))
 
-        n, t = generator.generate(mod)
+        n, _, _, _, _= generator.generate(mod)
 
         mod = LigandModification(
             enzyme=enzyme,
@@ -576,6 +598,6 @@ class TestGenerators(object):
             enzyme_bnd_site=Site(name="SpecialBindingSite"),
             substrate_bnd_site=Site(name="SpecialBindingSite"))
 
-        n, t = generator.generate(mod)
+        n, _, _, _, _= generator.generate(mod)
         print_graph(n.graph)
         # adding binding components
