@@ -10,28 +10,30 @@ from regraph.primitives import (add_nodes_from,
                                 get_node)
 
 
-def _propagate_semantics_to_ag(hierarchy, nugget_id,
+def _propagate_semantics_to_ag(model, nugget_id,
                                semantic_nugget_id):
     """Propagate semantic rels from a nugget to the ag."""
-    semantic_nugget_typing = hierarchy.get_typing(
+    semantic_nugget_typing = model._hierarchy.get_typing(
         semantic_nugget_id, "semantic_action_graph")
-    for nugget_node, semantics in hierarchy.get_relation(
+    for nugget_node, semantics in model._hierarchy.get_relation(
             nugget_id, semantic_nugget_id).items():
-        ag_node = hierarchy.get_typing(
-            nugget_id, "action_graph")[nugget_node]
+        ag_node = model._hierarchy.get_typing(
+            nugget_id, model._action_graph_id)[nugget_node]
         for s in semantics:
-            hierarchy.set_node_relation(
-                "action_graph", "semantic_action_graph",
+            model._hierarchy.set_node_relation(
+                model._action_graph_id, "semantic_action_graph",
                 ag_node, semantic_nugget_typing[s])
 
 
 def apply_mod_semantics(model, nugget_id):
     """Apply mod semantics to the created nugget."""
+    print(nugget_id)
     template_rel = model._hierarchy.get_relation(
         "mod_template", nugget_id)
     enzyme = None
     if "enzyme" in template_rel.keys():
         enzyme = list(template_rel["enzyme"])[0]
+    print(template_rel)
     mod_state = list(template_rel["mod_state"])[0]
     mod_residue = None
 
@@ -40,13 +42,13 @@ def apply_mod_semantics(model, nugget_id):
 
     mod_node = list(template_rel["mod"])[0]
     ag_enzyme = None
-    ag_typing = model._hierarchy.get_typing(nugget_id, "action_graph")
+    ag_typing = model._hierarchy.get_typing(nugget_id, model._action_graph_id)
     if enzyme is not None:
         ag_enzyme = ag_typing[enzyme]
     ag_mod_node = ag_typing[mod_node]
 
     ag_sag_rel = model._hierarchy.get_relation(
-        "action_graph",
+        model._action_graph_id,
         "semantic_action_graph")
 
     phospho = False
@@ -94,7 +96,7 @@ def apply_mod_semantics(model, nugget_id):
                         kinase_mods)
 
                     _, rhs_ag = model.rewrite(
-                        "action_graph", mod_merge_rule,
+                        model._action_graph_id, mod_merge_rule,
                         instance={
                             n: n for n in mod_merge_rule.lhs.nodes()
                         })
@@ -128,10 +130,10 @@ def apply_mod_semantics(model, nugget_id):
                         new_activity_state, enz_region)
                     # identify if there already exists the activity state
                     # in the action graph
-                    rhs_typing = {"action_graph": {}}
+                    rhs_typing = {model._action_graph_id: {}}
                     ag_activity = model.get_activity_state(ag_enz_region)
                     if ag_activity is not None:
-                        rhs_typing["action_graph"][new_activity_state] =\
+                        rhs_typing[model._action_graph_id][new_activity_state] =\
                             ag_activity
                     # Apply autocompletion rule
                     _, rhs_g = model.rewrite(
@@ -178,7 +180,7 @@ def apply_mod_semantics(model, nugget_id):
                         [ag_mod_node] + kinase_mods)
 
                 _, rhs_ag = model.rewrite(
-                    "action_graph", mod_merge_rule,
+                    model._action_graph_id, mod_merge_rule,
                     instance={
                         n: n for n in mod_merge_rule.lhs.nodes()
                     })
@@ -206,7 +208,7 @@ def apply_mod_semantics(model, nugget_id):
                     activity_state, unique_kinase_region)
 
                 rhs_typing = {
-                    "action_graph": {
+                    model._action_graph_id: {
                         unique_kinase_region: unique_kinase_region,
                         mod_node: new_ag_mod
                     }
@@ -214,7 +216,7 @@ def apply_mod_semantics(model, nugget_id):
                 ag_activity = model.get_activity_state(
                     unique_kinase_region)
                 if ag_activity is not None:
-                    rhs_typing["action_graph"][activity_state] = ag_activity
+                    rhs_typing[model._action_graph_id][activity_state] = ag_activity
 
                 _, rhs_nugget = model.rewrite(
                     nugget_id, autocompletion_rule,
@@ -227,7 +229,7 @@ def apply_mod_semantics(model, nugget_id):
                 phospho_semantic_rel[rhs_nugget[unique_kinase_region]] =\
                     "protein_kinase"
                 for k, v in model._hierarchy.get_typing(
-                        nugget_id, "action_graph").items():
+                        nugget_id, model._action_graph_id).items():
                     if v == ag_activity:
                         nugget_activity = k
                 phospho_semantic_rel[rhs_nugget[activity_state]] =\
@@ -245,11 +247,11 @@ def apply_mod_semantics(model, nugget_id):
         # Add a relation to the phosporylation semantic nugget
         model.add_semantic_nugget_rel(
             nugget_id,
-            "phosphorylation",
+            "phosphorylation_semantic_nugget",
             phospho_semantic_rel)
         # propagate this phospho semantics to the ag nodes
         _propagate_semantics_to_ag(
-            model._hierarchy, nugget_id, "phosphorylation")
+            model, nugget_id, "phosphorylation_semantic_nugget")
 
 
 def apply_bnd_semantics(model, nugget_id):
@@ -260,11 +262,11 @@ def apply_bnd_semantics(model, nugget_id):
     def _apply_sh2_py_semantics(region_node, region_bnd, partner_gene,
                                 partner_region=None, partner_site=None):
         ag_typing = model._hierarchy.get_typing(
-            nugget_id, "action_graph")
+            nugget_id, model._action_graph_id)
 
         ag_region = ag_typing[region_node]
         ag_sag_relation = model._hierarchy.get_relation(
-            "action_graph",
+            model._action_graph_id,
             "semantic_action_graph")
 
         if ag_region in ag_sag_relation.keys() and\
@@ -286,7 +288,7 @@ def apply_bnd_semantics(model, nugget_id):
                 bnd_merge_rule = Rule.from_transform(pattern)
                 bnd_merge_rule.inject_merge_nodes(ag_region_bnds)
                 _, rhs_ag = model.rewrite(
-                    "action_graph", bnd_merge_rule)
+                    model._action_graph_id, bnd_merge_rule)
 
             # Process/autocomplete sites and residues
             if partner_site:
@@ -356,7 +358,7 @@ def apply_bnd_semantics(model, nugget_id):
                         add_nodes_from(pattern, sites_to_merge)
                         site_merging_rule = Rule.from_transform(pattern)
                         site_merging_rule.inject_merge_nodes(sites_to_merge)
-                        model.rewrite("action_graph", site_merging_rule)
+                        model.rewrite(model._action_graph_id, site_merging_rule)
 
             else:
                 if partner_region is not None:
@@ -425,10 +427,10 @@ def apply_bnd_semantics(model, nugget_id):
         if sh2_semantic_rel is not None:
             model.add_semantic_nugget_rel(
                 nugget_id,
-                "sh2_pY_binding",
+                "sh2_pY_binding_semantic_nugget",
                 sh2_semantic_rel)
             _propagate_semantics_to_ag(
-                model._hierarchy, nugget_id, "sh2_pY_binding")
+                model, nugget_id, "sh2_pY_binding_semantic_nugget")
 
     if "right_partner_region" in template_rel.keys():
         region_node =\
@@ -451,7 +453,7 @@ def apply_bnd_semantics(model, nugget_id):
         if sh2_semantic_rel is not None:
             model.add_semantic_nugget_rel(
                 nugget_id,
-                "sh2_pY_binding",
+                "sh2_pY_binding_semantic_nugget",
                 sh2_semantic_rel)
             _propagate_semantics_to_ag(
-                model._hierarchy, nugget_id, "sh2_pY_binding")
+                model, nugget_id, "sh2_pY_binding_semantic_nugget")

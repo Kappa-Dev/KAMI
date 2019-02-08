@@ -440,7 +440,7 @@ class ModGenerator(Generator):
         # 1. Process enzyme
         (enzyme, enzyme_region, enzyme_site) = self.generate_actor(
             nugget, mod.enzyme)
-        template_rel[enzyme].add("enzyme")
+        template_rel[enzyme] = {"enzyme"}
         if enzyme_region:
             template_rel[enzyme_region] = {"enzyme_region"}
         if enzyme_site:
@@ -449,7 +449,7 @@ class ModGenerator(Generator):
         # Process substrate
         (substrate, substrate_region, substrate_site) = self.generate_actor(
             nugget, mod.substrate)
-        template_rel[substrate].add("substrate")
+        template_rel[substrate] = {"substrate"}
         if substrate_region:
             template_rel[substrate_region] = {"substrate_region"}
         if substrate_site:
@@ -462,9 +462,10 @@ class ModGenerator(Generator):
         nugget.add_node(
             "mod",
             mod_attrs,
-            meta_typing="mod",
-            template_rel=["mod"]
+            meta_typing="mod"
         )
+
+        template_rel["mod"] = {"mod"}
 
         # 3. create state related nodes subject to modification
         if substrate_site:
@@ -545,9 +546,9 @@ class BndGenerator(Generator):
 
         nugget.add_node(
             bnd_id, bnd_attrs,
-            meta_typing="bnd",
-            template_rel=["bnd"]
+            meta_typing="bnd"
         )
+        template_rel[bnd_id] = {"bnd"}
 
         # connect left/right members to the respective loci
         for member in left:
@@ -576,7 +577,7 @@ class AnonymousModGenerator(Generator):
         # Process substrate
         (substrate, substrate_region, substrate_site) = self.generate_actor(
             nugget, mod.substrate)
-        template_rel[substrate].add("substrate")
+        template_rel[substrate] = {"substrate"}
         if substrate_region:
             template_rel[substrate_region] = {"substrate_region"}
         if substrate_site:
@@ -589,9 +590,9 @@ class AnonymousModGenerator(Generator):
         nugget.add_node(
             "mod",
             mod_attrs,
-            meta_typing="mod",
-            template_rel=["mod"]
+            meta_typing="mod"
         )
+        template_rel["mod"] = {"mod"}
 
         # 3. create state related nodes subject to modification
         if substrate_site:
@@ -609,7 +610,8 @@ class AnonymousModGenerator(Generator):
 
         nugget.add_edge("mod", mod_state_id)
         return (
-            nugget, "mod",
+            nugget,
+            "mod",
             template_id,
             template_rel,
             mod.desc
@@ -628,8 +630,7 @@ class SelfModGenerator(Generator):
         # 1. Process enzyme
         (enzyme, enzyme_region, enzyme_site) = self.generate_actor(
             nugget, mod.enzyme)
-        template_rel[enzyme].add("enzyme")
-        template_rel[enzyme].add("substrate")
+        template_rel[enzyme] = {"enzyme", "substrate"}
         if enzyme_region:
             template_rel[enzyme_region] = {"enzyme_region"}
         if enzyme_site:
@@ -666,9 +667,10 @@ class SelfModGenerator(Generator):
         nugget.add_node(
             "mod",
             mod_attrs,
-            meta_typing="mod",
-            template_rel=["mod"]
+            meta_typing="mod"
         )
+
+        template_rel["mod"] = {"mod"}
 
         if substrate_site:
             attached_to = substrate_site
@@ -711,7 +713,7 @@ class LigandModGenerator(Generator):
         # 1. Process enzyme
         (enzyme, enzyme_region, enzyme_site) = self.generate_actor(
             nugget, mod.enzyme)
-        template_rel[enzyme].add("enzyme")
+        template_rel[enzyme] = {"enzyme"}
         if enzyme_region:
             template_rel[enzyme_region] = {"enzyme_region"}
         if enzyme_site:
@@ -720,7 +722,7 @@ class LigandModGenerator(Generator):
         # Process substrate
         (substrate, substrate_region, substrate_site) = self.generate_actor(
             nugget, mod.substrate)
-        template_rel[substrate].add("substrate")
+        template_rel[substrate] = {"substrate"}
         if substrate_region:
             template_rel[substrate_region] = {"substrate_region"}
         if substrate_site:
@@ -733,9 +735,10 @@ class LigandModGenerator(Generator):
         nugget.add_node(
             "mod",
             mod_attrs,
-            meta_typing="mod",
-            template_rel=["mod"]
+            meta_typing="mod"
         )
+
+        template_rel["mod"] = {"mod"}
 
         # 3. create state related nodes subject to modification
         if substrate_site:

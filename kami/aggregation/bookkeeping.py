@@ -71,7 +71,7 @@ def reconnect_residues(model, gene, residues,
                     for suc in model.action_graph.successors(res):
                         if model.get_action_graph_typing()[suc] != "site":
                             if model._hierarchy.get_typing(
-                                "action_graph", "meta_model")[suc] == "region" and\
+                                model._action_graph_id, "meta_model")[suc] == "region" and\
                                suc in model.action_graph.successors(site):
                                 add_edge_attrs(
                                     model.action_graph, res, suc,
@@ -131,7 +131,7 @@ def connect_transitive_components(model, new_nodes):
     print("\t\t\tConnect gene/region/site")
     start_time = time.time()
     instances = model._hierarchy.find_matching(
-        "action_graph", gene_region_site_rule.lhs, pattern_typing=lhs_typing,
+        model._action_graph_id, gene_region_site_rule.lhs, pattern_typing=lhs_typing,
         nodes=new_nodes)
     print("\t\t\t\t-> Find matching: ", time.time() - start_time)
     start_time = time.time()
@@ -146,7 +146,7 @@ def connect_transitive_components(model, new_nodes):
             edge_attrs["type"] = "transitive"
             set_edge(gene_region_site_rule.rhs, "site", "gene", edge_attrs)
             _, rhs_instance = model.rewrite(
-                "action_graph", gene_region_site_rule, instance)
+                model._action_graph_id, gene_region_site_rule, instance)
 
             # if "start" in site_region_edge:
             #     start = site_region_edge["start"]
@@ -180,7 +180,7 @@ def connect_transitive_components(model, new_nodes):
     print("\t\t\tConnect region/site/residue")
     start_time = time.time()
     instances = model._hierarchy.find_matching(
-        "action_graph", region_site_residue_rule.lhs,
+        model._action_graph_id, region_site_residue_rule.lhs,
         pattern_typing=lhs_typing, nodes=new_nodes)
     print("\t\t\t\t-> Find matching: ", time.time() - start_time)
     start_time = time.time()
@@ -198,7 +198,7 @@ def connect_transitive_components(model, new_nodes):
                 region_site_residue_rule.rhs,
                 "residue", "region", edge_attrs)
             _, rhs_instance = model.rewrite(
-                "action_graph", region_site_residue_rule, instance)
+                model._action_graph_id, region_site_residue_rule, instance)
 
             # if "loc" in residue_site_edge:
             #     loc = residue_site_edge["loc"]
@@ -222,7 +222,7 @@ def connect_transitive_components(model, new_nodes):
     print("\t\t\tConnect gene/region/residue")
     start_time = time.time()
     instances = model._hierarchy.find_matching(
-        "action_graph", gene_region_residue_rule.lhs,
+        model._action_graph_id, gene_region_residue_rule.lhs,
         pattern_typing=lhs_typing, nodes=new_nodes)
     print("\t\t\t\t-> Find matching: ", time.time() - start_time)
     start_time = time.time()
@@ -239,7 +239,7 @@ def connect_transitive_components(model, new_nodes):
                 gene_region_residue_rule.rhs,
                 "residue", "gene", edge_attrs)
             _, rhs_instance = model.rewrite(
-                "action_graph", gene_region_residue_rule, instance)
+                model._action_graph_id, gene_region_residue_rule, instance)
 
             # if "loc" in res_region_edge:
             #     loc = res_region_edge["loc"]
@@ -262,7 +262,7 @@ def connect_transitive_components(model, new_nodes):
     print("\t\t\tConnect gene/site/residue")
     start_time = time.time()
     instances = model._hierarchy.find_matching(
-        "action_graph", gene_site_residue_rule.lhs, pattern_typing=lhs_typing,
+        model._action_graph_id, gene_site_residue_rule.lhs, pattern_typing=lhs_typing,
         nodes=new_nodes)
     print("\t\t\t\t-> Find matching: ", time.time() - start_time)
     start_time = time.time()
@@ -279,7 +279,7 @@ def connect_transitive_components(model, new_nodes):
                 gene_site_residue_rule.rhs,
                 "residue", "gene", edge_attrs)
             _, rhs_instance = model.rewrite(
-                "action_graph", gene_site_residue_rule, instance)
+                model._action_graph_id, gene_site_residue_rule, instance)
 
     print("\t\t\t\t-> Rewrite all the instances: ", time.time() - start_time)
 
@@ -442,13 +442,13 @@ def anatomize_gene(model, gene):
                 new_regions.append(new_name)
 
         _, rhs_g = model.rewrite(
-            "action_graph", anatomization_rule,
+            model._action_graph_id, anatomization_rule,
             instance, rhs_typing=anatomization_rule_typing)
 
         for node_id, semantics in semantic_relations.items():
             for s in semantics:
                 model._hierarchy.set_node_relation(
-                    "action_graph",
+                    model._action_graph_id,
                     "semantic_action_graph",
                     rhs_g[node_id], s)
     else:
