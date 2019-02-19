@@ -712,7 +712,7 @@ class Residue():
         else:
             self.loc = None
         self.state = state
-        self.test = test
+        self.test = normalize_to_set(test)
 
     @classmethod
     def from_json(cls, json_data):
@@ -787,7 +787,7 @@ class Residue():
         return (
             self.aa.issubset(residue.aa) and
             residue_has_loc and
-            self.test == residue.test and
+            self.test.issubset(residue.test) and
             residue_has_state)
 
 

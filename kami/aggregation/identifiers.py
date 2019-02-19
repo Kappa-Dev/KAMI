@@ -3,7 +3,10 @@ import networkx as nx
 import numpy as np
 
 from regraph import Rule
-from regraph.primitives import get_node, get_edge, add_node_attrs
+from regraph.primitives import (get_node,
+                                get_edge,
+                                add_node_attrs,
+                                find_matching)
 
 from kami.exceptions import KamiHierarchyError
 
@@ -88,12 +91,47 @@ def find_fragment(a_meta_data, a_location, dict_of_b):
 class EntityIdentifier:
 
     def __init__(self, graph, meta_typing, immediate=True,
-                 hierarchy=None, graph_id=None):
+                 hierarchy=None, graph_id=None, meta_model_id=None):
         self.graph = graph
         self.meta_typing = meta_typing
         self.immediate = immediate
         self.hierarchy = hierarchy
         self.graph_id = graph_id
+        self.meta_model_id = meta_model_id
+
+    def find_matching_in_graph(self, pattern, lhs_typing=None,
+                               nodes=None):
+        """."""
+        if self.hierarchy is not None:
+            if lhs_typing is not None:
+                lhs_typing = {
+                    self.meta_model_id: lhs_typing
+                }
+            instances = self.hierarchy.find_matching(
+                self.graph_id, pattern,
+                pattern_typing=lhs_typing, nodes=nodes)
+        else:
+            untyped_instances = find_matching(
+                self.graph, pattern, nodes=nodes)
+            if lhs_typing is not None:
+                instances = []
+                for i in untyped_instances:
+                    for k, v in i.items():
+                        if self.meta_typing[v] != lhs_typing[k]:
+                            break
+                    else:
+                        instances.append(i)
+            else:
+                instances = untyped_instances
+        return instances
+
+    def rewrite_graph(self, rule, instance):
+        """."""
+        if self.hierarchy is not None:
+            _, rhs_instance = self.hierarchy.rewrite(
+                self.graph_id, rule, instance)
+        else:
+            _, rhs_instance = rule.apply_to(self.graph, instance, inplace=True)
 
     def nodes_of_type(self, type_name):
         """Get action graph nodes of a specified type."""
@@ -116,6 +154,13 @@ class EntityIdentifier:
                 preds.append(pred)
         return preds
 
+    def successors_of_type(self, node_id, meta_type):
+        sucs = []
+        for suc in self.graph.successors(node_id):
+            if self.meta_typing[suc] == meta_type:
+                sucs.append(suc)
+        return sucs
+
     def ancestors_of_type(self, node_id, meta_type):
         ancestors = self.predecessors_of_type(node_id, meta_type)
         visited = set()
@@ -127,8 +172,25 @@ class EntityIdentifier:
                     visited.add(n)
                     ancestors += self.predecessors_of_type(n, meta_type)
                 new_level_to_visit.update(
+                    set(self.graph.predecessors(n)))
+            next_level_to_visit = new_level_to_visit
+        return ancestors
+
+    def descendants_of_type(self, node_id, meta_type):
+        ancestors = self.successors_of_type(node_id, meta_type)
+        visited = set()
+        next_level_to_visit = set(self.graph.successors(node_id))
+        print(next_level_to_visit)
+        while len(next_level_to_visit) > 0:
+            new_level_to_visit = set()
+            for n in next_level_to_visit:
+                if n not in visited:
+                    visited.add(n)
+                    ancestors += self.successors_of_type(n, meta_type)
+                new_level_to_visit.update(
                     set(self.graph.successors(n)))
             next_level_to_visit = new_level_to_visit
+            print(next_level_to_visit)
         return ancestors
 
     def get_gene_of(self, node_id):
@@ -152,6 +214,20 @@ class EntityIdentifier:
             "No gene node is associated with an element '{}'".fromat(
                 node_id))
         return None
+
+    def get_attached_regions(self, node_id):
+        """Get a list of regions belonging to a specified agent."""
+        if self.immediate:
+            return self.predecessors_of_type(node_id, "region")
+        else:
+            return self.ancestors_of_type(node_id, "region")
+
+    def get_attached_sites(self, node_id):
+        """Get a list of sites belonging to a specified agent."""
+        if self.immediate:
+            return self.predecessors_of_type(node_id, "site")
+        else:
+            return self.ancestors_of_type(node_id, "site")
 
     def get_attached_residues(self, node_id):
         if self.immediate:
