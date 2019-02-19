@@ -20,15 +20,14 @@ from regraph.primitives import (add_node, add_edge,
 from kami.utils.generic import normalize_to_set
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
-                                          reconnect_residues,
-                                          reconnect_sites,
-                                          connect_nested_fragments,
-                                          connect_transitive_components)
+                                          apply_bookkeeping)
 from kami.aggregation.generators import generate_nugget
 from kami.aggregation.semantics import (apply_mod_semantics,
                                         apply_bnd_semantics)
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
+from kami.data_structures.models import KamiModel
+
 from kami.exceptions import KamiHierarchyError
 
 
@@ -200,7 +199,9 @@ class KamiCorpus(object):
         self.nugget = self.nugget_dict_factory()
         for n in self._hierarchy.graphs():
             graph_attrs = self._hierarchy.get_graph_attrs(n)
-            if "nugget" in graph_attrs["type"] and\
+            if "type"in graph_attrs.keys() and\
+               "nugget" in graph_attrs["type"] and\
+               "corpus_id" in graph_attrs.keys() and\
                self._id in graph_attrs["corpus_id"]:
                 self.nugget[n] = self._hierarchy.get_graph(n)
         self._nugget_count = len(self.nuggets())
@@ -238,6 +239,13 @@ class KamiCorpus(object):
             rhs_typing=rhs_typing, strict=strict)
         self._init_shortcuts()
         return (g_prime, r_g_prime)
+
+    def find_matching(self, graph_id, pattern,
+                      pattern_typing=None, nodes=None):
+        """Overloading of the find matching method."""
+        return self._hierarchy.find_matching(
+            graph_id, pattern,
+            pattern_typing, nodes)
 
     @classmethod
     def from_json(cls, json_data, backend="networkx",
@@ -857,6 +865,7 @@ class KamiCorpus(object):
                    add_agents=True, anatomize=True,
                    apply_semantics=True):
         """Add nugget to the hierarchy."""
+
         if self._action_graph_id not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
@@ -906,7 +915,6 @@ class KamiCorpus(object):
             self.add_template_rel(
                 nugget_graph_id, template_id,
                 nugget_graph_template_rel)
-        print("\tTime to apply nugget generation rule: ", time.time() - start)
 
         start = time.time()
         # Get a set of genes added by the nugget
@@ -950,7 +958,6 @@ class KamiCorpus(object):
                     if vv in new_gene_nodes:
                         new_gene_nodes.remove(vv)
                 new_gene_nodes.add(merge_result)
-        print("\tTime to check gene duplicates: ", time.time() - start)
 
         # 5. Anatomize new genes added as the result of nugget creation
         start = time.time()
@@ -960,7 +967,6 @@ class KamiCorpus(object):
                 for gene in new_gene_nodes:
                     added_regions = anatomize_gene(self, gene)
                     new_ag_regions += added_regions
-        print("\tTime to anatomize new genes: ", time.time() - start)
 
         start = time.time()
         all_genes = [
@@ -972,24 +978,20 @@ class KamiCorpus(object):
                     nugget_graph_id, self._action_graph_id)[node]] == "gene"]
 
         # Apply bookkeeping updates
-        connect_nested_fragments(self, all_genes)
-        start_nested = time.time()
-        connect_transitive_components(self, [
+        target_nodes = [
             self._hierarchy.get_typing(
                 nugget_graph_id, self._action_graph_id)[n]
             for n in self.nugget[nugget_graph_id].nodes()
-        ] + new_ag_regions)
-        print(
-            "\t\tTime to conntect transitive components: ",
-            time.time() - start_nested)
+        ] + new_ag_regions
 
-        for g in all_genes:
-            residues = self.get_attached_residues(g)
-            sites = self.get_attached_sites(g)
-            regions = self.get_attached_regions(g)
-            reconnect_residues(self, g, residues, regions, sites)
-            reconnect_sites(self, g, sites, regions)
-        print("\tTime apply bookkeeping upds: ", time.time() - start)
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            hierarchy=self,
+            graph_id=self._action_graph_id,
+            meta_model_id="meta_model")
+
+        apply_bookkeeping(identifier, target_nodes, all_genes)
 
         # 6. Apply semantics to the nugget
         start = time.time()
@@ -1002,7 +1004,6 @@ class KamiCorpus(object):
                     nugget_graph_id)["interaction_type"]:
                 apply_bnd_semantics(self, nugget_graph_id)
 
-        print("\tTime to perform semantic upd: ", time.time() - start)
         return nugget_graph_id
 
     def add_interaction(self, interaction, add_agents=True,
@@ -1014,7 +1015,9 @@ class KamiCorpus(object):
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
-            self, self._action_graph_id)
+            hierarchy=self,
+            graph_id=self._action_graph_id,
+            meta_model_id="meta_model")
 
         start = time.time()
         (
@@ -1024,7 +1027,6 @@ class KamiCorpus(object):
             template_rel,
             desc
         ) = generate_nugget(identifier, interaction)
-        print("Time to generate nugget: ", time.time() - start)
 
         # Add it to the hierarchy performing respective updates
         start = time.time()
@@ -1131,3 +1133,40 @@ class KamiCorpus(object):
     def export_json(self, filename):
         """Export moodel to json."""
         self._hierarchy.export(filename)
+
+    def instantiate(self, model_id, definitions=None):
+        graph_dict = {
+            self._id + "_action_graph": model_id + "_action_graph"
+        }
+
+        nugget_attrs = dict()
+        for nugget in self.nuggets():
+            graph_dict[nugget] = model_id + "_" + nugget
+            nugget_attrs[model_id + "_" + nugget] = {
+                "model_id": model_id
+            }
+        self._hierarchy.duplicate_subgraph(
+            graph_dict, attach_graphs=["meta_model"])
+        for k, v in nugget_attrs.items():
+            self._hierarchy.set_graph_attrs(k, v)
+        print("Duplicated branch of the hierarchy")
+
+        if self._backend == "neo4j":
+            model = KamiModel(
+                model_id, corpus_id=self._id,
+                backend="neo4j", driver=self._hierarchy._driver)
+        else:
+            raise KamiHierarchyError(
+                "Instantiation is not implemented with networkx backend")
+
+        print("Initized model object")
+        if definitions is not None:
+            for d in definitions:
+                instantiation_rule, instance = d.generate_rule(
+                    self.action_graph, self.get_action_graph_typing())
+                print("Generated instantiation rule")
+                model.rewrite(
+                    model._action_graph_id,
+                    instantiation_rule,
+                    instance)
+                print("Applied instantiation rule")

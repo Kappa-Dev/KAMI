@@ -11,7 +11,8 @@ from regraph.primitives import (exists_edge,
                                 add_nodes_from,
                                 add_edges_from,
                                 add_edge_attrs,
-                                set_edge)
+                                set_edge,
+                                find_matching)
 
 from anatomizer.new_anatomizer import GeneAnatomy
 from kami.data_structures.entities import Region
@@ -20,20 +21,19 @@ from kami.exceptions import KamiHierarchyError, KamiHierarchyWarning
 from kami.utils.id_generators import generate_new_id
 
 
-def reconnect_residues(model, gene, residues,
+def reconnect_residues(identifier, gene, residues,
                        regions=None, sites=None):
     """Reconnect residues of a gene to regions/sites of compatible range."""
-    start_time = time.time()
     for res in residues:
         loc = None
-        res_gene_edge = get_edge(model.action_graph, res, gene)
+        res_gene_edge = get_edge(identifier.graph, res, gene)
         if "loc" in res_gene_edge.keys():
             loc = list(res_gene_edge["loc"])[0]
         if loc is not None:
             region_dict = {}
             if regions is not None:
                 for region in regions:
-                    region_gene_edge = get_edge(model.action_graph, region, gene)
+                    region_gene_edge = get_edge(identifier.graph, region, gene)
                     if "start" in region_gene_edge and\
                        "end" in region_gene_edge:
                         start = min(
@@ -45,7 +45,7 @@ def reconnect_residues(model, gene, residues,
             site_dict = {}
             if sites is not None:
                 for site in sites:
-                    site_gene_edge = get_edge(model.action_graph, site, gene)
+                    site_gene_edge = get_edge(identifier.graph, site, gene)
                     if "start" in site_gene_edge and\
                        "end" in site_gene_edge:
                         start = min(
@@ -57,40 +57,37 @@ def reconnect_residues(model, gene, residues,
             for region, (start, end) in region_dict.items():
                 if int(loc) >= start and\
                    int(loc) <= end and\
-                   (res, region) not in model.action_graph.edges():
-                    add_edge(model.action_graph, res, region,
+                   (res, region) not in identifier.graph.edges():
+                    add_edge(identifier.graph, res, region,
                              {"loc": loc})
                     add_edge_attrs(
-                        model.action_graph, res, gene,
+                        identifier.graph, res, gene,
                         {"type": "transitive"})
 
             for site, (start, end) in site_dict.items():
                 if int(loc) >= start and\
                    int(loc) <= end and\
-                   (res, site) not in model.action_graph.edges():
-                    for suc in model.action_graph.successors(res):
-                        if model.get_action_graph_typing()[suc] != "site":
-                            if model._hierarchy.get_typing(
-                                model._action_graph_id, "meta_model")[suc] == "region" and\
-                               suc in model.action_graph.successors(site):
+                   (res, site) not in identifier.graph.edges():
+                    for suc in identifier.graph.successors(res):
+                        if identifier.meta_typing[suc] != "site":
+                            if identifier.meta_typing[suc] == "region" and\
+                               suc in identifier.graph.successors(site):
                                 add_edge_attrs(
-                                    model.action_graph, res, suc,
+                                    identifier.graph, res, suc,
                                     {"type": "transitive"})
                     add_edge_attrs(
-                        model.action_graph, res, gene,
+                        identifier.graph, res, gene,
                         {"type": "transitive"})
-                    add_edge(model.action_graph, res, site,
+                    add_edge(identifier.graph, res, site,
                              {"loc": loc})
-    print("\t\tTime to reconnect_residues: ", time.time() - start_time)
 
 
-def reconnect_sites(model, gene, sites, regions):
+def reconnect_sites(identifier, gene, sites, regions):
     """Reconnect sites of a gene to regions of compatible range."""
-    start_time = time.time()
     for site in sites:
         start = None
         end = None
-        site_gene_edge = get_edge(model.action_graph, site, gene)
+        site_gene_edge = get_edge(identifier.graph, site, gene)
         if "start" in site_gene_edge.keys():
             start = list(site_gene_edge["start"])[0]
         if "end" in site_gene_edge.keys():
@@ -98,7 +95,7 @@ def reconnect_sites(model, gene, sites, regions):
 
         if start is not None and end is not None:
             for region in regions:
-                region_gene_edge = get_edge(model.action_graph, region, gene)
+                region_gene_edge = get_edge(identifier.graph, region, gene)
                 if "start" in region_gene_edge and\
                    "end" in region_gene_edge:
                     region_start = min(
@@ -107,18 +104,16 @@ def reconnect_sites(model, gene, sites, regions):
                         region_gene_edge["end"])
                     if int(start) >= region_start and\
                        int(end) <= region_end and\
-                       (site, region) not in model.action_graph.edges():
-                        add_edge(model.action_graph, site, region,
+                       (site, region) not in identifier.graph.edges():
+                        add_edge(identifier.graph, site, region,
                                  {"start": start, "end": end})
                         add_edge_attrs(
-                            model.action_graph, site, gene,
+                            identifier.graph, site, gene,
                             {"type": "transitive"})
-    print("\t\tTime to reconnect sites: ", time.time() - start_time)
 
 
-def connect_transitive_components(model, new_nodes):
+def connect_transitive_components(identifier, new_nodes):
     """Add edges between components connected transitively."""
-
     gene_region_site = nx.DiGraph()
     add_nodes_from(gene_region_site, ["gene", "region", "site"])
     add_edges_from(
@@ -126,47 +121,26 @@ def connect_transitive_components(model, new_nodes):
     gene_region_site_rule = Rule.from_transform(gene_region_site)
     gene_region_site_rule.inject_add_edge("site", "gene")
     lhs_typing = {
-        "meta_model": {"gene": "gene", "region": "region", "site": "site"}
+        "gene": "gene", "region": "region", "site": "site"
     }
-    print("\t\t\tConnect gene/region/site")
-    start_time = time.time()
-    instances = model._hierarchy.find_matching(
-        model._action_graph_id, gene_region_site_rule.lhs, pattern_typing=lhs_typing,
-        nodes=new_nodes)
-    print("\t\t\t\t-> Find matching: ", time.time() - start_time)
-    start_time = time.time()
+
+    instances = identifier.find_matching_in_graph(
+        gene_region_site_rule.lhs,
+        lhs_typing,
+        new_nodes)
+
     for instance in instances:
-        if not exists_edge(model.action_graph,
+        if not exists_edge(identifier.graph,
            instance["site"], instance["gene"]):
             edge_attrs = dict()
             edge_attrs.update(get_edge(
-                model.action_graph,
+                identifier.graph,
                 instance["site"],
                 instance["region"]))
             edge_attrs["type"] = "transitive"
             set_edge(gene_region_site_rule.rhs, "site", "gene", edge_attrs)
-            _, rhs_instance = model.rewrite(
-                model._action_graph_id, gene_region_site_rule, instance)
-
-            # if "start" in site_region_edge:
-            #     start = site_region_edge["start"]
-            #     add_edge_attrs(model.action_graph,
-            #                    rhs_instance["site"],
-            #                    rhs_instance["gene"],
-            #                    {"start": start})
-            # if "end" in site_region_edge:
-            #     end = site_region_edge["end"]
-            #     add_edge_attrs(model.action_graph,
-            #                    rhs_instance["site"],
-            #                    rhs_instance["gene"],
-            #                    {"end": end})
-            # if "order" in site_region_edge:
-            #     order = site_region_edge["order"]
-            #     add_edge_attrs(model.action_graph,
-            #                    rhs_instance["site"],
-            #                    rhs_instance["gene"],
-            #                    {"order": order})
-    print("\t\t\t\t-> Rewrite all the instances: ", time.time() - start_time)
+            identifier.rewrite_graph(
+                gene_region_site_rule, instance)
 
     region_site_residue = nx.DiGraph()
     add_nodes_from(region_site_residue, ["region", "site", "residue"])
@@ -175,38 +149,28 @@ def connect_transitive_components(model, new_nodes):
     region_site_residue_rule = Rule.from_transform(region_site_residue)
     region_site_residue_rule.inject_add_edge("residue", "region")
     lhs_typing = {
-        "meta_model": {"region": "region", "site": "site", "residue": "residue"}
+        "region": "region", "site": "site", "residue": "residue"
     }
-    print("\t\t\tConnect region/site/residue")
-    start_time = time.time()
-    instances = model._hierarchy.find_matching(
-        model._action_graph_id, region_site_residue_rule.lhs,
-        pattern_typing=lhs_typing, nodes=new_nodes)
-    print("\t\t\t\t-> Find matching: ", time.time() - start_time)
-    start_time = time.time()
+
+    instances = identifier.find_matching_in_graph(
+        region_site_residue_rule.lhs,
+        lhs_typing,
+        new_nodes)
+
     for instance in instances:
         if not exists_edge(
-                model.action_graph,
+                identifier.graph,
                 instance["residue"], instance["region"]):
             edge_attrs = dict()
             edge_attrs.update(get_edge(
-                model.action_graph,
+                identifier.graph,
                 instance["residue"],
                 instance["site"]))
             edge_attrs["type"] = "transitive"
             set_edge(
                 region_site_residue_rule.rhs,
                 "residue", "region", edge_attrs)
-            _, rhs_instance = model.rewrite(
-                model._action_graph_id, region_site_residue_rule, instance)
-
-            # if "loc" in residue_site_edge:
-            #     loc = residue_site_edge["loc"]
-            #     add_edge_attrs(model.action_graph,
-            #                    rhs_instance["residue"],
-            #                    rhs_instance["region"],
-            #                    {"loc": loc})
-    print("\t\t\t\t-> Rewrite all the instances: ", time.time() - start_time)
+            identifier.rewrite_graph(region_site_residue_rule, instance)
 
     gene_region_residue = nx.DiGraph()
     add_nodes_from(gene_region_residue, ["gene", "region", "residue"])
@@ -216,38 +180,29 @@ def connect_transitive_components(model, new_nodes):
     gene_region_residue_rule.inject_add_edge(
         "residue", "gene")
     lhs_typing = {
-        "meta_model": {"gene": "gene", "region": "region", "residue": "residue"}
+        "gene": "gene", "region": "region", "residue": "residue"
     }
 
-    print("\t\t\tConnect gene/region/residue")
-    start_time = time.time()
-    instances = model._hierarchy.find_matching(
-        model._action_graph_id, gene_region_residue_rule.lhs,
-        pattern_typing=lhs_typing, nodes=new_nodes)
-    print("\t\t\t\t-> Find matching: ", time.time() - start_time)
-    start_time = time.time()
+    instances = identifier.find_matching_in_graph(
+        gene_region_residue_rule.lhs,
+        lhs_typing,
+        new_nodes)
+
     for instance in instances:
         if not exists_edge(
-                model.action_graph,
+                identifier.graph,
                 instance["residue"], instance["gene"]):
+
             edge_attrs = dict()
             edge_attrs.update(get_edge(
-                model.action_graph,
+                identifier.graph,
                 instance["residue"], instance["region"]))
             edge_attrs["type"] = "transitive"
             set_edge(
                 gene_region_residue_rule.rhs,
                 "residue", "gene", edge_attrs)
-            _, rhs_instance = model.rewrite(
-                model._action_graph_id, gene_region_residue_rule, instance)
 
-            # if "loc" in res_region_edge:
-            #     loc = res_region_edge["loc"]
-            #     add_edge_attrs(model.action_graph,
-            #                    rhs_instance["residue"],
-            #                    rhs_instance["gene"],
-            #                    {"loc": loc})
-    print("\t\t\t\t-> Rewrite all the instances: ", time.time() - start_time)
+            identifier.rewrite_graph(gene_region_residue_rule, instance) 
 
     gene_site_residue = nx.DiGraph()
     add_nodes_from(gene_site_residue, ["gene", "site", "residue"])
@@ -257,52 +212,45 @@ def connect_transitive_components(model, new_nodes):
     gene_site_residue_rule.inject_add_edge(
         "residue", "gene")
     lhs_typing = {
-        "meta_model": {"gene": "gene", "site": "site", "residue": "residue"}
+        "gene": "gene", "site": "site", "residue": "residue"
     }
-    print("\t\t\tConnect gene/site/residue")
-    start_time = time.time()
-    instances = model._hierarchy.find_matching(
-        model._action_graph_id, gene_site_residue_rule.lhs, pattern_typing=lhs_typing,
-        nodes=new_nodes)
-    print("\t\t\t\t-> Find matching: ", time.time() - start_time)
-    start_time = time.time()
+
+    instances = identifier.find_matching_in_graph(
+        gene_site_residue_rule.lhs, lhs_typing, new_nodes)
+
     for instance in instances:
         if not (
-                model.action_graph,
+                identifier.graph,
                 instance["residue"], instance["gene"]):
             edge_attrs = dict()
             edge_attrs.update(get_edge(
-                model.action_graph,
+                identifier.graph,
                 instance["residue"], instance["site"]))
             edge_attrs["type"] = "transitive"
             set_edge(
                 gene_site_residue_rule.rhs,
                 "residue", "gene", edge_attrs)
-            _, rhs_instance = model.rewrite(
-                model._action_graph_id, gene_site_residue_rule, instance)
-
-    print("\t\t\t\t-> Rewrite all the instances: ", time.time() - start_time)
+            _, rhs_instance = identifier.rewrite_graph(
+                gene_site_residue_rule, instance)
 
 
-def connect_nested_fragments(model, genes):
+def connect_nested_fragments(identifier, genes):
     """Add edges between spacially nested framgents."""
-    start = time.time()
     for gene in genes:
-        regions = model.get_attached_regions(gene)
-        for site in model.get_attached_sites(gene):
+        regions = identifier.get_attached_regions(gene)
+        for site in identifier.get_attached_sites(gene):
             f = find_fragment(
-                {}, get_edge(model.action_graph, site, gene),
-                {r: ({}, get_edge(model.action_graph, r, gene)) for r in regions}
+                {}, get_edge(identifier.graph, site, gene),
+                {r: ({}, get_edge(identifier.graph, r, gene)) for r in regions}
             )
             if f is not None:
-                if model.get_action_graph_typing()[f] == "region" and\
-                   (site, f) not in model.action_graph.edges():
-                    add_edge(model.action_graph, site, f,
-                             get_edge(model.action_graph, site, gene))
+                if identifier.meta_typing[f] == "region" and\
+                   (site, f) not in identifier.graph.edges():
+                    add_edge(identifier.graph, site, f,
+                             get_edge(identifier.graph, site, gene))
                     add_edge_attrs(
-                        model.action_graph,
+                        identifier.graph,
                         site, gene, {"type": "transitive"})
-    print("\t\tTime to connect nested fragments: ", time.time() - start)
 
 
 def anatomize_gene(model, gene):
@@ -456,3 +404,15 @@ def anatomize_gene(model, gene):
             "Unable to anatomize gene node '%s'" % gene,
             KamiHierarchyWarning)
     return new_regions
+
+
+def apply_bookkeeping(identifier, all_nodes, genes):
+    # Apply bookkeeping updates
+    connect_nested_fragments(identifier, genes)
+    connect_transitive_components(identifier, all_nodes)
+    for g in genes:
+        residues = identifier.get_attached_residues(g)
+        sites = identifier.get_attached_sites(g)
+        regions = identifier.get_attached_regions(g)
+        reconnect_residues(identifier, g, residues, regions, sites)
+        reconnect_sites(identifier, g, sites, regions)

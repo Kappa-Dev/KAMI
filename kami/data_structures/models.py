@@ -31,20 +31,24 @@ class KamiModel(object):
 
     """
 
+    nugget_dict_factory = dict
+
     def __init__(self, model_id, annotation=None,
                  creation_time=None, last_modified=None,
                  corpus_id=None, seed_genes=None, definitions=None,
                  backend="networkx",
-                 uri=None, user=None, password=None, data=None):
+                 uri=None, user=None, password=None, driver=None, data=None):
         """Initialize a KAMI model."""
-
-        self._id = corpus_id
+        self._id = model_id
         self._action_graph_id = self._id + "_action_graph"
         self._backend = backend
         if backend == "networkx":
             self._hierarchy = NetworkXHierarchy()
         elif backend == "neo4j":
-            self._hierarchy = Neo4jHierarchy(uri, user, password)
+            if driver is not None:
+                self._hierarchy = Neo4jHierarchy(driver=driver)
+            else:
+                self._hierarchy = Neo4jHierarchy(uri, user, password)
 
         if creation_time is None:
             creation_time = str(datetime.datetime.now())
@@ -101,8 +105,10 @@ class KamiModel(object):
         self.nugget = self.nugget_dict_factory()
         for n in self._hierarchy.graphs():
             graph_attrs = self._hierarchy.get_graph_attrs(n)
-            if "nugget" in graph_attrs["type"] and\
-               self._id in graph_attrs["corpus_id"]:
+            if "type" in graph_attrs.keys() and\
+               "nugget" in graph_attrs["type"] and\
+               "model_id" in graph_attrs.keys() and\
+               self._id in graph_attrs["model_id"]:
                 self.nugget[n] = self._hierarchy.get_graph(n)
 
     def create_empty_action_graph(self):
@@ -125,3 +131,23 @@ class KamiModel(object):
             )
             self.action_graph = self._hierarchy.get_graph(
                 self._action_graph_id)
+
+    def rewrite(self, graph_id, rule, instance=None,
+                rhs_typing=None, strict=False):
+        """Overloading of the rewrite method."""
+        if instance is None:
+            instance = {
+                n: n for n in rule.lhs.nodes()
+            }
+        g_prime, r_g_prime = self._hierarchy.rewrite(
+            graph_id, rule=rule, instance=instance,
+            rhs_typing=rhs_typing, strict=strict)
+        self._init_shortcuts()
+        return (g_prime, r_g_prime)
+
+    def find_matching(self, graph_id, pattern,
+                      pattern_typing=None, nodes=None):
+        """Overloading of the find matching method."""
+        return self._hierarchy.find_matching(
+            graph_id, pattern,
+            pattern_typing, nodes)
