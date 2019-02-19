@@ -14,6 +14,8 @@ import networkx as nx
 from regraph import (add_edge,
                      add_node)
 
+from kami.aggregation.identifiers import EntityIdentifier
+from kami.aggregation.bookkeeping import apply_bookkeeping
 from kami.data_structures.entities import (Gene, RegionActor,
                                            Residue, SiteActor, State
                                            )
@@ -94,9 +96,10 @@ class KamiGraph:
 class Generator(object):
     """Base class for nugget generators."""
 
-    def __init__(self, entity_identifier=None):
+    def __init__(self, entity_identifier=None, bookkeeping=False):
         """Initialize generator with an entity identifier."""
         self.entity_identifier = entity_identifier
+        self.bookkeeping = bookkeeping
 
     def generate_state(self, nugget, state, father):
         prefix = father
@@ -164,6 +167,12 @@ class Generator(object):
             nugget.add_edge(partner_region, is_bnd_id)
         else:
             nugget.add_edge(partner_gene, is_bnd_id)
+
+        if self.bookkeeping:
+            apply_bookkeeping(
+                EntityIdentifier(
+                    nugget.graph, nugget.meta_typing),
+                nugget.nodes(), [partner_gene])
         return is_bnd_id
 
     def generate_site(self, nugget, site, father, gene):
@@ -285,6 +294,12 @@ class Generator(object):
                 nugget, partners, region_id, test=False)
             nugget.add_edge(region_id, bound_locus_id)
 
+        if self.bookkeeping:
+            apply_bookkeeping(
+                EntityIdentifier(
+                    nugget.graph, nugget.meta_typing),
+                nugget.nodes(), [])
+
         return region_id
 
     def generate_gene(self, nugget, gene):
@@ -338,6 +353,12 @@ class Generator(object):
             bound_locus_id = self.generate_bound(
                 nugget, bnd, agent_id, test=False)
             nugget.add_edge(agent_id, bound_locus_id)
+
+        if self.bookkeeping:
+            apply_bookkeeping(
+                EntityIdentifier(
+                    nugget.graph, nugget.meta_typing),
+                nugget.nodes(), [agent_id])
 
         return agent_id
 
