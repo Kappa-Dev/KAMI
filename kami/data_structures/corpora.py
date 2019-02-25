@@ -1146,7 +1146,7 @@ class KamiCorpus(object):
                 "model_id": model_id
             }
         self._hierarchy.duplicate_subgraph(
-            graph_dict, attach_graphs=["meta_model"])
+            graph_dict, attach_graphs=["meta_model", "bnd_template", "mod_template"])
         for k, v in nugget_attrs.items():
             self._hierarchy.set_graph_attrs(k, v)
         print("Duplicated branch of the hierarchy")

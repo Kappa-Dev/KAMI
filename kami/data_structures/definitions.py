@@ -106,7 +106,6 @@ class Definition:
                 products_graph,
                 new_gene)
 
-        print("Created basic rule.")
         # Augment LHS with all the incident components and actions
         reference_identifier = EntityIdentifier(
             reference_graph,
@@ -126,8 +125,6 @@ class Definition:
 
         protoform_gene = keys_by_value(protoform_graph.meta_typing, "gene")[0]
         protoform_gene_reference = instance[protoform_gene]
-
-        print("Found def instance in the AG.")
 
         def _add_node_to_rule(node, meta_typing):
             # little helper function for adding a node +
@@ -173,7 +170,6 @@ class Definition:
                 )
         }
         while len(next_level_to_visit) > 0:
-            print(next_level_to_visit)
             new_level_to_visit = dict()
             for father, (father_reference, father_products, preds) in next_level_to_visit.items():
                 for p in preds:
@@ -192,17 +188,6 @@ class Definition:
                                 p, prod_p_ids,
                                 set([pr for pr in reference_graph.predecessors(p)
                                      if meta_typing[pr] in component_types]))
-                            # if p is a state copy incoming mod's
-                            # if meta_typing[p] == "state":
-                            #     mods = reference_identifier.predecessors_of_type(p, "mod")
-                            #     for mod in mods:
-                            #         prot_mod_id, prod_mod_ids = _add_node_to_rule(
-                            #             mod, "mod")
-                            #         _add_edge_to_rule(
-                            #             prot_mod_id, prot_p_id,
-                            #             mod, p,
-                            #             prod_mod_ids, prod_p_ids)
-                            #         visited.add(mod)
                         else:
                             new_level_to_visit[keys_by_value(instance, p)[0]] = (
                                 p,
@@ -228,8 +213,6 @@ class Definition:
             next_level_to_visit = new_level_to_visit
 
         states = reference_identifier.ancestors_of_type(protoform_gene_reference, "state")
-
-        print("Augmented the rule.")
 
         rule = Rule(
             p=products_graph.graph,

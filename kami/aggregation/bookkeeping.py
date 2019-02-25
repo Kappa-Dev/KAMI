@@ -201,8 +201,7 @@ def connect_transitive_components(identifier, new_nodes):
             set_edge(
                 gene_region_residue_rule.rhs,
                 "residue", "gene", edge_attrs)
-
-            identifier.rewrite_graph(gene_region_residue_rule, instance) 
+            identifier.rewrite_graph(gene_region_residue_rule, instance)
 
     gene_site_residue = nx.DiGraph()
     add_nodes_from(gene_site_residue, ["gene", "site", "residue"])
