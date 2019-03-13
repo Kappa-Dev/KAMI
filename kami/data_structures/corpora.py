@@ -58,7 +58,8 @@ class KamiCorpus(object):
     def __init__(self, corpus_id, annotation=None,
                  creation_time=None, last_modified=None,
                  backend="networkx",
-                 uri=None, user=None, password=None, data=None):
+                 uri=None, user=None, password=None, driver=None,
+                 data=None):
         """Initialize a KAMI corpus.
 
         By default action graph is empty, typed by `meta_model` (meta-model)
@@ -74,7 +75,8 @@ class KamiCorpus(object):
         if backend == "networkx":
             self._hierarchy = NetworkXHierarchy()
         elif backend == "neo4j":
-            self._hierarchy = Neo4jHierarchy(uri, user, password)
+            self._hierarchy = Neo4jHierarchy(
+                uri=uri, user=user, password=password, driver=driver)
 
         if creation_time is None:
             creation_time = str(datetime.datetime.now())
@@ -318,7 +320,8 @@ class KamiCorpus(object):
         graph_attrs = self._hierarchy.get_graph_attrs(node_id)
         if "type" in graph_attrs.keys():
             if "nugget" in graph_attrs["type"] and\
-               self._id in graph_attrs["corpus_id"]:
+               self._id in graph_attrs["corpus_id"] and\
+               "model_id" not in graph_attrs.keys():
                 return True
         return False
 
@@ -1164,7 +1167,8 @@ class KamiCorpus(object):
             for d in definitions:
                 instantiation_rule, instance = d.generate_rule(
                     self.action_graph, self.get_action_graph_typing())
-                print("Generated instantiation rule")
+                print(
+                    "Generated instantiation rule, applying to {}".format(model._action_graph_id))
                 model.rewrite(
                     model._action_graph_id,
                     instantiation_rule,
