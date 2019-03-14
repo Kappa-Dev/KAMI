@@ -30,3 +30,15 @@ def normalize_to_iterable(arg):
             return arg
     else:
         return []
+
+
+def nodes_of_type(graph, typing, type_name):
+    """Get action graph nodes of a specified type."""
+    nodes = []
+
+    if graph is not None and\
+       len(typing) > 0:
+        for node in graph.nodes():
+            if typing[node] == type_name:
+                nodes.append(node)
+    return nodes

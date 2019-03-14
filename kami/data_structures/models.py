@@ -6,6 +6,7 @@ from regraph.primitives import (add_nodes_from,
 
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.resources import default_components
+from kami.utils.generic import nodes_of_type
 
 
 class KamiModel(object):
@@ -41,7 +42,11 @@ class KamiModel(object):
         """Initialize a KAMI model."""
         self._id = model_id
         self._action_graph_id = self._id + "_action_graph"
+        self._corpus_id = corpus_id
         self._backend = backend
+        self._seed_genes = seed_genes
+        self._definitions = definitions
+
         if backend == "networkx":
             self._hierarchy = NetworkXHierarchy()
         elif backend == "neo4j":
@@ -151,3 +156,67 @@ class KamiModel(object):
         return self._hierarchy.find_matching(
             graph_id, pattern,
             pattern_typing, nodes)
+
+    def get_action_graph_typing(self):
+        """Get typing of the action graph by meta model."""
+        typing = dict()
+        if (self._action_graph_id, "meta_model") in self._hierarchy.typings():
+            typing =\
+                self._hierarchy.get_typing(self._action_graph_id, "meta_model")
+        return typing
+
+    def get_action_graph_attrs(self):
+        """Get action graph attributes."""
+        return self._hierarchy.get_graph_attrs(
+            self._action_graph_id)
+
+    def is_nugget_graph(self, node_id):
+        """Test if node of the hierarchy is nugget."""
+        graph_attrs = self._hierarchy.get_graph_attrs(node_id)
+        if "type" in graph_attrs.keys():
+            if "model_id" in graph_attrs.keys() and\
+               "nugget" in graph_attrs["type"] and\
+               self._id in graph_attrs["model_id"]:
+                return True
+        return False
+
+    def get_nugget_desc(self, nugget_id):
+        """Get nugget description string."""
+        nugget_attrs = self._hierarchy.get_graph_attrs(nugget_id)
+        if 'desc' in nugget_attrs.keys():
+            if type(nugget_attrs['desc']) == str:
+                nugget_desc = nugget_attrs['desc']
+            else:
+                nugget_desc = list(nugget_attrs['desc'])[0]
+        else:
+            nugget_desc = ""
+        return nugget_desc
+
+    def nuggets(self):
+        """Get a list of nuggets in the hierarchy."""
+        nuggets = []
+        for node_id in self._hierarchy.graphs():
+            if self.is_nugget_graph(node_id):
+                nuggets.append(node_id)
+        return nuggets
+
+    def empty(self):
+        """Test if model is empty."""
+        return (len(self.nuggets()) == 0) and\
+               ((self.action_graph is None) or
+                (len(self.action_graph.nodes()) == 0))
+
+    def proteins(self):
+        """Get a list of agent nodes in the action graph."""
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "gene")
+
+    def bindings(self):
+        """Get a list of bnd nodes in the action graph."""
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "bnd")
+
+    def modifications(self):
+        """Get a list of bnd nodes in the action graph."""
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "mod")

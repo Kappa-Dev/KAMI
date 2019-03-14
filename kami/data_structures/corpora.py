@@ -17,7 +17,7 @@ from regraph.primitives import (add_node, add_edge,
                                 add_nodes_from,
                                 add_edges_from)
 
-from kami.utils.generic import normalize_to_set
+from kami.utils.generic import normalize_to_set, nodes_of_type
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           apply_bookkeeping)
@@ -380,18 +380,6 @@ class KamiCorpus(object):
                ((self.action_graph is None) or
                 (len(self.action_graph.nodes()) == 0))
 
-    def nodes_of_type(self, type_name):
-        """Get action graph nodes of a specified type."""
-        nodes = []
-        action_graph_typing = self.get_action_graph_typing()
-
-        if self.action_graph is not None and\
-           len(action_graph_typing) > 0:
-            for node in self.action_graph.nodes():
-                if action_graph_typing[node] == type_name:
-                    nodes.append(node)
-        return nodes
-
     def get_ag_node_data(self, node_id):
         if node_id not in self.action_graph.nodes():
             raise KamiHierarchyError(
@@ -421,23 +409,28 @@ class KamiCorpus(object):
 
     def genes(self):
         """Get a list of agent nodes in the action graph."""
-        return self.nodes_of_type("gene")
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "gene")
 
     def regions(self):
         """Get a list of region nodes in the action graph."""
-        return self.nodes_of_type("region")
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "region")
 
     def sites(self):
         """Get a list of site nodes in the action graph."""
-        return self.nodes_of_type("site")
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "site")
 
     def bindings(self):
         """Get a list of bnd nodes in the action graph."""
-        return self.nodes_of_type("bnd")
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "bnd")
 
     def modifications(self):
         """Get a list of bnd nodes in the action graph."""
-        return self.nodes_of_type("mod")
+        return nodes_of_type(
+            self.action_graph, self.get_action_graph_typing(), "mod")
 
     def ag_successors_of_type(self, node_id, meta_type):
         """Get successors of a node of a specific type."""
