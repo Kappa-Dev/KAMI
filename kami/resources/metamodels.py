@@ -61,7 +61,8 @@ meta_model = {
                 "ubiquitination",
                 "glycosylation",
                 "palmitoylation",
-                "myristoylation"
+                "myristoylation",
+                "sumoylation"
             },
             "test": {True, False}
         }),

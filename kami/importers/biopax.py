@@ -6,8 +6,8 @@ import warnings
 from jpype import (java, startJVM, getDefaultJVMPath,
                    JPackage, isJVMStarted)
 
-from kami.entities import Gene, Residue, Region, State, RegionActor
-from kami.interactions import Modification, Binding, AnonymousModification
+from kami.data_structures.entities import Gene, Residue, Region, State, RegionActor
+from kami.data_structures.interactions import Modification, Binding, AnonymousModification
 
 
 AA = {

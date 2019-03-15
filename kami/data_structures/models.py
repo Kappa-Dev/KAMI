@@ -192,6 +192,21 @@ class KamiModel(object):
             nugget_desc = ""
         return nugget_desc
 
+    def get_nugget_type(self, nugget_id):
+        """Get type of the nugget specified by id."""
+        return list(self._hierarchy.get_graph_attrs(nugget_id)["interaction_type"])[0]
+
+    def get_nugget_template_rel(self, nugget_id):
+        """Get relation of a nugget to a template."""
+        nugget_type = self.get_nugget_type(nugget_id)
+        return self._hierarchy.get_relation(
+            nugget_id, nugget_type + "_template")
+
+    def get_nugget_typing(self, nugget_id):
+        """Get typing of the nugget by the action graph."""
+        return self._hierarchy.get_typing(
+            nugget_id, self._action_graph_id)
+
     def nuggets(self):
         """Get a list of nuggets in the hierarchy."""
         nuggets = []
@@ -220,3 +235,35 @@ class KamiModel(object):
         """Get a list of bnd nodes in the action graph."""
         return nodes_of_type(
             self.action_graph, self.get_action_graph_typing(), "mod")
+
+    @classmethod
+    def from_hierarchy(cls, model_id, hierarchy, annotation=None,
+                       creation_time=None, last_modified=None,
+                       corpus_id=None, seed_genes=None, definitions=None):
+        """Initialize KamiCorpus obj from a graph hierarchy."""
+        model = cls(model_id, annotation=annotation,
+                    creation_time=creation_time, last_modified=last_modified,
+                    corpus_id=corpus_id, seed_genes=seed_genes,
+                    definitions=definitions)
+        model._hierarchy = hierarchy
+        model._init_shortcuts()
+        return model
+
+    @classmethod
+    def load(cls, model_id, filename, annotation=None,
+             creation_time=None, last_modified=None,
+             corpus_id=None, seed_genes=None, definitions=None,
+             backend="networkx",
+             uri=None, user=None, password=None, driver=None,
+             directed=True):
+        """Load a KamiCorpus from its json representation."""
+        if backend == "networkx":
+            hierarchy = NetworkXHierarchy.load(filename)
+        elif backend == "neo4j":
+            hierarchy = Neo4jHierarchy.load(
+                filename,
+                uri=uri, user=user, password=password,
+                driver=driver, clear=False)
+        return KamiModel.from_hierarchy(
+            model_id, hierarchy, annotation, creation_time, last_modified,
+            corpus_id, seed_genes, definitions)

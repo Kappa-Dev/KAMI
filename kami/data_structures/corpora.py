@@ -4,10 +4,11 @@ Corpora in KAMI are decontextualised signalling knowledge bases.
 """
 
 import copy
-import time
 import datetime
-
+import json
+import time
 import networkx as nx
+import os
 
 from kami.resources import default_components
 
@@ -15,7 +16,11 @@ from regraph import (Rule, Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_node, add_edge,
                                 get_node, get_edge,
                                 add_nodes_from,
-                                add_edges_from)
+                                add_edges_from,
+                                graph_to_json,
+                                attrs_to_json,
+                                attrs_from_json)
+from regraph.utils import relation_to_json
 
 from kami.utils.generic import normalize_to_set, nodes_of_type
 from kami.utils.id_generators import generate_new_id
@@ -79,7 +84,8 @@ class KamiCorpus(object):
                 uri=uri, user=user, password=password, driver=driver)
 
         if creation_time is None:
-            creation_time = str(datetime.datetime.now())
+            creation_time = datetime.datetime.now().strftime(
+                "%d-%m-%Y %H:%M:%S")
         self.creation_time = creation_time
         if annotation is None:
             annotation = CorpusAnnotation()
@@ -91,6 +97,7 @@ class KamiCorpus(object):
         # Add KAMI-specific invariant components of the hierarchy
         for graph_id, graph, attrs in default_components.GRAPHS:
             if graph_id not in self._hierarchy.graphs():
+                print("Here for ", graph_id)
                 self._hierarchy.add_empty_graph(graph_id, attrs)
                 g = self._hierarchy.get_graph(graph_id)
                 add_nodes_from(g, graph["nodes"])
@@ -123,7 +130,7 @@ class KamiCorpus(object):
         if data is not None:
             if "action_graph" in data.keys():
                 # ag = copy.deepcopy(ag)
-                self._hierarchy.add_graph(
+                self._hierarchy.add_graph_from_json(
                     self._action_graph_id, data["action_graph"],
                     {"type": "action_graph"})
 
@@ -148,24 +155,30 @@ class KamiCorpus(object):
             else:
                 if self._action_graph_id not in self._hierarchy.graphs():
                     self.create_empty_action_graph()
+
             # Nuggets related init
             if "nuggets" in data.keys():
-                for nugget_id, nugget_data in data["nuggets"].items():
-                    nugget_graph_id = self._id + "_" + nugget_id
-                    if "graph" not in nugget_data.items() or\
-                       "typing" not in nugget_data.items() or\
-                       "template_rel" not in nugget_data.items():
+                for nugget_data in data["nuggets"]:
+                    nugget_graph_id = self._id + "_" + nugget_data["id"]
+                    if "graph" not in nugget_data.keys() or\
+                       "typing" not in nugget_data.keys() or\
+                       "template_rel" not in nugget_data.keys():
                         raise KamiHierarchyError(
                             "Nugget data shoud contain typing by"
                             " action graph and template relation!")
-                    self._hierarchy.add_graph(
+
+                    attrs = {}
+                    if "attrs" in nugget_data.keys():
+                        attrs = attrs_from_json(nugget_data["attrs"])
+                    attrs["type"] = "nugget"
+                    attrs["nugget_id"] = nugget_data["id"]
+                    attrs["corpus_id"] = self._id
+
+                    self._hierarchy.add_graph_from_json(
                         nugget_graph_id,
-                        nugget_data["graph"], {
-                            "type": "nugget",
-                            "nugget_id": nugget_id,
-                            "corpus_id": self._id
-                        })
-                    self.nugget[nugget_id] = self._hierarchy.get_graph(
+                        nugget_data["graph"],
+                        attrs)
+                    self.nugget[nugget_data["id"]] = self._hierarchy.get_graph(
                         nugget_graph_id)
 
                     self._hierarchy.add_typing(
@@ -250,42 +263,11 @@ class KamiCorpus(object):
             pattern_typing, nodes)
 
     @classmethod
-    def from_json(cls, json_data, backend="networkx",
-                  uri=None, user=None, password=None, data=None):
-        """Create hierarchy from json representation."""
-        default_graphs = [graph_id for graph_id,
-                          _, _ in default_components.GRAPHS]
-        default_typings = [(s, t) for s, t, _, _ in default_components.TYPING]
-        default_rules = [rule_id for rule_id, _, _ in default_components.RULES]
-        default_rule_typings = [(s, t)
-                                for s, t, _, _, _ in default_components.RULE_TYPING]
-        default_relations = [(s, t)
-                             for s, t, _ in default_components.RELATIONS]
-
-        # filter nodes and edges of the hierarchy that are created by default
-        ignore_components = {
-            "graphs": default_graphs,
-            "typing": default_typings,
-            "rules": default_rules,
-            "rule_typing": default_rule_typings,
-            "relations": default_relations
-        }
-        if backend == "networkx":
-            hierarchy = NetworkXHierarchy.from_json(
-                json_data["hierarchy"], ignore_components, True)
-        elif backend == "neo4j":
-            hierarchy = Neo4jHierarchy.from_json(
-                uri=None, user=None, password=None,
-                json_data=json_data["hierarchy"], ignore=ignore_components)
-
-        model = cls.from_hierarchy(json_data["corpus_id"], hierarchy)
-        model._init_shortcuts()
-        return model
-
-    @classmethod
-    def from_hierarchy(cls, corpus_id, hierarchy, annotation=None):
+    def from_hierarchy(cls, corpus_id, hierarchy, annotation=None,
+                       creation_time=None, last_modified=None):
         """Initialize KamiCorpus obj from a graph hierarchy."""
-        model = cls(corpus_id, annotation=annotation)
+        model = cls(corpus_id, annotation=annotation,
+                    creation_time=creation_time, last_modified=last_modified)
         model._hierarchy = hierarchy
         model._init_shortcuts()
         return model
@@ -298,15 +280,6 @@ class KamiCorpus(object):
         elif corpus._backend == "neo4j":
             hierarchy_copy = Neo4jHierarchy.copy(corpus._hierarchy)
         return cls.from_hierarchy(corpus_id, hierarchy_copy)
-
-    @classmethod
-    def load(cls, corpus_id, filename, backend="networkx", directed=True):
-        """Load a KamiCorpus from its json representation."""
-        if backend == "networkx":
-            hierarchy = NetworkXHierarchy.load(filename)
-        elif backend == "neo4j":
-            hierarchy = Neo4jHierarchy.load(filename)
-        return KamiCorpus.from_hierarchy(corpus_id, hierarchy)
 
     def get_action_graph_typing(self):
         """Get typing of the action graph by meta model."""
@@ -1126,9 +1099,78 @@ class KamiCorpus(object):
         """Get node from the action graph."""
         return get_node(self.action_graph, node)
 
+    def to_json(self):
+        """Return json repr of the corpus."""
+        json_data = {}
+        json_data["corpus_id"] = self._id
+        json_data["annotation"] = self.annotation.to_json()
+        json_data["creation_time"] = self.creation_time
+        json_data["last_modified"] = self.last_modified
+
+        json_data["action_graph"] = graph_to_json(self.action_graph)
+        json_data["action_graph_typing"] = self.get_action_graph_typing()
+        json_data["action_graph_semantics"] = relation_to_json(
+            self._hierarchy.get_relation(self._action_graph_id, "semantic_action_graph"))
+
+        json_data["nuggets"] = []
+        for nugget in self.nuggets():
+            template = self.get_nugget_type(nugget) + "_template"
+            nugget_json = {
+                "id": nugget,
+                "graph": graph_to_json(self.nugget[nugget]),
+                "desc": self.get_nugget_desc(nugget),
+                "typing": self.get_nugget_typing(nugget),
+                "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(nugget)),
+                "template_rel": (
+                    template,
+                    relation_to_json(self.get_nugget_template_rel(nugget))
+                ),
+                "semantic_rels": {
+                    s: relation_to_json(self._hierarchy.get_relation(nugget, s))
+                    for s in self._hierarchy.adjacent_relations(nugget)
+                    if s != template
+                }
+            }
+
+            json_data["nuggets"].append(nugget_json)
+        return json_data
+
     def export_json(self, filename):
-        """Export moodel to json."""
-        self._hierarchy.export(filename)
+        """Export corpus to json."""
+        with open(filename, 'w') as f:
+            j_data = self.to_json()
+            json.dump(j_data, f)
+
+    @classmethod
+    def from_json(cls, corpus_id, json_data, annotation=None,
+                  creation_time=None, last_modified=None,
+                  backend="networkx",
+                  uri=None, user=None, password=None, driver=None):
+        """Create hierarchy from json representation."""
+        corpus = cls(corpus_id, annotation=annotation,
+                     creation_time=creation_time, last_modified=last_modified,
+                     backend=backend,
+                     uri=uri, user=user, password=password, driver=driver,
+                     data=json_data)
+        return corpus
+
+    @classmethod
+    def load_json(cls, corpus_id, filename, annotation=None,
+                  creation_time=None, last_modified=None,
+                  backend="networkx",
+                  uri=None, user=None, password=None, driver=None):
+        """Load a KamiCorpus from its json representation."""
+        if os.path.isfile(filename):
+            with open(filename, "r+") as f:
+                json_data = json.loads(f.read())
+                corpus = cls.from_json(
+                    corpus_id, json_data, annotation=annotation,
+                    creation_time=creation_time, last_modified=last_modified,
+                    backend=backend,
+                    uri=uri, user=user, password=password, driver=driver)
+            return corpus
+        else:
+            raise KamiHierarchyError("File '%s' does not exist!" % filename)
 
     def instantiate(self, model_id, definitions=None):
         graph_dict = {

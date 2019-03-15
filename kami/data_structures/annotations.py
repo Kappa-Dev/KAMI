@@ -10,3 +10,11 @@ class CorpusAnnotation:
         self.desc = desc
         self.organism = organism
         self.text = text
+
+    def to_json(self):
+        return {
+            "name": self.name,
+            "desc": self.desc,
+            "organism": self.organism,
+            "annotation": self.text
+        }
