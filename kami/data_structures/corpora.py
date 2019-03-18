@@ -97,7 +97,6 @@ class KamiCorpus(object):
         # Add KAMI-specific invariant components of the hierarchy
         for graph_id, graph, attrs in default_components.GRAPHS:
             if graph_id not in self._hierarchy.graphs():
-                print("Here for ", graph_id)
                 self._hierarchy.add_empty_graph(graph_id, attrs)
                 g = self._hierarchy.get_graph(graph_id)
                 add_nodes_from(g, graph["nodes"])
@@ -127,6 +126,7 @@ class KamiCorpus(object):
         return
 
     def _init_from_data(self, data):
+        print("Started initializing corpus from json {}...".format(self._id))
         if data is not None:
             if "action_graph" in data.keys():
                 # ag = copy.deepcopy(ag)

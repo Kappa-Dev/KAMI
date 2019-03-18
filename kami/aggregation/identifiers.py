@@ -180,7 +180,6 @@ class EntityIdentifier:
         ancestors = self.successors_of_type(node_id, meta_type)
         visited = set()
         next_level_to_visit = set(self.graph.successors(node_id))
-        print(next_level_to_visit)
         while len(next_level_to_visit) > 0:
             new_level_to_visit = set()
             for n in next_level_to_visit:
@@ -190,7 +189,6 @@ class EntityIdentifier:
                 new_level_to_visit.update(
                     set(self.graph.successors(n)))
             next_level_to_visit = new_level_to_visit
-            print(next_level_to_visit)
         return ancestors
 
     def get_gene_of(self, node_id):
