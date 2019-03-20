@@ -1,12 +1,17 @@
 """Collection of data structures for instantiated KAMI models."""
 import datetime
+import json
+import os
+
 from regraph import (Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from)
 
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.resources import default_components
-from kami.utils.generic import nodes_of_type
+from kami.utils.generic import (nodes_of_type, _init_from_data)
+
+from kami.exceptions import KamiHierarchyError
 
 
 class KamiModel(object):
@@ -90,6 +95,8 @@ class KamiModel(object):
 
         self.nugget_dict_factory = ndf = self.nugget_dict_factory
         self.nugget = ndf()
+
+        _init_from_data(self, data)
 
         self._init_shortcuts()
         return
@@ -250,20 +257,36 @@ class KamiModel(object):
         return model
 
     @classmethod
-    def load(cls, model_id, filename, annotation=None,
-             creation_time=None, last_modified=None,
-             corpus_id=None, seed_genes=None, definitions=None,
-             backend="networkx",
-             uri=None, user=None, password=None, driver=None,
-             directed=True):
+    def from_json(cls, model_id, json_data, annotation=None,
+                  creation_time=None, last_modified=None,
+                  corpus_id=None, seed_genes=None, definitions=None,
+                  backend="networkx",
+                  uri=None, user=None, password=None, driver=None):
+        """Create hierarchy from json representation."""
+        corpus = cls(model_id, annotation=annotation,
+                     creation_time=creation_time, last_modified=last_modified,
+                     corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
+                     backend=backend,
+                     uri=uri, user=user, password=password, driver=driver,
+                     data=json_data)
+        return corpus
+
+    @classmethod
+    def load_json(cls, model_id, filename, annotation=None,
+                  creation_time=None, last_modified=None,
+                  corpus_id=None, seed_genes=None, definitions=None,
+                  backend="networkx",
+                  uri=None, user=None, password=None, driver=None):
         """Load a KamiCorpus from its json representation."""
-        if backend == "networkx":
-            hierarchy = NetworkXHierarchy.load(filename)
-        elif backend == "neo4j":
-            hierarchy = Neo4jHierarchy.load(
-                filename,
-                uri=uri, user=user, password=password,
-                driver=driver, clear=False)
-        return KamiModel.from_hierarchy(
-            model_id, hierarchy, annotation, creation_time, last_modified,
-            corpus_id, seed_genes, definitions)
+        if os.path.isfile(filename):
+            with open(filename, "r+") as f:
+                json_data = json.loads(f.read())
+                model = cls.from_json(
+                    model_id, json_data, annotation=annotation,
+                    creation_time=creation_time, last_modified=last_modified,
+                    corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
+                    backend=backend,
+                    uri=uri, user=user, password=password, driver=driver)
+            return model
+        else:
+            raise KamiHierarchyError("File '%s' does not exist!" % filename)

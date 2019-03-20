@@ -22,7 +22,9 @@ from regraph.primitives import (add_node, add_edge,
                                 attrs_from_json)
 from regraph.utils import relation_to_json
 
-from kami.utils.generic import normalize_to_set, nodes_of_type
+from kami.utils.generic import (normalize_to_set,
+                                nodes_of_type,
+                                _init_from_data)
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           apply_bookkeeping)
@@ -120,81 +122,10 @@ class KamiCorpus(object):
 
         # Initialization of knowledge-related components
         # Action graph related init
-        self._init_from_data(data)
+        _init_from_data(self, data)
 
         self._init_shortcuts()
         return
-
-    def _init_from_data(self, data):
-        print("Started initializing corpus from json {}...".format(self._id))
-        if data is not None:
-            if "action_graph" in data.keys():
-                # ag = copy.deepcopy(ag)
-                self._hierarchy.add_graph_from_json(
-                    self._action_graph_id, data["action_graph"],
-                    {"type": "action_graph"})
-
-                if "action_graph_typing" in data.keys():
-                    ag_typing = copy.deepcopy(
-                        data["action_graph_typing"])
-                else:
-                    raise KamiHierarchyError(
-                        "Action graph should be typed by the meta-model!")
-                self._hierarchy.add_typing(
-                    self._action_graph_id, "meta_model", ag_typing)
-
-                if "action_graph_semantics" in data.keys():
-                    ag_semantics = copy.deepcopy(
-                        data["action_graph_semantics"])
-                else:
-                    ag_semantics = dict()
-                self._hierarchy.add_relation(
-                    self._action_graph_id,
-                    "semantic_action_graph",
-                    ag_semantics)
-            else:
-                if self._action_graph_id not in self._hierarchy.graphs():
-                    self.create_empty_action_graph()
-
-            # Nuggets related init
-            if "nuggets" in data.keys():
-                for nugget_data in data["nuggets"]:
-                    nugget_graph_id = self._id + "_" + nugget_data["id"]
-                    if "graph" not in nugget_data.keys() or\
-                       "typing" not in nugget_data.keys() or\
-                       "template_rel" not in nugget_data.keys():
-                        raise KamiHierarchyError(
-                            "Nugget data shoud contain typing by"
-                            " action graph and template relation!")
-
-                    attrs = {}
-                    if "attrs" in nugget_data.keys():
-                        attrs = attrs_from_json(nugget_data["attrs"])
-                    attrs["type"] = "nugget"
-                    attrs["nugget_id"] = nugget_data["id"]
-                    attrs["corpus_id"] = self._id
-
-                    self._hierarchy.add_graph_from_json(
-                        nugget_graph_id,
-                        nugget_data["graph"],
-                        attrs)
-                    self.nugget[nugget_data["id"]] = self._hierarchy.get_graph(
-                        nugget_graph_id)
-
-                    self._hierarchy.add_typing(
-                        nugget_graph_id,
-                        self._action_graph_id, nugget_data["typing"])
-
-                    self._hierarchy.add_relation(
-                        nugget_graph_id,
-                        nugget_data["template_rel"][0],
-                        nugget_data["template_rel"][1])
-
-                    if "semantic_rels" in nugget_data.keys():
-                        for s_nugget_id, rel in nugget_data[
-                                "semantic_rels"].items():
-                            self._hierarchy.add_relation(
-                                nugget_graph_id, s_nugget_id, rel)
 
     def _init_shortcuts(self):
         """Initialize kami-specific shortcuts."""
