@@ -35,6 +35,18 @@ from kami.utils.generic import normalize_to_set, normalize_to_iterable
 from kami.exceptions import KamiEntityError
 
 
+def actor_to_json(actor):
+    """Load an actor object from JSON representation."""
+    json_data = {}
+    if isinstance(actor, Gene):
+        json_data["type"] = "Gene"
+    elif isinstance(actor, RegionActor):
+        json_data["type"] = "RegionActor"
+    elif isinstance(actor, SiteActor):
+        json_data["type"] = "SiteActor"
+    return json_data
+
+
 def actor_from_json(json_data):
     """Load an actor object from JSON representation."""
     if json_data["type"] == "Gene":
@@ -124,6 +136,38 @@ class Gene(Actor, PhysicalEntity):
         self.bound_to = normalize_to_iterable(bound_to)
         self.unbound_from = normalize_to_iterable(unbound_from)
         return
+
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["uniprotid"] = self.uniprotid
+        if self.hgnc_symbol:
+            json_data["hgnc_symbol"] = self.hgnc_symbol
+        if self.synonyms:
+            json_data["synonyms"] = self.synonyms
+        if self.xrefs:
+            json_data["xrefs"] = self.xrefs
+        if self.location:
+            json_data["location"] = self.xrefs
+        json_data["regions"] = []
+        for r in self.regions:
+            json_data["regions"].append(r.to_json())
+        json_data["sites"] = []
+        for s in self.sites:
+            json_data["sites"].append(s.to_json())
+        json_data["residues"] = []
+        for r in self.residues:
+            json_data["residues"].append(r.to_json())
+        json_data["states"] = []
+        for s in self.states:
+            json_data["states"].append(s.to_json())
+        json_data["bound_to"] = []
+        for b in self.bound_to:
+            json_data["bound_to"].append(b.to_json())
+        json_data["unbound_from"] = []
+        for b in self.unbound_from:
+            json_data["unbound_from"].append(b.to_json())
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -307,6 +351,38 @@ class Region(PhysicalEntity):
         self.bound_to = normalize_to_iterable(bound_to)
         self.unbound_from = normalize_to_iterable(unbound_from)
         return
+
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        if self.name:
+            json_data["name"] = self.name
+        if self.interproid:
+            json_data["interproid"] = self.interproid
+        if self.start:
+            json_data["start"] = self.start
+        if self.end:
+            json_data["end"] = self.end
+        if self.order:
+            json_data["order"] = self.order
+        if self.label:
+            json_data["label"] = self.label
+        json_data["sites"] = []
+        for s in self.sites:
+            json_data["sites"].append(s.to_json())
+        json_data["residues"] = []
+        for r in self.residues:
+            json_data["residues"].append(r.to_json())
+        json_data["states"] = []
+        for s in self.states:
+            json_data["states"].append(s.to_json())
+        json_data["bound_to"] = []
+        for b in self.bound_to:
+            json_data["bound_to"].append(b.to_json())
+        json_data["unbound_from"] = []
+        for b in self.unbound_from:
+            json_data["unbound_from"].append(b.to_json())
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -518,10 +594,16 @@ class Site(PhysicalEntity):
         """Initialize kami site object."""
         self.name = name
         self.interproid = interproid
-        self.label = label
+        if start is not None and end is not None:
+            if start > end or type(start) != int or type(end) != int:
+                raise KamiEntityError(
+                    "Region sequence interval {}-{} is not valid".format(
+                        start, end))
+
         self.start = start
         self.end = end
         self.order = order
+        self.label = label
 
         if residues is None:
             residues = []
@@ -534,6 +616,30 @@ class Site(PhysicalEntity):
         self.bound_to = normalize_to_iterable(bound_to)
         self.unbound_from = normalize_to_iterable(unbound_from)
         return
+
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["name"] = self.name
+        json_data["interproid"] = self.interproid
+        json_data["start"] = self.start
+        json_data["end"] = self.end
+        json_data["order"] = self.order
+        json_data["label"] = self.label
+        json_data["sites"] = []
+        json_data["residues"] = []
+        for r in self.residues:
+            json_data["residues"].append(r.to_json())
+        json_data["states"] = []
+        for s in self.states:
+            json_data["states"].append(s.to_json())
+        json_data["bound_to"] = []
+        for b in self.bound_to:
+            json_data["bound_to"].append(b.to_json())
+        json_data["unbound_from"] = []
+        for b in self.unbound_from:
+            json_data["unbound_from"].append(b.to_json())
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -714,6 +820,16 @@ class Residue():
         self.state = state
         self.test = normalize_to_set(test)
 
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["aa"] = self.aa
+        if self.loc:
+            json_data["loc"] = self.loc
+        if self.state:
+            json_data["state"] = self.state.to_json()
+        return json_data
+
     @classmethod
     def from_json(cls, json_data):
         """Create Residue object from JSON representation."""
@@ -799,6 +915,13 @@ class State(object):
         self.name = name
         self.test = test
 
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["name"] = self.name
+        json_data["test"] = self.test
+        return json_data
+
     @classmethod
     def from_json(cls, json_data):
         """Create Site object from JSON representation."""
@@ -837,6 +960,13 @@ class RegionActor(Actor):
         self.region = region
         self.gene = gene
 
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["gene"] = self.gene.to_json()
+        json_data["region"] = self.region.to_json()
+        return json_data
+
     @classmethod
     def from_json(cls, json_data):
         """Create RegionActor object from JSON representation."""
@@ -865,6 +995,15 @@ class SiteActor(Actor):
         # We normalize region to be iterable
         self.region = normalize_to_iterable(region)
         self.gene = gene
+
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["gene"] = self.gene.to_json()
+        if self.region:
+            json_data["region"] = self.region.to_json()
+        json_data["site"] = self.site.to_json()
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):

@@ -1,8 +1,18 @@
 """Collection of classes implementing interactions."""
 from .entities import (Gene, SiteActor, RegionActor,
-                       Residue, State, Region, Site, actor_from_json)
+                       Residue, State, Region, Site, actor_from_json, actor_to_json)
 
 from kami.exceptions import KamiError
+
+
+def _target_to_json(target):
+    json_data = {}
+    if isinstance(target, Residue):
+        json_data["type"] = "Residue"
+    elif isinstance(target, State):
+        json_data["type"] = "State"
+    json_data["data"] = target.to_json()
+    return json_data
 
 
 def _target_from_json(json_data):
@@ -114,6 +124,20 @@ class Modification(Interaction):
             desc = json_data["desc"]
         return cls(enzyme, substrate, target, value, rate, annotation, desc)
 
+    def to_json(self):
+        json_data = {}
+        json_data["enzyme"] = actor_to_json(self.enzyme)
+        json_data["substrate"] = actor_to_json(self.substrate)
+        json_data["target"] = _target_to_json(self.target)
+        json_data["value"] = self.value
+        if self.rate:
+            json_data["rate"] = self.rate
+        if self.annotation:
+            json_data["annotation"] = self.annotation
+        if self.desc:
+            json_data["desc"] = self.desc
+        return json_data
+
 
 class Binding(Interaction):
     """Class for Kami binary binding interaction."""
@@ -153,6 +177,18 @@ class Binding(Interaction):
             res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
+
+    def to_json(self):
+        json_data = {}
+        json_data["left"] = actor_to_json(self.left)
+        json_data["right"] = actor_to_json(self.right)
+        if self.rate:
+            json_data["rate"] = self.rate
+        if self.annotation:
+            json_data["annotation"] = self.annotation
+        if self.desc:
+            json_data["desc"] = self.desc
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -212,6 +248,18 @@ class Unbinding(Interaction):
             res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
+
+    def to_json(self):
+        json_data = {}
+        json_data["left"] = actor_to_json(self.left)
+        json_data["right"] = actor_to_json(self.right)
+        if self.rate:
+            json_data["rate"] = self.rate
+        if self.annotation:
+            json_data["annotation"] = self.annotation
+        if self.desc:
+            json_data["desc"] = self.desc
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -290,6 +338,23 @@ class SelfModification(Interaction):
             res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
+
+    def to_json(self):
+        json_data = {}
+        json_data["enzyme"] = actor_to_json(self.enzyme)
+        json_data["target"] = _target_to_json(self.target)
+        json_data["value"] = self.value
+        if self.substrate_region:
+            json_data["substrate_region"] = self.substrate_region.to_json()
+        if self.substrate_site:
+            json_data["substrate_site"] = self.substrate_site.to_json()
+        if self.rate:
+            json_data["rate"] = self.rate
+        if self.annotation:
+            json_data["annotation"] = self.annotation
+        if self.desc:
+            json_data["desc"] = self.desc
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -371,6 +436,19 @@ class AnonymousModification(Interaction):
             res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
+
+    def to_json(self):
+        json_data = {}
+        json_data["substrate"] = actor_to_json(self.substrate)
+        json_data["target"] = _target_to_json(self.target)
+        json_data["value"] = self.value
+        if self.rate:
+            json_data["rate"] = self.rate
+        if self.annotation:
+            json_data["annotation"] = self.annotation
+        if self.desc:
+            json_data["desc"] = self.desc
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
@@ -482,6 +560,30 @@ class LigandModification(Interaction):
             res += ", desc='{}'".format(self.desc)
         res += ")"
         return res
+
+    def to_json(self):
+        json_data = {}
+        json_data["enzyme"] = actor_to_json(self.enzyme)
+        json_data["substrate"] = actor_to_json(self.substrate)
+        json_data["target"] = _target_to_json(self.target)
+        json_data["value"] = self.value
+        json_data["enzyme_bnd_subactor"] = self.enzyme_bnd_subactor
+        json_data["substrate_bnd_subactor"] = self.substrate_bnd_subactor
+        if self.enzyme_bnd_region:
+            json_data["enzyme_bnd_region"] = self.enzyme_bnd_region
+        if self.enzyme_bnd_site:
+            json_data["enzyme_bnd_site"] = self.enzyme_bnd_site
+        if self.substrate_bnd_region:
+            json_data["substrate_bnd_region"] = self.substrate_bnd_region
+        if self.substrate_bnd_site:
+            json_data["substrate_bnd_site"] = self.substrate_bnd_site
+        if self.rate:
+            json_data["rate"] = self.rate
+        if self.annotation:
+            json_data["annotation"] = self.annotation
+        if self.desc:
+            json_data["desc"] = self.desc
+        return json_data
 
     @classmethod
     def from_json(cls, json_data):
