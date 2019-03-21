@@ -19,7 +19,7 @@ def normalize_to_set(arg):
         else:
             return arg
     else:
-        return []
+        return set()
 
 
 def normalize_to_iterable(arg):

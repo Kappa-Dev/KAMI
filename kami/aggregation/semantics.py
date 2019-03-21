@@ -27,13 +27,11 @@ def _propagate_semantics_to_ag(model, nugget_id,
 
 def apply_mod_semantics(model, nugget_id):
     """Apply mod semantics to the created nugget."""
-    print(nugget_id)
     template_rel = model._hierarchy.get_relation(
         "mod_template", nugget_id)
     enzyme = None
     if "enzyme" in template_rel.keys():
         enzyme = list(template_rel["enzyme"])[0]
-    print(template_rel)
     mod_state = list(template_rel["mod_state"])[0]
     mod_residue = None
 
@@ -290,8 +288,9 @@ def apply_bnd_semantics(model, nugget_id):
                 _, rhs_ag = model.rewrite(
                     model._action_graph_id, bnd_merge_rule)
 
-            # Process/autocomplete sites and residues
+            # Process/autocomplete pY sites and Y residues
             if partner_site:
+                ag_partner_site = ag_typing[partner_site]
                 sh2_semantic_rel[partner_site] = "pY_site"
                 # check if site has phosphorylated 'Y' residue
                 py_residue_states = []
@@ -332,35 +331,40 @@ def apply_bnd_semantics(model, nugget_id):
                             n: n for n in autocompletion_rule.lhs.nodes()
                         },
                         rhs_typing=rhs_typing, strict=False)
+
                     # add necessary semantic rels
                     sh2_semantic_rel[rhs_nugget["pY_residue"]] = "pY_residue"
                     sh2_semantic_rel[rhs_nugget["pY_residue_phospho"]] =\
                         "phosphorylation"
                 else:
-                    # Update action graph by merging all the sites
-                    # sharing the same residue
-                    ag_gene = ag_typing[partner_gene]
-                    sites = [
-                        s for s in model.get_attached_sites(ag_gene)
-                        if s != partner_site]
-
-                    sites_to_merge = set()
+                    # Add semantic rels
                     for residue, state in py_residue_states:
                         sh2_semantic_rel[residue] = "pY_residue"
                         sh2_semantic_rel[state] = "phosphorylation"
-                        ag_residue = ag_typing[residue]
-                        for s in sites:
-                            if ag_residue in model.get_attached_residues(s):
-                                sites_to_merge.add(s)
-                    if len(sites_to_merge) > 0:
-                        sites_to_merge.add(partner_site)
-                        pattern = nx.DiGraph()
-                        add_nodes_from(pattern, sites_to_merge)
-                        site_merging_rule = Rule.from_transform(pattern)
-                        site_merging_rule.inject_merge_nodes(sites_to_merge)
-                        model.rewrite(model._action_graph_id, site_merging_rule)
 
+                    # Update action graph by merging all the sites
+                    # sharing the same residue
+                    residues = model.get_attached_residues(ag_partner_site)
+                    if len(residues) == 1:
+                        ag_gene = ag_typing[partner_gene]
+                        sites_to_merge = set()
+                        sites = [
+                            s for s in model.get_attached_sites(ag_gene)
+                            if s != ag_partner_site]
+                        for s in sites:
+                            s_residues = model.get_attached_residues(s)
+                            if len(s_residues) == 1:
+                                if residues[0] == s_residues[0]:
+                                    sites_to_merge.add(s)
+                        if len(sites_to_merge) > 0:
+                            sites_to_merge.add(ag_partner_site)
+                            pattern = nx.DiGraph()
+                            add_nodes_from(pattern, sites_to_merge)
+                            site_merging_rule = Rule.from_transform(pattern)
+                            site_merging_rule.inject_merge_nodes(sites_to_merge)
+                            model.rewrite(model._action_graph_id, site_merging_rule)
             else:
+                # Generate a rule that adds pY site with a phospho Y residue
                 if partner_region is not None:
                     attached_to = partner_region
                 else:
@@ -392,14 +396,18 @@ def apply_bnd_semantics(model, nugget_id):
                         "pY_residue_phospho": "state"
                     }
                 }
-
+                # Rewrite nugget and propagate to the AG
                 _, rhs_nugget = model.rewrite(
                     nugget_id, autocompletion_rule,
                     rhs_typing=rhs_typing, strict=False)
-                sh2_semantic_rel[rhs_nugget["pY_site"]] = "pY_site"
+
+                partner_site = rhs_nugget["pY_site"]
+
+                sh2_semantic_rel[partner_site] = "pY_site"
                 sh2_semantic_rel[rhs_nugget["pY_residue"]] = "pY_residue"
                 sh2_semantic_rel[rhs_nugget["pY_residue_phospho"]] =\
                     "phosphorylation"
+
             return sh2_semantic_rel
         return None
 

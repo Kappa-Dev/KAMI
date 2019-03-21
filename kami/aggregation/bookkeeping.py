@@ -216,11 +216,11 @@ def connect_transitive_components(identifier, new_nodes):
 
     instances = identifier.find_matching_in_graph(
         gene_site_residue_rule.lhs, lhs_typing, new_nodes)
-
     for instance in instances:
-        if not (
+        if not exists_edge(
                 identifier.graph,
                 instance["residue"], instance["gene"]):
+
             edge_attrs = dict()
             edge_attrs.update(get_edge(
                 identifier.graph,
@@ -229,7 +229,7 @@ def connect_transitive_components(identifier, new_nodes):
             set_edge(
                 gene_site_residue_rule.rhs,
                 "residue", "gene", edge_attrs)
-            _, rhs_instance = identifier.rewrite_graph(
+            identifier.rewrite_graph(
                 gene_site_residue_rule, instance)
 
 

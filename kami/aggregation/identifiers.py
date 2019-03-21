@@ -11,7 +11,7 @@ from regraph.primitives import (get_node,
 from kami.exceptions import KamiHierarchyError
 
 
-def find_fragment(a_meta_data, a_location, dict_of_b):
+def find_fragment(a_meta_data, a_location, dict_of_b, name=True):
     """Find a protein fragment in a collection of other fragments."""
     a_start = None
     a_end = None
@@ -51,8 +51,9 @@ def find_fragment(a_meta_data, a_location, dict_of_b):
             elif a_start <= b_start and a_end >= b_end:
                 return b_id
         elif a_name is not None and b_name is not None:
-            if a_name in b_name or b_name in a_name:
-                satisfying_fragments.append(b_id)
+            if name:
+                if a_name in b_name or b_name in a_name:
+                    satisfying_fragments.append(b_id)
         elif a_interpro is not None and b_interpro is not None:
             if len(a_interpro.intersection(b_interpro)) > 0:
                 satisfying_fragments.append(b_id)
@@ -72,9 +73,9 @@ def find_fragment(a_meta_data, a_location, dict_of_b):
             if len(same_order_fragments) == 0:
                 try:
                     start_orders = np.argsort([
-                        int(min(dict_of_b[b_id][0]["start"]))
+                        int(min(dict_of_b[b_id][1]["start"]))
                         for b_id in satisfying_fragments
-                        if "start" in dict_of_b[b_id][0].keys()
+                        if "start" in dict_of_b[b_id][1].keys()
                     ])
                     return satisfying_fragments[
                         start_orders[a_order - 1]]
@@ -132,6 +133,7 @@ class EntityIdentifier:
                 self.graph_id, rule, instance)
         else:
             _, rhs_instance = rule.apply_to(self.graph, instance, inplace=True)
+        return rhs_instance
 
     def nodes_of_type(self, type_name):
         """Get action graph nodes of a specified type."""
@@ -249,7 +251,7 @@ class EntityIdentifier:
         return None
 
     def _identify_fragment(self, fragment,
-                           ref_agent, fragment_type):
+                           ref_agent, fragment_type, name=True):
         if self.immediate:
             fragment_candidates = self.predecessors_of_type(
                 ref_agent, fragment_type)
@@ -261,7 +263,8 @@ class EntityIdentifier:
                         get_edge(self.graph, f, ref_agent)
                     )
                     for f in fragment_candidates
-                }
+                },
+                name
             )
         else:
             fragment_candidates = self.ancestors_of_type(
@@ -281,7 +284,8 @@ class EntityIdentifier:
                         get_edge(self.graph, f, ref_agent)
                     )
                     for f in fragment_candidates
-                }
+                },
+                name
             )
 
     def identify_region(self, region, ref_agent):
@@ -304,7 +308,7 @@ class EntityIdentifier:
                 ref_agent
             )
         else:
-            return self._identify_fragment(site, ref_agent, "site")
+            return self._identify_fragment(site, ref_agent, "site", name=False)
 
     def identify_residue(self, residue, ref_agent,
                          add_aa=False, rewriting=False):
