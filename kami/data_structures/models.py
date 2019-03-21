@@ -96,7 +96,7 @@ class KamiModel(object):
         self.nugget_dict_factory = ndf = self.nugget_dict_factory
         self.nugget = ndf()
 
-        _init_from_data(self, data)
+        _init_from_data(self, data, True)
 
         self._init_shortcuts()
         return
