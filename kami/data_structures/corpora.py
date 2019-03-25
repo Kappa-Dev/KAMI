@@ -1140,3 +1140,113 @@ class KamiCorpus(object):
                     instantiation_rule,
                     instance)
                 print("Applied instantiation rule")
+
+    def get_gene_data(self, gene_id):
+        """."""
+        attrs = get_node(self.action_graph, gene_id)
+        uniprotid = None
+        if "uniprotid" in attrs.keys():
+            uniprotid = list(attrs["uniprotid"])[0]
+        hgnc_symbol = None
+        if "hgnc_symbol" in attrs.keys():
+            hgnc_symbol = list(attrs["hgnc_symbol"])[0]
+        nuggets = self._hierarchy.get_graphs_having_typing(
+            self._action_graph_id, gene_id)
+        return (uniprotid, hgnc_symbol, nuggets)
+
+    def get_modification_data(self, mod_id):
+
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, self._action_graph_id)
+
+        enzyme_genes = identifier.ancestors_of_type(mod_id, "gene")
+        substrate_genes = identifier.descendants_of_type(mod_id, "gene")
+        nuggets = self._hierarchy.get_graphs_having_typing(
+            self._action_graph_id, mod_id)
+        return (nuggets, enzyme_genes, substrate_genes)
+
+    def get_binding_data(self, bnd_id):
+
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, self._action_graph_id)
+
+        all_genes = identifier.ancestors_of_type(bnd_id, "gene")
+        nuggets = self._hierarchy.get_graphs_having_typing(
+            self._action_graph_id, bnd_id)
+        return (nuggets, all_genes)
+
+    def get_gene_pairwise_interactions(self):
+        interactions = {}
+
+        # Get bindinds
+        cypher = (
+            "MATCH (gene:meta_model {id: 'gene'}), \n" +
+            "(left:{})-[:typing]->(gene), \n".format(
+                self._action_graph_id) +
+            "(right_proxy:{})-[:edge]->(bnd:{})<-[:edge]-(left_proxy:{})-[:edge*0..]->(left),\n".format(
+                self._action_graph_id, self._action_graph_id, self._action_graph_id) +
+            "(gene)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
+                self._action_graph_id) +
+            "WHERE (bnd)-[:typing]->(:meta_model {id:'bnd'}) AND \n" +
+            "((left_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
+            "AND ((right_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
+            "OPTIONAL MATCH (nugget_actions)-[:typing]->(bnd)\n" +
+            "RETURN left.id as gene, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
+        )
+
+        result = self._hierarchy.execute(cypher)
+        for record in result:
+            interactions[record["gene"]] = (
+                record["partner"],
+                [item for sublist in record["nuggets"] for item in sublist]
+            )
+
+        # Get bindinds
+        cypher = (
+            "MATCH (gene:meta_model {id: 'gene'}),\n" +
+            "(enzyme:{})-[:typing]->(gene), \n".format(self._action_graph_id) +
+            "(substrate:{})-[:typing]->(gene), \n".format(
+                self._action_graph_id) +
+            "(enzyme_proxy:{})-[:edge*0..]->(enzyme), \n".format(
+                self._action_graph_id) +
+            "(substrate_proxy:{})-[:edge*0..]->(substrate), \n".format(
+                self._action_graph_id) +
+            "(enzyme_proxy)-[:typing]->(enzyme_proxy_type:meta_model), \n" +
+            "(substrate_proxy)-[:typing]->(substrate_proxy_type:meta_model), \n" +
+            "(enzyme_proxy)-[:edge]->(mod:{})-[:edge]->(s:{})-[:typing]->(:meta_model {{id: 'state'}}), \n".format(
+                self._action_graph_id, self._action_graph_id) +
+            "(s)-[:edge]->(substrate_proxy) \n" +
+            "WHERE (mod)-[:typing]->(:meta_model {id:'mod'}) AND \n" +
+            "(enzyme_proxy_type.id = 'gene' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
+            "AND (substrate_proxy_type.id = 'gene' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
+            "OPTIONAL MATCH (nugget_actions)-[:typing]->(mod) \n" +
+            "RETURN enzyme.id as gene, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
+        )
+
+        result = self._hierarchy.execute(cypher)
+        for record in result:
+            if record["gene"] in interactions:
+                interactions[record["gene"]] = (
+                    interactions[record["gene"]][0] + record["partner"],
+                    interactions[record["gene"]][1] + record["nuggets"]
+                )
+            else:
+                interactions[record["gene"]] = (
+                    record["partner"],
+                    record["nuggets"]
+                )
+            for i, partner in enumerate(record["partner"]):
+                if partner in interactions:
+                    interactions[partner] = (
+                        interactions[partner][0] + [record["gene"]],
+                        interactions[partner][1] + [record["nuggets"][i]]
+                    )
+                else:
+                    interactions[partner] = (
+                        [record["gene"]], [record["nuggets"][i]])
+
+        return interactions
