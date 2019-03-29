@@ -823,7 +823,7 @@ class Residue():
     def to_json(self):
         """Convert to its JSON repr."""
         json_data = {}
-        json_data["aa"] = self.aa
+        json_data["aa"] = list(self.aa)
         if self.loc:
             json_data["loc"] = self.loc
         if self.state:

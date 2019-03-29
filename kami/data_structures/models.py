@@ -5,8 +5,10 @@ import os
 
 from regraph import (Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_nodes_from,
-                                add_edges_from)
+                                add_edges_from,
+                                get_node)
 
+from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.resources import default_components
 from kami.utils.generic import (nodes_of_type, _init_from_data)
@@ -290,3 +292,41 @@ class KamiModel(object):
             return model
         else:
             raise KamiHierarchyError("File '%s' does not exist!" % filename)
+
+    def get_gene_data(self, gene_id):
+        """."""
+        attrs = get_node(self.action_graph, gene_id)
+        uniprotid = None
+        if "uniprotid" in attrs.keys():
+            uniprotid = list(attrs["uniprotid"])[0]
+        hgnc_symbol = None
+        if "hgnc_symbol" in attrs.keys():
+            hgnc_symbol = list(attrs["hgnc_symbol"])[0]
+        nuggets = self._hierarchy.get_graphs_having_typing(
+            self._action_graph_id, gene_id)
+        return (uniprotid, hgnc_symbol, nuggets)
+
+    def get_modification_data(self, mod_id):
+
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, self._action_graph_id)
+
+        enzyme_genes = identifier.ancestors_of_type(mod_id, "gene")
+        substrate_genes = identifier.descendants_of_type(mod_id, "gene")
+        nuggets = self._hierarchy.get_graphs_having_typing(
+            self._action_graph_id, mod_id)
+        return (nuggets, enzyme_genes, substrate_genes)
+
+    def get_binding_data(self, bnd_id):
+
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, self._action_graph_id)
+
+        all_genes = identifier.ancestors_of_type(bnd_id, "gene")
+        nuggets = self._hierarchy.get_graphs_having_typing(
+            self._action_graph_id, bnd_id)
+        return (nuggets, all_genes)

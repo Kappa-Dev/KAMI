@@ -62,7 +62,8 @@ meta_model = {
                 "glycosylation",
                 "palmitoylation",
                 "myristoylation",
-                "sumoylation"
+                "sumoylation",
+                "hydroxylation"
             },
             "test": {True, False}
         }),
