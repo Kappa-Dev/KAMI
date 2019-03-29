@@ -50,18 +50,18 @@ def nodes_of_type(graph, typing, type_name):
 
 
 def _init_from_data(kb, data, instantiated=False):
-    """."""
+    """Init knowledge base from json data."""
     if data is not None:
         if "action_graph" in data.keys():
             # ag = copy.deepcopy(ag)
-            print("Loading action graph...")
+            # print("Loading action graph...")
             start = time.time()
             kb._hierarchy.add_graph_from_json(
                 kb._action_graph_id,
                 data["action_graph"],
                 {"type": "action_graph"},
                 holistic=True)
-            print("Finished after: ", time.time() - start)
+            # print("Finished after: ", time.time() - start)
 
             if "action_graph_typing" in data.keys():
                 ag_typing = copy.deepcopy(
@@ -70,14 +70,14 @@ def _init_from_data(kb, data, instantiated=False):
                 raise KamiException(
                     "Error loading knowledge base from json: "
                     "action graph should be typed by the meta-model!")
-            print("Setting action graph typing...")
+            # print("Setting action graph typing...")
             start = time.time()
             kb._hierarchy.add_typing(
                 kb._action_graph_id, "meta_model", ag_typing)
-            print("Finished after: ", time.time() - start)
+            # print("Finished after: ", time.time() - start)
 
             if not instantiated:
-                print("Loading action graph semmantics...")
+                # print("Loading action graph semmantics...")
                 start = time.time()
                 if "action_graph_semantics" in data.keys():
                     ag_semantics = copy.deepcopy(
@@ -88,13 +88,13 @@ def _init_from_data(kb, data, instantiated=False):
                     kb._action_graph_id,
                     "semantic_action_graph",
                     ag_semantics)
-                print("Finished after: ", time.time() - start)
+                # print("Finished after: ", time.time() - start)
         else:
             if kb._action_graph_id not in kb._hierarchy.graphs():
                 kb.create_empty_action_graph()
 
         # Nuggets related init
-        print("Adding nuggets...")
+        # print("Adding nuggets...")
         start = time.time()
         if "nuggets" in data.keys():
             for nugget_data in data["nuggets"]:
@@ -141,4 +141,61 @@ def _init_from_data(kb, data, instantiated=False):
                                 "semantic_rels"].items():
                             kb._hierarchy.add_relation(
                                 nugget_graph_id, s_nugget_id, rel)
-        print("Finished after: ", time.time() - start)
+        # print("Finished after: ", time.time() - start)
+
+
+def _clean_up_nuggets(kb):
+    for nugget in kb.nuggets():
+        if kb._backend == "neo4j":
+            # Query to remove edge to a mod/bnd from/to the actor that contains
+            # a residue with the empty aa
+            query = (
+                "MATCH (residue:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
+                "WHERE (residue)-[:typing]->()-[:typing]->(:meta_model {id: 'residue'}) AND \n" +
+                "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'}) AND \n" +
+                "      NOT EXISTS(residue.aa) or residue.aa = []\n " +
+                "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
+                    nugget, nugget) +
+                "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
+                "      (action)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})\n"
+                "DELETE r\n" +
+                "WITH gene\n" +
+                "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})<-[:edge]-(state:{})<-[r:edge]-(mod:{})".format(
+                    nugget, nugget, nugget) +
+                "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND" +
+                "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
+                "DELETE r"
+            )
+            kb._hierarchy.execute(query)
+            # # Query to remove edge to the action from the actor that contains
+            # # a state with the empty test
+            # query = (
+            #     "MATCH (state:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
+            #     "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND \n" +
+            #     "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'} AND \n" +
+            #     "      NOT EXISTS(state.test) or state.test = []\n " +
+            #     "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
+            #         nugget, nugget) +
+            #     "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
+            #     "      (action)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})\n"
+            #     "DELETE r\n" +
+            #     "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})<-[:edge]-(state:{})<-[r:edge]-(mod:{})".format(
+            #         nugget, nugget, nugget) +
+            #     "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND" +
+            #     "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
+            #     "DELETE r"
+            # )
+            # kb._hierarchy.execute(query)
+
+            # Remove all the graph components disconected from the action node
+            query = (
+                "MATCH (n:{}), (m:{})\n".format(
+                    nugget, nugget, kb._action_graph_id) +
+                "WHERE ((m)-[:typing]->(:{})-[:typing]->({{id: 'bnd'}}) OR \n".format(
+                    kb._action_graph_id) +
+                "       (m)-[:typing]->(:{})-[:typing]->({{id: 'mod'}})) AND \n".format(
+                    kb._action_graph_id) +
+                "      NOT (n)-[:edge*1..]-(m) AND n.id <> m.id\n" +
+                "DETACH DELETE n"
+            )
+            kb._hierarchy.execute(query)
