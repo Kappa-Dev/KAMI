@@ -6,6 +6,7 @@ from regraph.utils import keys_by_value
 from kami.aggregation.generators import Generator, KamiGraph
 from kami.aggregation.identifiers import EntityIdentifier
 
+from kami.data_structures.entities import Gene, Region, Site, Residue, State
 from kami.utils.id_generators import (generate_new_id)
 
 
@@ -68,20 +69,23 @@ class Definition:
 
         return True
 
-    def __init__(self, protoform, product_names, product_components):
+    def __init__(self, protoform, product_names, product_components,
+                 desc=None, annotation=None):
         """Initialize protein definition object."""
         self.protoform = protoform
         self.product_names = product_names
         self.product_components = product_components
+        self.desc = desc
+        self.annotation = annotation
 
         if not self._valid():
             raise ValueError()
 
-    def generate_rule(self, reference_graph, meta_typing):
-        """Generate a rewriting rule for instantiation."""
+    def _generate_graphs(self, reference_graph, meta_typing,
+                         single_product_graph=False):
+        # Initialize KamiGraph container for protoform
         generator = Generator(bookkeeping=True)
 
-        # Initialize KamiGraph container for protoform
         protoform_graph = KamiGraph()
         generator.generate_gene(
             protoform_graph, self.protoform)
@@ -92,7 +96,10 @@ class Definition:
             protoform_graph.graph, protoform_graph.meta_typing,
             immediate=False)
 
-        products_graph = KamiGraph()
+        product_graphs = {}
+        if single_product_graph:
+            product_graphs["single"] = KamiGraph()
+
         product_genes = dict()
         for product in self.product_names:
             # Create a Gene object for every product
@@ -102,9 +109,23 @@ class Definition:
             new_gene.residues = self.product_components[product]["residues"]
             new_gene.states = self.product_components[product]["states"]
 
-            product_genes[product] = generator.generate_gene(
-                products_graph,
-                new_gene)
+            if single_product_graph:
+                product_genes[product] = generator.generate_gene(
+                    product_graphs["single"],
+                    new_gene)
+            else:
+                graph = KamiGraph()
+                product_genes[product] = generator.generate_gene(
+                    graph,
+                    new_gene)
+                product_graphs[product] = graph
+
+        return protoform_graph, product_genes, product_graphs
+
+    def generate_rule(self, reference_graph, meta_typing):
+        """Generate a rewriting rule for instantiation."""
+        protoform_graph, product_genes, product_graphs = self._generate_graphs(
+            reference_graph, meta_typing, single_product_graph=True)
 
         # Augment LHS with all the incident components and actions
         reference_identifier = EntityIdentifier(
@@ -122,9 +143,11 @@ class Definition:
                 raise ValueError("Smth is wierd, too many instances of a def!")
 
         instance = instances[0]
-
         protoform_gene = keys_by_value(protoform_graph.meta_typing, "gene")[0]
         protoform_gene_reference = instance[protoform_gene]
+
+        products_graph = product_graphs["single"]
+        p_lhs = products_graph.reference_typing
 
         def _add_node_to_rule(node, meta_typing):
             # little helper function for adding a node +
@@ -144,17 +167,20 @@ class Definition:
                     product_node_id, node_attrs,
                     meta_typing=meta_typing,
                     reference_typing=node)
+                p_lhs[product_node_id] = node
             return protoform_node, product_nodes
 
         def _add_edge_to_rule(s, t, ref_s, ref_t, products_s, products_t):
             # little helper function for adding a node +
             # incident edges to the instantiation rule
             edge_attrs = get_edge(reference_graph, ref_s, ref_t)
-            protoform_graph.add_edge(s, t, edge_attrs)
+            if (s, t) not in protoform_graph.edges():
+                protoform_graph.add_edge(s, t, edge_attrs)
             for i, ps in enumerate(products_s):
-                products_graph.add_edge(
-                    ps, products_t[i],
-                    edge_attrs)
+                if (ps, products_t[i]) not in products_graph.edges():
+                    products_graph.add_edge(
+                        ps, products_t[i],
+                        edge_attrs)
 
         # Duplicate all the subcomponents not removed in products
         component_types = ["region", "site", "residue", "state"]
@@ -184,41 +210,54 @@ class Definition:
                                 father_reference,
                                 prod_p_ids,
                                 father_products)
+
                             new_level_to_visit[prot_p_id] = (
                                 p, prod_p_ids,
                                 set([pr for pr in reference_graph.predecessors(p)
                                      if meta_typing[pr] in component_types]))
                         else:
-                            new_level_to_visit[keys_by_value(instance, p)[0]] = (
+                            new_father = keys_by_value(instance, p)[0]
+                            new_level_to_visit[new_father] = (
                                 p,
-                                keys_by_value(products_graph.reference_typing, keys_by_value(instance, p)[0]),
+                                keys_by_value(products_graph.reference_typing, new_father),
                                 set([pr for pr in reference_graph.predecessors(p)
                                     if meta_typing[pr] in component_types]))
                         visited.add(p)
-                if meta_typing[father_reference] in ["gene", "region", "site"]:
-                    bnds = reference_identifier.successors_of_type(
-                        father_reference, "bnd")
-                    mods = reference_identifier.successors_of_type(
-                        father_reference, "mod")
-                    for action in bnds + mods:
-                        if action not in visited:
-                            prot_action_id, prod_action_ids = _add_node_to_rule(
-                                action, meta_typing[action])
+
+                    for s in reference_graph.successors(p):
+                        if s in instance.values():
+                            prot_p_id = keys_by_value(instance, p)[0]
+                            prod_p_ids = keys_by_value(p_lhs, p)
                             _add_edge_to_rule(
-                                father, prot_action_id,
-                                father_reference, action,
-                                father_products, prod_action_ids)
-                            visited.add(action)
+                                prot_p_id,
+                                keys_by_value(instance, s)[0],
+                                p,
+                                s,
+                                prod_p_ids,
+                                keys_by_value(p_lhs, keys_by_value(instance, s)[0]))
+                # if meta_typing[father_reference] in ["gene", "region", "site"]:
+                #     bnds = reference_identifier.successors_of_type(
+                #         father_reference, "bnd")
+                #     mods = reference_identifier.successors_of_type(
+                #         father_reference, "mod")
+                #     for action in bnds + mods:
+                #         if action not in visited:
+                #             prot_action_id, prod_action_ids = _add_node_to_rule(
+                #                 action, meta_typing[action])
+                #             _add_edge_to_rule(
+                #                 father, prot_action_id,
+                #                 father_reference, action,
+                #                 father_products, prod_action_ids)
+                #             visited.add(action)
 
             next_level_to_visit = new_level_to_visit
 
         states = reference_identifier.ancestors_of_type(protoform_gene_reference, "state")
-
         rule = Rule(
             p=products_graph.graph,
             lhs=protoform_graph.graph,
             rhs=products_graph.graph,
-            p_lhs=products_graph.reference_typing)
+            p_lhs=p_lhs)
         return rule, instance
 
     def to_json(self):
@@ -234,9 +273,32 @@ class Definition:
             }
         return json_dict
 
-
-class Family:
-    """."""
-
-    def __init__(self):
-        pass
+    @classmethod
+    def from_json(cls, json_data):
+        """Create a Definition object from JSON representation."""
+        protoform = Gene.from_json(json_data["protoform"])
+        product_names = json_data["product_names"]
+        product_components = {}
+        for k, v in json_data["product_components"].items():
+            product_components[k] = {}
+            if "regions" in v.keys():
+                product_components[k]["regions"] = []
+                for r in v["regions"]:
+                    product_components[k]["regions"].append(
+                        Region.from_json(r))
+            if "sites" in v.keys():
+                product_components[k]["sites"] = []
+                for r in v["sites"]:
+                    product_components[k]["sites"].append(
+                        Site.from_json(r))
+            if "residues" in v.keys():
+                product_components[k]["residues"] = []
+                for r in v["residues"]:
+                    product_components[k]["residues"].append(
+                        Residue.from_json(r))
+            if "states" in v.keys():
+                product_components[k]["states"] = []
+                for r in v["states"]:
+                    product_components[k]["states"].append(
+                        State.from_json(r))
+        return cls(protoform, product_names, product_components)
