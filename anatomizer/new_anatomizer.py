@@ -37,11 +37,26 @@ class AnatomizerWarning(UserWarning):
     """Base class fro anatomizer warning."""
 
 
+def fetch_canonical_sequence(uniprot_ac):
+    """Import canonical sequence from UniProt."""
+    result = None
+    if uniprot_ac is not None:
+        url = 'https://www.uniprot.org/uniprot/' + uniprot_ac + '.tab'
+        params = {'columns': 'sequence'}
+        data = requests.get(url, params=params)
+        if data.status_code == 200:
+            try:
+                result = data.text.split()[1]
+            except:
+                pass
+    return result
+
+
 # Functions to synchronize InterPro data with remote.
 # ---------------------------------------------------------------------------
 def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
                     ipr_file=IPR_VERFILE):
-    """ Main function to synchronize InterPro data with remote. """
+    """Synchronize InterPro data with remote."""
     version = check_local_ver(local_dir)
     check = chk_ipr_verfile(local_dir)
     if check:
@@ -67,10 +82,7 @@ def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
 
 
 def reporthook(blocknum, blocksize, totalsize):
-    """
-    Function to show download progression.
-    Found on stackoverflow from J.F. Sebastian.
-    """
+    """Show download progression."""
     readsofar = blocknum * blocksize
     if totalsize > 0:
         percent = readsofar * 1e2 / totalsize
@@ -84,7 +96,7 @@ def reporthook(blocknum, blocksize, totalsize):
 
 
 def latest_version(file_list):
-    """ Find the latest version of a list of InterPro files. """
+    """Find the latest version of a list of InterPro files."""
     match_versions = []
     for file_name in file_list:
         # Find version as the first series of int characters.
@@ -132,8 +144,8 @@ def chk_ipr_verfile(local_dir):
             version_tokens = date_infile[0].split()
             loc_ver = int(version_tokens[3])
             rem_ver = int(version_tokens[6])
-	    # Check if remote version was lower than local at last check.
-	    # (This likely means that there was no connection at last check.)
+            # Check if remote version was lower than local at last check.
+            # (This likely means that there was no connection at last check.)
             if rem_ver < loc_ver or loc_ver == 0:
                 check_needed = True
             else:
@@ -159,7 +171,7 @@ def chk_ipr_verfile(local_dir):
 
 
 def update_ipr_verfile(local_dir, loc_ver, rem_ver):
-    """ 
+    """
     Update the InterPro version file if it was not
     updated since more than one day.
     """
@@ -203,7 +215,7 @@ def check_local_ver(local_dir):
 
 
 def check_remote_ver(remote_dir):
-    """ 
+    """
     Syncronize with latest version of InterPro custom files at
     http://perso.ens-lyon.fr/sebastien.legare/anatomizer_ipr_files/
     """
@@ -222,7 +234,8 @@ def check_remote_ver(remote_dir):
                 rem_match_files.append(field)
         rem_match_ver = latest_version(rem_match_files)
         rem_ver = rem_match_ver
-    except:
+    except Exception as e:
+        # print(e)
         warnings.warn(
             'Cannot access remote, giving '
             'up InterPro update for now.',
@@ -268,8 +281,7 @@ def fetch_ipr_new_ver(remote_dir, version, local_dir=RESOURCES):
 
 
 def interpro_load(local_dir=RESOURCES):
-    """ Loads InterPro and mapping files as global variables. """
-
+    """Load InterPro and mapping files as global variables."""
     global ipr_matches_root
     global ipr_signatures_root
     global hgnc_symbols_root
@@ -590,48 +602,49 @@ def get_ipr_features(selected_ac, canon):
     else:
         search_ac = selected_ac
     entry = ipr_matches_root.find("protein[@id='%s']" % search_ac)
-    matchlist = entry.findall('match')
-    for feature in matchlist:
-        if feature.get('dbname') not in ignorelist:
-            # Check if domain is intergrated in InterPro. Ignore otherwise.
-            ipr = feature.find('ipr')
-            try:
-                interpro_id = ipr.get('id')
-                integrated = True
-            except:
-                integrated = False
-
-            # If domain has InterPro ID, add as feature.
-            if integrated:
-
-                feature_dict = {}
-                feature_dict['xname'] = feature.get('name')
-                feature_dict['xid'] = feature.get('id')
-                feature_dict['xdatabase'] = feature.get('dbname')
-
-                feature_dict['ipr_id'] = interpro_id
+    if entry is not None:
+        matchlist = entry.findall('match')
+        for feature in matchlist:
+            if feature.get('dbname') not in ignorelist:
+                # Check if domain is intergrated in InterPro. Ignore otherwise.
+                ipr = feature.find('ipr')
                 try:
-                    ipr_parent = ipr.get('parent_id')
+                    interpro_id = ipr.get('id')
+                    integrated = True
                 except:
-                    ipr_parent = None
-                feature_dict['ipr_parents'] = parent_chain(ipr_parent)
+                    integrated = False
 
-                feature_dict['ipr_name'] = ipr.get('name')
+                # If domain has InterPro ID, add as feature.
+                if integrated:
 
-                # Get short name from file interpro.xml.
-                short_name = find_shortname(feature_dict['ipr_id'])
-                feature_dict['short_name'] = short_name
-                feature_dict['feature_type'] = ipr.get('type')
+                    feature_dict = {}
+                    feature_dict['xname'] = feature.get('name')
+                    feature_dict['xid'] = feature.get('id')
+                    feature_dict['xdatabase'] = feature.get('dbname')
 
-                lcn = feature.find('lcn')
-                start = int(lcn.get('start'))
-                end = int(lcn.get('end'))
-                length = end - start
-                feature_dict['start'] = start
-                feature_dict['end'] = end
-                feature_dict['length'] = length
+                    feature_dict['ipr_id'] = interpro_id
+                    try:
+                        ipr_parent = ipr.get('parent_id')
+                    except:
+                        ipr_parent = None
+                    feature_dict['ipr_parents'] = parent_chain(ipr_parent)
 
-                featurelist.append(feature_dict)
+                    feature_dict['ipr_name'] = ipr.get('name')
+
+                    # Get short name from file interpro.xml.
+                    short_name = find_shortname(feature_dict['ipr_id'])
+                    feature_dict['short_name'] = short_name
+                    feature_dict['feature_type'] = ipr.get('type')
+
+                    lcn = feature.find('lcn')
+                    start = int(lcn.get('start'))
+                    end = int(lcn.get('end'))
+                    length = end - start
+                    feature_dict['start'] = start
+                    feature_dict['end'] = end
+                    feature_dict['length'] = length
+
+                    featurelist.append(feature_dict)
 
     return featurelist
 
@@ -781,8 +794,8 @@ def propose_name_label(ipr_list):
 
     # b) InterPro ID is found as tip of longest_branch.
     tip_dict = {
-        'IPR001245': {'name':'Ser-thr/tyr kinase', 'label':'STY_kin'},
-        'IPR000719': {'name':'Protein kinase', 'label':'Prot_kin'}
+        'IPR001245': {'name': 'Ser-thr/tyr kinase', 'label':'STY_kin'},
+        'IPR000719': {'name': 'Protein kinase', 'label':'Prot_kin'}
     }
     tip_of_branch = longest_branch[0]
     if tip_of_branch in tip_dict.keys():
@@ -791,29 +804,29 @@ def propose_name_label(ipr_list):
         custom_found = True
 
     # 3 Default behavior if no custom name was specified for given InterPro ID.
-    if custom_found == False:
-       # Take the root of the InterPro branch.
-       interpro_id = longest_branch[-1]
-       ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % interpro_id)
-       ipr_short_name = ipr_entry.get('short_name')
-       ipr_name = ipr_entry.get('name')
-       # List of strings to remove from names.
-       name_rm_strings = [" domain", "-domain"]
-       tmp_name = ipr_name
-       for name_rm_string in name_rm_strings:
-           tmp_name = tmp_name.replace(name_rm_string, "")
-       proposed_name = tmp_name
-       # List of strings to remove from short names.
-       short_rm_strings = ["_domain", "_cat_dom", "_dom", "-dom", "_like", "-like"]
-       tmp_label = ipr_short_name
-       for short_rm_string in short_rm_strings:
-           tmp_label = tmp_label.replace(short_rm_string, "")
-       proposed_label = tmp_label
+    if custom_found is False:
+        # Take the root of the InterPro branch.
+        interpro_id = longest_branch[-1]
+        ipr_entry = ipr_signatures_root.find("interpro[@id='%s']" % interpro_id)
+        ipr_short_name = ipr_entry.get('short_name')
+        ipr_name = ipr_entry.get('name')
+        # List of strings to remove from names.
+        name_rm_strings = [" domain", "-domain"]
+        tmp_name = ipr_name
+        for name_rm_string in name_rm_strings:
+            tmp_name = tmp_name.replace(name_rm_string, "")
+        proposed_name = tmp_name
+        # List of strings to remove from short names.
+        short_rm_strings = ["_domain", "_cat_dom", "_dom", "-dom", "_like", "-like"]
+        tmp_label = ipr_short_name
+        for short_rm_string in short_rm_strings:
+            tmp_label = tmp_label.replace(short_rm_string, "")
+        proposed_label = tmp_label
 
     # Print a message if different InterPro branches were present.
-    if single_branch == False:
+    if single_branch is False:
         print('Domain "%s" made up of distinct InterPro branches, '
-            'its naming might be inconsistent.' % proposed_name)
+              'its naming might be inconsistent.' % proposed_name)
 
     return [proposed_name, proposed_label]
 
@@ -1263,15 +1276,17 @@ class GeneAnatomy:
     def __init__(self, query, features=True, merge_features=True,
                  nest_features=True, merge_overlap=0.7, nest_overlap=0.7,
                  nest_level=1, offline=False):
-        # -1. Initialize all the possible fields with None (otherwise errors)
+        """Initialize GeneAnatomy object."""
         self.uniprot_ac = None
         self.uniprot_id = None
         self.hgnc_symbol = None
         self.hgnc_id = None
         self.selected_iso = None
         self.found = None
-        self.domains = None
+        self.domains = []
+        self.proteins = []
         self.offline = offline
+        self.canonical_sequence = None
         query = query.upper()
 
         # 0. Read InterPro data.
@@ -1279,8 +1294,8 @@ class GeneAnatomy:
         if not ipr_loaded:
             interpro_update()
             interpro_load()  # Sets ipr_loaded to True
-        # 1. Get basic information about an agent
 
+        # 1. Get basic information about a gene
         if not self.offline:
             ensemblgene = get_ensembl_gene(query)
             self.found = True
@@ -1300,7 +1315,6 @@ class GeneAnatomy:
                 # For the moment, just take the first ENST as canonical.
                 self.canonical = transcripts[0]["Ensembl_protein"]
 
-            self.proteins = []
             for transcr in transcripts:
                 transcript_name = get_hgnctranscr(transcr['Ensembl_transcr'])
                 uniprot_ids = get_uniprotid(transcr["Ensembl_protein"])
@@ -1322,14 +1336,11 @@ class GeneAnatomy:
             #  _get_uniprotdupl(self.proteins)
 
             self.length = get_length(self.canonical)
-
-            self.domains = []
         else:
-            self.domains = []
-            self.found = False
             # Find proper entry according to query,
             # which can be a UniProt AC or HGNC symbol.
             entry = ipr_matches_root.find("protein[@id='%s']" % query)
+
             # First case possible: query is directly found as UniProt AC.
             # That means query is either the generic AC or a specific
             # secondary isoform.
@@ -1342,10 +1353,9 @@ class GeneAnatomy:
                     self.uniprot_ac = query
                     self.selected_iso = 'canonical'
                 self.found = True
-
             # Second case possible: query is an UniProt AC but is
             # explicitely given as the canonical isoform (i.e. P00533-1).
-            if entry is None:
+            else:
                 try:
                     dash = query.index('-')
                     self.uniprot_ac = query[:dash]
@@ -1366,19 +1376,16 @@ class GeneAnatomy:
                                                      % self.uniprot_ac)
                     self.hgnc_symbol = mapping.get("hgnc_symbol")
                     self.hgnc_id = mapping.get("hgnc_id")
-                    # print('Corresponding HGNC symbol "%s".' % self.hgnc_symbol)
                 except:
-                    self.hgnc_symbol = 'Unknown'
-                    self.hgnc_id = 'Unknown'
-                    # print('Could not find corresponding HGNC symbol.')
-            # Also find the UniProt ID.
-            if self.found:
+                    self.hgnc_symbol = None
+                    self.hgnc_id = None
+                # Also find the UniProt ID.
                 try:
                     mod_entry2 = ipr_matches_root.find("protein[@id='%s']"
-                                                      % self.uniprot_ac)
+                                                       % self.uniprot_ac)
                     self.uniprot_id = mod_entry2.get("name")
                 except:
-                    self.uniprot_id = 'Unknown'
+                    self.uniprot_id = None
 
             # Third case possible: query is a HGNC symbol.
             if entry is None and not self.found:
@@ -1426,6 +1433,9 @@ class GeneAnatomy:
                 print('Query "%s" not found as UniProt accession '
                       'or HGNC symbol.' % query)
             # print('')
+
+        # fetch canonical sequence
+        self.canonical_sequence = fetch_canonical_sequence(self.uniprot_ac)
 
         # 1.1 Get synonyms and isoforms
         self.synonyms = []
