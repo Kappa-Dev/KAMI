@@ -2,7 +2,6 @@
 
 Corpora in KAMI are decontextualised signalling knowledge bases.
 """
-
 import copy
 import datetime
 import json
@@ -24,7 +23,8 @@ from regraph.utils import relation_to_json
 
 from kami.utils.generic import (normalize_to_set,
                                 nodes_of_type,
-                                _init_from_data)
+                                _init_from_data,
+                                _clean_up_nuggets)
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           apply_bookkeeping)
@@ -35,7 +35,7 @@ from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.data_structures.models import KamiModel
 
-from kami.exceptions import KamiHierarchyError
+from kami.exceptions import KamiHierarchyError, KamiException
 
 
 class KamiCorpus(object):
@@ -1011,6 +1011,11 @@ class KamiCorpus(object):
             nugget_desc = ""
         return nugget_desc
 
+    def set_nugget_desc(self, nugget_id, new_desc):
+        """Get nugget description string."""
+        self._hierarchy.set_graph_attrs(
+            nugget_id, {"desc": new_desc})
+
     def get_nugget_typing(self, nugget_id):
         """Get typing of the nugget by the action graph."""
         return self._hierarchy.get_typing(
@@ -1141,6 +1146,9 @@ class KamiCorpus(object):
                     instance)
                 print("Applied instantiation rule")
 
+                _clean_up_nuggets(model)
+                print("Cleaned up nuggets")
+
     def get_gene_data(self, gene_id):
         """."""
         attrs = get_node(self.action_graph, gene_id)
@@ -1180,6 +1188,10 @@ class KamiCorpus(object):
         return (nuggets, all_genes)
 
     def get_gene_pairwise_interactions(self):
+
+        if "backend" == "networkx":
+            raise KamiException("Not implemented for networkx!")
+
         interactions = {}
 
         # Get bindinds
@@ -1250,3 +1262,44 @@ class KamiCorpus(object):
                         [record["gene"]], [record["nuggets"][i]])
 
         return interactions
+
+    def update_nugget_node_attr(self, nugget_id, node_id, node_attrs):
+        lhs = nx.DiGraph()
+        lhs_attrs = self.nugget[nugget_id].get_node(node_id)
+        add_node(lhs, node_id, lhs_attrs)
+        p = nx.DiGraph()
+        p_attrs = {}
+        for k, v in lhs_attrs.items():
+            if k not in node_attrs.keys():
+                p_attrs[k] = v
+        add_node(p, node_id, p_attrs)
+        rhs = nx.DiGraph()
+        add_node(rhs, node_id, node_attrs)
+        rule = Rule(p, lhs, rhs)
+        self.rewrite(nugget_id, rule)
+
+    def update_nugget_node_attr_from_json(self, nugget_id, node_id, json_node_attrs):
+        self.update_nugget_node_attr(
+            nugget_id, node_id, attrs_from_json(json_node_attrs))
+
+    def update_nugget_edge_attr(self, nugget_id, source, target, edge_attrs):
+        lhs = nx.DiGraph()
+        lhs_attrs = self.nugget[nugget_id].get_edge(source, target)
+        add_nodes_from(lhs, [source, target])
+        add_edge(lhs, source, target, lhs_attrs)
+        p = nx.DiGraph()
+        add_nodes_from(p, [source, target])
+        p_attrs = {}
+        for k, v in lhs_attrs.items():
+            if k not in edge_attrs.keys():
+                p_attrs[k] = v
+        add_edge(p, source, target, p_attrs)
+        rhs = nx.DiGraph()
+        add_nodes_from(rhs, [source, target])
+        add_edge(rhs, source, target, edge_attrs)
+        rule = Rule(p, lhs, rhs)
+        self.rewrite(nugget_id, rule)
+
+    def update_nugget_edge_attr_from_json(self, nugget_id, source, target, json_node_attrs):
+        self.update_nugget_edge_attr(
+            nugget_id, source, target, attrs_from_json(json_node_attrs))
