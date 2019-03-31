@@ -52,6 +52,47 @@ def fetch_canonical_sequence(uniprot_ac):
     return result
 
 
+def fetch_interpro_data(uniprot_ac):
+    result = None
+    url = "https://www.ebi.ac.uk/interpro/protein/" + uniprot_ac + "?export=tsv"
+    data = requests.get(url)
+    if data.status_code == 200:
+        try:
+            raw_tab = data.text.split("\n")[1:]
+            result = []
+            for row in raw_tab:
+                record = row.split("\t")
+                if len(record) > 1:
+                    print(record)
+                    feature_dict = {}
+                    feature_dict['ipr_id'] = record[11]
+                    feature_dict['ipr_name'] = record[12]
+                    feature_dict['xname'] = record[5]
+                    feature_dict['xid'] = record[4]
+                    feature_dict['xdatabase'] = record[3]
+
+                    feature_dict['ipr_id'] = record[11]
+                    feature_dict['ipr_name'] = record[12]
+
+                    # Get short name from file interpro.xml.
+        #                 short_name = find_shortname(feature_dict['ipr_id'])
+        #                 feature_dict['short_name'] = short_name
+        #                 feature_dict['feature_type'] = ipr.get('type')
+
+        #                 lcn = feature.find('lcn')
+                    start = int(record[6])
+                    end = int(record[7])
+                    length = end - start
+                    feature_dict['start'] = start
+                    feature_dict['end'] = end
+                    feature_dict['length'] = length
+                    if len(feature_dict['ipr_id']) > 0:
+                        result.append(feature_dict)
+        except Exception as e:
+            print(e)
+    return result
+
+
 # Functions to synchronize InterPro data with remote.
 # ---------------------------------------------------------------------------
 def interpro_update(local_dir=RESOURCES, remote_dir=REMOTE_IPR_DIR,
@@ -290,31 +331,32 @@ def interpro_load(local_dir=RESOURCES):
     ipr_version = check_local_ver(local_dir)
 
     if ipr_version == 0:
-        raise AnatomizerError(
-            'Need a working internet connection to download InterPro data '
-            'before the first use of the Anatomizer.'
-        )
+        # raise AnatomizerError(
+        #     'Need a working internet connection to download InterPro data '
+        #     'before the first use of the Anatomizer.'
+        # )
+        ipr_loaded = False
+    else:
+        print('Loading InterPro Data version %i' % ipr_version)
 
-    print('Loading InterPro Data version %i' % ipr_version)
-
-    IPR_MATCHES = '%s/ipr_reviewed_human_match-%i.xml.gz' % (local_dir,
-                                                             ipr_version)
-    IPR_SIGNATURES = '%s/ipr_shortnames-%i.xml.gz' % (local_dir,
+        IPR_MATCHES = '%s/ipr_reviewed_human_match-%i.xml.gz' % (local_dir,
+                                                                 ipr_version)
+        IPR_SIGNATURES = '%s/ipr_shortnames-%i.xml.gz' % (local_dir,
+                                                          ipr_version)
+        HGNC_SYMBOLS = '%s/refs_mapping-%i.xml.gz' % (local_dir,
                                                       ipr_version)
-    HGNC_SYMBOLS = '%s/refs_mapping-%i.xml.gz' % (local_dir,
-                                                  ipr_version)
 
-    # Read InterPro matched (IPR_MATCHES) and keep them in memory.
-    ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
-    ipr_matches_root = etree.fromstring(ipr_matches)
-    # Read InterPro signatures (IPR_SIGNATURES).
-    ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
-    ipr_signatures_root = etree.fromstring(ipr_signatures)
-    # Read HGNC Symbols and isoforms (HGNC_SYMBOLS).
-    hgnc_symbols = gzip.open(HGNC_SYMBOLS, 'r').read()
-    hgnc_symbols_root = etree.fromstring(hgnc_symbols)
+        # Read InterPro matched (IPR_MATCHES) and keep them in memory.
+        ipr_matches = gzip.open(IPR_MATCHES, 'r').read()
+        ipr_matches_root = etree.fromstring(ipr_matches)
+        # Read InterPro signatures (IPR_SIGNATURES).
+        ipr_signatures = gzip.open(IPR_SIGNATURES, 'r').read()
+        ipr_signatures_root = etree.fromstring(ipr_signatures)
+        # Read HGNC Symbols and isoforms (HGNC_SYMBOLS).
+        hgnc_symbols = gzip.open(HGNC_SYMBOLS, 'r').read()
+        hgnc_symbols_root = etree.fromstring(hgnc_symbols)
 
-    ipr_loaded = True
+        ipr_loaded = True
 
 
 def _fetch_ensembl(ext):
@@ -601,50 +643,53 @@ def get_ipr_features(selected_ac, canon):
         search_ac = selected_ac[:dash]
     else:
         search_ac = selected_ac
-    entry = ipr_matches_root.find("protein[@id='%s']" % search_ac)
-    if entry is not None:
-        matchlist = entry.findall('match')
-        for feature in matchlist:
-            if feature.get('dbname') not in ignorelist:
-                # Check if domain is intergrated in InterPro. Ignore otherwise.
-                ipr = feature.find('ipr')
-                try:
-                    interpro_id = ipr.get('id')
-                    integrated = True
-                except:
-                    integrated = False
-
-                # If domain has InterPro ID, add as feature.
-                if integrated:
-
-                    feature_dict = {}
-                    feature_dict['xname'] = feature.get('name')
-                    feature_dict['xid'] = feature.get('id')
-                    feature_dict['xdatabase'] = feature.get('dbname')
-
-                    feature_dict['ipr_id'] = interpro_id
+    if ipr_loaded:
+        entry = ipr_matches_root.find("protein[@id='%s']" % search_ac)
+        if entry is not None:
+            matchlist = entry.findall('match')
+            for feature in matchlist:
+                if feature.get('dbname') not in ignorelist:
+                    # Check if domain is intergrated in InterPro. Ignore otherwise.
+                    ipr = feature.find('ipr')
                     try:
-                        ipr_parent = ipr.get('parent_id')
+                        interpro_id = ipr.get('id')
+                        integrated = True
                     except:
-                        ipr_parent = None
-                    feature_dict['ipr_parents'] = parent_chain(ipr_parent)
+                        integrated = False
 
-                    feature_dict['ipr_name'] = ipr.get('name')
+                    # If domain has InterPro ID, add as feature.
+                    if integrated:
 
-                    # Get short name from file interpro.xml.
-                    short_name = find_shortname(feature_dict['ipr_id'])
-                    feature_dict['short_name'] = short_name
-                    feature_dict['feature_type'] = ipr.get('type')
+                        feature_dict = {}
+                        feature_dict['xname'] = feature.get('name')
+                        feature_dict['xid'] = feature.get('id')
+                        feature_dict['xdatabase'] = feature.get('dbname')
 
-                    lcn = feature.find('lcn')
-                    start = int(lcn.get('start'))
-                    end = int(lcn.get('end'))
-                    length = end - start
-                    feature_dict['start'] = start
-                    feature_dict['end'] = end
-                    feature_dict['length'] = length
+                        feature_dict['ipr_id'] = interpro_id
+                        try:
+                            ipr_parent = ipr.get('parent_id')
+                        except:
+                            ipr_parent = None
+                        feature_dict['ipr_parents'] = parent_chain(ipr_parent)
 
-                    featurelist.append(feature_dict)
+                        feature_dict['ipr_name'] = ipr.get('name')
+
+                        # Get short name from file interpro.xml.
+                        short_name = find_shortname(feature_dict['ipr_id'])
+                        feature_dict['short_name'] = short_name
+                        feature_dict['feature_type'] = ipr.get('type')
+
+                        lcn = feature.find('lcn')
+                        start = int(lcn.get('start'))
+                        end = int(lcn.get('end'))
+                        length = end - start
+                        feature_dict['start'] = start
+                        feature_dict['end'] = end
+                        feature_dict['length'] = length
+
+                        featurelist.append(feature_dict)
+    else:
+        featurelist.fetch_interpro_data(selected_ac)
 
     return featurelist
 
@@ -1336,7 +1381,7 @@ class GeneAnatomy:
             #  _get_uniprotdupl(self.proteins)
 
             self.length = get_length(self.canonical)
-        else:
+        elif ipr_loaded:
             # Find proper entry according to query,
             # which can be a UniProt AC or HGNC symbol.
             entry = ipr_matches_root.find("protein[@id='%s']" % query)
@@ -1434,90 +1479,92 @@ class GeneAnatomy:
                       'or HGNC symbol.' % query)
             # print('')
 
-        # fetch canonical sequence
-        self.canonical_sequence = fetch_canonical_sequence(self.uniprot_ac)
+        if ipr_loaded:
 
-        # 1.1 Get synonyms and isoforms
-        self.synonyms = []
-        self.isoforms = []
-        if self.found and self.uniprot_ac is not None:
-            mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
-                                             % self.uniprot_ac)
-            syns = mapping.findall("synonym")
-            for syn in syns:
-                self.synonyms.append(syn.text)
-            # Will need to incorporate that in ProteinAnatomy.
-            isos = mapping.findall("isoform")
-            for iso in isos:
-                iso_dict = {}
-                iso_dict["id"] = iso.find("id").text
-                iso_dict["length"] = int(iso.find("length").text)
-                iso_dict["type"] = iso.find("type").text
-                self.isoforms.append(iso_dict)
-                if iso_dict["type"] == 'canonical':
-                    self.canonical = iso_dict["id"]
-                    if self.selected_iso == 'canonical':
-                        self.selected_iso = iso_dict["id"]
+            # fetch canonical sequence
+            self.canonical_sequence = fetch_canonical_sequence(self.uniprot_ac)
 
-        # 2. (optional) Get features
-        fragments = []
-        if features and self.found:
-            # feature_list = get_features(self.canonical)
-            feature_list = get_ipr_features(self.selected_iso, self.canonical)
-            # construct fragments from features found
-            fragnum = 0
-            for feature in feature_list:
-                fragnum += 1
-                fragment = Fragment(
-                    fragnum,
-                    feature["xname"],
-                    feature["xid"],
-                    feature["xdatabase"],
-                    feature["start"],
-                    feature["end"],
-                    feature["length"],
-                    feature["short_name"],
-                    feature["ipr_name"],
-                    feature["ipr_id"],
-                    feature["feature_type"],
-                    feature["ipr_parents"]
-                )
-                fragments.append(fragment)
-        else:
-            return
+            # 1.1 Get synonyms and isoforms
+            self.synonyms = []
+            self.isoforms = []
+            if self.found and self.uniprot_ac is not None:
+                mapping = hgnc_symbols_root.find("entry[@uniprot_ac='%s']"
+                                                 % self.uniprot_ac)
+                syns = mapping.findall("synonym")
+                for syn in syns:
+                    self.synonyms.append(syn.text)
+                # Will need to incorporate that in ProteinAnatomy.
+                isos = mapping.findall("isoform")
+                for iso in isos:
+                    iso_dict = {}
+                    iso_dict["id"] = iso.find("id").text
+                    iso_dict["length"] = int(iso.find("length").text)
+                    iso_dict["type"] = iso.find("type").text
+                    self.isoforms.append(iso_dict)
+                    if iso_dict["type"] == 'canonical':
+                        self.canonical = iso_dict["id"]
+                        if self.selected_iso == 'canonical':
+                            self.selected_iso = iso_dict["id"]
 
-        # 3. (optional) Merge features
-        if merge_features and self.found:
-            if not features:
-                raise AnatomizerError(
-                    "Cannot merge features: parameter 'features' was set to False, "
-                    "no features were collected.'"
-                )
-            domains = self._merge_fragments(
-                fragments, overlap_threshold=merge_overlap)
-            self.domains = domains
-        else:
-            for fr in fragments:
-                self.domains.append(
-                    DomainAnatomy.from_fragment(fr)
-                )
-            return
+            # 2. (optional) Get features
+            fragments = []
+            if features and self.found:
+                # feature_list = get_features(self.canonical)
+                feature_list = get_ipr_features(self.selected_iso, self.canonical)
+                # construct fragments from features found
+                fragnum = 0
+                for feature in feature_list:
+                    fragnum += 1
+                    fragment = Fragment(
+                        fragnum,
+                        feature["xname"],
+                        feature["xid"],
+                        feature["xdatabase"],
+                        feature["start"],
+                        feature["end"],
+                        feature["length"],
+                        feature["short_name"],
+                        feature["ipr_name"],
+                        feature["ipr_id"],
+                        feature["feature_type"],
+                        feature["ipr_parents"]
+                    )
+                    fragments.append(fragment)
+            else:
+                return
 
-        # 4. (optional) Nest features
-        if nest_features and self.found:
-            if not features:
-                raise AnatomizerError(
-                    "Cannot nest features: parameter 'features' was set to False, "
-                    "no features were collected.'"
+            # 3. (optional) Merge features
+            if merge_features and self.found:
+                if not features:
+                    raise AnatomizerError(
+                        "Cannot merge features: parameter 'features' was set to False, "
+                        "no features were collected.'"
+                    )
+                domains = self._merge_fragments(
+                    fragments, overlap_threshold=merge_overlap)
+                self.domains = domains
+            else:
+                for fr in fragments:
+                    self.domains.append(
+                        DomainAnatomy.from_fragment(fr)
+                    )
+                return
+
+            # 4. (optional) Nest features
+            if nest_features and self.found:
+                if not features:
+                    raise AnatomizerError(
+                        "Cannot nest features: parameter 'features' was set to False, "
+                        "no features were collected.'"
+                    )
+                if not merge_features:
+                    raise AnatomizerError(
+                        "Cannot nest features: parameter 'merge_features' was set to False, "
+                        "features should be merged to be nested.'"
+                    )
+                self.domains = self._nest_domains(
+                    merge_overlap, max_level=nest_level
                 )
-            if not merge_features:
-                raise AnatomizerError(
-                    "Cannot nest features: parameter 'merge_features' was set to False, "
-                    "features should be merged to be nested.'"
-                )
-            self.domains = self._nest_domains(
-                merge_overlap, max_level=nest_level
-            )
 
         return
 
