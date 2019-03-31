@@ -1149,6 +1149,20 @@ class KamiCorpus(object):
                 _clean_up_nuggets(model)
                 print("Cleaned up nuggets")
 
+    def get_uniprot(self, gene_id):
+        attrs = get_node(self.action_graph, gene_id)
+        uniprotid = None
+        if "uniprotid" in attrs.keys():
+            uniprotid = list(attrs["uniprotid"])[0]
+        return uniprotid
+
+    def get_hgnc_symbol(self, gene_id):
+        attrs = get_node(self.action_graph, gene_id)
+        hgnc_symbol = None
+        if "hgnc_symbol" in attrs.keys():
+            hgnc_symbol = list(attrs["hgnc_symbol"])[0]
+        return hgnc_symbol
+
     def get_gene_data(self, gene_id):
         """."""
         attrs = get_node(self.action_graph, gene_id)

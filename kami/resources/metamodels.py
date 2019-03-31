@@ -30,7 +30,9 @@ meta_model = {
             "uniprotid": RegexSet.universal(),
             "hgnc_symbol": RegexSet.universal(),
             "synonyms": RegexSet.universal(),
-            "xrefs": RegexSet.universal()
+            "xrefs": RegexSet.universal(),
+            "variant_name": RegexSet.universal(),
+            "variant_desc": RegexSet.universal()
             # "xrefs": UniversalSet()
         }),
         ("region", {
@@ -47,6 +49,11 @@ meta_model = {
         }),
         ("residue", {
             "aa": {
+                "G", "P", "A", "V", "L", "I", "M",
+                "C", "F", "Y", "W", "H", "K", "R",
+                "Q", "N", "E", "D", "S", "T"
+            },
+            "canonical_aa": {
                 "G", "P", "A", "V", "L", "I", "M",
                 "C", "F", "Y", "W", "H", "K", "R",
                 "Q", "N", "E", "D", "S", "T"

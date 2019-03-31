@@ -330,3 +330,24 @@ class KamiModel(object):
         nuggets = self._hierarchy.get_graphs_having_typing(
             self._action_graph_id, bnd_id)
         return (nuggets, all_genes)
+
+    def get_uniprot(self, gene_id):
+        attrs = get_node(self.action_graph, gene_id)
+        uniprotid = None
+        if "uniprotid" in attrs.keys():
+            uniprotid = list(attrs["uniprotid"])[0]
+        return uniprotid
+
+    def get_variant_name(self, gene_id):
+        attrs = get_node(self.action_graph, gene_id)
+        uniprotid = None
+        if "variant_name" in attrs.keys():
+            uniprotid = list(attrs["variant_name"])[0]
+        return uniprotid
+
+    def get_hgnc_symbol(self, gene_id):
+        attrs = get_node(self.action_graph, gene_id)
+        hgnc_symbol = None
+        if "hgnc_symbol" in attrs.keys():
+            hgnc_symbol = list(attrs["hgnc_symbol"])[0]
+        return hgnc_symbol

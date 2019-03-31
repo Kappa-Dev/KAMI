@@ -1,6 +1,6 @@
 """Collection of data structures for protein products/families definitions."""
 import copy
-from regraph import Rule, get_node, get_edge
+from regraph import Rule, get_node, get_edge, set_node
 from regraph.utils import keys_by_value
 
 from kami.aggregation.generators import Generator, KamiGraph
@@ -70,11 +70,12 @@ class Definition:
         return True
 
     def __init__(self, protoform, product_names, product_components,
-                 desc=None, annotation=None):
+                 product_descs=None, desc=None, annotation=None):
         """Initialize protein definition object."""
         self.protoform = protoform
         self.product_names = product_names
         self.product_components = product_components
+        self.product_descs = product_descs
         self.desc = desc
         self.annotation = annotation
 
@@ -113,6 +114,13 @@ class Definition:
                 product_genes[product] = generator.generate_gene(
                     product_graphs["single"],
                     new_gene)
+                set_node(
+                    product_graphs["single"],
+                    product_genes[product],
+                    {
+                        "variant_name": product,
+                        "variant_desc": self.product_descs[product]
+                    })
             else:
                 graph = KamiGraph()
                 product_genes[product] = generator.generate_gene(
@@ -235,20 +243,6 @@ class Definition:
                                 s,
                                 prod_p_ids,
                                 keys_by_value(p_lhs, keys_by_value(instance, s)[0]))
-                # if meta_typing[father_reference] in ["gene", "region", "site"]:
-                #     bnds = reference_identifier.successors_of_type(
-                #         father_reference, "bnd")
-                #     mods = reference_identifier.successors_of_type(
-                #         father_reference, "mod")
-                #     for action in bnds + mods:
-                #         if action not in visited:
-                #             prot_action_id, prod_action_ids = _add_node_to_rule(
-                #                 action, meta_typing[action])
-                #             _add_edge_to_rule(
-                #                 father, prot_action_id,
-                #                 father_reference, action,
-                #                 father_products, prod_action_ids)
-                #             visited.add(action)
 
             next_level_to_visit = new_level_to_visit
 
