@@ -1,6 +1,17 @@
 """Collection of utils for id generation in kami."""
 
 
+def generate_new_element_id(collection, base_name):
+    if base_name not in collection:
+        return base_name
+    i = 1
+    new_base_name = str(base_name) + "_" + str(i)
+    while new_base_name in collection:
+        i += 1
+        new_base_name = str(base_name) + "_" + str(i)
+    return new_base_name
+
+
 def generate_new_id(graph, base_name):
     """Generate new unique node id."""
     if base_name not in graph.nodes():

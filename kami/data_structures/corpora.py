@@ -760,8 +760,7 @@ class KamiCorpus(object):
             nugget_id, nugget_type + "_template")
 
     def add_nugget(self, nugget_container, nugget_type,
-                   template_id=None,
-                   template_rel=None, desc=None,
+                   template_rels=None, desc=None,
                    add_agents=True, anatomize=True,
                    apply_semantics=True):
         """Add nugget to the hierarchy."""
@@ -805,16 +804,18 @@ class KamiCorpus(object):
             strict=(not add_agents))
 
         nugget_graph_template_rel = dict()
-        if template_id is not None:
-            for rhs_node, template_nodes in template_rel.items():
-                if len(template_nodes) > 0:
-                    nugget_node = r_g_prime[rhs_node]
-                    nugget_graph_template_rel[nugget_node] = set()
-                    for el in template_nodes:
-                        nugget_graph_template_rel[nugget_node].add(el)
-            self.add_template_rel(
-                nugget_graph_id, template_id,
-                nugget_graph_template_rel)
+        if template_rels is not None:
+            for template_id, template_rel in template_rels.items():
+                print(template_rel)
+                for rhs_node, template_nodes in template_rel.items():
+                    if len(template_nodes) > 0:
+                        nugget_node = r_g_prime[rhs_node]
+                        nugget_graph_template_rel[nugget_node] = set()
+                        for el in template_nodes:
+                            nugget_graph_template_rel[nugget_node].add(el)
+                self.add_template_rel(
+                    nugget_graph_id, template_id,
+                    nugget_graph_template_rel)
 
         start = time.time()
         # Get a set of genes added by the nugget
@@ -923,8 +924,7 @@ class KamiCorpus(object):
         (
             nugget_container,
             nugget_type,
-            template_id,
-            template_rel,
+            template_rels,
             desc
         ) = generate_nugget(identifier, interaction)
 
@@ -933,8 +933,7 @@ class KamiCorpus(object):
         nugget_id = self.add_nugget(
             nugget_container=nugget_container,
             nugget_type=nugget_type,
-            template_id=template_id,
-            template_rel=template_rel,
+            template_rels=template_rels,
             desc=desc,
             add_agents=add_agents,
             anatomize=anatomize,
@@ -1123,7 +1122,7 @@ class KamiCorpus(object):
             graph_dict, attach_graphs=["meta_model", "bnd_template", "mod_template"])
         for k, v in nugget_attrs.items():
             self._hierarchy.set_graph_attrs(k, v)
-        print("Duplicated branch of the hierarchy")
+        # print("Duplicated branch of the hierarchy")
 
         if self._backend == "neo4j":
             model = KamiModel(
@@ -1133,21 +1132,22 @@ class KamiCorpus(object):
             raise KamiHierarchyError(
                 "Instantiation is not implemented with networkx backend")
 
-        print("Initized model object")
+        # print("Initized model object")
         if definitions is not None:
             for d in definitions:
                 instantiation_rule, instance = d.generate_rule(
                     self.action_graph, self.get_action_graph_typing())
-                print(
-                    "Generated instantiation rule, applying to {}".format(model._action_graph_id))
+                # print(
+                #     "Generated instantiation rule, applying to {}".format(model._action_graph_id))
                 model.rewrite(
                     model._action_graph_id,
                     instantiation_rule,
                     instance)
-                print("Applied instantiation rule")
+                # print("Applied instantiation rule")
 
                 _clean_up_nuggets(model)
-                print("Cleaned up nuggets")
+                # print("Cleaned up nuggets")
+        return model
 
     def get_uniprot(self, gene_id):
         attrs = get_node(self.action_graph, gene_id)

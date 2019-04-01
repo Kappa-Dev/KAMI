@@ -1,6 +1,6 @@
 """Collection of data structures for protein products/families definitions."""
 import copy
-from regraph import Rule, get_node, get_edge, set_node
+from regraph import Rule, get_node, get_edge, set_node_attrs
 from regraph.utils import keys_by_value
 
 from kami.aggregation.generators import Generator, KamiGraph
@@ -114,19 +114,20 @@ class Definition:
                 product_genes[product] = generator.generate_gene(
                     product_graphs["single"],
                     new_gene)
-                set_node(
-                    product_graphs["single"],
-                    product_genes[product],
-                    {
-                        "variant_name": product,
-                        "variant_desc": self.product_descs[product]
-                    })
             else:
                 graph = KamiGraph()
                 product_genes[product] = generator.generate_gene(
                     graph,
                     new_gene)
                 product_graphs[product] = graph
+                set_node_attrs(
+                    graph.graph,
+                    product_genes[product],
+                    {
+                        "variant_name": product,
+                        "variant_desc": self.product_descs[product]
+                    },
+                    update=False)
 
         return protoform_graph, product_genes, product_graphs
 
@@ -247,11 +248,19 @@ class Definition:
             next_level_to_visit = new_level_to_visit
 
         states = reference_identifier.ancestors_of_type(protoform_gene_reference, "state")
+
         rule = Rule(
             p=products_graph.graph,
             lhs=protoform_graph.graph,
             rhs=products_graph.graph,
             p_lhs=p_lhs)
+        for g, n_id in product_genes.items():
+            rule.inject_add_node_attrs(
+                n_id,
+                {
+                    "variant_name": g,
+                    "variant_desc": self.product_descs[g]
+                })
         return rule, instance
 
     def to_json(self):

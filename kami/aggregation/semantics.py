@@ -107,7 +107,7 @@ def apply_mod_semantics(model, nugget_id):
                 activity_found = False
                 for pred in enz_region_predecessors:
                     ag_pred = ag_typing[pred]
-                    ag_pred_type = ag_typing[ag_pred]
+                    ag_pred_type = model.get_action_graph_typing()[ag_pred]
                     pred_attrs = get_node(model.nugget[nugget_id], pred)
                     if ag_pred_type == "state" and\
                        "activity" in pred_attrs["name"] and\
@@ -298,7 +298,7 @@ def apply_bnd_semantics(model, nugget_id):
                         partner_site):
                     ag_pred = ag_typing[pred]
                     if model.get_action_graph_typing()[ag_pred] == "residue" and\
-                       "Y" in nugget.node[pred]["aa"]:
+                       "Y" in get_node(nugget, pred)["aa"]:
                         for residue_pred in nugget.predecessors(pred):
                             ag_residue_pred = ag_typing[residue_pred]
                             if model.get_action_graph_typing()[
@@ -362,7 +362,8 @@ def apply_bnd_semantics(model, nugget_id):
                             add_nodes_from(pattern, sites_to_merge)
                             site_merging_rule = Rule.from_transform(pattern)
                             site_merging_rule.inject_merge_nodes(sites_to_merge)
-                            model.rewrite(model._action_graph_id, site_merging_rule)
+                            model.rewrite(
+                                model._action_graph_id, site_merging_rule)
             else:
                 # Generate a rule that adds pY site with a phospho Y residue
                 if partner_region is not None:
@@ -396,6 +397,7 @@ def apply_bnd_semantics(model, nugget_id):
                         "pY_residue_phospho": "state"
                     }
                 }
+
                 # Rewrite nugget and propagate to the AG
                 _, rhs_nugget = model.rewrite(
                     nugget_id, autocompletion_rule,

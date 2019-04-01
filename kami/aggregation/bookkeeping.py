@@ -12,6 +12,7 @@ from regraph.primitives import (exists_edge,
                                 add_edges_from,
                                 add_edge_attrs,
                                 set_edge,
+                                merge_nodes,
                                 find_matching)
 
 from anatomizer.new_anatomizer import GeneAnatomy
@@ -19,6 +20,29 @@ from kami.data_structures.entities import Region
 from kami.aggregation.identifiers import find_fragment
 from kami.exceptions import KamiHierarchyError, KamiHierarchyWarning
 from kami.utils.id_generators import generate_new_id
+
+
+def merge_residues(identifier, gene):
+    """Merge residues of the same location."""
+    residues = identifier.get_attached_residues(gene)
+    locs = {}
+    # group residues by their location
+    for res in residues:
+        loc = None
+        res_gene_edge = get_edge(identifier.graph, res, gene)
+        if "loc" in res_gene_edge.keys():
+            loc = list(res_gene_edge["loc"])[0]
+        if loc is not None:
+            if loc in locs.keys():
+                locs[loc].append(res)
+            else:
+                locs[loc] = [res]
+
+    for k, v in locs.items():
+        if len(v) > 1:
+            # merges these residues
+            print("Merging ", v)
+            merge_nodes(identifier.graph, v)
 
 
 def reconnect_residues(identifier, gene, residues,
@@ -415,3 +439,5 @@ def apply_bookkeeping(identifier, all_nodes, genes):
         regions = identifier.get_attached_regions(g)
         reconnect_residues(identifier, g, residues, regions, sites)
         reconnect_sites(identifier, g, sites, regions)
+        merge_residues(identifier, g)
+
