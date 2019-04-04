@@ -41,7 +41,6 @@ def merge_residues(identifier, gene):
     for k, v in locs.items():
         if len(v) > 1:
             # merges these residues
-            print("Merging ", v)
             merge_nodes(identifier.graph, v)
 
 

@@ -139,8 +139,9 @@ class EntityIdentifier:
         """Get action graph nodes of a specified type."""
         nodes = []
         for node in self.graph.nodes():
-            if self.meta_typing[node] == type_name:
-                nodes.append(node)
+            if node in self.meta_typing:
+                if self.meta_typing[node] == type_name:
+                    nodes.append(node)
         return nodes
 
     def get_genes(self):

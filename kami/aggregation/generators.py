@@ -508,6 +508,7 @@ class ModGenerator(Generator):
         else:
             nugget.add_edge(enzyme, "mod")
         nugget.add_edge("mod", mod_state_id)
+
         return (
             nugget, "mod",
             template_rels,
@@ -946,19 +947,32 @@ class LigandModGenerator(Generator):
         )
 
 
-def generate_nugget(indentifier, interaction):
+def generate_nugget(corpus, interaction, readonly=False):
     """Generate nugget from an interaction object."""
+    hierarchy = None
+    graph_id = None
+    meta_model_id = None
+    if not readonly:
+        hierarchy = corpus._hierarchy
+        graph_id = corpus._action_graph_id
+        meta_model_id = "meta_model"
+    identifier = EntityIdentifier(
+        corpus.action_graph,
+        corpus.get_action_graph_typing(),
+        hierarchy=hierarchy,
+        graph_id=graph_id,
+        meta_model_id=meta_model_id)
     if isinstance(interaction, Modification):
-        gen = ModGenerator(indentifier)
+        gen = ModGenerator(identifier)
     elif isinstance(interaction, SelfModification):
-        gen = SelfModGenerator(indentifier)
+        gen = SelfModGenerator(identifier)
     elif isinstance(interaction, AnonymousModification):
-        gen = AnonymousModGenerator(indentifier)
+        gen = AnonymousModGenerator(identifier)
     elif isinstance(interaction, LigandModification):
-        gen = LigandModGenerator(indentifier)
+        gen = LigandModGenerator(identifier)
     elif isinstance(interaction, Binding) or\
             isinstance(interaction, Unbinding):
-        gen = BndGenerator(indentifier)
+        gen = BndGenerator(identifier)
     else:
         raise KamiError(
             "Unknown type of interaction '{}'".format(type(interaction)))

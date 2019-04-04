@@ -32,7 +32,9 @@ def apply_mod_semantics(model, nugget_id):
     enzyme = None
     if "enzyme" in template_rel.keys():
         enzyme = list(template_rel["enzyme"])[0]
-    mod_state = list(template_rel["mod_state"])[0]
+    mod_state = None
+    if "mod_state" in template_rel.keys():
+        mod_state = list(template_rel["mod_state"])[0]
     mod_residue = None
 
     if "substrate_residue" in template_rel.keys():
@@ -51,7 +53,7 @@ def apply_mod_semantics(model, nugget_id):
 
     phospho = False
 
-    if enzyme is not None:
+    if enzyme is not None and mod_state is not None:
         if "phosphorylation" in get_node(model.nugget[
                 nugget_id], mod_state)["name"]:
             if True in get_node(model.nugget[nugget_id],
