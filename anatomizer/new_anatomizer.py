@@ -1482,7 +1482,11 @@ class GeneAnatomy:
         if ipr_loaded:
 
             # fetch canonical sequence
-            self.canonical_sequence = fetch_canonical_sequence(self.uniprot_ac)
+            self.canonical_sequence = None
+            try:
+                self.canonical_sequence = fetch_canonical_sequence(self.uniprot_ac)
+            except:
+                pass
 
             # 1.1 Get synonyms and isoforms
             self.synonyms = []
