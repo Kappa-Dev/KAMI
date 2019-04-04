@@ -36,24 +36,19 @@ class Definition:
         Checks consistency of input protein definition
         against protoform definition.
         """
-        # Normalize product_components
-        for product in self.product_names:
-            if product not in self.product_components.keys():
-                self.product_components[product] = dict()
-
-        for v in self.product_components.values():
-            if "regions" not in v.keys():
-                v["regions"] = []
-            if "sites" not in v.keys():
-                v["sites"] = []
-            if "residues" not in v.keys():
-                v["residues"] = []
-            if "states" not in v.keys():
-                v["states"] = []
+        for name, data in self.products.items():
+            if "regions" not in data["components"].keys():
+                data["components"]["regions"] = []
+            if "sites" not in data["components"].keys():
+                data["components"]["sites"] = []
+            if "residues" not in data["components"].keys():
+                data["components"]["residues"] = []
+            if "states" not in data["components"].keys():
+                data["components"]["states"] = []
 
         # Check consistency
-        for product, component_dict in self.product_components.items():
-            for name, components in component_dict.items():
+        for product_name, data in self.products.items():
+            for name, components in data["components"].items():
                 try:
                     protoform_components = getattr(self.protoform, name)
                     for component in components:
@@ -65,19 +60,15 @@ class Definition:
                         if not found_in_protoform:
                             return False
                 except Exception as e:
+                    print(e)
                     return False
 
         return True
 
-    def __init__(self, protoform, product_names, product_components,
-                 product_descs=None, desc=None, annotation=None):
+    def __init__(self, protoform, products):
         """Initialize protein definition object."""
         self.protoform = protoform
-        self.product_names = product_names
-        self.product_components = product_components
-        self.product_descs = product_descs
-        self.desc = desc
-        self.annotation = annotation
+        self.products = products
 
         if not self._valid():
             raise ValueError()
@@ -102,13 +93,13 @@ class Definition:
             product_graphs["single"] = KamiGraph()
 
         product_genes = dict()
-        for product in self.product_names:
+        for product, data in self.products.items():
             # Create a Gene object for every product
             new_gene = copy.deepcopy(self.protoform)
-            new_gene.regions = self.product_components[product]["regions"]
-            new_gene.sites = self.product_components[product]["sites"]
-            new_gene.residues = self.product_components[product]["residues"]
-            new_gene.states = self.product_components[product]["states"]
+            new_gene.regions = data["components"]["regions"]
+            new_gene.sites = data["components"]["sites"]
+            new_gene.residues = data["components"]["residues"]
+            new_gene.states = data["components"]["states"]
 
             if single_product_graph:
                 product_genes[product] = generator.generate_gene(
@@ -125,7 +116,7 @@ class Definition:
                     product_genes[product],
                     {
                         "variant_name": product,
-                        "variant_desc": self.product_descs[product]
+                        "variant_desc": data["desc"]
                     },
                     update=False)
 
@@ -259,7 +250,7 @@ class Definition:
                 n_id,
                 {
                     "variant_name": g,
-                    "variant_desc": self.product_descs[g]
+                    "variant_desc": self.products[g]["desc"]
                 })
         return rule, instance
 
@@ -267,12 +258,14 @@ class Definition:
         """Convert Definition object to JSON dictionary."""
         json_dict = {}
         json_dict["protoform"] = self.protoform.to_json()
-        json_dict["product_names"] = self.product_names
-        json_dict["product_components"] = dict()
-        for product, components in self.product_components.items():
-            json_dict["product_components"][product] = {
-                name: [el.to_json() for el in elements]
-                for name, elements in components.items()
+        json_dict["products"] = dict()
+        for product, data in self.products.items():
+            json_dict["products"][product] = {
+                "components": {
+                    name: [el.to_json() for el in elements]
+                    for name, elements in data["components"].items()
+                },
+                "desc": data["desc"]
             }
         return json_dict
 
@@ -280,28 +273,32 @@ class Definition:
     def from_json(cls, json_data):
         """Create a Definition object from JSON representation."""
         protoform = Gene.from_json(json_data["protoform"])
-        product_names = json_data["product_names"]
-        product_components = {}
-        for k, v in json_data["product_components"].items():
-            product_components[k] = {}
-            if "regions" in v.keys():
-                product_components[k]["regions"] = []
-                for r in v["regions"]:
-                    product_components[k]["regions"].append(
+        products = {}
+        # product_names = json_data["product_names"]
+        # product_components = {}
+        for product_name, data in json_data["products"].items():
+            products[product_name] = {
+                "components": {},
+                "desc": data["desc"]
+            }
+            if "regions" in data["components"].keys():
+                products[product_name]["components"]["regions"] = []
+                for r in data["components"]["regions"]:
+                    products[product_name]["components"]["regions"].append(
                         Region.from_json(r))
-            if "sites" in v.keys():
-                product_components[k]["sites"] = []
-                for r in v["sites"]:
-                    product_components[k]["sites"].append(
+            if "sites" in data["components"].keys():
+                products[product_name]["components"]["sites"] = []
+                for r in data["components"]["sites"]:
+                    products[product_name]["components"]["sites"].append(
                         Site.from_json(r))
-            if "residues" in v.keys():
-                product_components[k]["residues"] = []
-                for r in v["residues"]:
-                    product_components[k]["residues"].append(
+            if "residues" in data["components"].keys():
+                products[product_name]["components"]["residues"] = []
+                for r in data["components"]["residues"]:
+                    products[product_name]["components"]["residues"].append(
                         Residue.from_json(r))
-            if "states" in v.keys():
-                product_components[k]["states"] = []
-                for r in v["states"]:
-                    product_components[k]["states"].append(
+            if "states" in data["components"].keys():
+                products[product_name]["components"]["states"] = []
+                for r in data["components"]["states"]:
+                    products[product_name]["components"]["states"].append(
                         State.from_json(r))
-        return cls(protoform, product_names, product_components)
+        return cls(protoform, products)

@@ -38,6 +38,7 @@ from kami.exceptions import KamiEntityError
 def actor_to_json(actor):
     """Load an actor object from JSON representation."""
     json_data = {}
+    json_data["data"] = actor.to_json()
     if isinstance(actor, Gene):
         json_data["type"] = "Gene"
     elif isinstance(actor, RegionActor):
@@ -49,16 +50,17 @@ def actor_to_json(actor):
 
 def actor_from_json(json_data):
     """Load an actor object from JSON representation."""
-    if json_data["type"] == "Gene":
-        return Gene.from_json(json_data["data"])
-    elif json_data["type"] == "RegionActor":
-        return RegionActor.from_json(json_data["data"])
-    elif json_data["type"] == "SiteActor":
-        return SiteActor.from_json(json_data["data"])
-    else:
-        raise KamiEntityError(
-            "Cannot load an actor: invalid actor type '{}'".format(
-                json_data["type"]))
+    if "type" in json_data:
+        if json_data["type"] == "Gene":
+            return Gene.from_json(json_data["data"])
+        elif json_data["type"] == "RegionActor":
+            return RegionActor.from_json(json_data["data"])
+        elif json_data["type"] == "SiteActor":
+            return SiteActor.from_json(json_data["data"])
+        else:
+            raise KamiEntityError(
+                "Cannot load an actor: invalid actor type '{}'".format(
+                    json_data["type"]))
 
 
 class Actor(object):
@@ -163,10 +165,10 @@ class Gene(Actor, PhysicalEntity):
             json_data["states"].append(s.to_json())
         json_data["bound_to"] = []
         for b in self.bound_to:
-            json_data["bound_to"].append(b.to_json())
+            json_data["bound_to"].append(actor_to_json(b))
         json_data["unbound_from"] = []
         for b in self.unbound_from:
-            json_data["unbound_from"].append(b.to_json())
+            json_data["unbound_from"].append(actor_to_json(b))
         return json_data
 
     @classmethod
@@ -378,10 +380,10 @@ class Region(PhysicalEntity):
             json_data["states"].append(s.to_json())
         json_data["bound_to"] = []
         for b in self.bound_to:
-            json_data["bound_to"].append(b.to_json())
+            json_data["bound_to"].append(actor_to_json(b))
         json_data["unbound_from"] = []
         for b in self.unbound_from:
-            json_data["unbound_from"].append(b.to_json())
+            json_data["unbound_from"].append(actor_to_json(b))
         return json_data
 
     @classmethod
@@ -635,10 +637,10 @@ class Site(PhysicalEntity):
             json_data["states"].append(s.to_json())
         json_data["bound_to"] = []
         for b in self.bound_to:
-            json_data["bound_to"].append(b.to_json())
+            json_data["bound_to"].append(actor_to_json(b))
         json_data["unbound_from"] = []
         for b in self.unbound_from:
-            json_data["unbound_from"].append(b.to_json())
+            json_data["unbound_from"].append(actor_to_json(b))
         return json_data
 
     @classmethod
@@ -782,9 +784,12 @@ class Site(PhysicalEntity):
             res["order"] = {self.order}
         return res
 
+    def same_reference(self, gene):
+        """TODO: elaborate, Test if the input gene has the same reference UniprotAC."""
+        return self.name == gene.name
+
     def issubset(self, site):
         """Test if self is superentity of the input site."""
-
         for residue in self.residues:
             found_in_region = False
             for reference_residue in site.residues:
@@ -801,10 +806,8 @@ class Site(PhysicalEntity):
                     break
             if not found_in_region:
                 return False
-        contains_components =\
-            set(site.residues).issubset(self.residues) and\
-            set(site.states).issubset(self.states)
-        return self.same_reference(site) and contains_components
+
+        return self.same_reference(site)
 
 
 class Residue():

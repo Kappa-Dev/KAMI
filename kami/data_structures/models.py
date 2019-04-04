@@ -6,7 +6,10 @@ import os
 from regraph import (Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from,
-                                get_node)
+                                get_node,
+                                graph_to_json,
+                                attrs_to_json)
+from regraph.utils import relation_to_json
 
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
@@ -265,13 +268,13 @@ class KamiModel(object):
                   backend="networkx",
                   uri=None, user=None, password=None, driver=None):
         """Create hierarchy from json representation."""
-        corpus = cls(model_id, annotation=annotation,
-                     creation_time=creation_time, last_modified=last_modified,
-                     corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
-                     backend=backend,
-                     uri=uri, user=user, password=password, driver=driver,
-                     data=json_data)
-        return corpus
+        model = cls(model_id, annotation=annotation,
+                    creation_time=creation_time, last_modified=last_modified,
+                    corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
+                    backend=backend,
+                    uri=uri, user=user, password=password, driver=driver,
+                    data=json_data)
+        return model
 
     @classmethod
     def load_json(cls, model_id, filename, annotation=None,
@@ -292,6 +295,49 @@ class KamiModel(object):
             return model
         else:
             raise KamiHierarchyError("File '%s' does not exist!" % filename)
+
+    def export_json(self, filename):
+        """Export model to json."""
+        with open(filename, 'w') as f:
+            j_data = self.to_json()
+            json.dump(j_data, f)
+
+    def to_json(self):
+        """Return json repr of the corpus."""
+        json_data = {}
+        json_data["model_id"] = self._id
+
+        json_data["origin"] = {}
+        json_data["origin"]["corpus_id"] = self._corpus_id
+        json_data["origin"]["seed_genes"] = self._seed_genes
+        json_data["origin"]["definitions"] = self._definitions
+
+        json_data["annotation"] = self.annotation.to_json()
+        json_data["creation_time"] = self.creation_time
+        json_data["last_modified"] = self.last_modified
+
+        json_data["action_graph"] = graph_to_json(self.action_graph)
+        json_data["action_graph_typing"] = self.get_action_graph_typing()
+        json_data["action_graph_semantics"] = relation_to_json(
+            self._hierarchy.get_relation(self._action_graph_id, "semantic_action_graph"))
+
+        json_data["nuggets"] = []
+        for nugget in self.nuggets():
+            template = self.get_nugget_type(nugget) + "_template"
+            nugget_json = {
+                "id": nugget,
+                "graph": graph_to_json(self.nugget[nugget]),
+                "desc": self.get_nugget_desc(nugget),
+                "typing": self.get_nugget_typing(nugget),
+                "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(nugget)),
+                "template_rel": (
+                    template,
+                    relation_to_json(self.get_nugget_template_rel(nugget))
+                ),
+            }
+
+            json_data["nuggets"].append(nugget_json)
+        return json_data
 
     def get_gene_data(self, gene_id):
         """."""

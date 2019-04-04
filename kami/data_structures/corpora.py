@@ -34,6 +34,7 @@ from kami.aggregation.semantics import (apply_mod_semantics,
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.data_structures.models import KamiModel
+from kami.data_structures.interactions import Interaction
 
 from kami.exceptions import KamiHierarchyError, KamiException
 
@@ -806,7 +807,7 @@ class KamiCorpus(object):
         nugget_graph_template_rel = dict()
         if template_rels is not None:
             for template_id, template_rel in template_rels.items():
-                print(template_rel)
+
                 for rhs_node, template_nodes in template_rel.items():
                     if len(template_nodes) > 0:
                         nugget_node = r_g_prime[rhs_node]
@@ -818,15 +819,20 @@ class KamiCorpus(object):
                     nugget_graph_template_rel)
 
         start = time.time()
+
         # Get a set of genes added by the nugget
         new_gene_nodes = set()
         for node in nugget_container.graph.nodes():
             new_nugget_node = r_g_prime[node]
-            ag_node = self._hierarchy.get_typing(
-                nugget_graph_id, self._action_graph_id)[new_nugget_node]
-            if self.get_action_graph_typing()[ag_node] == "gene":
-                if node not in nugget_container.reference_typing.keys():
-                    new_gene_nodes.add(ag_node)
+            try:
+                ag_node = self._hierarchy.get_typing(
+                    nugget_graph_id, self._action_graph_id)[new_nugget_node]
+                if self.get_action_graph_typing()[ag_node] == "gene":
+                    if node not in nugget_container.reference_typing.keys():
+                        new_gene_nodes.add(ag_node)
+            except:
+                print("!!", new_nugget_node, self._hierarchy.get_typing(
+                    nugget_graph_id, self._action_graph_id))
 
         # Check if all new genes agents from the nugget should be
         # distinct in the action graph
@@ -913,12 +919,12 @@ class KamiCorpus(object):
         if self._action_graph_id not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
-        identifier = EntityIdentifier(
-            self.action_graph,
-            self.get_action_graph_typing(),
-            hierarchy=self,
-            graph_id=self._action_graph_id,
-            meta_model_id="meta_model")
+        # identifier = EntityIdentifier(
+        #     self.action_graph,
+        #     self.get_action_graph_typing(),
+        #     hierarchy=self,
+        #     graph_id=self._action_graph_id,
+        #     meta_model_id="meta_model")
 
         start = time.time()
         (
@@ -926,7 +932,7 @@ class KamiCorpus(object):
             nugget_type,
             template_rels,
             desc
-        ) = generate_nugget(identifier, interaction)
+        ) = generate_nugget(self, interaction)
 
         # Add it to the hierarchy performing respective updates
         start = time.time()
@@ -938,7 +944,7 @@ class KamiCorpus(object):
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
-        print("Time to add nugget to the model: ", time.time() - start)
+        # print("Time to add nugget to the model: ", time.time() - start)
         return nugget_id
 
     def add_interactions(self, interactions, add_agents=True,
@@ -1317,3 +1323,13 @@ class KamiCorpus(object):
     def update_nugget_edge_attr_from_json(self, nugget_id, source, target, json_node_attrs):
         self.update_nugget_edge_attr(
             nugget_id, source, target, attrs_from_json(json_node_attrs))
+
+    def load_interactions_from_json(self, jsonfile, add_agents=True,
+                                    anatomize=True, apply_semantics=True):
+        with open(jsonfile, "r") as f:
+            raw = json.load(f)
+            for el in raw:
+                i = Interaction.from_json(el)
+                self.add_interaction(
+                    i, add_agents=add_agents,
+                    anatomize=anatomize, apply_semantics=apply_semantics)

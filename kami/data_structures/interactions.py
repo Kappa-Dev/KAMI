@@ -1,4 +1,5 @@
 """Collection of classes implementing interactions."""
+import sys
 from .entities import (Gene, SiteActor, RegionActor,
                        Residue, State, Region, Site, actor_from_json, actor_to_json)
 
@@ -37,6 +38,11 @@ class Interaction(object):
         if self.annotation is not None:
             attrs["text"] = {self.annotation}
         return attrs
+
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Interaction object from json."""
+        return getattr(sys.modules[__name__], json_data["type"]).from_json(json_data)
 
 
 class Modification(Interaction):
@@ -126,6 +132,7 @@ class Modification(Interaction):
 
     def to_json(self):
         json_data = {}
+        json_data["type"] = "Modification"
         json_data["enzyme"] = actor_to_json(self.enzyme)
         json_data["substrate"] = actor_to_json(self.substrate)
         json_data["target"] = _target_to_json(self.target)
@@ -180,6 +187,7 @@ class Binding(Interaction):
 
     def to_json(self):
         json_data = {}
+        json_data["type"] = "Binding"
         json_data["left"] = actor_to_json(self.left)
         json_data["right"] = actor_to_json(self.right)
         if self.rate:
@@ -251,6 +259,7 @@ class Unbinding(Interaction):
 
     def to_json(self):
         json_data = {}
+        json_data["type"] = "Unbinding"
         json_data["left"] = actor_to_json(self.left)
         json_data["right"] = actor_to_json(self.right)
         if self.rate:
@@ -341,6 +350,7 @@ class SelfModification(Interaction):
 
     def to_json(self):
         json_data = {}
+        json_data["type"] = "SelfModification"
         json_data["enzyme"] = actor_to_json(self.enzyme)
         json_data["target"] = _target_to_json(self.target)
         json_data["value"] = self.value
@@ -439,6 +449,7 @@ class AnonymousModification(Interaction):
 
     def to_json(self):
         json_data = {}
+        json_data["type"] = "AnonymousModification"
         json_data["substrate"] = actor_to_json(self.substrate)
         json_data["target"] = _target_to_json(self.target)
         json_data["value"] = self.value
@@ -563,6 +574,7 @@ class LigandModification(Interaction):
 
     def to_json(self):
         json_data = {}
+        json_data["type"] = "LigandModification"
         json_data["enzyme"] = actor_to_json(self.enzyme)
         json_data["substrate"] = actor_to_json(self.substrate)
         json_data["target"] = _target_to_json(self.target)
@@ -570,13 +582,13 @@ class LigandModification(Interaction):
         json_data["enzyme_bnd_subactor"] = self.enzyme_bnd_subactor
         json_data["substrate_bnd_subactor"] = self.substrate_bnd_subactor
         if self.enzyme_bnd_region:
-            json_data["enzyme_bnd_region"] = self.enzyme_bnd_region
+            json_data["enzyme_bnd_region"] = self.enzyme_bnd_region.to_json()
         if self.enzyme_bnd_site:
-            json_data["enzyme_bnd_site"] = self.enzyme_bnd_site
+            json_data["enzyme_bnd_site"] = self.enzyme_bnd_site.to_json()
         if self.substrate_bnd_region:
-            json_data["substrate_bnd_region"] = self.substrate_bnd_region
+            json_data["substrate_bnd_region"] = self.substrate_bnd_region.to_json()
         if self.substrate_bnd_site:
-            json_data["substrate_bnd_site"] = self.substrate_bnd_site
+            json_data["substrate_bnd_site"] = self.substrate_bnd_site.to_json()
         if self.rate:
             json_data["rate"] = self.rate
         if self.annotation:
