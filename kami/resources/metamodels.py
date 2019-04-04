@@ -32,20 +32,23 @@ meta_model = {
             "synonyms": RegexSet.universal(),
             "xrefs": RegexSet.universal(),
             "variant_name": RegexSet.universal(),
-            "variant_desc": RegexSet.universal()
+            "variant_desc": RegexSet.universal(),
+            "partition": IntegerSet.universal()
             # "xrefs": UniversalSet()
         }),
         ("region", {
             "name": RegexSet.universal(),
             "interproid": RegexSet.universal(),
             # "interproid": RegexSet(INTERPRO_REGEX),
-            "label": RegexSet.universal()
+            "label": RegexSet.universal(),
+            "partition": IntegerSet.universal()
         }),
         ("site", {
             "name": RegexSet.universal(),
             "interproid": RegexSet.universal(),
             # "interproid": RegexSet(INTERPRO_REGEX),
-            "label": RegexSet.universal()
+            "label": RegexSet.universal(),
+            "partition": IntegerSet.universal()
         }),
         ("residue", {
             "aa": {
@@ -58,7 +61,8 @@ meta_model = {
                 "C", "F", "Y", "W", "H", "K", "R",
                 "Q", "N", "E", "D", "S", "T"
             },
-            "test": {True, False}
+            "test": {True, False},
+            "partition": IntegerSet.universal()
         }),
         ("state", {
             "name": {
@@ -72,13 +76,15 @@ meta_model = {
                 "sumoylation",
                 "hydroxylation"
             },
-            "test": {True, False}
+            "test": {True, False},
+            "partition": IntegerSet.universal()
         }),
         ("mod", {
             "value": {True, False},
             "text": RegexSet.universal(),
             "rate": RegexSet.universal(),
-            "unimolecular_rate": RegexSet.universal()
+            "unimolecular_rate": RegexSet.universal(),
+            "partition": IntegerSet.universal()
             # "rate": UniversalSet(),
             # "unimolecular_rate": UniversalSet()
         }),
@@ -89,7 +95,8 @@ meta_model = {
             "test": {True, False},
             "text": RegexSet.universal(),
             "rate": RegexSet.universal(),
-            "unimolecular_rate": RegexSet.universal()
+            "unimolecular_rate": RegexSet.universal(),
+            "partition": IntegerSet.universal()
             # "rate": UniversalSet(),
             # "unimolecular_rate": UniversalSet()
         })
