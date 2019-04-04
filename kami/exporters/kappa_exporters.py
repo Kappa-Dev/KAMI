@@ -1,3 +1,4 @@
+import datetime
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.utils.id_generators import generate_new_element_id
 
@@ -164,7 +165,7 @@ def generate_kappa(model, concentations=None):
             for s in sites:
                 site_attrs = get_node(identifier.graph, s)
                 if "name" in site_attrs.keys():
-                    site_name = prefix + "_" + list(
+                    site_name = prefix + "site_" + list(
                         get_node(identifier.graph, s)["name"])[0].replace(
                         " ", "_").replace(",", "_").replace("/", "_")
                 else:
@@ -176,6 +177,7 @@ def generate_kappa(model, concentations=None):
             # Generate bnd sites for bnd actions
             direct_bnds = identifier.successors_of_type(protein, "bnd")
             for bnd in direct_bnds:
+                print(direct_bnds)
                 bnd_name = generate_new_element_id(
                     agents[isoform]["direct_bnd_sites"].values(),
                     prefix + "site")
@@ -197,8 +199,6 @@ def generate_kappa(model, concentations=None):
                         agents[isoform]["region_bnd_sites"].values(),
                         region_name + "_site")
                     agents[isoform]["region_bnd_sites"][(r, bnd)] = bnd_name
-
-    print(agents)
 
     rules = []
 
@@ -268,7 +268,7 @@ def generate_kappa(model, concentations=None):
                                 # Add binding
                                 bnd_rel = model._hierarchy.get_relation(
                                     "bnd_template", n)
-                                print(bnd_rel)
+
                                 bnd = list(bnd_rel["bnd"])[0]
                                 substrate_bnd_sites = _generate_bnd_sites(
                                     identifier, ag_typing, bnd_rel, "left",
@@ -286,8 +286,10 @@ def generate_kappa(model, concentations=None):
                                 substrate_lhs += substrate_states + ","
                                 substrate_rhs += substrate_states + ","
                             if len(substrate_bnd_sites) > 0:
-                                substrate_lhs += ",".join("{}[.]".format(s) for s in substrate_bnd_sites) + ","
                                 substrate_lhs += ",".join(
+                                    "{}[{}]".format(s, i + 1)
+                                    for i, s in enumerate(substrate_bnd_sites)) + ","
+                                substrate_rhs += ",".join(
                                     "{}[{}]".format(s, i + 1)
                                     for i, s in enumerate(substrate_bnd_sites)) + ","
 
@@ -302,14 +304,19 @@ def generate_kappa(model, concentations=None):
                             if len(enzyme_states) > 0:
                                 enzyme_lhs += enzyme_states
                             if len(enzyme_bnd_sites) > 0:
-                                enzyme_lhs += ",".join("{}[.]".format(s) for s in enzyme_bnd_sites) + ","
                                 enzyme_lhs += ",".join(
                                     "{}[{}]".format(s, i + 1)
-                                    for i, s in enumerate(enzyme_bnd_sites)) + ","
-
+                                    for i, s in enumerate(enzyme_bnd_sites))
                             enzyme_lhs += ")"
+
+                            rate = ""
+                            mod_attrs = get_node(nugget, mod_node)
+                            if "rate" in mod_attrs:
+                                rate = " @ {}".format(list(mod_attrs["rate"])[0])
+
                             rules.append("{}, {} -> {}, {}".format(
-                                enzyme_lhs, substrate_lhs, enzyme_lhs, substrate_rhs))
+                                enzyme_lhs, substrate_lhs, enzyme_lhs,
+                                substrate_rhs, rate))
 
                     else:
                         substrate_lhs = substrate_name + "("
@@ -350,9 +357,43 @@ def generate_kappa(model, concentations=None):
                             nugget_identifier, ag_typing, template_rel, "right",
                             right, bnd_node, ag_right_uniprot_id, agents)
 
-                        rules.append("{}, {} -> {}, {}".format(
-                            left_lhs, right_lhs, left_rhs, right_rhs))
+                        rate = ""
+                        bnd_attrs = get_node(nugget, bnd_node)
+                        if "rate" in bnd_attrs:
+                            rate = " @ {}".format(list(bnd_attrs["rate"])[0])
 
-    print(rules)
+                        rules.append("{}, {} -> {}, {}{}".format(
+                            left_lhs, right_lhs, left_rhs, right_rhs, rate))
 
-    return agents
+    header = "// Automatically generated from KAMI-model '{}' {}\n\n".format(
+        model._id, datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
+
+    signatures = "// Signatures\n\n"
+    for agent_uniprot, agent_data in agents.items():
+        agent_signature = []
+        if len(agent_data["variants"]) > 1:
+            agent_signature.append("variant{{{}}}".format(
+                " ".join(v for v in agent_data["variants"].values())))
+
+        if len(agent_data["stateful_sites"]) > 0:
+            agent_signature.append(",".join([
+                "{}{{0 1}}".format(v)
+                for v in agent_data["stateful_sites"].values()]))
+
+        all_sites = list(agent_data["kami_sites"].values()) +\
+            list(agent_data["direct_bnd_sites"].values()) +\
+            list(agent_data["region_bnd_sites"].values())
+        if len(all_sites) > 0:
+            agent_signature.append(",".join(["{}".format(v) for v in all_sites]))
+
+        signatures += "%agent: {}({})".format(
+            agent_data["agent_name"],
+            ",".join(agent_signature)) + "\n"
+
+    rule_repr = "\n// Rules \n\n"
+
+    for i, r in enumerate(rules):
+        rule_repr += "`rule {}` {}\n\n".format(
+            i + 1, r)
+
+    return header + signatures + rule_repr
