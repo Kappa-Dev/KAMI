@@ -139,6 +139,7 @@ class Definition:
         if len(instances) != 1:
             if len(instances) == 0:
                 raise ValueError("Smth is wierd, no instances of a def!")
+                print([str(protoform_graph.graph.node[n]) for n in protoform_graph.graph.nodes()])
             else:
                 raise ValueError("Smth is wierd, too many instances of a def!")
 
@@ -177,10 +178,11 @@ class Definition:
             if (s, t) not in protoform_graph.edges():
                 protoform_graph.add_edge(s, t, edge_attrs)
             for i, ps in enumerate(products_s):
-                if (ps, products_t[i]) not in products_graph.edges():
-                    products_graph.add_edge(
-                        ps, products_t[i],
-                        edge_attrs)
+                if len(products_s) == len(products_t):
+                    if (ps, products_t[i]) not in products_graph.edges():
+                        products_graph.add_edge(
+                            ps, products_t[i],
+                            edge_attrs)
 
         # Duplicate all the subcomponents not removed in products
         component_types = ["region", "site", "residue", "state"]

@@ -153,6 +153,12 @@ class KamiCorpus(object):
                 self.nugget[n] = self._hierarchy.get_graph(n)
         self._nugget_count = len(self.nuggets())
 
+    def clear(self):
+        """Clear data elements of corpus."""
+        for n in self.nuggets():
+            self._hierarchy.remove_graph(n)
+        self._hierarchy.remove_graph(self._action_graph_id)
+
     def create_empty_action_graph(self):
         """Creat an empty action graph in the hierarchy."""
         if self._action_graph_id not in self._hierarchy.graphs():
@@ -316,6 +322,47 @@ class KamiCorpus(object):
         """Get a list of agent nodes in the action graph."""
         return nodes_of_type(
             self.action_graph, self.get_action_graph_typing(), "gene")
+
+    def get_gene_by_uniprot(self, uniprotid):
+        for gene in self.genes():
+            attrs = get_node(self.action_graph, gene)
+            u = list(attrs["uniprotid"])[0]
+            if u == uniprotid:
+                return gene
+        return None
+
+    def get_attached_bnd(self, node):
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, self._action_graph_id)
+        return identifier.successors_of_type(node, "bnd")
+
+    def get_attached_mod(self, node):
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            self, self._action_graph_id)
+        return identifier.successors_of_type(node, "mod")
+
+    def merge_bnds_of(self, node, subset=None):
+        all_bnds = self.get_attached_bnd(node)
+        if subset is not None:
+            for el in subset:
+                if el not in all_bnds:
+                    raise KamiException(
+                        "Node with id '{}' is not in the list of ".format(el) +
+                        "attached bnd nodes of '{}'".format(node))
+            bnds_to_merge = subset
+        else:
+            bnds_to_merge = all_bnds
+        print(bnds_to_merge)
+        pattern = nx.DiGraph()
+        pattern.add_nodes_from(bnds_to_merge)
+        r = Rule.from_transform(pattern)
+        r.inject_merge_nodes(bnds_to_merge)
+        print(r.rhs.nodes())
+        self.rewrite(self._action_graph_id, r)
 
     def regions(self):
         """Get a list of region nodes in the action graph."""
@@ -1113,7 +1160,7 @@ class KamiCorpus(object):
         else:
             raise KamiHierarchyError("File '%s' does not exist!" % filename)
 
-    def instantiate(self, model_id, definitions=None):
+    def instantiate(self, model_id, definitions=None, seed_genes=None, annotation=None):
         graph_dict = {
             self._id + "_action_graph": model_id + "_action_graph"
         }
@@ -1131,9 +1178,17 @@ class KamiCorpus(object):
         # print("Duplicated branch of the hierarchy")
 
         if self._backend == "neo4j":
+            if annotation is None:
+                annotation = CorpusAnnotation()
             model = KamiModel(
-                model_id, corpus_id=self._id,
-                backend="neo4j", driver=self._hierarchy._driver)
+                model_id, annotation,
+                creation_time=str(datetime.datetime.now()),
+                last_modified=str(datetime.datetime.now()),
+                corpus_id=self._id,
+                seed_genes=seed_genes,
+                definitions=definitions,
+                backend="neo4j",
+                driver=self._hierarchy._driver)
         else:
             raise KamiHierarchyError(
                 "Instantiation is not implemented with networkx backend")
@@ -1178,9 +1233,12 @@ class KamiCorpus(object):
         hgnc_symbol = None
         if "hgnc_symbol" in attrs.keys():
             hgnc_symbol = list(attrs["hgnc_symbol"])[0]
+        synonyms = None
+        if "synonyms" in attrs.keys():
+            synonyms = list(attrs["synonyms"])
         nuggets = self._hierarchy.get_graphs_having_typing(
             self._action_graph_id, gene_id)
-        return (uniprotid, hgnc_symbol, nuggets)
+        return (uniprotid, hgnc_symbol, synonyms, nuggets)
 
     def get_modification_data(self, mod_id):
 

@@ -845,7 +845,7 @@ class Residue():
             state = State.from_json(json_data["state"])
         test = True
         if "test" in json_data.keys():
-            test = json_data["test"]
+            test = normalize_to_set(json_data["test"])
         return cls(aa, loc, state, test)
 
     def __repr__(self):
@@ -931,7 +931,7 @@ class State(object):
         name = json_data["name"]
         test = True
         if "test" in json_data.keys():
-            test = json_data["test"]
+            test = normalize_to_set(json_data["test"])
         return cls(name, test)
 
     def __repr__(self):

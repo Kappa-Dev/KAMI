@@ -128,6 +128,12 @@ class KamiModel(object):
                self._id in graph_attrs["model_id"]:
                 self.nugget[n] = self._hierarchy.get_graph(n)
 
+    def clear(self):
+        """Clear data elements of corpus."""
+        for n in self.nuggets():
+            self._hierarchy.remove_graph(n)
+        self._hierarchy.remove_graph(self._action_graph_id)
+
     def create_empty_action_graph(self):
         """Creat an empty action graph in the hierarchy."""
         if self._action_graph_id not in self._hierarchy.graphs():

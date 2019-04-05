@@ -110,7 +110,7 @@ class Generator(object):
         if self.entity_identifier and father in nugget.reference_typing.keys():
             action_graph_state = self.entity_identifier.identify_state(
                 state, nugget.reference_typing[father])
-
+        # print(state.meta_data())
         nugget.add_node(
             state_id,
             state.meta_data(),
@@ -128,7 +128,7 @@ class Generator(object):
         if self.entity_identifier and gene in nugget.reference_typing.keys():
             action_graph_residue = self.entity_identifier.identify_residue(
                 residue, nugget.reference_typing[gene])
-
+        # print(residue.meta_data())
         nugget.add_node(
             residue_id,
             residue.meta_data(),
