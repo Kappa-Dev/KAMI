@@ -345,6 +345,18 @@ class KamiCorpus(object):
             self, self._action_graph_id)
         return identifier.successors_of_type(node, "mod")
 
+    def merge_ag_nodes(self, nodes):
+        ag_typing = self.get_action_graph_typing()
+        if len(set([ag_typing[n] for n in nodes])) == 1:
+            pattern = nx.DiGraph()
+            pattern.add_nodes_from(nodes)
+            r = Rule.from_transform(pattern)
+            r.inject_merge_nodes(nodes)
+            self.rewrite(self._action_graph_id, r)
+        else:
+            raise KamiException(
+                "Cannot merge action graph nodes of different type!")
+
     def merge_bnds_of(self, node, subset=None):
         all_bnds = self.get_attached_bnd(node)
         if subset is not None:
@@ -356,13 +368,7 @@ class KamiCorpus(object):
             bnds_to_merge = subset
         else:
             bnds_to_merge = all_bnds
-        print(bnds_to_merge)
-        pattern = nx.DiGraph()
-        pattern.add_nodes_from(bnds_to_merge)
-        r = Rule.from_transform(pattern)
-        r.inject_merge_nodes(bnds_to_merge)
-        print(r.rhs.nodes())
-        self.rewrite(self._action_graph_id, r)
+        self.merge_ag_nodes(bnds_to_merge)
 
     def regions(self):
         """Get a list of region nodes in the action graph."""
@@ -1160,7 +1166,8 @@ class KamiCorpus(object):
         else:
             raise KamiHierarchyError("File '%s' does not exist!" % filename)
 
-    def instantiate(self, model_id, definitions=None, seed_genes=None, annotation=None):
+    def instantiate(self, model_id, definitions=None, seed_genes=None, annotation=None,
+                    default_bnd_rate=None, default_brk_rate=None, default_mod_rate=None):
         graph_dict = {
             self._id + "_action_graph": model_id + "_action_graph"
         }
@@ -1188,7 +1195,10 @@ class KamiCorpus(object):
                 seed_genes=seed_genes,
                 definitions=definitions,
                 backend="neo4j",
-                driver=self._hierarchy._driver)
+                driver=self._hierarchy._driver,
+                default_bnd_rate=default_bnd_rate,
+                default_brk_rate=default_brk_rate,
+                default_mod_rate=default_mod_rate)
         else:
             raise KamiHierarchyError(
                 "Instantiation is not implemented with networkx backend")

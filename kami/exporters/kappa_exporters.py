@@ -69,8 +69,7 @@ def _generate_bnd_sites(identifier, ag_typing, template_rel, role,
 
 
 def _generate_bnd_partner(identifier, ag_typing, template_rel, role,
-                          agent, bnd, ag_uniprot_id, agents):
-    print(template_rel)
+                          agent, bnd, ag_uniprot_id, agents, bnd_flag=True):
 
     agent_name, agent_variant_state = _generate_agent_name(
         identifier, ag_typing, agent, ag_uniprot_id, agents)
@@ -91,9 +90,15 @@ def _generate_bnd_partner(identifier, ag_typing, template_rel, role,
     if len(agent_states) > 0:
         immutable_part += agent_states + ","
 
-    lhs = immutable_part + ",".join("{}[.]".format(s) for s in agent_bnd_sites) + ")"
+    lhs = immutable_part + ",".join(
+        "{}[.]".format(s)
+        if bnd_flag is True
+        else "{}[{}]".format(s, i + 1)
+        for i, s in enumerate(agent_bnd_sites)) + ")"
     rhs = immutable_part + ",".join(
         "{}[{}]".format(s, i + 1)
+        if bnd_flag is True
+        else "{}[.]".format(s)
         for i, s in enumerate(agent_bnd_sites)) + ")"
     return lhs, rhs
 
@@ -102,6 +107,18 @@ def generate_kappa(model, concentations=None):
     """Generate Kappa script from KAMI model."""
     if concentations is None:
         concentations = []
+
+    default_bnd_rate = None
+    if model.default_bnd_rate is not None:
+        default_bnd_rate = model.default_bnd_rate
+
+    default_brk_rate = None
+    if model.default_brk_rate is not None:
+        default_brk_rate = model.default_brk_rate
+
+    default_mod_rate = None
+    if model.default_mod_rate is not None:
+        default_mod_rate = model.default_mod_rate
 
     # Generate agents: an agent per protoform (gene)
     # each having a state specifying its variantsss
@@ -177,7 +194,6 @@ def generate_kappa(model, concentations=None):
             # Generate bnd sites for bnd actions
             direct_bnds = identifier.successors_of_type(protein, "bnd")
             for bnd in direct_bnds:
-                print(direct_bnds)
                 bnd_name = generate_new_element_id(
                     agents[isoform]["direct_bnd_sites"].values(),
                     prefix + "site")
@@ -216,6 +232,12 @@ def generate_kappa(model, concentations=None):
                 for k, v in ag_typing.items()},
             immediate=False)
 
+        nugget_desc = ""
+        if (model.get_nugget_desc(n)):
+            nugget_desc = " //{}".format(model.get_nugget_desc(n).replace(
+                "\n", ", "))
+
+        rule = ""
         if "mod_template" in relations:
             template_rel = model._hierarchy.get_relation("mod_template", n)
             mod_node = list(template_rel["mod"])[0]
@@ -309,14 +331,9 @@ def generate_kappa(model, concentations=None):
                                     for i, s in enumerate(enzyme_bnd_sites))
                             enzyme_lhs += ")"
 
-                            rate = ""
-                            mod_attrs = get_node(nugget, mod_node)
-                            if "rate" in mod_attrs:
-                                rate = " @ {}".format(list(mod_attrs["rate"])[0])
-
-                            rules.append("{}, {} -> {}, {}".format(
+                            rule = "{}, {} -> {}, {}".format(
                                 enzyme_lhs, substrate_lhs, enzyme_lhs,
-                                substrate_rhs, rate))
+                                substrate_rhs)
 
                     else:
                         substrate_lhs = substrate_name + "("
@@ -331,12 +348,27 @@ def generate_kappa(model, concentations=None):
                         substrate_rhs += ",".join(
                             "{}{{{}}}".format(s[1], s[2])
                             for s in target_states) + ")"
-                        rules.append("{} -> {}".format(
-                            substrate_lhs, substrate_rhs))
+                        rule = "{} -> {}".format(
+                            substrate_lhs, substrate_rhs)
+
+                    rate = ""
+                    mod_attrs = get_node(nugget, mod_node)
+                    if "rate" in mod_attrs:
+                        rate = " @ {}".format(list(mod_attrs["rate"])[0])
+                    else:
+                        if default_mod_rate is not None:
+                            rate = " @ 'default_mod_rate'"
+
+                    rules.append("{} {} {}".format(rule, rate, nugget_desc))
 
         elif "bnd_template" in relations:
             template_rel = model._hierarchy.get_relation("bnd_template", n)
             bnd_node = list(template_rel["bnd"])[0]
+            bnd_attrs = get_node(nugget, bnd_node)
+            bnd_flag = True
+            if "test" in bnd_attrs:
+                bnd_flag = list(bnd_attrs["test"])[0]
+
             if "left_partner" in template_rel.keys() and\
                "right_partner" in template_rel.keys():
                 left_partner = template_rel["left_partner"]
@@ -347,7 +379,7 @@ def generate_kappa(model, concentations=None):
 
                     left_lhs, left_rhs = _generate_bnd_partner(
                         nugget_identifier, ag_typing, template_rel, "left",
-                        left, bnd_node, ag_left_uniprot_id, agents)
+                        left, bnd_node, ag_left_uniprot_id, agents, bnd_flag)
 
                     for right in right_partner:
                         ag_right = ag_typing[right]
@@ -355,15 +387,30 @@ def generate_kappa(model, concentations=None):
 
                         right_lhs, right_rhs = _generate_bnd_partner(
                             nugget_identifier, ag_typing, template_rel, "right",
-                            right, bnd_node, ag_right_uniprot_id, agents)
+                            right, bnd_node, ag_right_uniprot_id, agents, bnd_flag)
 
                         rate = ""
-                        bnd_attrs = get_node(nugget, bnd_node)
                         if "rate" in bnd_attrs:
                             rate = " @ {}".format(list(bnd_attrs["rate"])[0])
+                        else:
+                            if bnd_flag is True and default_bnd_rate is not None:
+                                rate = " @ 'default_bnd_rate'"
+                            elif bnd_flag is False and default_brk_rate is not None:
+                                rate = " @ 'default_brk_rate'"
+                        rules.append("{}, {} -> {}, {}{}{}".format(
+                            left_lhs, right_lhs, left_rhs, right_rhs, rate, nugget_desc))
 
-                        rules.append("{}, {} -> {}, {}{}".format(
-                            left_lhs, right_lhs, left_rhs, right_rhs, rate))
+        rate = ""
+        mod_attrs = get_node(nugget, mod_node)
+        if "rate" in mod_attrs:
+            rate = " @ {}".format(list(mod_attrs["rate"])[0])
+        else:
+            if default_mod_rate is not None:
+                rate = " @ 'default_mod_rate'"
+
+        nugget_desc = model.get_nugget_desc(n)
+        if (nugget_desc):
+            rate += " //{}".format(nugget_desc)
 
     header = "// Automatically generated from KAMI-model '{}' {}\n\n".format(
         model._id, datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
@@ -393,7 +440,18 @@ def generate_kappa(model, concentations=None):
     rule_repr = "\n// Rules \n\n"
 
     for i, r in enumerate(rules):
-        rule_repr += "`rule {}` {}\n\n".format(
+        rule_repr += "'rule {}' {}\n\n".format(
             i + 1, r)
 
-    return header + signatures + rule_repr
+    variables = ""
+    if (default_bnd_rate or default_brk_rate or default_mod_rate):
+        variables = "\n// variables \n\n"
+
+    if default_bnd_rate:
+        variables += "%var: 'default_bnd_rate' {}\n".format(default_bnd_rate)
+    if default_brk_rate:
+        variables += "%var: 'default_brk_rate' {}\n".format(default_brk_rate)
+    if default_mod_rate:
+        variables += "%var: 'default_mod_rate' {}\n".format(default_mod_rate)
+
+    return header + signatures + rule_repr + variables

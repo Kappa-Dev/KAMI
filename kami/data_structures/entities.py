@@ -950,8 +950,8 @@ class State(object):
     def meta_data(self):
         """Convert agent object to attrs."""
         return {
-            "name": {self.name},
-            "test": {self.test}
+            "name": normalize_to_set(self.name),
+            "test": normalize_to_set(self.test)
         }
 
 

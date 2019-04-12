@@ -33,7 +33,7 @@ meta_model = {
             "xrefs": RegexSet.universal(),
             "variant_name": RegexSet.universal(),
             "variant_desc": RegexSet.universal(),
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
             # "xrefs": UniversalSet()
         }),
         ("region", {
@@ -41,14 +41,14 @@ meta_model = {
             "interproid": RegexSet.universal(),
             # "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal(),
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
         }),
         ("site", {
             "name": RegexSet.universal(),
             "interproid": RegexSet.universal(),
             # "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal(),
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
         }),
         ("residue", {
             "aa": {
@@ -62,7 +62,7 @@ meta_model = {
                 "Q", "N", "E", "D", "S", "T"
             },
             "test": {True, False},
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
         }),
         ("state", {
             "name": {
@@ -77,14 +77,14 @@ meta_model = {
                 "hydroxylation"
             },
             "test": {True, False},
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
         }),
         ("mod", {
             "value": {True, False},
             "text": RegexSet.universal(),
             "rate": RegexSet.universal(),
             "unimolecular_rate": RegexSet.universal(),
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
             # "rate": UniversalSet(),
             # "unimolecular_rate": UniversalSet()
         }),
@@ -96,7 +96,7 @@ meta_model = {
             "text": RegexSet.universal(),
             "rate": RegexSet.universal(),
             "unimolecular_rate": RegexSet.universal(),
-            "partition": IntegerSet.universal()
+            # "partition": IntegerSet.universal()
             # "rate": UniversalSet(),
             # "unimolecular_rate": UniversalSet()
         })

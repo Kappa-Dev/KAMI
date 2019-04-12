@@ -3,6 +3,8 @@ import datetime
 import json
 import os
 
+import networkx as nx
+
 from regraph import (Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from,
@@ -15,8 +17,10 @@ from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.resources import default_components
 from kami.utils.generic import (nodes_of_type, _init_from_data)
+from regraph import Rule
 
-from kami.exceptions import KamiHierarchyError
+
+from kami.exceptions import KamiHierarchyError, KamiException
 
 
 class KamiModel(object):
@@ -48,7 +52,10 @@ class KamiModel(object):
                  creation_time=None, last_modified=None,
                  corpus_id=None, seed_genes=None, definitions=None,
                  backend="networkx",
-                 uri=None, user=None, password=None, driver=None, data=None):
+                 uri=None, user=None, password=None, driver=None, data=None,
+                 default_bnd_rate=None,
+                 default_brk_rate=None,
+                 default_mod_rate=None):
         """Initialize a KAMI model."""
         self._id = model_id
         self._action_graph_id = self._id + "_action_graph"
@@ -56,6 +63,9 @@ class KamiModel(object):
         self._backend = backend
         self._seed_genes = seed_genes
         self._definitions = definitions
+        self.default_bnd_rate = default_bnd_rate
+        self.default_brk_rate = default_brk_rate
+        self.default_mod_rate = default_mod_rate
 
         if backend == "networkx":
             self._hierarchy = NetworkXHierarchy()
@@ -403,3 +413,20 @@ class KamiModel(object):
         if "hgnc_symbol" in attrs.keys():
             hgnc_symbol = list(attrs["hgnc_symbol"])[0]
         return hgnc_symbol
+
+    def set_nugget_desc(self, nugget_id, new_desc):
+        """Get nugget description string."""
+        self._hierarchy.set_graph_attrs(
+            nugget_id, {"desc": new_desc})
+
+    def merge_ag_nodes(self, nodes):
+        ag_typing = self.get_action_graph_typing()
+        if len(set([ag_typing[n] for n in nodes])) == 1:
+            pattern = nx.DiGraph()
+            pattern.add_nodes_from(nodes)
+            r = Rule.from_transform(pattern)
+            r.inject_merge_nodes(nodes)
+            self.rewrite(self._action_graph_id, r)
+        else:
+            raise KamiException(
+                "Cannot merge action graph nodes of different type!")

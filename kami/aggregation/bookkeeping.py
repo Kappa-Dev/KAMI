@@ -278,154 +278,155 @@ def connect_nested_fragments(identifier, genes):
 def anatomize_gene(model, gene):
     """Anatomize existing gene node in the action graph."""
     new_regions = list()
-    if gene not in model.action_graph.nodes() or\
+    if gene in model.action_graph.nodes() and\
        model.get_action_graph_typing()[gene] != "gene":
-        raise KamiHierarchyError(
-            "Gene node '%s' does not exist in the model!" % gene)
+        anatomy = None
+        anatomization_rule = None
+        instance = None
 
-    anatomy = None
-    anatomization_rule = None
-    instance = None
-
-    gene_attrs = get_node(model.action_graph, gene)
-    if "uniprotid" in gene_attrs and\
-       len(gene_attrs["uniprotid"]) == 1:
-        anatomy = GeneAnatomy(
-            list(
-                gene_attrs["uniprotid"])[0],
-            merge_features=True,
-            nest_features=False,
-            merge_overlap=0.005,
-            offline=True
-        )
-    elif "hgnc_symbol" in gene_attrs and\
-         len(gene_attrs["hgnc_symbol"]) == 1:
-        anatomy = GeneAnatomy(
-            list(
-                gene_attrs["hgnc_symbol"])[0],
-            merge_features=True,
-            nest_features=False,
-            merge_overlap=0.05,
-            offline=True
-        )
-    elif "synonyms" in gene_attrs and\
-         len(gene_attrs["synonyms"]) > 0:
-        for s in gene_attrs["synonyms"]:
+        gene_attrs = get_node(model.action_graph, gene)
+        if "uniprotid" in gene_attrs and\
+           len(gene_attrs["uniprotid"]) == 1:
             anatomy = GeneAnatomy(
-                s,
+                list(
+                    gene_attrs["uniprotid"])[0],
+                merge_features=True,
+                nest_features=False,
+                merge_overlap=0.005,
+                offline=True
+            )
+        elif "hgnc_symbol" in gene_attrs and\
+             len(gene_attrs["hgnc_symbol"]) == 1:
+            anatomy = GeneAnatomy(
+                list(
+                    gene_attrs["hgnc_symbol"])[0],
                 merge_features=True,
                 nest_features=False,
                 merge_overlap=0.05,
                 offline=True
             )
-            if anatomy is not None:
-                break
-    if anatomy is not None:
+        elif "synonyms" in gene_attrs and\
+             len(gene_attrs["synonyms"]) > 0:
+            for s in gene_attrs["synonyms"]:
+                anatomy = GeneAnatomy(
+                    s,
+                    merge_features=True,
+                    nest_features=False,
+                    merge_overlap=0.05,
+                    offline=True
+                )
+                if anatomy is not None:
+                    break
+        if anatomy is not None:
 
-        # Generate an update rule to add
-        # entities fetched by the anatomizer
+            # Generate an update rule to add
+            # entities fetched by the anatomizer
 
-        lhs = nx.DiGraph()
-        add_nodes_from(lhs, ["gene"])
-        instance = {"gene": gene}
+            lhs = nx.DiGraph()
+            add_nodes_from(lhs, ["gene"])
+            instance = {"gene": gene}
 
-        anatomization_rule = Rule.from_transform(lhs)
-        anatomization_rule.inject_add_node_attrs(
-            "gene", {"hgnc_symbol": anatomy.hgnc_symbol})
-        anatomization_rule_typing = {
-            "meta_model": {}
-        }
-        # Build a rule that adds all regions and sites
-        semantic_relations = dict()
-        new_regions = []
-        for i, domain in enumerate(anatomy.domains):
-            if domain.feature_type == "Domain":
-                region = Region(
-                    name=" ".join(
-                        [n.replace(
-                            "iSH2", "").replace(
-                            "inter-SH2", "")
-                         for n in domain.short_names]),
-                    start=domain.start,
-                    end=domain.end,
-                    label=domain.prop_label,
-                    interproid=domain.ipr_ids)
+            anatomization_rule = Rule.from_transform(lhs)
+            anatomization_rule.inject_add_node_attrs(
+                "gene", {"hgnc_symbol": anatomy.hgnc_symbol})
+            anatomization_rule_typing = {
+                "meta_model": {}
+            }
+            # Build a rule that adds all regions and sites
+            semantic_relations = dict()
+            new_regions = []
+            for i, domain in enumerate(anatomy.domains):
+                if domain.feature_type == "Domain":
+                    region = Region(
+                        name=" ".join(
+                            [n.replace(
+                                "iSH2", "").replace(
+                                "inter-SH2", "")
+                             for n in domain.short_names]),
+                        start=domain.start,
+                        end=domain.end,
+                        label=domain.prop_label,
+                        interproid=domain.ipr_ids)
 
-                region_id = "region_{}".format(i + 1)
-                if region_id in model.action_graph.nodes():
-                    region_id = generate_new_id(
-                        model.action_graph, region_id)
-                anatomization_rule.inject_add_node(
-                    region_id, region.meta_data())
-                new_regions.append(region_id)
-                anatomization_rule.inject_add_edge(
-                    region_id, "gene", region.location())
-
-                anatomization_rule_typing["meta_model"][
-                    region_id] = "region"
-                # Resolve semantics
-                semantic_relations[region_id] = set()
-                if "IPR000719" in domain.ipr_ids or\
-                   "IPR001245" in domain.ipr_ids or\
-                   "IPR020635" in domain.ipr_ids:
-                    semantic_relations[region_id].add("protein_kinase")
-                    # autocomplete with activity
-                    activity_state_id = "{}_activity".format(region_id)
-                    if activity_state_id in model.action_graph.nodes():
-                        activity_state_id = generate_new_id(
-                            model.action_graph, activity_state_id)
+                    region_id = "region_{}".format(i + 1)
+                    if region_id in model.action_graph.nodes():
+                        region_id = generate_new_id(
+                            model.action_graph, region_id)
                     anatomization_rule.inject_add_node(
-                        activity_state_id, {
-                            "name": "activity", "test": {True}})
+                        region_id, region.meta_data())
+                    new_regions.append(region_id)
                     anatomization_rule.inject_add_edge(
-                        activity_state_id, region_id)
-                    semantic_relations[activity_state_id] = {"protein_kinase_activity"}
+                        region_id, "gene", region.location())
+
                     anatomization_rule_typing["meta_model"][
-                        activity_state_id] = "state"
-                if "IPR000980" in domain.ipr_ids:
-                    semantic_relations[region_id].add("sh2_domain")
+                        region_id] = "region"
+                    # Resolve semantics
+                    semantic_relations[region_id] = set()
+                    if "IPR000719" in domain.ipr_ids or\
+                       "IPR001245" in domain.ipr_ids or\
+                       "IPR020635" in domain.ipr_ids:
+                        semantic_relations[region_id].add("protein_kinase")
+                        # autocomplete with activity
+                        activity_state_id = "{}_activity".format(region_id)
+                        if activity_state_id in model.action_graph.nodes():
+                            activity_state_id = generate_new_id(
+                                model.action_graph, activity_state_id)
+                        anatomization_rule.inject_add_node(
+                            activity_state_id, {
+                                "name": "activity", "test": {True}})
+                        anatomization_rule.inject_add_edge(
+                            activity_state_id, region_id)
+                        semantic_relations[activity_state_id] = {"protein_kinase_activity"}
+                        anatomization_rule_typing["meta_model"][
+                            activity_state_id] = "state"
+                    if "IPR000980" in domain.ipr_ids:
+                        semantic_relations[region_id].add("sh2_domain")
 
-        existing_regions = model.get_attached_regions(gene)
-        for existing_region in existing_regions:
-            matching_region = find_fragment(
-                get_node(model.action_graph, existing_region),
-                get_edge(model.action_graph, existing_region, gene),
-                {n: (
-                    get_node(anatomization_rule.rhs, n),
-                    get_edge(anatomization_rule.rhs, n, "gene")
-                ) for n in new_regions})
-            if matching_region is not None:
-                anatomization_rule._add_node_lhs(existing_region)
-                anatomization_rule._add_edge_lhs(existing_region, "gene")
-                instance[existing_region] = existing_region
-                new_name = anatomization_rule.inject_merge_nodes(
-                    [existing_region, matching_region])
-                semantic_relations[new_name] = semantic_relations[
-                    matching_region]
-                del semantic_relations[matching_region]
-                if matching_region in anatomization_rule_typing[
-                        "meta_model"].keys():
-                    del anatomization_rule_typing["meta_model"][
+            existing_regions = model.get_attached_regions(gene)
+            for existing_region in existing_regions:
+                matching_region = find_fragment(
+                    get_node(model.action_graph, existing_region),
+                    get_edge(model.action_graph, existing_region, gene),
+                    {n: (
+                        get_node(anatomization_rule.rhs, n),
+                        get_edge(anatomization_rule.rhs, n, "gene")
+                    ) for n in new_regions})
+                if matching_region is not None:
+                    anatomization_rule._add_node_lhs(existing_region)
+                    anatomization_rule._add_edge_lhs(existing_region, "gene")
+                    instance[existing_region] = existing_region
+                    new_name = anatomization_rule.inject_merge_nodes(
+                        [existing_region, matching_region])
+                    semantic_relations[new_name] = semantic_relations[
                         matching_region]
+                    del semantic_relations[matching_region]
+                    if matching_region in anatomization_rule_typing[
+                            "meta_model"].keys():
+                        del anatomization_rule_typing["meta_model"][
+                            matching_region]
 
-                new_regions.remove(matching_region)
-                new_regions.append(new_name)
+                    new_regions.remove(matching_region)
+                    new_regions.append(new_name)
 
-        _, rhs_g = model.rewrite(
-            model._action_graph_id, anatomization_rule,
-            instance, rhs_typing=anatomization_rule_typing)
+            _, rhs_g = model.rewrite(
+                model._action_graph_id, anatomization_rule,
+                instance, rhs_typing=anatomization_rule_typing)
 
-        for node_id, semantics in semantic_relations.items():
-            for s in semantics:
-                model._hierarchy.set_node_relation(
-                    model._action_graph_id,
-                    "semantic_action_graph",
-                    rhs_g[node_id], s)
+            for node_id, semantics in semantic_relations.items():
+                for s in semantics:
+                    model._hierarchy.set_node_relation(
+                        model._action_graph_id,
+                        "semantic_action_graph",
+                        rhs_g[node_id], s)
+        else:
+            warnings.warn(
+                "Unable to anatomize gene node '%s'" % gene,
+                KamiHierarchyWarning)
+        return new_regions
     else:
-        warnings.warn(
-            "Unable to anatomize gene node '%s'" % gene,
-            KamiHierarchyWarning)
-    return new_regions
+        print(
+            "Gene node '{}' does not exist in the model!".format(gene))
+        return []
 
 
 def apply_bookkeeping(identifier, all_nodes, genes):
