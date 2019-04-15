@@ -400,14 +400,6 @@ def generate_kappa(model, concentations=None):
                         rules.append("{}, {} -> {}, {}{}{}".format(
                             left_lhs, right_lhs, left_rhs, right_rhs, rate, nugget_desc))
 
-        rate = ""
-        mod_attrs = get_node(nugget, mod_node)
-        if "rate" in mod_attrs:
-            rate = " @ {}".format(list(mod_attrs["rate"])[0])
-        else:
-            if default_mod_rate is not None:
-                rate = " @ 'default_mod_rate'"
-
         nugget_desc = model.get_nugget_desc(n)
         if (nugget_desc):
             rate += " //{}".format(nugget_desc)
