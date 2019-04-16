@@ -29,6 +29,12 @@ def apply_mod_semantics(model, nugget_id):
     """Apply mod semantics to the created nugget."""
     template_rel = model._hierarchy.get_relation(
         "mod_template", nugget_id)
+
+    bnd_template_rel = None
+    if "bnd_template" in model._hierarchy.adjacent_relations(nugget_id):
+        bnd_template_rel = model._hierarchy.get_relation(
+            "bnd_template", nugget_id)
+
     enzyme = None
     if "enzyme" in template_rel.keys():
         enzyme = list(template_rel["enzyme"])[0]
@@ -46,6 +52,11 @@ def apply_mod_semantics(model, nugget_id):
     if enzyme is not None:
         ag_enzyme = ag_typing[enzyme]
     ag_mod_node = ag_typing[mod_node]
+    ag_bnd_node = None
+    bnd_node = None
+    if bnd_template_rel:
+        bnd_node = list(bnd_template_rel["bnd"])[0]
+        ag_bnd_node = ag_typing[bnd_node]
 
     ag_sag_rel = model._hierarchy.get_relation(
         model._action_graph_id,
@@ -68,8 +79,12 @@ def apply_mod_semantics(model, nugget_id):
             "mod": "phospho",
             mod_state: "phospho_state",
         }
+
         if mod_residue is not None:
             phospho_semantic_rel[mod_residue] = "phospho_target_residue"
+
+        if bnd_node:
+            phospho_semantic_rel[bnd_node] = "protein_kinase_bnd"
 
         if "enzyme_region" in template_rel.keys():
             # Enzyme region is specified in the nugget
@@ -100,6 +115,25 @@ def apply_mod_semantics(model, nugget_id):
                         instance={
                             n: n for n in mod_merge_rule.lhs.nodes()
                         })
+                # 1.5 BND action merge
+                if bnd_template_rel:
+                    kinase_bnds =\
+                        model.ag_successors_of_type(
+                            ag_enz_region, "bnd")
+                    if len(kinase_bnds) > 1:
+                        pattern = nx.DiGraph()
+                        add_nodes_from(
+                            pattern, [ag_enz_region] + kinase_bnds)
+
+                        bnd_merge_rule = Rule.from_transform(pattern)
+                        new_mod_id = bnd_merge_rule.inject_merge_nodes(
+                            kinase_bnds)
+
+                        _, rhs_ag = model.rewrite(
+                            model._action_graph_id, bnd_merge_rule,
+                            instance={
+                                n: n for n in bnd_merge_rule.lhs.nodes()
+                            })
 
                 # 2. Autocompletion
                 enz_region_predecessors = model.nugget[
@@ -107,6 +141,7 @@ def apply_mod_semantics(model, nugget_id):
 
                 # Check if kinase activity is specified in the nugget
                 activity_found = False
+
                 for pred in enz_region_predecessors:
                     ag_pred = ag_typing[pred]
                     ag_pred_type = model.get_action_graph_typing()[ag_pred]
@@ -132,6 +167,7 @@ def apply_mod_semantics(model, nugget_id):
                     # in the action graph
                     rhs_typing = {model._action_graph_id: {}}
                     ag_activity = model.get_activity_state(ag_enz_region)
+
                     if ag_activity is not None:
                         rhs_typing[model._action_graph_id][new_activity_state] =\
                             ag_activity
@@ -141,7 +177,6 @@ def apply_mod_semantics(model, nugget_id):
                         rhs_typing=rhs_typing)
                     phospho_semantic_rel[rhs_g[new_activity_state]] =\
                         "protein_kinase_activity"
-
             else:
                 # Phosphorylation is performed by the region not
                 # identified as a protein kinase
@@ -164,13 +199,27 @@ def apply_mod_semantics(model, nugget_id):
                 kinase_mods =\
                     model.ag_successors_of_type(
                         unique_kinase_region, "mod")
+                # 1.5 BND action merge
+                kinase_bnds = []
+                if bnd_template_rel:
+                    kinase_bnds =\
+                        model.ag_successors_of_type(
+                            ag_enz_region, "bnd")
+
                 pattern = nx.DiGraph()
                 add_nodes_from(
                     pattern,
                     [ag_mod_node, ag_enzyme])
                 add_edges_from(pattern, [(ag_enzyme, ag_mod_node)])
+
+                if ag_bnd_node:
+                    add_nodes_from(pattern, [ag_bnd_node])
+                    add_edges_from(pattern, [(ag_enzyme, ag_bnd_node)])
+
                 mod_merge_rule = Rule.from_transform(pattern)
                 mod_merge_rule.inject_remove_edge(ag_enzyme, ag_mod_node)
+                if ag_bnd_node:
+                    mod_merge_rule.inject_remove_edge(ag_enzyme, ag_bnd_node)
 
                 if len(kinase_mods) > 0:
                     # generate a rule that merges mods
@@ -178,6 +227,12 @@ def apply_mod_semantics(model, nugget_id):
                         mod_merge_rule._add_node_lhs(n)
                     new_mod_id = mod_merge_rule.inject_merge_nodes(
                         [ag_mod_node] + kinase_mods)
+
+                if len(kinase_bnds) > 0:
+                    for n in kinase_bnds:
+                        mod_merge_rule._add_node_lhs(n)
+                    new_bnd_id = mod_merge_rule.inject_merge_nodes(
+                        [ag_bnd_node] + kinase_bnds)
 
                 _, rhs_ag = model.rewrite(
                     model._action_graph_id, mod_merge_rule,
@@ -190,6 +245,12 @@ def apply_mod_semantics(model, nugget_id):
                     new_ag_mod = rhs_ag[new_mod_id]
                 else:
                     new_ag_mod = ag_mod_node
+
+                if len(kinase_bnds) > 0:
+                    new_ag_bnd = rhs_ag[new_bnd_id]
+                else:
+                    new_ag_bnd = ag_bnd_node
+
                 autocompletion_rule = Rule.from_transform(
                     model.nugget[nugget_id])
                 autocompletion_rule.inject_add_node(
@@ -210,9 +271,13 @@ def apply_mod_semantics(model, nugget_id):
                 rhs_typing = {
                     model._action_graph_id: {
                         unique_kinase_region: unique_kinase_region,
-                        mod_node: new_ag_mod
+                        mod_node: new_ag_mod,
                     }
                 }
+
+                if ag_bnd_node:
+                    rhs_typing[model._action_graph_id][bnd_node] = new_ag_bnd
+
                 ag_activity = model.get_activity_state(
                     unique_kinase_region)
                 if ag_activity is not None:

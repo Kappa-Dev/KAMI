@@ -279,7 +279,8 @@ def anatomize_gene(model, gene):
     """Anatomize existing gene node in the action graph."""
     new_regions = list()
     if gene in model.action_graph.nodes() and\
-       model.get_action_graph_typing()[gene] != "gene":
+       gene in model.get_action_graph_typing().keys() and\
+       model.get_action_graph_typing()[gene] == "gene":
         anatomy = None
         anatomization_rule = None
         instance = None
@@ -440,4 +441,3 @@ def apply_bookkeeping(identifier, all_nodes, genes):
         reconnect_residues(identifier, g, residues, regions, sites)
         reconnect_sites(identifier, g, sites, regions)
         merge_residues(identifier, g)
-

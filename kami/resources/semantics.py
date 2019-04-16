@@ -7,6 +7,7 @@ action_graph = {
         "protein_kinase",
         ("protein_kinase_activity", {"name": {"activity"}, "test": {True}}),
         ("phospho", {"value": {True}}),
+        "protein_kinase_bnd",
         ("phospho_state", {"name": {"phosphorylation"}, "test": {True, False}}),
         ("phospho_target_residue", {"aa": {"S", "T", "Y"}, "test": {True}}),
         "phosphatase",
@@ -19,6 +20,7 @@ action_graph = {
     "edges": [
         ("protein_kinase_activity", "protein_kinase"),
         ("protein_kinase", "phospho"),
+        ("protein_kinase", "protein_kinase_bnd"),
         ("phospho", "phospho_state"),
         ("phospho_state", "phospho_target_residue"),
         ("phosphatase_activity", "phosphatase"),
@@ -43,12 +45,14 @@ sag_meta_typing = {
     "pY_site": "site",
     "sh2_domain_pY_bnd": "bnd",
     "sh2_domain": "region",
+    "protein_kinase_bnd": "bnd",
 }
 
 # Phosphorylation semantic nugget
 phosphorylation = {
     "nodes":
         ["protein_kinase",
+         "protein_kinase_bnd",
          ("protein_kinase_activity", {"name": {"activity"}, "test": {True}}),
          ("phospho", {"value": {True}}),
          ("phospho_state", {"name": {"phosphorylation"}, "test": {False}}),
@@ -56,6 +60,7 @@ phosphorylation = {
     "edges":
         [("protein_kinase_activity", "protein_kinase"),
          ("protein_kinase", "phospho"),
+         ("protein_kinase", "protein_kinase_bnd"),
          ("phospho", "phospho_state"),
          ("phospho_state", "phospho_target_residue")]
 }
@@ -65,7 +70,8 @@ phosphorylation_meta_typing = {
     "protein_kinase_activity": "state",
     "phospho": "mod",
     "phospho_state": "state",
-    "phospho_target_residue": "residue"
+    "phospho_target_residue": "residue",
+    "protein_kinase_bnd": "bnd"
 }
 
 phosphorylation_semantic_AG = {
@@ -73,7 +79,8 @@ phosphorylation_semantic_AG = {
     "protein_kinase_activity": "protein_kinase_activity",
     "phospho": "phospho",
     "phospho_state": "phospho_state",
-    "phospho_target_residue": "phospho_target_residue"
+    "phospho_target_residue": "phospho_target_residue",
+    "protein_kinase_bnd": "protein_kinase_bnd"
 }
 
 # Dephosphorylation semantic nugget

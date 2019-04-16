@@ -267,6 +267,15 @@ class KamiCorpus(object):
                 templates.append(node_id)
         return templates
 
+    def get_nugget_semantic_rels(self, nugget_id):
+        all_rels = self._hierarchy.adjacent_relations(nugget_id)
+        semantic_nuggets = self.semantic_nuggets()
+        result = {}
+        for r in all_rels:
+            if r in semantic_nuggets:
+                result[r] = self._hierarchy.get_relation(nugget_id, r)
+        return result
+
     def mod_semantic_nuggets(self):
         """Get a list of semantic nuggets related to mod interactions."""
         nuggets = []
@@ -875,17 +884,24 @@ class KamiCorpus(object):
 
         # Get a set of genes added by the nugget
         new_gene_nodes = set()
-        for node in nugget_container.graph.nodes():
-            new_nugget_node = r_g_prime[node]
-            try:
-                ag_node = self._hierarchy.get_typing(
-                    nugget_graph_id, self._action_graph_id)[new_nugget_node]
-                if self.get_action_graph_typing()[ag_node] == "gene":
-                    if node not in nugget_container.reference_typing.keys():
+        # print("Nugget nodes: ", nugget_container.nodes())
+        # print("Reference typing: ", nugget_container.reference_typing)
+        for node in nugget_container.nodes():
+            if nugget_container.meta_typing[node] == "gene":
+                new_nugget_node = r_g_prime[node]
+                # print("\tNugget node", new_nugget_node)
+                try:
+                    ag_node = self._hierarchy.get_typing(
+                        nugget_graph_id, self._action_graph_id)[new_nugget_node]
+                    # print("\tAg node", ag_node)
+                    # print(nugget_container.reference_typing.values())
+                    # print()
+                    if ag_node not in nugget_container.reference_typing.values():
+                        # print("\t\tNew gene ", ag_node)
                         new_gene_nodes.add(ag_node)
-            except:
-                print("!!", new_nugget_node, self._hierarchy.get_typing(
-                    nugget_graph_id, self._action_graph_id))
+                except:
+                    print("!!", new_nugget_node, self._hierarchy.get_typing(
+                        nugget_graph_id, self._action_graph_id))
 
         # Check if all new genes agents from the nugget should be
         # distinct in the action graph
@@ -1032,6 +1048,7 @@ class KamiCorpus(object):
         """Relate a nugget to a semantic nugget."""
         self._hierarchy.add_relation(
             nugget_id, semantic_nugget_id, rel)
+
         return
 
     def unique_kinase_region(self, gene):
