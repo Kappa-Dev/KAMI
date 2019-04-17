@@ -33,22 +33,17 @@ meta_model = {
             "xrefs": RegexSet.universal(),
             "variant_name": RegexSet.universal(),
             "variant_desc": RegexSet.universal(),
-            # "partition": IntegerSet.universal()
-            # "xrefs": UniversalSet()
+            "canonical_sequence": RegexSet.universal(),
         }),
         ("region", {
             "name": RegexSet.universal(),
             "interproid": RegexSet.universal(),
-            # "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal(),
-            # "partition": IntegerSet.universal()
         }),
         ("site", {
             "name": RegexSet.universal(),
             "interproid": RegexSet.universal(),
-            # "interproid": RegexSet(INTERPRO_REGEX),
             "label": RegexSet.universal(),
-            # "partition": IntegerSet.universal()
         }),
         ("residue", {
             "aa": {
@@ -62,7 +57,6 @@ meta_model = {
                 "Q", "N", "E", "D", "S", "T"
             },
             "test": {True, False},
-            # "partition": IntegerSet.universal()
         }),
         ("state", {
             "name": {

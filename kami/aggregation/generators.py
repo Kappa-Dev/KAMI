@@ -12,7 +12,11 @@ import warnings
 import networkx as nx
 
 from regraph import (add_edge,
-                     add_node)
+                     add_node,
+                     add_node_attrs,
+                     remove_node,
+                     remove_edge,
+                     remove_node_attrs)
 
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.aggregation.bookkeeping import apply_bookkeeping
@@ -79,10 +83,25 @@ class KamiGraph:
             self.reference_typing[node_id] = reference_typing
         return
 
+    def add_node_attrs(self, node_id, attrs):
+        add_node_attrs(self.graph, node_id, attrs)
+
     def add_edge(self, s, t, attrs=None):
         """Add edge between the nodes of a nugget."""
         add_edge(self.graph, s, t, attrs)
         return
+
+    def remove_node(self, node_id):
+        remove_node(self.graph, node_id)
+        del self.meta_typing[node_id]
+        if node_id in self.reference_typing:
+            del self.reference_typing[node_id]
+
+    def remove_node_attrs(self, node_id, attrs):
+        remove_node_attrs(self.graph, node_id, attrs)
+
+    def remove_edge(self, s, t):
+        remove_edge(self.graph, s, t)
 
     def nodes(self):
         """Return a list of nodes of the nugget graph."""

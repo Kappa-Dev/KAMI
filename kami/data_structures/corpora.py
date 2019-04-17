@@ -18,8 +18,11 @@ from regraph.primitives import (add_node, add_edge,
                                 add_edges_from,
                                 graph_to_json,
                                 attrs_to_json,
-                                attrs_from_json)
+                                attrs_from_json,
+                                add_node_attrs)
 from regraph.utils import relation_to_json
+
+from anatomizer.anatomizer_light import fetch_canonical_sequence
 
 from kami.utils.generic import (normalize_to_set,
                                 nodes_of_type,
@@ -1418,3 +1421,60 @@ class KamiCorpus(object):
                 self.add_interaction(
                     i, add_agents=add_agents,
                     anatomize=anatomize, apply_semantics=apply_semantics)
+
+    def subcomponent_nodes(self, node_id):
+        """Get all the subcomponent nodes."""
+        ag_typing = self.get_action_graph_typing()
+        all_predecessors = self.action_graph.predecessors(node_id)
+        subcomponents = set([
+            p for p in all_predecessors
+            if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
+        ] + [node_id])
+        visited = set()
+        next_level_to_visit = set([
+            p for p in all_predecessors
+            if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
+        ])
+        while len(next_level_to_visit) > 0:
+            new_level_to_visit = set()
+            for n in next_level_to_visit:
+                if n not in visited:
+                    visited.add(n)
+                    new_anc = set([
+                        p
+                        for p in self.action_graph.predecessors(n)
+                        if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
+                    ])
+                    subcomponents.update(new_anc)
+                new_level_to_visit.update(new_anc)
+            next_level_to_visit = new_level_to_visit
+        return subcomponents
+
+    def get_canonical_sequence(self, gene_node_id):
+        attrs = get_node(self.action_graph, gene_node_id)
+        uniprotid = self.get_uniprot(gene_node_id)
+        if "canonical_sequence" in attrs:
+            return list(attrs["canonical_sequence"])[0]
+        else:
+            seq = fetch_canonical_sequence(uniprotid)
+            add_node_attrs(
+                self.action_graph,
+                gene_node_id,
+                {
+                    "canonical_sequence": seq
+                }
+            )
+
+    def get_residue_location(self, residue_node_id):
+        loc = None
+        gene = None
+        ag_typing = self.get_action_graph_typing()
+        for s in self.action_graph.successors(residue_node_id):
+            if ag_typing[s] == "gene":
+                gene = s
+                break
+        if gene is not None:
+            attrs = get_edge(self.action_graph, residue_node_id, gene)
+            if "loc" in attrs:
+                loc = list(attrs["loc"])[0]
+        return loc

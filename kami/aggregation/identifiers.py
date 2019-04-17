@@ -421,3 +421,30 @@ class EntityIdentifier:
                     #         {name: {state.value}})
                 return s
         return None
+
+    def subcomponents(self, node_id):
+        """Get all the subcomponent nodes."""
+        all_predecessors = self.graph.predecessors(node_id)
+        subcomponents = set([
+            p for p in all_predecessors
+            if self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd"
+        ] + [node_id])
+        visited = set()
+        next_level_to_visit = set([
+            p for p in all_predecessors
+            if self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd"
+        ])
+        while len(next_level_to_visit) > 0:
+            new_level_to_visit = set()
+            for n in next_level_to_visit:
+                if n not in visited:
+                    visited.add(n)
+                    new_anc = set([
+                        p
+                        for p in self.graph.predecessors(n)
+                        if self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd"
+                    ])
+                    subcomponents.update(new_anc)
+                new_level_to_visit.update(new_anc)
+            next_level_to_visit = new_level_to_visit
+        return subcomponents
