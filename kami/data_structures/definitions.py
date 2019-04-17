@@ -1,5 +1,8 @@
 """Collection of data structures for protein products/families definitions."""
 import copy
+import warnings
+
+import regraph.primitives as primitives
 from regraph import Rule, get_node, get_edge, set_node_attrs
 from regraph.utils import keys_by_value
 
@@ -8,6 +11,159 @@ from kami.aggregation.identifiers import EntityIdentifier
 
 from kami.data_structures.entities import Gene, Region, Site, Residue, State
 from kami.utils.id_generators import (generate_new_id)
+
+
+class Variant(object):
+
+    def __init__(self, removed_components, residues, name=None, desc=None):
+        self.removed_components = {}
+        if "regions" in removed_components:
+            self.removed_components["regions"] = removed_components["regions"]
+        else:
+            self.removed_components["regions"] = []
+        if "sites" in removed_components:
+            self.removed_components["sites"] = removed_components["sites"]
+        else:
+            self.removed_components["sites"] = []
+        if "residues" in removed_components:
+            self.removed_components["residues"] = removed_components["residues"]
+        else:
+            self.removed_components["residues"] = []
+        if "states" in removed_components:
+            self.removed_components["states"] = removed_components["states"]
+        else:
+            self.removed_components["states"] = []
+        self.residues = residues
+        self.name = name
+        self.desc = desc
+
+    def generate_graph(self, reference_graph, gene_node, meta_typing):
+        """Generate variant graph."""
+        graph = KamiGraph(reference_graph, meta_typing)
+
+        entity_identifier = EntityIdentifier(
+            reference_graph, meta_typing,
+            immediate=False)
+
+        for n in graph.nodes():
+            if graph.meta_typing[n] == "gene":
+                graph.add_node_attrs(
+                    n,
+                    {
+                        "variant_name": self.name,
+                        "variant_desc": self.desc
+                    })
+                break
+
+        # remove components
+        def remove_component(node):
+            # Find all the subcomponents and remove them
+            components = entity_identifier.subcomponents(node)
+            for n in components:
+                graph.remove_node(n)
+
+        for region in self.removed_components["regions"]:
+            region_node = entity_identifier.identify_region(
+                region, gene_node)
+            if region_node:
+                remove_component(region_node)
+            else:
+                warnings.warn(
+                    "Element was not found in the reference graph!")
+        for site in self.remove_components["sites"]:
+            site_node = entity_identifier.identify_site(
+                site, gene_node)
+            if site_node:
+                remove_component(site_node)
+            else:
+                warnings.warn(
+                    "Element was not found in the reference graph!")
+        for residue in self.remove_components["residues"]:
+            residue_node = entity_identifier.identify_residue(
+                residue, gene_node)
+            if residue_node:
+                remove_component(residue_node)
+            else:
+                warnings.warn(
+                    "Element was not found in the reference graph!")
+        for state in self.remove_components["states"]:
+            state_node = entity_identifier.identify_state(
+                state, gene_node)
+            if state_node:
+                remove_component(state_node)
+            else:
+                warnings.warn(
+                    "Element was not found in the reference graph!")
+
+        return graph
+
+
+class NewDefinition:
+    """Class for protein product definitions.
+
+    Attributes
+    ----------
+    gene : kami.data_structures.entities.Gene
+        Reference gene object
+    products : dict
+        Dictionary whose keys are product names and whose values
+        are kami.data_structuires.definitions.Variant objects
+    """
+
+    def __init__(self, gene, products):
+        self.gene = gene
+        self.products = products
+
+    def _generate_protoform_graph(self, reference_graph, meta_typing):
+        protoform_graph = KamiGraph()
+        entity_identifier = EntityIdentifier(
+            reference_graph, meta_typing,
+            immediate=False)
+        gene_node = entity_identifier.identify_gene(self.gene)
+        if gene_node is not None:
+            # Build protoform graph
+            subcomponents = entity_identifier.subcomponents(gene_node)
+            for c in subcomponents:
+                protoform_graph.add_node(
+                    c, get_node(reference_graph, c),
+                    meta_typing[c])
+            for s in subcomponents:
+                for t in subcomponents:
+                    if primitives.exists_edge(reference_graph, s, t):
+                        protoform_graph.add_edge(
+                            s, t,
+                            get_edge(reference_graph, s, t))
+        return protoform_graph, gene_node
+
+    def generate_rule(self, reference_graph, meta_typing):
+        protoform_graph, gene_node = self._generate_protoform_graph(
+            reference_graph, meta_typing)
+        products_graph = KamiGraph()
+        p_lhs = {}
+
+        for i, (product_name, product) in enumerate(self.products.items()):
+            product_graph = product.generate_graph(
+                protoform_graph.graph, gene_node,
+                protoform_graph.meta_typing)
+            # Add copy of generated product graph to P
+            for n in product_graph.nodes():
+                new_name = "{}{}".format(n, i + 1)
+                products_graph.add_node(
+                    new_name,
+                    get_node(product_graph.graph, n))
+                p_lhs["{}{}".format(n, i + 1)] = n
+            for s, t in product_graph.edges():
+                products_graph.add_edge(
+                    "{}{}".format(s, i + 1),
+                    "{}{}".format(t, i + 1),
+                    get_edge(product_graph.graph, s, t))
+        rule = Rule(
+            p=products_graph.graph,
+            lhs=protoform_graph.graph,
+            rhs=products_graph.graph,
+            p_lhs=p_lhs)
+
+        return rule, {n: n for n in product_graph.nodes()}
 
 
 class Definition:
