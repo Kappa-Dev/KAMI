@@ -13,7 +13,7 @@ from kami.data_structures.entities import Gene, Region, Site, Residue, State
 from kami.utils.id_generators import (generate_new_id)
 
 
-class Variant(object):
+class Product(object):
 
     def __init__(self, removed_components, residues, name=None, desc=None):
         self.removed_components = {}
@@ -37,23 +37,13 @@ class Variant(object):
         self.name = name
         self.desc = desc
 
-    def generate_graph(self, reference_graph, gene_node, meta_typing):
+    def generate_graph(self, reference_graph, gene_node):
         """Generate variant graph."""
-        graph = KamiGraph(reference_graph, meta_typing)
+        graph = KamiGraph(reference_graph.graph, reference_graph.meta_typing)
 
         entity_identifier = EntityIdentifier(
-            reference_graph, meta_typing,
+            reference_graph.graph, reference_graph.meta_typing,
             immediate=False)
-
-        for n in graph.nodes():
-            if graph.meta_typing[n] == "gene":
-                graph.add_node_attrs(
-                    n,
-                    {
-                        "variant_name": self.name,
-                        "variant_desc": self.desc
-                    })
-                break
 
         # remove components
         def remove_component(node):
@@ -70,7 +60,7 @@ class Variant(object):
             else:
                 warnings.warn(
                     "Element was not found in the reference graph!")
-        for site in self.remove_components["sites"]:
+        for site in self.removed_components["sites"]:
             site_node = entity_identifier.identify_site(
                 site, gene_node)
             if site_node:
@@ -78,7 +68,7 @@ class Variant(object):
             else:
                 warnings.warn(
                     "Element was not found in the reference graph!")
-        for residue in self.remove_components["residues"]:
+        for residue in self.removed_components["residues"]:
             residue_node = entity_identifier.identify_residue(
                 residue, gene_node)
             if residue_node:
@@ -86,7 +76,7 @@ class Variant(object):
             else:
                 warnings.warn(
                     "Element was not found in the reference graph!")
-        for state in self.remove_components["states"]:
+        for state in self.removed_components["states"]:
             state_node = entity_identifier.identify_state(
                 state, gene_node)
             if state_node:
@@ -96,6 +86,42 @@ class Variant(object):
                     "Element was not found in the reference graph!")
 
         return graph
+
+    @classmethod
+    def from_json(cls, json_dict, name):
+        """Retreive Product from json."""
+        removed_components = {}
+        if "removed_components" in json_dict:
+            if "regions" in json_dict["removed_components"]:
+                removed_components["regions"] = []
+                for el in json_dict["removed_components"]["regions"]:
+                    removed_components["regions"].append(
+                        Region.from_json(el))
+            if "sites" in json_dict["removed_components"]:
+                removed_components["sites"] = []
+                for el in json_dict["removed_components"]["sites"]:
+                    removed_components["sites"].append(
+                        Site.from_json(el))
+            if "residues" in json_dict["removed_components"]:
+                removed_components["residues"] = []
+                for el in json_dict["removed_components"]["residues"]:
+                    removed_components["residues"].append(
+                        Residue.from_json(el))
+            if "states" in json_dict["removed_components"]:
+                removed_components["states"] = []
+                for el in json_dict["removed_components"]["states"]:
+                    removed_components["states"].append(
+                        State.from_json(el))
+        residues = []
+        if "residues" in json_dict:
+            for r in json_dict["residues"]:
+                residues.append(Residue.from_json(r))
+
+        desc = None
+        if "desc" in json_dict:
+            desc = json_dict["desc"]
+        return cls(removed_components, residues, name, desc)
+
 
 
 class NewDefinition:
@@ -107,7 +133,7 @@ class NewDefinition:
         Reference gene object
     products : dict
         Dictionary whose keys are product names and whose values
-        are kami.data_structuires.definitions.Variant objects
+        are kami.data_structuires.definitions.Product objects
     """
 
     def __init__(self, gene, products):
@@ -141,13 +167,16 @@ class NewDefinition:
         products_graph = KamiGraph()
         p_lhs = {}
 
-        for i, (product_name, product) in enumerate(self.products.items()):
+        product_genes_nodes = {}
+        for i, product in enumerate(self.products):
+            # product_name = product.name
             product_graph = product.generate_graph(
-                protoform_graph.graph, gene_node,
-                protoform_graph.meta_typing)
+                protoform_graph, gene_node)
             # Add copy of generated product graph to P
             for n in product_graph.nodes():
                 new_name = "{}{}".format(n, i + 1)
+                if protoform_graph.meta_typing[n] == "gene":
+                    product_genes_nodes[product.name] = new_name
                 products_graph.add_node(
                     new_name,
                     get_node(product_graph.graph, n))
@@ -163,7 +192,24 @@ class NewDefinition:
             rhs=products_graph.graph,
             p_lhs=p_lhs)
 
-        return rule, {n: n for n in product_graph.nodes()}
+        for product in self.products:
+            rule.inject_add_node_attrs(
+                product_genes_nodes[product.name],
+                {
+                    "variant_name": product.name,
+                    "variant_desc": product.desc
+                })
+
+        return rule, {n: n for n in protoform_graph.nodes()}
+
+    @classmethod
+    def from_json(cls, json_dict):
+        """Retreive def from json."""
+        products = []
+        for name, val in json_dict["products"].items():
+            products.append(Product.from_json(val, name=name))
+        return cls(Gene(json_dict["protoform"]), products)
+
 
 
 class Definition:

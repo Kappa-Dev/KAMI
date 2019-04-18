@@ -234,6 +234,7 @@ class KamiCorpus(object):
         graph_attrs = self._hierarchy.get_graph_attrs(node_id)
         if "type" in graph_attrs.keys():
             if "nugget" in graph_attrs["type"] and\
+               "corpus_id" in graph_attrs and\
                self._id in graph_attrs["corpus_id"] and\
                "model_id" not in graph_attrs.keys():
                 return True

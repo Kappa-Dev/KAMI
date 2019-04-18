@@ -536,9 +536,15 @@ class Region(PhysicalEntity):
         if self.interproid:
             res["interproid"] = self.interproid
         if self.name:
-            res["name"] = {self.name}
+            try:
+                res["name"] = {self.name}
+            except:
+                res["name"] = set(self.name)
         if self.label:
-            res["label"] = {self.label}
+            try:
+                res["label"] = {self.label}
+            except:
+                res["label"] = set(self.label)
         return res
 
     def location(self):

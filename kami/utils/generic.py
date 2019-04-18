@@ -60,8 +60,7 @@ def _init_from_data(kb, data, instantiated=False):
             kb._hierarchy.add_graph_from_json(
                 kb._action_graph_id,
                 data["action_graph"],
-                {"type": "action_graph"},
-                holistic=True)
+                {"type": "action_graph"})
             # print("Finished after: ", time.time() - start)
 
             if "action_graph_typing" in data.keys():
@@ -122,8 +121,7 @@ def _init_from_data(kb, data, instantiated=False):
                 kb._hierarchy.add_graph_from_json(
                     nugget_graph_id,
                     nugget_data["graph"],
-                    attrs,
-                    holistic=True)
+                    attrs)
                 kb.nugget[nugget_data["id"]] = kb._hierarchy.get_graph(
                     nugget_graph_id)
 
