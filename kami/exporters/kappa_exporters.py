@@ -34,6 +34,7 @@ def _generate_agent_states(identifier, ag_typing, agent, ag_uniprot_id, agents,
             # get state value (True always renders to 1, False to 0)
             state_attrs = get_node(identifier.graph, s)
             value = 1 if list(state_attrs["test"])[0] else 0
+            print(ag_typing, s)
             ag_state = ag_typing[s]
             state_repr.append(
                 agents[ag_uniprot_id]["stateful_sites"][ag_state] + "{{{}}}".format(
@@ -232,6 +233,8 @@ def generate_kappa(model, concentations=None):
                 for k, v in ag_typing.items()},
             immediate=False)
 
+        print(nugget.nodes())
+
         nugget_desc = ""
         if (model.get_nugget_desc(n)):
             nugget_desc = " //{}".format(model.get_nugget_desc(n).replace(
@@ -270,10 +273,14 @@ def generate_kappa(model, concentations=None):
 
                             target_states.append((s, target_site, target_value))
 
-                    state_repr = _generate_agent_states(
-                        identifier, ag_typing, substrate, ag_substrate_uniprot_id, agents,
-                        [s[0] for s in target_states])
-                    substrate_states = ",".join(state_repr)
+                    substrate_states = ",".join(_generate_agent_states(
+                        nugget_identifier, ag_typing, substrate, ag_substrate_uniprot_id, agents,
+                        to_ignore=[s[0] for s in target_states]))
+
+                    # state_repr = _generate_agent_states(
+                    #     identifier, ag_typing, substrate, ag_substrate_uniprot_id, agents,
+                    #     [s[0] for s in target_states])
+                    # substrate_states = ",".join(state_repr)
 
                     if len(enzymes) > 0:
                         for enzyme in enzymes:
@@ -282,7 +289,7 @@ def generate_kappa(model, concentations=None):
                             enzyme_name, enzyme_variant_state = _generate_agent_name(
                                 identifier, ag_typing, enzyme, ag_enzyme_uniprot_id, agents)
                             enzyme_states = ",".join(_generate_agent_states(
-                                identifier, ag_typing, enzyme, ag_enzyme_uniprot_id, agents))
+                                nugget_identifier, ag_typing, enzyme, ag_enzyme_uniprot_id, agents))
 
                             enzyme_bnd_sites = []
                             substrate_bnd_sites = []
