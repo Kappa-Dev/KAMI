@@ -167,7 +167,10 @@ class EntityIdentifier:
     def ancestors_of_type(self, node_id, meta_type):
         ancestors = self.predecessors_of_type(node_id, meta_type)
         visited = set()
-        next_level_to_visit = set(self.graph.predecessors(node_id))
+        next_level_to_visit = set([
+            p for p in self.graph.predecessors(node_id)
+            if meta_type == "mod" or meta_type == "bnd" or (self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
+        ])
         while len(next_level_to_visit) > 0:
             new_level_to_visit = set()
             for n in next_level_to_visit:
@@ -175,9 +178,38 @@ class EntityIdentifier:
                     visited.add(n)
                     ancestors += self.predecessors_of_type(n, meta_type)
                 new_level_to_visit.update(
-                    set(self.graph.predecessors(n)))
+                    set([
+                        p for p in self.graph.predecessors(n)
+                        if meta_type == "mod" or meta_type == "bnd" or (self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
+                    ]))
             next_level_to_visit = new_level_to_visit
         return ancestors
+
+        # ag_typing = self.get_action_graph_typing()
+        # all_predecessors = self.action_graph.predecessors(node_id)
+        # subcomponents = set([
+        #     p for p in all_predecessors
+        #     if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
+        # ] + [node_id])
+        # visited = set()
+        # next_level_to_visit = set([
+        #     p for p in all_predecessors
+        #     if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
+        # ])
+        # while len(next_level_to_visit) > 0:
+        #     new_level_to_visit = set()
+        #     for n in next_level_to_visit:
+        #         if n not in visited:
+        #             visited.add(n)
+        #             new_anc = set([
+        #                 p
+        #                 for p in self.action_graph.predecessors(n)
+        #                 if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
+        #             ])
+        #             subcomponents.update(new_anc)
+        #         new_level_to_visit.update(new_anc)
+        #     next_level_to_visit = new_level_to_visit
+        # return subcomponents
 
     def descendants_of_type(self, node_id, meta_type):
         ancestors = self.successors_of_type(node_id, meta_type)

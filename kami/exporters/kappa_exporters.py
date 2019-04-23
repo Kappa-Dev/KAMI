@@ -34,7 +34,6 @@ def _generate_agent_states(identifier, ag_typing, agent, ag_uniprot_id, agents,
             # get state value (True always renders to 1, False to 0)
             state_attrs = get_node(identifier.graph, s)
             value = 1 if list(state_attrs["test"])[0] else 0
-            print(ag_typing, s)
             ag_state = ag_typing[s]
             state_repr.append(
                 agents[ag_uniprot_id]["stateful_sites"][ag_state] + "{{{}}}".format(
@@ -123,6 +122,8 @@ def generate_kappa(model, concentations=None):
 
     # Generate agents: an agent per protoform (gene)
     # each having a state specifying its variantsss
+    # print("Generating agents...")
+    # print("\tFinding isoforms...")
     isoforms = {}
     for protein in model.proteins():
         uniprot_id = model.get_uniprot(protein)
@@ -137,14 +138,15 @@ def generate_kappa(model, concentations=None):
                 {protein: variant_name},
                 hgnc_symbol
             ]
-
+    # print("\tFinished.")
     identifier = EntityIdentifier(
         model.action_graph,
         model.get_action_graph_typing(),
         immediate=False)
+    # print("\tComputing agents...")
     agents = {}
     for isoform, (proteins, hgnc) in isoforms.items():
-
+        # print("\t\t", hgnc)
         if hgnc is not None:
             agent_name = hgnc
         else:
@@ -216,9 +218,11 @@ def generate_kappa(model, concentations=None):
                         agents[isoform]["region_bnd_sites"].values(),
                         region_name + "_site")
                     agents[isoform]["region_bnd_sites"][(r, bnd)] = bnd_name
-
+    # print("\tFinished.")
+    # print("Finished")
     rules = []
 
+    # print("Generating rules...")
     # Generate rules
     for n in model.nuggets():
         nugget = model.nugget[n]
@@ -232,8 +236,6 @@ def generate_kappa(model, concentations=None):
                 k: model.get_action_graph_typing()[v]
                 for k, v in ag_typing.items()},
             immediate=False)
-
-        print(nugget.nodes())
 
         nugget_desc = ""
         if (model.get_nugget_desc(n)):
@@ -410,6 +412,7 @@ def generate_kappa(model, concentations=None):
         nugget_desc = model.get_nugget_desc(n)
         if (nugget_desc):
             rate += " //{}".format(nugget_desc)
+    # print("Finished.")
 
     header = "// Automatically generated from KAMI-model '{}' {}\n\n".format(
         model._id, datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
