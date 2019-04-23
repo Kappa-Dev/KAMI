@@ -85,6 +85,13 @@ class Product(object):
                 warnings.warn(
                     "Element was not found in the reference graph!")
 
+        for residue in self.residues:
+            residue_id = entity_identifier.identify_residue(
+                residue, gene_node)
+            if residue_id in graph.graph.nodes():
+                set_node_attrs(
+                    graph.graph, residue_id, {"aa": residue.aa}, update=False)
+
         return graph
 
     @classmethod
@@ -121,7 +128,6 @@ class Product(object):
         if "desc" in json_dict:
             desc = json_dict["desc"]
         return cls(removed_components, residues, name, desc)
-
 
 
 class NewDefinition:

@@ -38,6 +38,10 @@ def apply_mod_semantics(model, nugget_id):
     enzyme = None
     if "enzyme" in template_rel.keys():
         enzyme = list(template_rel["enzyme"])[0]
+
+    if enzyme is None:
+        return None
+
     mod_state = None
     if "mod_state" in template_rel.keys():
         mod_state = list(template_rel["mod_state"])[0]
