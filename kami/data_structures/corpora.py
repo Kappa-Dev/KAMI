@@ -30,7 +30,8 @@ from kami.utils.generic import (normalize_to_set,
                                 _clean_up_nuggets)
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
-                                          apply_bookkeeping)
+                                          apply_bookkeeping,
+                                          reconnect_residues)
 from kami.aggregation.generators import generate_nugget
 from kami.aggregation.semantics import (apply_mod_semantics,
                                         apply_bnd_semantics)
@@ -351,12 +352,15 @@ class KamiCorpus(object):
             self, self._action_graph_id)
         return identifier.successors_of_type(node, "bnd")
 
-    def get_attached_mod(self, node):
+    def get_attached_mod(self, node, all_directions=False):
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
             self, self._action_graph_id)
-        return identifier.successors_of_type(node, "mod")
+        result = identifier.successors_of_type(node, "mod")
+        if all_directions:
+            result += identifier.predecessors_of_type(node, "mod")
+        return result
 
     def merge_ag_nodes(self, nodes):
         ag_typing = self.get_action_graph_typing()
@@ -460,6 +464,25 @@ class KamiCorpus(object):
             "No gene node is associated with an element '{}'".fromat(
                 element_id))
         return None
+
+    def get_genes_of_bnd(self, bnd_node):
+        """Get genes associated with a bidnind node."""
+        genes = set()
+        for s in self.action_graph.predecessors(bnd_node):
+            genes.add(self.get_gene_of(s))
+        return genes
+
+    def get_enzyme_of_mod(self, mod_node):
+        genes = set()
+        for s in self.action_graph.predecessors(mod_node):
+            genes.add(self.get_gene_of(s))
+        return genes
+
+    def get_substrates_of_mod(self, mod_node):
+        genes = set()
+        for s in self.action_graph.successors(mod_node):
+            genes.add(self.get_gene_of(s))
+        return genes
 
     def get_region_of(self, element_id):
         """Get region id conntected to the element."""
@@ -1479,3 +1502,12 @@ class KamiCorpus(object):
             if "loc" in attrs:
                 loc = list(attrs["loc"])[0]
         return loc
+
+    def interaction_edges(self):
+        interactions = self.get_gene_pairwise_interactions()
+        edges = []
+        for gene, (partners, nuggets) in interactions.items():
+            for i, partner in enumerate(partners):
+                if (gene, partner) not in edges and (partner, gene) not in edges:
+                    edges.append({"source": gene, "target": partner})
+        return edges

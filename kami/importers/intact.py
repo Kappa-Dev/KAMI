@@ -103,6 +103,7 @@ import anatomizer.new_anatomizer as anatomizer
 from kami.entities import *
 from kami.interactions import *
 
+
 class IntActImporter(object):
 
     def __init__(self, identify=True, anatomize=True):
