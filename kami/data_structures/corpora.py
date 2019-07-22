@@ -461,7 +461,7 @@ class KamiCorpus(object):
                         self.action_graph.successors(n))
                 next_level_to_visit = new_level_to_visit
         raise KamiHierarchyError(
-            "No gene node is associated with an element '{}'".fromat(
+            "No gene node is associated with an element '{}'".format(
                 element_id))
         return None
 
@@ -472,7 +472,7 @@ class KamiCorpus(object):
             genes.add(self.get_gene_of(s))
         return genes
 
-    def get_enzyme_of_mod(self, mod_node):
+    def get_enzymes_of_mod(self, mod_node):
         genes = set()
         for s in self.action_graph.predecessors(mod_node):
             genes.add(self.get_gene_of(s))
@@ -837,11 +837,79 @@ class KamiCorpus(object):
         self._nugget_count += 1
         if name is None:
             name = "nugget"
-        return name + "_" + str(self._nugget_count)
+
+        generated_id = name + "_" + str(self._nugget_count)
+        while self._id + "_" + generated_id in self.nuggets():
+            self._nugget_count += 1
+            generated_id = name + "_" + str(self._nugget_count)
+
+        return generated_id
 
     def get_nugget_type(self, nugget_id):
         """Get type of the nugget specified by id."""
         return list(self._hierarchy.get_graph_attrs(nugget_id)["interaction_type"])[0]
+
+    def is_mod_nugget(self, nugget_id):
+        t = self.get_nugget_type(nugget_id)
+        return t == "mod"
+
+    def is_bnd_nugget(self, nugget_id):
+        t = self.get_nugget_type(nugget_id)
+        return t == "bnd"
+
+    def get_enzyme(self, nugget_id):
+        if self.is_mod_nugget(nugget_id):
+            enzyme = None
+            rel = self._hierarchy.get_relation(
+                "mod_template", nugget_id)
+            if "enzyme" in rel and len(rel["enzyme"]) > 0:
+                enzyme = list(rel["enzyme"])[0]
+            return enzyme
+        else:
+            raise KamiException("Nugget '{}' is not a mod nugget".format(
+                nugget_id))
+
+    def get_substrate(self, nugget_id):
+        if self.is_mod_nugget(nugget_id):
+            substrate = None
+            rel = self._hierarchy.get_relation(
+                "mod_template", nugget_id)
+            try:
+                substrate = list(rel["substrate"])[0]
+                return substrate
+            except:
+                print(rel, nugget_id)
+        else:
+            raise KamiException("Nugget '{}' is not a mod nugget".format(
+                nugget_id))
+
+    def get_left_partner(self, nugget_id):
+        if self.is_bnd_nugget(nugget_id):
+            left = None
+            rel = self._hierarchy.get_relation(
+                "bnd_template", nugget_id)
+            try:
+                left = list(rel["left_partner"])[0]
+                return left
+            except:
+                print(rel, nugget_id)
+        else:
+            raise KamiException("Nugget '{}' is not a bnd nugget".format(
+                nugget_id))
+
+    def get_right_partner(self, nugget_id):
+        if self.is_bnd_nugget(nugget_id):
+            right = None
+            rel = self._hierarchy.get_relation(
+                "bnd_template", nugget_id)
+            try:
+                right = list(rel["right_partner"])[0]
+                return right
+            except:
+                print(rel, nugget_id)
+        else:
+            raise KamiException("Nugget '{}' is not a bnd nugget".format(
+                nugget_id))
 
     def get_nugget_template_rel(self, nugget_id):
         """Get relation of a nugget to a template."""
@@ -854,7 +922,6 @@ class KamiCorpus(object):
                    add_agents=True, anatomize=True,
                    apply_semantics=True):
         """Add nugget to the hierarchy."""
-
         if self._action_graph_id not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
@@ -887,6 +954,10 @@ class KamiCorpus(object):
             nugget_graph_id, self._action_graph_id, dict())
 
         # 4. Apply nugget generation rule
+        for k, v in rhs_typing[self._action_graph_id].items():
+            print(get_node(nugget_container.graph, k))
+            print(get_node(self.action_graph, v))
+
         g_prime, r_g_prime = self.rewrite(
             nugget_graph_id,
             rule=generation_rule, instance={},
@@ -931,7 +1002,10 @@ class KamiCorpus(object):
                         nugget_graph_id, self._action_graph_id))
 
         # Check if all new genes agents from the nugget should be
-        # distinct in the action graph
+        # distinct in the action grap
+        for gene in new_gene_nodes:
+            print(get_node(self.action_graph, gene))
+
         genes_to_merge = {
             list(get_node(self.action_graph, gene)["uniprotid"])[0]:
                 set() for gene in new_gene_nodes
@@ -1308,7 +1382,7 @@ class KamiCorpus(object):
         return (nuggets, enzyme_genes, substrate_genes)
 
     def get_binding_data(self, bnd_id):
-
+        """Get data related to a binding node."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
@@ -1320,79 +1394,113 @@ class KamiCorpus(object):
         return (nuggets, all_genes)
 
     def get_gene_pairwise_interactions(self):
-
+        """Get pairwise interactions between genes."""
         if "backend" == "networkx":
             raise KamiException("Not implemented for networkx!")
 
         interactions = {}
 
-        # Get bindinds
-        cypher = (
-            "MATCH (gene:meta_model {id: 'gene'}), \n" +
-            "(left:{})-[:typing]->(gene), \n".format(
-                self._action_graph_id) +
-            "(right_proxy:{})-[:edge]->(bnd:{})<-[:edge]-(left_proxy:{})-[:edge*0..]->(left),\n".format(
-                self._action_graph_id, self._action_graph_id, self._action_graph_id) +
-            "(gene)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
-                self._action_graph_id) +
-            "WHERE (bnd)-[:typing]->(:meta_model {id:'bnd'}) AND \n" +
-            "((left_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
-            "AND ((right_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
-            "OPTIONAL MATCH (nugget_actions)-[:typing]->(bnd)\n" +
-            "RETURN left.id as gene, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
-        )
-
-        result = self._hierarchy.execute(cypher)
-        for record in result:
-            interactions[record["gene"]] = (
-                record["partner"],
-                [item for sublist in record["nuggets"] for item in sublist]
-            )
-
-        # Get bindinds
-        cypher = (
-            "MATCH (gene:meta_model {id: 'gene'}),\n" +
-            "(enzyme:{})-[:typing]->(gene), \n".format(self._action_graph_id) +
-            "(substrate:{})-[:typing]->(gene), \n".format(
-                self._action_graph_id) +
-            "(enzyme_proxy:{})-[:edge*0..]->(enzyme), \n".format(
-                self._action_graph_id) +
-            "(substrate_proxy:{})-[:edge*0..]->(substrate), \n".format(
-                self._action_graph_id) +
-            "(enzyme_proxy)-[:typing]->(enzyme_proxy_type:meta_model), \n" +
-            "(substrate_proxy)-[:typing]->(substrate_proxy_type:meta_model), \n" +
-            "(enzyme_proxy)-[:edge]->(mod:{})-[:edge]->(s:{})-[:typing]->(:meta_model {{id: 'state'}}), \n".format(
-                self._action_graph_id, self._action_graph_id) +
-            "(s)-[:edge]->(substrate_proxy) \n" +
-            "WHERE (mod)-[:typing]->(:meta_model {id:'mod'}) AND \n" +
-            "(enzyme_proxy_type.id = 'gene' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
-            "AND (substrate_proxy_type.id = 'gene' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
-            "OPTIONAL MATCH (nugget_actions)-[:typing]->(mod) \n" +
-            "RETURN enzyme.id as gene, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
-        )
-
-        result = self._hierarchy.execute(cypher)
-        for record in result:
-            if record["gene"] in interactions:
-                interactions[record["gene"]] = (
-                    interactions[record["gene"]][0] + record["partner"],
-                    interactions[record["gene"]][1] + record["nuggets"]
-                )
-            else:
-                interactions[record["gene"]] = (
-                    record["partner"],
-                    record["nuggets"]
-                )
-            for i, partner in enumerate(record["partner"]):
-                if partner in interactions:
-                    interactions[partner] = (
-                        interactions[partner][0] + [record["gene"]],
-                        interactions[partner][1] + [record["nuggets"][i]]
-                    )
+        def _add_to_interactions(s, t, n):
+            if s in interactions:
+                if t in interactions[s]:
+                    interactions[s][t].add(n)
                 else:
-                    interactions[partner] = (
-                        [record["gene"]], [record["nuggets"][i]])
+                    interactions[s][t] = {n}
+            else:
+                interactions[s] = {
+                    t: {n}
+                }
 
+        for n in self.nuggets():
+            ag_typing = self._hierarchy.get_typing(n, self._action_graph_id)
+            if self.is_mod_nugget(n):
+                enzyme = self.get_enzyme(n)
+                substrate = self.get_substrate(n)
+                if enzyme is not None and substrate is not None:
+                    _add_to_interactions(
+                        ag_typing[enzyme], ag_typing[substrate], n)
+            elif self.is_bnd_nugget(n):
+                left = self.get_left_partner(n)
+                right = self.get_right_partner(n)
+                if left is not None and right is not None:
+                    _add_to_interactions(
+                        ag_typing[left], ag_typing[right], n)
+
+        # Get bindinds
+        # cypher = (
+        #     "MATCH (gene:meta_model {id: 'gene'}), \n" +
+        #     "(left:{})-[:typing]->(gene), \n".format(
+        #         self._action_graph_id) +
+        #     "(right_proxy:{})-[:edge]->(bnd:{})<-[:edge]-(left_proxy:{})-[:edge*0..]->(left),\n".format(
+        #         self._action_graph_id, self._action_graph_id, self._action_graph_id) +
+        #     "(gene)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
+        #         self._action_graph_id) +
+        #     "WHERE (bnd)-[:typing]->(:meta_model {id:'bnd'}) AND \n" +
+        #     "((left_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
+        #     "AND ((right_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
+        #     "OPTIONAL MATCH (nugget_actions)-[:typing]->(bnd)\n" +
+        #     "RETURN left.id as gene, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
+        # )
+
+        # print(cypher)
+        # result = self._hierarchy.execute(cypher)
+
+        # print("\n\nBindings")
+        # for record in result:
+        #     print(record)
+        #     interactions[record["gene"]] = (
+        #         record["partner"],
+        #         [item for sublist in record["nuggets"] for item in sublist]
+        #     )
+
+        # # Get modifications
+        # cypher = (
+        #     "MATCH (gene:meta_model {id: 'gene'}),\n" +
+        #     "(enzyme:{})-[:typing]->(gene), \n".format(self._action_graph_id) +
+        #     "(substrate:{})-[:typing]->(gene), \n".format(
+        #         self._action_graph_id) +
+        #     "(enzyme_proxy:{})-[:edge*0..]->(enzyme), \n".format(
+        #         self._action_graph_id) +
+        #     "(substrate_proxy:{})-[:edge*0..]->(substrate), \n".format(
+        #         self._action_graph_id) +
+        #     "(enzyme_proxy)-[:typing]->(enzyme_proxy_type:meta_model), \n" +
+        #     "(substrate_proxy)-[:typing]->(substrate_proxy_type:meta_model), \n" +
+        #     "(enzyme_proxy)-[:edge]->(mod:{})-[:edge]->(s:{})-[:typing]->(:meta_model {{id: 'state'}}), \n".format(
+        #         self._action_graph_id, self._action_graph_id) +
+        #     "(s)-[:edge]->(substrate_proxy) \n" +
+        #     "WHERE (mod)-[:typing]->(:meta_model {id:'mod'}) AND \n" +
+        #     "(enzyme_proxy_type.id = 'gene' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
+        #     "AND (substrate_proxy_type.id = 'gene' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
+        #     "OPTIONAL MATCH (nugget_actions)-[:typing]->(mod) \n" +
+        #     "RETURN enzyme.id as gene, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
+        # )
+
+        # print(cypher)
+
+        # print("\n\nModifications")
+        # result = self._hierarchy.execute(cypher)
+        # for record in result:
+        #     print(record)
+        #     if record["gene"] in interactions:
+        #         interactions[record["gene"]] = (
+        #             interactions[record["gene"]][0] + record["partner"],
+        #             interactions[record["gene"]][1] + record["nuggets"]
+        #         )
+        #     else:
+        #         interactions[record["gene"]] = (
+        #             record["partner"],
+        #             record["nuggets"]
+        #         )
+        #     for i, partner in enumerate(record["partner"]):
+        #         if partner in interactions:
+        #             interactions[partner] = (
+        #                 interactions[partner][0] + [record["gene"]],
+        #                 interactions[partner][1] + [record["nuggets"][i]]
+        #             )
+        #         else:
+        #             interactions[partner] = (
+        #                 [record["gene"]], [record["nuggets"][i]])
+        # print(interactions)
         return interactions
 
     def update_nugget_node_attr(self, nugget_id, node_id, node_attrs):
@@ -1511,3 +1619,9 @@ class KamiCorpus(object):
                 if (gene, partner) not in edges and (partner, gene) not in edges:
                     edges.append({"source": gene, "target": partner})
         return edges
+
+    def remove_nugget(self, nugget_id):
+        """Remove nugget from a corpus."""
+        if nugget_id in self.nuggets():
+            self._hierarchy.remove_graph(nugget_id)
+            del self.nugget[nugget_id]

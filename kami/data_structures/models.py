@@ -515,3 +515,9 @@ class KamiModel(object):
                 if (gene, partner) not in edges and (partner, gene) not in edges:
                     edges.append({"source": gene, "target": partner})
         return edges
+
+    def remove_nugget(self, nugget_id):
+        """Remove nugget from a model."""
+        if nugget_id in self.nuggets():
+            self._hierarchy.remove_graph(nugget_id)
+            del self.nugget[nugget_id]
