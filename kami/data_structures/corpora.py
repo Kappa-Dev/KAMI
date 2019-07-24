@@ -1400,15 +1400,15 @@ class KamiCorpus(object):
 
         interactions = {}
 
-        def _add_to_interactions(s, t, n):
+        def _add_to_interactions(s, t, n, n_type, n_desc):
             if s in interactions:
                 if t in interactions[s]:
-                    interactions[s][t].add(n)
+                    interactions[s][t].add((n, n_type, n_desc))
                 else:
-                    interactions[s][t] = {n}
+                    interactions[s][t] = {(n, n_type, n_desc)}
             else:
                 interactions[s] = {
-                    t: {n}
+                    t: {(n, n_type, n_desc)}
                 }
 
         for n in self.nuggets():
@@ -1418,13 +1418,15 @@ class KamiCorpus(object):
                 substrate = self.get_substrate(n)
                 if enzyme is not None and substrate is not None:
                     _add_to_interactions(
-                        ag_typing[enzyme], ag_typing[substrate], n)
+                        ag_typing[enzyme], ag_typing[substrate],
+                        n, "mod", self.get_nugget_desc(n))
             elif self.is_bnd_nugget(n):
                 left = self.get_left_partner(n)
                 right = self.get_right_partner(n)
                 if left is not None and right is not None:
                     _add_to_interactions(
-                        ag_typing[left], ag_typing[right], n)
+                        ag_typing[left], ag_typing[right],
+                        n, "bnd", self.get_nugget_desc(n))
 
         # Get bindinds
         # cypher = (
