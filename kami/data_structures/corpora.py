@@ -345,21 +345,37 @@ class KamiCorpus(object):
                 return gene
         return None
 
-    def get_attached_bnd(self, node):
+    def get_attached_bnd(self, node, immediate=True):
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
             self, self._action_graph_id)
-        return identifier.successors_of_type(node, "bnd")
 
-    def get_attached_mod(self, node, all_directions=False):
+        result = identifier.successors_of_type(node, "bnd")
+        if not immediate:
+            for r in identifier.get_attached_regions(node):
+                result += identifier.successors_of_type(r, "bnd")
+            for s in identifier.get_attached_sites(node):
+                result += identifier.successors_of_type(s, "bnd")
+        return list(set(result))
+
+    def get_attached_mod(self, node, immediate=True, all_directions=False):
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
             self, self._action_graph_id)
+
         result = identifier.successors_of_type(node, "mod")
+
+        if not immediate:
+            for r in identifier.get_attached_regions(node):
+                result += identifier.successors_of_type(r, "mod")
+            for s in identifier.get_attached_sites(node):
+                result += identifier.successors_of_type(s, "mod")
+
         if all_directions:
-            result += identifier.predecessors_of_type(node, "mod")
+            result += identifier.ancestors_of_type(node, "mod")
+
         return result
 
     def merge_ag_nodes(self, nodes):

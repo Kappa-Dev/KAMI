@@ -4,11 +4,6 @@ from kami.utils.id_generators import generate_new_element_id
 
 from regraph import get_node
 
-# class Kappa4Exporter(object):
-#   """Exporter to Kappa v4 script."""
-#   def __init__(self):
-#       pass
-
 
 def _generate_agent_name(identifier, ag_typing, agent, ag_uniprot_id, agents):
     # Find agent name
@@ -122,8 +117,6 @@ def generate_kappa(model, concentations=None):
 
     # Generate agents: an agent per protoform (gene)
     # each having a state specifying its variantsss
-    # print("Generating agents...")
-    # print("\tFinding isoforms...")
     isoforms = {}
     for protein in model.proteins():
         uniprot_id = model.get_uniprot(protein)
@@ -138,12 +131,12 @@ def generate_kappa(model, concentations=None):
                 {protein: variant_name},
                 hgnc_symbol
             ]
-    # print("\tFinished.")
+
     identifier = EntityIdentifier(
         model.action_graph,
         model.get_action_graph_typing(),
         immediate=False)
-    # print("\tComputing agents...")
+
     agents = {}
     for isoform, (proteins, hgnc) in isoforms.items():
         # print("\t\t", hgnc)
@@ -218,15 +211,12 @@ def generate_kappa(model, concentations=None):
                         agents[isoform]["region_bnd_sites"].values(),
                         region_name + "_site")
                     agents[isoform]["region_bnd_sites"][(r, bnd)] = bnd_name
-    # print("\tFinished.")
-    # print("Finished")
+
     rules = []
 
-    # print("Generating rules...")
     # Generate rules
     for n in model.nuggets():
         nugget = model.nugget[n]
-        # nugget_type = model.get_nugget_type(n)
         ag_typing = model.get_nugget_typing(n)
         relations = model._hierarchy.adjacent_relations(n)
 
