@@ -616,3 +616,17 @@ class KamiModel(object):
                         ag_typing[left], ag_typing[right],
                         n, "bnd", self.get_nugget_desc(n))
         return interactions
+
+    def get_mechanism_nuggets(self, mechanism_id):
+        """."""
+        if (self._backend == "neo4j"):
+            cypher = (
+                "MATCH (n:{} {{id: '{}'}}), (m)-[:typing]->(n)\n".format(
+                    self._action_graph_id, mechanism_id) +
+                "RETURN collect(labels(m)[0]) as nuggets"
+            )
+            result = self._hierarchy.execute(cypher)
+            return result.single()["nuggets"]
+        else:
+            raise KamiException(
+                "This method is not implemented for NetworkX-based hierarchies!")

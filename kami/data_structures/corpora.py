@@ -1564,3 +1564,17 @@ class KamiCorpus(object):
         if nugget_id in self.nuggets():
             self._hierarchy.remove_graph(nugget_id)
             del self.nugget[nugget_id]
+
+    def get_mechanism_nuggets(self, mechanism_id):
+        """."""
+        if (self._backend == "neo4j"):
+            cypher = (
+                "MATCH (n:{} {{id: '{}'}}), (m)-[:typing]->(n)\n".format(
+                    self._action_graph_id, mechanism_id) +
+                "RETURN collect(labels(m)[0]) as nuggets"
+            )
+            result = self._hierarchy.execute(cypher)
+            return result.single()["nuggets"]
+        else:
+            raise KamiException(
+                "This method is not implemented for NetworkX-based hierarchies!")
