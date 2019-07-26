@@ -1411,9 +1411,6 @@ class KamiCorpus(object):
 
     def get_gene_pairwise_interactions(self):
         """Get pairwise interactions between genes."""
-        if "backend" == "networkx":
-            raise KamiException("Not implemented for networkx!")
-
         interactions = {}
 
         def _add_to_interactions(s, t, n, n_type, n_desc):
@@ -1443,82 +1440,6 @@ class KamiCorpus(object):
                     _add_to_interactions(
                         ag_typing[left], ag_typing[right],
                         n, "bnd", self.get_nugget_desc(n))
-
-        # Get bindinds
-        # cypher = (
-        #     "MATCH (gene:meta_model {id: 'gene'}), \n" +
-        #     "(left:{})-[:typing]->(gene), \n".format(
-        #         self._action_graph_id) +
-        #     "(right_proxy:{})-[:edge]->(bnd:{})<-[:edge]-(left_proxy:{})-[:edge*0..]->(left),\n".format(
-        #         self._action_graph_id, self._action_graph_id, self._action_graph_id) +
-        #     "(gene)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
-        #         self._action_graph_id) +
-        #     "WHERE (bnd)-[:typing]->(:meta_model {id:'bnd'}) AND \n" +
-        #     "((left_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
-        #     "AND ((right_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
-        #     "OPTIONAL MATCH (nugget_actions)-[:typing]->(bnd)\n" +
-        #     "RETURN left.id as gene, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
-        # )
-
-        # print(cypher)
-        # result = self._hierarchy.execute(cypher)
-
-        # print("\n\nBindings")
-        # for record in result:
-        #     print(record)
-        #     interactions[record["gene"]] = (
-        #         record["partner"],
-        #         [item for sublist in record["nuggets"] for item in sublist]
-        #     )
-
-        # # Get modifications
-        # cypher = (
-        #     "MATCH (gene:meta_model {id: 'gene'}),\n" +
-        #     "(enzyme:{})-[:typing]->(gene), \n".format(self._action_graph_id) +
-        #     "(substrate:{})-[:typing]->(gene), \n".format(
-        #         self._action_graph_id) +
-        #     "(enzyme_proxy:{})-[:edge*0..]->(enzyme), \n".format(
-        #         self._action_graph_id) +
-        #     "(substrate_proxy:{})-[:edge*0..]->(substrate), \n".format(
-        #         self._action_graph_id) +
-        #     "(enzyme_proxy)-[:typing]->(enzyme_proxy_type:meta_model), \n" +
-        #     "(substrate_proxy)-[:typing]->(substrate_proxy_type:meta_model), \n" +
-        #     "(enzyme_proxy)-[:edge]->(mod:{})-[:edge]->(s:{})-[:typing]->(:meta_model {{id: 'state'}}), \n".format(
-        #         self._action_graph_id, self._action_graph_id) +
-        #     "(s)-[:edge]->(substrate_proxy) \n" +
-        #     "WHERE (mod)-[:typing]->(:meta_model {id:'mod'}) AND \n" +
-        #     "(enzyme_proxy_type.id = 'gene' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
-        #     "AND (substrate_proxy_type.id = 'gene' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
-        #     "OPTIONAL MATCH (nugget_actions)-[:typing]->(mod) \n" +
-        #     "RETURN enzyme.id as gene, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
-        # )
-
-        # print(cypher)
-
-        # print("\n\nModifications")
-        # result = self._hierarchy.execute(cypher)
-        # for record in result:
-        #     print(record)
-        #     if record["gene"] in interactions:
-        #         interactions[record["gene"]] = (
-        #             interactions[record["gene"]][0] + record["partner"],
-        #             interactions[record["gene"]][1] + record["nuggets"]
-        #         )
-        #     else:
-        #         interactions[record["gene"]] = (
-        #             record["partner"],
-        #             record["nuggets"]
-        #         )
-        #     for i, partner in enumerate(record["partner"]):
-        #         if partner in interactions:
-        #             interactions[partner] = (
-        #                 interactions[partner][0] + [record["gene"]],
-        #                 interactions[partner][1] + [record["nuggets"][i]]
-        #             )
-        #         else:
-        #             interactions[partner] = (
-        #                 [record["gene"]], [record["nuggets"][i]])
-        # print(interactions)
         return interactions
 
     def update_nugget_node_attr(self, nugget_id, node_id, node_attrs):

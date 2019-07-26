@@ -521,3 +521,98 @@ class KamiModel(object):
         if nugget_id in self.nuggets():
             self._hierarchy.remove_graph(nugget_id)
             del self.nugget[nugget_id]
+
+    def is_mod_nugget(self, nugget_id):
+        t = self.get_nugget_type(nugget_id)
+        return t == "mod"
+
+    def is_bnd_nugget(self, nugget_id):
+        t = self.get_nugget_type(nugget_id)
+        return t == "bnd"
+
+    def get_enzyme(self, nugget_id):
+        if self.is_mod_nugget(nugget_id):
+            enzyme = None
+            rel = self._hierarchy.get_relation(
+                "mod_template", nugget_id)
+            if "enzyme" in rel and len(rel["enzyme"]) > 0:
+                enzyme = list(rel["enzyme"])[0]
+            return enzyme
+        else:
+            raise KamiException("Nugget '{}' is not a mod nugget".format(
+                nugget_id))
+
+    def get_substrate(self, nugget_id):
+        if self.is_mod_nugget(nugget_id):
+            substrate = None
+            rel = self._hierarchy.get_relation(
+                "mod_template", nugget_id)
+            try:
+                substrate = list(rel["substrate"])[0]
+                return substrate
+            except:
+                print(rel, nugget_id)
+        else:
+            raise KamiException("Nugget '{}' is not a mod nugget".format(
+                nugget_id))
+
+    def get_left_partner(self, nugget_id):
+        if self.is_bnd_nugget(nugget_id):
+            left = None
+            rel = self._hierarchy.get_relation(
+                "bnd_template", nugget_id)
+            try:
+                left = list(rel["left_partner"])[0]
+                return left
+            except:
+                print(rel, nugget_id)
+        else:
+            raise KamiException("Nugget '{}' is not a bnd nugget".format(
+                nugget_id))
+
+    def get_right_partner(self, nugget_id):
+        if self.is_bnd_nugget(nugget_id):
+            right = None
+            rel = self._hierarchy.get_relation(
+                "bnd_template", nugget_id)
+            try:
+                right = list(rel["right_partner"])[0]
+                return right
+            except:
+                print(rel, nugget_id)
+        else:
+            raise KamiException("Nugget '{}' is not a bnd nugget".format(
+                nugget_id))
+
+    def get_gene_pairwise_interactions(self):
+        """Get pairwise interactions between genes."""
+        interactions = {}
+
+        def _add_to_interactions(s, t, n, n_type, n_desc):
+            if s in interactions:
+                if t in interactions[s]:
+                    interactions[s][t].add((n, n_type, n_desc))
+                else:
+                    interactions[s][t] = {(n, n_type, n_desc)}
+            else:
+                interactions[s] = {
+                    t: {(n, n_type, n_desc)}
+                }
+
+        for n in self.nuggets():
+            ag_typing = self._hierarchy.get_typing(n, self._action_graph_id)
+            if self.is_mod_nugget(n):
+                enzyme = self.get_enzyme(n)
+                substrate = self.get_substrate(n)
+                if enzyme is not None and substrate is not None:
+                    _add_to_interactions(
+                        ag_typing[enzyme], ag_typing[substrate],
+                        n, "mod", self.get_nugget_desc(n))
+            elif self.is_bnd_nugget(n):
+                left = self.get_left_partner(n)
+                right = self.get_right_partner(n)
+                if left is not None and right is not None:
+                    _add_to_interactions(
+                        ag_typing[left], ag_typing[right],
+                        n, "bnd", self.get_nugget_desc(n))
+        return interactions
