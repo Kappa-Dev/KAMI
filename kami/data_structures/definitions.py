@@ -49,6 +49,7 @@ class Product(object):
         def remove_component(node):
             # Find all the subcomponents and remove them
             components = entity_identifier.subcomponents(node)
+            print("Components of ", node, components)
             for n in components:
                 graph.remove_node(n)
 
@@ -59,7 +60,8 @@ class Product(object):
                 remove_component(region_node)
             else:
                 warnings.warn(
-                    "Element was not found in the reference graph!")
+                    "Region '{}' of the gene node '{}' was not identified in the reference graph!".format(
+                        region, gene_node))
         for site in self.removed_components["sites"]:
             site_node = entity_identifier.identify_site(
                 site, gene_node)
@@ -67,7 +69,8 @@ class Product(object):
                 remove_component(site_node)
             else:
                 warnings.warn(
-                    "Element was not found in the reference graph!")
+                    "Site '{}' of the gene node '{}' was not identified in the reference graph!".format(
+                        site, gene_node))
         for residue in self.removed_components["residues"]:
             residue_node = entity_identifier.identify_residue(
                 residue, gene_node)
@@ -75,7 +78,8 @@ class Product(object):
                 remove_component(residue_node)
             else:
                 warnings.warn(
-                    "Element was not found in the reference graph!")
+                    "Residue '{}' of the gene node '{}' was not identified in the reference graph!".format(
+                        residue, gene_node))
         for state in self.removed_components["states"]:
             state_node = entity_identifier.identify_state(
                 state, gene_node)
@@ -83,7 +87,8 @@ class Product(object):
                 remove_component(state_node)
             else:
                 warnings.warn(
-                    "Element was not found in the reference graph!")
+                    "State '{}' of the gene node '{}' was not identified in the reference graph!".format(
+                        state, gene_node))
 
         for residue in self.residues:
             residue_id = entity_identifier.identify_residue(

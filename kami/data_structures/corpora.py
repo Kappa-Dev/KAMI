@@ -1536,14 +1536,23 @@ class KamiCorpus(object):
                 }
             )
 
+    def get_fragment_location(self, fragment_node_id):
+        start = None
+        end = None
+        gene = self.get_gene_of(fragment_node_id)
+
+        if gene is not None:
+            attrs = get_edge(self.action_graph, fragment_node_id, gene)
+            if "start" in attrs:
+                start = list(attrs["start"])[0]
+            if "end" in attrs:
+                end = list(attrs["end"])[0]
+        return start, end
+
     def get_residue_location(self, residue_node_id):
         loc = None
-        gene = None
-        ag_typing = self.get_action_graph_typing()
-        for s in self.action_graph.successors(residue_node_id):
-            if ag_typing[s] == "gene":
-                gene = s
-                break
+        gene = self.get_gene_of(residue_node_id)
+
         if gene is not None:
             attrs = get_edge(self.action_graph, residue_node_id, gene)
             if "loc" in attrs:

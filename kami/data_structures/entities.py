@@ -291,11 +291,11 @@ class Gene(Actor, PhysicalEntity):
             "uniprotid": {self.uniprotid}
         }
         if self.hgnc_symbol is not None:
-            agent_attrs["hgnc_symbol"] = {self.hgnc_symbol}
+            agent_attrs["hgnc_symbol"] = normalize_to_set(self.hgnc_symbol)
         if self.synonyms is not None:
-            agent_attrs["synonyms"] = set(self.synonyms)
+            agent_attrs["synonyms"] = normalize_to_set(self.synonyms)
         if self.xrefs is not None:
-            agent_attrs["xrefs"] = set(self.xrefs.items())
+            agent_attrs["xrefs"] = normalize_to_set(self.xrefs.items())
         return agent_attrs
 
     def add_region(self, region):
@@ -536,15 +536,9 @@ class Region(PhysicalEntity):
         if self.interproid:
             res["interproid"] = self.interproid
         if self.name:
-            try:
-                res["name"] = {self.name}
-            except:
-                res["name"] = set(self.name)
+            res["name"] = normalize_to_set(self.name)
         if self.label:
-            try:
-                res["label"] = {self.label}
-            except:
-                res["label"] = set(self.label)
+            res["label"] = normalize_to_set(self.label)
         return res
 
     def location(self):
@@ -774,9 +768,9 @@ class Site(PhysicalEntity):
         if self.interproid:
             res["interproid"] = self.interproid
         if self.name:
-            res["name"] = {self.name}
+            res["name"] = normalize_to_set(self.name)
         if self.label:
-            res["label"] = {self.label}
+            res["label"] = normalize_to_set(self.label)
         return res
 
     def location(self):

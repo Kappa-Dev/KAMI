@@ -456,7 +456,7 @@ class EntityIdentifier:
 
     def subcomponents(self, node_id):
         """Get all the subcomponent nodes."""
-        all_predecessors = self.graph.predecessors(node_id)
+        all_predecessors = list(self.graph.predecessors(node_id))
         subcomponents = set([
             p for p in all_predecessors
             if self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd"

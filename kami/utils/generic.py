@@ -200,3 +200,12 @@ def _clean_up_nuggets(kb):
             )
             # print(query)
             kb._hierarchy.execute(query)
+
+            # Remove empty residue conditions
+            query = (
+                "MATCH (residue:{})-[:typing*1..]->(:meta_model {{id: 'residue'}}) \n".format(
+                    nugget) +
+                "WHERE NOT EXISTS(residue.aa) OR residue.aa=[]\n" +
+                "DETACH DELETE residue"
+            )
+            kb._hierarchy.execute(query)
