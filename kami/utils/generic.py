@@ -152,7 +152,7 @@ def _clean_up_nuggets(kb):
                 "MATCH (residue:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
                 "WHERE (residue)-[:typing]->()-[:typing]->(:meta_model {id: 'residue'}) AND \n" +
                 "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'}) AND \n" +
-                "      NOT EXISTS(residue.aa) or residue.aa = []\n " +
+                "      true IN residue.test AND (NOT EXISTS(residue.aa) or residue.aa = [])\n " +
                 "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
                     nugget, nugget) +
                 "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
@@ -165,6 +165,7 @@ def _clean_up_nuggets(kb):
                 "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
                 "DELETE r"
             )
+            # print(query)
             kb._hierarchy.execute(query)
             # # Query to remove edge to the action from the actor that contains
             # # a state with the empty test
@@ -197,4 +198,5 @@ def _clean_up_nuggets(kb):
                 "      NOT (n)-[:edge*1..]-(m) AND n.id <> m.id\n" +
                 "DETACH DELETE n"
             )
+            # print(query)
             kb._hierarchy.execute(query)
