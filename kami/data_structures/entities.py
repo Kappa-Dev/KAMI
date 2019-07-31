@@ -114,7 +114,7 @@ class Gene(Actor, PhysicalEntity):
         self.synonyms = synonyms
 
         if xrefs is None:
-            xrefs = dict()
+            xrefs = []
         self.xrefs = xrefs
 
         self.location = location
