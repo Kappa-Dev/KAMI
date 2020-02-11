@@ -114,7 +114,7 @@ class Gene(Actor, PhysicalEntity):
         self.synonyms = synonyms
 
         if xrefs is None:
-            xrefs = []
+            xrefs = dict()
         self.xrefs = xrefs
 
         self.location = location
@@ -295,7 +295,7 @@ class Gene(Actor, PhysicalEntity):
         if self.synonyms is not None:
             agent_attrs["synonyms"] = normalize_to_set(self.synonyms)
         if self.xrefs is not None:
-            agent_attrs["xrefs"] = normalize_to_set(self.xrefs.items())
+            agent_attrs["xrefs"] = normalize_to_set(list(self.xrefs.items()))
         return agent_attrs
 
     def add_region(self, region):
