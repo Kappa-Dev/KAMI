@@ -26,7 +26,7 @@ base_graph = {
 
 meta_model = {
     "nodes": [
-        ("gene", {
+        ("protoform", {
             "uniprotid": RegexSet.universal(),
             "hgnc_symbol": RegexSet.universal(),
             "synonyms": RegexSet.universal(),
@@ -98,7 +98,7 @@ meta_model = {
 
     "edges": [
         (
-            "region", "gene",
+            "region", "protoform",
             {"start": IntegerSet.universal(),
              "end": IntegerSet.universal(),
              "order": IntegerSet.universal()}
@@ -107,7 +107,7 @@ meta_model = {
             #  "order": IntegerSet([(1, math.inf)])}
         ),
         (
-            "site", "gene",
+            "site", "protoform",
             # {"start": IntegerSet([(1, math.inf)]),
             #  "end": IntegerSet([(1, math.inf)]),
             #  "order": IntegerSet([(1, math.inf)]),
@@ -126,7 +126,7 @@ meta_model = {
             #  "order": IntegerSet([(1, math.inf)])}
         ),
         (
-            "residue", "gene",
+            "residue", "protoform",
             # {"loc": IntegerSet([(1, math.inf)]),
             {"loc": IntegerSet.universal(),
              "type": {"transitive"}}
@@ -142,23 +142,23 @@ meta_model = {
             # {"loc": IntegerSet([(1, math.inf)])}
             {"loc": IntegerSet.universal()}
         ),
-        ("state", "gene"),
+        ("state", "protoform"),
         ("state", "region"),
         ("state", "site"),
         ("state", "residue"),
-        ("syn", "gene"),
-        ("deg", "gene"),
-        ("gene", "bnd"),
+        ("syn", "protoform"),
+        ("deg", "protoform"),
+        ("protoform", "bnd"),
         ("region", "bnd"),
         ("site", "bnd"),
         ("mod", "state"),
-        ("gene", "mod"),
+        ("protoform", "mod"),
         ("region", "mod"),
         ("site", "mod")
     ]
 }
 meta_model_base_typing = {
-    "gene": "component",
+    "protoform": "component",
     "region": "component",
     "site": "component",
     "residue": "component",

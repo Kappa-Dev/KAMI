@@ -1,13 +1,9 @@
 """Collection of utils for semantic updates in KAMI models."""
-import networkx as nx
 import warnings
 
 from kami.exceptions import KamiHierarchyWarning
 
-from regraph.rules import Rule
-from regraph.primitives import (add_nodes_from,
-                                add_edges_from,
-                                get_node)
+from regraph.rules import Rule, NXGraph
 
 
 def _propagate_semantics_to_ag(model, nugget_id,
@@ -68,13 +64,14 @@ def apply_mod_semantics(model, nugget_id):
 
     phospho = False
 
+    nugget = model.get_nugget(nugget_id)
+
     if enzyme is not None and mod_state is not None:
-        if "phosphorylation" in get_node(model.nugget[
-                nugget_id], mod_state)["name"]:
-            if True in get_node(model.nugget[nugget_id],
-               mod_node)["value"]:
+        if "phosphorylation" in nugget.get_node(
+                mod_state)["name"]:
+            if True in nugget.get_node(mod_node)["value"]:
                 phospho = True
-            # elif False in model.nugget[nugget_id].node[mod_node]["test"]:
+            # elif False in nugget.get_node(mod_node)["test"]:
             #     dephospho = True
 
     # 1. Phospho semantics
@@ -106,15 +103,15 @@ def apply_mod_semantics(model, nugget_id):
                         ag_enz_region, "mod")
 
                 if len(kinase_mods) > 1:
-                    pattern = nx.DiGraph()
-                    add_nodes_from(
-                        pattern, [ag_enz_region] + kinase_mods)
+                    pattern = NXGraph()
+                    pattern.add_nodes_from(
+                        [ag_enz_region] + kinase_mods)
 
                     mod_merge_rule = Rule.from_transform(pattern)
                     new_mod_id = mod_merge_rule.inject_merge_nodes(
                         kinase_mods)
 
-                    _, rhs_ag = model.rewrite(
+                    rhs_ag = model.rewrite(
                         model._action_graph_id, mod_merge_rule,
                         instance={
                             n: n for n in mod_merge_rule.lhs.nodes()
@@ -125,23 +122,22 @@ def apply_mod_semantics(model, nugget_id):
                         model.ag_successors_of_type(
                             ag_enz_region, "bnd")
                     if len(kinase_bnds) > 1:
-                        pattern = nx.DiGraph()
-                        add_nodes_from(
-                            pattern, [ag_enz_region] + kinase_bnds)
+                        pattern = NXGraph()
+                        pattern.add_nodes_from(
+                            [ag_enz_region] + kinase_bnds)
 
                         bnd_merge_rule = Rule.from_transform(pattern)
                         new_mod_id = bnd_merge_rule.inject_merge_nodes(
                             kinase_bnds)
 
-                        _, rhs_ag = model.rewrite(
+                        rhs_ag = model.rewrite(
                             model._action_graph_id, bnd_merge_rule,
                             instance={
                                 n: n for n in bnd_merge_rule.lhs.nodes()
                             })
 
                 # 2. Autocompletion
-                enz_region_predecessors = model.nugget[
-                    nugget_id].predecessors(enz_region)
+                enz_region_predecessors = nugget.predecessors(enz_region)
 
                 # Check if kinase activity is specified in the nugget
                 activity_found = False
@@ -149,7 +145,7 @@ def apply_mod_semantics(model, nugget_id):
                 for pred in enz_region_predecessors:
                     ag_pred = ag_typing[pred]
                     ag_pred_type = model.get_action_graph_typing()[ag_pred]
-                    pred_attrs = get_node(model.nugget[nugget_id], pred)
+                    pred_attrs = nugget.get_node(pred)
                     if ag_pred_type == "state" and\
                        "activity" in pred_attrs["name"] and\
                        True in pred_attrs["test"]:
@@ -159,8 +155,7 @@ def apply_mod_semantics(model, nugget_id):
                 if activity_found is False:
                     # If activity is not specified, we autocomplete
                     # nugget with it
-                    autocompletion_rule = Rule.from_transform(
-                        model.nugget[nugget_id])
+                    autocompletion_rule = Rule.from_transform(nugget)
                     new_activity_state = "{}_activity".format(enzyme)
                     autocompletion_rule.inject_add_node(
                         new_activity_state,
@@ -176,7 +171,7 @@ def apply_mod_semantics(model, nugget_id):
                         rhs_typing[model._action_graph_id][new_activity_state] =\
                             ag_activity
                     # Apply autocompletion rule
-                    _, rhs_g = model.rewrite(
+                    rhs_g = model.rewrite(
                         nugget_id, autocompletion_rule,
                         rhs_typing=rhs_typing)
                     phospho_semantic_rel[rhs_g[new_activity_state]] =\
@@ -194,7 +189,7 @@ def apply_mod_semantics(model, nugget_id):
             # Enzyme region is NOT specified in the nugget
             enz_region = None
             # Search for the unique kinase region associated
-            # with respective gene in the action graph
+            # with respective protoform in the action graph
             unique_kinase_region =\
                 model.unique_kinase_region(ag_enzyme)
 
@@ -210,15 +205,14 @@ def apply_mod_semantics(model, nugget_id):
                         model.ag_successors_of_type(
                             ag_enz_region, "bnd")
 
-                pattern = nx.DiGraph()
-                add_nodes_from(
-                    pattern,
+                pattern = NXGraph()
+                pattern.add_nodes_from(
                     [ag_mod_node, ag_enzyme])
-                add_edges_from(pattern, [(ag_enzyme, ag_mod_node)])
+                pattern.add_edges_from([(ag_enzyme, ag_mod_node)])
 
                 if ag_bnd_node:
-                    add_nodes_from(pattern, [ag_bnd_node])
-                    add_edges_from(pattern, [(ag_enzyme, ag_bnd_node)])
+                    pattern.add_nodes_from([ag_bnd_node])
+                    pattern.add_edges_from([(ag_enzyme, ag_bnd_node)])
 
                 mod_merge_rule = Rule.from_transform(pattern)
                 mod_merge_rule.inject_remove_edge(ag_enzyme, ag_mod_node)
@@ -238,7 +232,7 @@ def apply_mod_semantics(model, nugget_id):
                     new_bnd_id = mod_merge_rule.inject_merge_nodes(
                         [ag_bnd_node] + kinase_bnds)
 
-                _, rhs_ag = model.rewrite(
+                rhs_ag = model.rewrite(
                     model._action_graph_id, mod_merge_rule,
                     instance={
                         n: n for n in mod_merge_rule.lhs.nodes()
@@ -255,11 +249,10 @@ def apply_mod_semantics(model, nugget_id):
                 else:
                     new_ag_bnd = ag_bnd_node
 
-                autocompletion_rule = Rule.from_transform(
-                    model.nugget[nugget_id])
+                autocompletion_rule = Rule.from_transform(nugget)
                 autocompletion_rule.inject_add_node(
                     unique_kinase_region,
-                    get_node(model.action_graph, unique_kinase_region))
+                    model.action_graph.get_node(unique_kinase_region))
 
                 activity_state = "{}_activity".format(unique_kinase_region)
 
@@ -287,7 +280,7 @@ def apply_mod_semantics(model, nugget_id):
                 if ag_activity is not None:
                     rhs_typing[model._action_graph_id][activity_state] = ag_activity
 
-                _, rhs_nugget = model.rewrite(
+                rhs_nugget = model.rewrite(
                     nugget_id, autocompletion_rule,
                     instance={
                         n: n for n in autocompletion_rule.lhs.nodes()
@@ -306,11 +299,11 @@ def apply_mod_semantics(model, nugget_id):
                 model._hierarchy.set_node_relation(
                     nugget_id, "mod_template", enz_region, "enz_region")
             else:
-                # The repective gene in the action graph contains
+                # The repective protoform in the action graph contains
                 # either no or multiple kinase regions
                 warnings.warn(
                     "Could not find the unique protein kinase "
-                    "region associated with the gene '%s'" % ag_enzyme,
+                    "region associated with the protoform '%s'" % ag_enzyme,
                     KamiHierarchyWarning)
 
         # Add a relation to the phosporylation semantic nugget
@@ -326,7 +319,7 @@ def apply_mod_semantics(model, nugget_id):
 def apply_bnd_semantics(model, nugget_id):
     """Apply known binding semantics to the created nugget."""
 
-    nugget = model.nugget[nugget_id]
+    nugget = model.get_nugget(nugget_id)
 
     def _apply_sh2_py_semantics(region_node, region_bnd, partner_gene,
                                 partner_region=None, partner_site=None):
@@ -352,11 +345,11 @@ def apply_bnd_semantics(model, nugget_id):
                 ag_region_bnds.append(bnd)
             if len(ag_region_bnds) > 1:
                 # generate a rule that merges bnds and loci
-                pattern = nx.DiGraph()
-                add_nodes_from(pattern, ag_region_bnds)
+                pattern = NXGraph()
+                pattern.add_nodes_from(ag_region_bnds)
                 bnd_merge_rule = Rule.from_transform(pattern)
                 bnd_merge_rule.inject_merge_nodes(ag_region_bnds)
-                _, rhs_ag = model.rewrite(
+                rhs_ag = model.rewrite(
                     model._action_graph_id, bnd_merge_rule)
 
             # Process/autocomplete pY sites and Y residues
@@ -369,18 +362,17 @@ def apply_bnd_semantics(model, nugget_id):
                         partner_site):
                     ag_pred = ag_typing[pred]
                     if model.get_action_graph_typing()[ag_pred] == "residue" and\
-                       "Y" in get_node(nugget, pred)["aa"]:
+                       "Y" in nugget.get_node(pred)["aa"]:
                         for residue_pred in nugget.predecessors(pred):
                             ag_residue_pred = ag_typing[residue_pred]
                             if model.get_action_graph_typing()[
                                     ag_residue_pred] == "state" and\
-                               "phosphorylation" in get_node(
-                                    nugget, residue_pred)["name"]:
+                               "phosphorylation" in nugget.get_node(residue_pred)["name"]:
                                 py_residue_states.append((pred, residue_pred))
                 # if pY residue was not found it, autocomplete nugget with it
                 if len(py_residue_states) == 0:
-                    pattern = nx.DiGraph()
-                    add_nodes_from(pattern, [partner_site])
+                    pattern = NXGraph()
+                    pattern.add_nodes_from([partner_site])
                     autocompletion_rule = Rule.from_transform(pattern)
                     autocompletion_rule.inject_add_node(
                         "pY_residue", {"aa": "Y"})
@@ -397,7 +389,7 @@ def apply_bnd_semantics(model, nugget_id):
                             "pY_residue_phospho": "state"
                         }
                     }
-                    _, rhs_nugget = model.rewrite(
+                    rhs_nugget = model.rewrite(
                         nugget_id, autocompletion_rule, instance={
                             n: n for n in autocompletion_rule.lhs.nodes()
                         },
@@ -429,8 +421,8 @@ def apply_bnd_semantics(model, nugget_id):
                                     sites_to_merge.add(s)
                         if len(sites_to_merge) > 0:
                             sites_to_merge.add(ag_partner_site)
-                            pattern = nx.DiGraph()
-                            add_nodes_from(pattern, sites_to_merge)
+                            pattern = NXGraph()
+                            pattern.add_nodes_from(sites_to_merge)
                             site_merging_rule = Rule.from_transform(pattern)
                             site_merging_rule.inject_merge_nodes(sites_to_merge)
                             model.rewrite(
@@ -441,9 +433,9 @@ def apply_bnd_semantics(model, nugget_id):
                     attached_to = partner_region
                 else:
                     attached_to = partner_gene
-                pattern = nx.DiGraph()
-                add_nodes_from(pattern, [region_bnd, attached_to])
-                add_edges_from(pattern, [(attached_to, region_bnd)])
+                pattern = NXGraph()
+                pattern.add_nodes_from([region_bnd, attached_to])
+                pattern.add_edges_from([(attached_to, region_bnd)])
                 autocompletion_rule = Rule.from_transform(pattern)
                 autocompletion_rule.inject_remove_edge(
                     attached_to, region_bnd)
@@ -470,7 +462,7 @@ def apply_bnd_semantics(model, nugget_id):
                 }
 
                 # Rewrite nugget and propagate to the AG
-                _, rhs_nugget = model.rewrite(
+                rhs_nugget = model.rewrite(
                     nugget_id, autocompletion_rule,
                     rhs_typing=rhs_typing, strict=False)
 

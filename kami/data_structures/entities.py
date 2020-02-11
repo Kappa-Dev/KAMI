@@ -5,14 +5,14 @@ agents of PPIs and their components such as regions, sites, residues etc.
 
 The implemented data structures include:
 
-* `Actor` base class for an actor of PPIs. Such actors include genes
-  (see `Gene`), regions of genes (see `RegionActor`), sites of genes or
-  sites of regions of genes (see `SiteActor`).
+* `Actor` base class for an actor of PPIs. Such actors include protoforms
+  (see `Protoform`), regions of protoforms (see `RegionActor`), sites of protoforms or
+  sites of regions of protoforms (see `SiteActor`).
 * `PhysicalEntity` base class for physical entities in KAMI. Physical
-  entities in KAMI include genes, regions, sites and they are able to
+  entities in KAMI include protoforms, regions, sites and they are able to
   encapsulate info about PTMs (such as residues with their states,
   states, bounds).
-* `Gene`  represents a gene defined by the UniProt accession number and a
+* `Protoform`  represents a protoform defined by the UniProt accession number and a
    set of regions, sites, residues, states and bounds (possible PTMs).
 * `Region` represents a physical region (can be seen as protein dimain) defined
   by a region
@@ -39,8 +39,8 @@ def actor_to_json(actor):
     """Load an actor object from JSON representation."""
     json_data = {}
     json_data["data"] = actor.to_json()
-    if isinstance(actor, Gene):
-        json_data["type"] = "Gene"
+    if isinstance(actor, Protoform):
+        json_data["type"] = "Protoform"
     elif isinstance(actor, RegionActor):
         json_data["type"] = "RegionActor"
     elif isinstance(actor, SiteActor):
@@ -51,8 +51,8 @@ def actor_to_json(actor):
 def actor_from_json(json_data):
     """Load an actor object from JSON representation."""
     if "type" in json_data:
-        if json_data["type"] == "Gene":
-            return Gene.from_json(json_data["data"])
+        if json_data["type"] == "Protoform":
+            return Protoform.from_json(json_data["data"])
         elif json_data["type"] == "RegionActor":
             return RegionActor.from_json(json_data["data"])
         elif json_data["type"] == "SiteActor":
@@ -98,8 +98,8 @@ class PhysicalEntity(object):
         self.unbound.append()
 
 
-class Gene(Actor, PhysicalEntity):
-    """Class for a gene."""
+class Protoform(Actor, PhysicalEntity):
+    """Class for a protoform."""
 
     def __init__(self, uniprotid, regions=None, sites=None, residues=None,
                  states=None, bound_to=None, unbound_from=None,
@@ -173,7 +173,7 @@ class Gene(Actor, PhysicalEntity):
 
     @classmethod
     def from_json(cls, json_data):
-        """Create Gene object from JSON representation."""
+        """Create Protoform object from JSON representation."""
         uniprotid = json_data["uniprotid"]
 
         regions = None
@@ -236,7 +236,7 @@ class Gene(Actor, PhysicalEntity):
             xrefs=xrefs, location=location)
 
     def __repr__(self):
-        """Representation of a gene."""
+        """Representation of a protoform."""
         content = ""
 
         components = ["uniprot={}".format(self.uniprotid)]
@@ -262,28 +262,28 @@ class Gene(Actor, PhysicalEntity):
 
         content = ", ".join(components)
 
-        res = "Gene({})".format(content)
+        res = "Protoform({})".format(content)
         return res
 
     def __str__(self):
-        """String represenation of a gene."""
+        """String represenation of a protoform."""
         return str(self.uniprotid)
 
-    def same_reference(self, gene):
-        """Test if the input gene has the same reference UniprotAC."""
-        return self.uniprotid == gene.uniprotid
+    def same_reference(self, protoform):
+        """Test if the input protoform has the same reference UniprotAC."""
+        return self.uniprotid == protoform.uniprotid
 
-    def __eq__(self, gene):
+    def __eq__(self, protoform):
         """Test equality."""
         equal_componets =\
-            set(gene.regions) == set(self.regions) and\
-            set(gene.sites) == set(self.sites) and\
-            set(gene.residues) == set(self.residues) and\
-            set(gene.states) == set(self.states) and\
-            set(gene.bound_to) == set(self.bound_to) and\
-            set(gene.unbound_from) == set(self.unbound_from)
+            set(protoform.regions) == set(self.regions) and\
+            set(protoform.sites) == set(self.sites) and\
+            set(protoform.residues) == set(self.residues) and\
+            set(protoform.states) == set(self.states) and\
+            set(protoform.bound_to) == set(self.bound_to) and\
+            set(protoform.unbound_from) == set(self.unbound_from)
 
-        return self.same_reference(gene) and equal_componets
+        return self.same_reference(protoform) and equal_componets
 
     def meta_data(self):
         """Convert agent object to attrs."""
@@ -308,18 +308,18 @@ class Gene(Actor, PhysicalEntity):
         self.sites.append(site)
         return
 
-    def issubset(self, gene):
-        """Test if self is superentity of the input gene."""
+    def issubset(self, protoform):
+        """Test if self is superentity of the input protoform."""
         contains_components =\
-            set(gene.regions).issubset(self.regions) and\
-            set(gene.sites).issubset(self.sites) and\
-            set(gene.residues).issubset(self.residues) and\
-            set(gene.states).issubset(self.states)
-        return self.same_reference(gene) and contains_components
+            set(protoform.regions).issubset(self.regions) and\
+            set(protoform.sites).issubset(self.sites) and\
+            set(protoform.residues).issubset(self.residues) and\
+            set(protoform.states).issubset(self.states)
+        return self.same_reference(protoform) and contains_components
 
 
 class Region(PhysicalEntity):
-    """Class for a conserved gene region."""
+    """Class for a conserved protoform region."""
 
     def __init__(self, name=None, interproid=None, start=None, end=None,
                  order=None, sites=None, residues=None, states=None,
@@ -515,9 +515,9 @@ class Region(PhysicalEntity):
 
         return res
 
-    def same_reference(self, gene):
-        """TODO: elaborate, Test if the input gene has the same reference UniprotAC."""
-        return self.name == gene.name
+    def same_reference(self, protoform):
+        """TODO: elaborate, Test if the input protoform has the same reference UniprotAC."""
+        return self.name == protoform.name
 
     def __eq__(self, region):
         """Test equality."""
@@ -588,7 +588,7 @@ class Region(PhysicalEntity):
 
 
 class Site(PhysicalEntity):
-    """Class for a gene's interaction site."""
+    """Class for a protoform's interaction site."""
 
     def __init__(self, name=None, interproid=None, start=None, end=None,
                  order=None, residues=None, states=None,
@@ -784,9 +784,9 @@ class Site(PhysicalEntity):
             res["order"] = {self.order}
         return res
 
-    def same_reference(self, gene):
-        """TODO: elaborate, Test if the input gene has the same reference UniprotAC."""
-        return self.name == gene.name
+    def same_reference(self, protoform):
+        """TODO: elaborate, Test if the input protoform has the same reference UniprotAC."""
+        return self.name == protoform.name
 
     def issubset(self, site):
         """Test if self is superentity of the input site."""
@@ -956,53 +956,53 @@ class State(object):
 
 
 class RegionActor(Actor):
-    """Class for a region of a gene as an actor of PPI."""
+    """Class for a region of a protoform as an actor of PPI."""
 
-    def __init__(self, gene, region):
+    def __init__(self, protoform, region):
         """Initialize RegionActor object."""
         self.region = region
-        self.gene = gene
+        self.protoform = protoform
 
     def to_json(self):
         """Convert to its JSON repr."""
         json_data = {}
-        json_data["gene"] = self.gene.to_json()
+        json_data["protoform"] = self.protoform.to_json()
         json_data["region"] = self.region.to_json()
         return json_data
 
     @classmethod
     def from_json(cls, json_data):
         """Create RegionActor object from JSON representation."""
-        gene = Gene.from_json(json_data["gene"])
+        protoform = Protoform.from_json(json_data["protoform"])
         region = Region.from_json(json_data["region"])
-        return cls(gene, region)
+        return cls(protoform, region)
 
     def __repr__(self):
         """Representation of a region actor object."""
-        return "RegionActor(gene={}, region={})".format(
-            self.gene.__repr__(), self.region.__repr__())
+        return "RegionActor(protoform={}, region={})".format(
+            self.protoform.__repr__(), self.region.__repr__())
 
     def __str__(self):
         """String representation of a RegionActor object."""
         res = str(self.region) + "_"
-        res += str(self.gene)
+        res += str(self.protoform)
         return res
 
 
 class SiteActor(Actor):
-    """Class for a site of a gene as an actor of PPI."""
+    """Class for a site of a protoform as an actor of PPI."""
 
-    def __init__(self, gene, site, region=None):
+    def __init__(self, protoform, site, region=None):
         """Initialize SiteActor object."""
         self.site = site
         # We normalize region to be iterable
         self.region = normalize_to_iterable(region)
-        self.gene = gene
+        self.protoform = protoform
 
     def to_json(self):
         """Convert to its JSON repr."""
         json_data = {}
-        json_data["gene"] = self.gene.to_json()
+        json_data["protoform"] = self.protoform.to_json()
         if self.region:
             json_data["region"] = self.region.to_json()
         json_data["site"] = self.site.to_json()
@@ -1011,12 +1011,12 @@ class SiteActor(Actor):
     @classmethod
     def from_json(cls, json_data):
         """Create RegionActor object from JSON representation."""
-        gene = Gene.from_json(json_data["gene"])
+        protoform = Protoform.from_json(json_data["protoform"])
         site = Site.from_json(json_data["site"])
         region = None
         if "region" in json_data.keys():
             region = Region.from_json(json_data["region"])
-        return cls(gene, site, region)
+        return cls(protoform, site, region)
 
     def __repr__(self):
         """Representation of a site actor object."""
@@ -1025,12 +1025,12 @@ class SiteActor(Actor):
             content += "region={}, ".format(self.region.__repr__())
         content += "site={}".format(self.site.__repr__())
 
-        return "SiteActor(gene={}, {})".format(
-            self.gene.__repr__(), content)
+        return "SiteActor(protoform={}, {})".format(
+            self.protoform.__repr__(), content)
 
     def __str__(self):
         """String representation of a SiteActor object."""
-        res = str(self.gene)
+        res = str(self.protoform)
         if self.region is not None:
             for r in self.region:
                 res += "_" + str(r)

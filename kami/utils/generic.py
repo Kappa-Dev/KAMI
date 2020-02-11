@@ -122,8 +122,6 @@ def _init_from_data(kb, data, instantiated=False):
                     nugget_graph_id,
                     nugget_data["graph"],
                     attrs)
-                kb.nugget[nugget_data["id"]] = kb._hierarchy.get_graph(
-                    nugget_graph_id)
 
                 kb._hierarchy.add_typing(
                     nugget_graph_id,
@@ -141,6 +139,9 @@ def _init_from_data(kb, data, instantiated=False):
                             kb._hierarchy.add_relation(
                                 nugget_graph_id, s_nugget_id, rel)
         # print("Finished after: ", time.time() - start)
+    else:
+        if kb._action_graph_id not in kb._hierarchy.graphs():
+            kb.create_empty_action_graph()
 
 
 def _clean_up_nuggets(kb):

@@ -2,25 +2,15 @@
 
 Corpora in KAMI are decontextualised signalling knowledge bases.
 """
-import copy
 import datetime
 import json
 import time
-import networkx as nx
 import os
 
 from kami.resources import default_components
 
-from regraph import (Rule, Neo4jHierarchy, NetworkXHierarchy)
-from regraph.primitives import (add_node, add_edge,
-                                get_node, get_edge,
-                                add_nodes_from,
-                                add_edges_from,
-                                graph_to_json,
-                                attrs_to_json,
-                                attrs_from_json,
-                                add_node_attrs)
-from regraph.utils import relation_to_json
+from regraph import (Rule, Neo4jHierarchy, NXHierarchy, NXGraph)
+from regraph.utils import relation_to_json, attrs_to_json, attrs_from_json
 
 from anatomizer.anatomizer_light import fetch_canonical_sequence
 
@@ -31,7 +21,8 @@ from kami.utils.generic import (normalize_to_set,
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           apply_bookkeeping,
-                                          reconnect_residues)
+                                          reconnect_residues,
+                                          reconnect_sites)
 from kami.aggregation.generators import generate_nugget
 from kami.aggregation.semantics import (apply_mod_semantics,
                                         apply_bnd_semantics)
@@ -44,7 +35,7 @@ from kami.exceptions import KamiHierarchyError, KamiException
 
 
 class KamiCorpus(object):
-    """Class for Kami corpora (de-contextualized knowledge).
+    """Class for KAMI knowledge corpora.
 
     Attributes
     ----------
@@ -57,11 +48,10 @@ class KamiCorpus(object):
     creation_time : str
     last_modified : str
 
-    action_graph : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
-    nugget : dict
-    mod_template : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
-    bnd_templae : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
-    semantic_action_graph : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
+    action_graph : Neo4jGraph / NXGraph
+    mod_template : Neo4jGraph / NXGraph
+    bnd_templae :  Neo4jGraph / NXGraph
+    semantic_action_graph :  Neo4jGraph / NXGraph
     """
 
     nugget_dict_factory = dict
@@ -85,7 +75,7 @@ class KamiCorpus(object):
         self._action_graph_id = self._id + "_action_graph"
         self._backend = backend
         if backend == "networkx":
-            self._hierarchy = NetworkXHierarchy()
+            self._hierarchy = NXHierarchy()
         elif backend == "neo4j":
             self._hierarchy = Neo4jHierarchy(
                 uri=uri, user=user, password=password, driver=driver)
@@ -106,24 +96,23 @@ class KamiCorpus(object):
             if graph_id not in self._hierarchy.graphs():
                 self._hierarchy.add_empty_graph(graph_id, attrs)
                 g = self._hierarchy.get_graph(graph_id)
-                add_nodes_from(g, graph["nodes"])
-                add_edges_from(g, graph["edges"])
+                g.add_nodes_from(graph["nodes"])
+                g.add_edges_from(graph["edges"])
 
         for s, t, mapping, attrs in default_components.TYPING:
             if (s, t) not in self._hierarchy.typings():
                 self._hierarchy.add_typing(s, t, mapping, attrs=attrs)
         for rule_id, rule, attrs in default_components.RULES:
             self._hierarchy.add_rule(rule_id, rule, attrs)
-        for s, t, (lhs_mapping, rhs_mapping), attrs in default_components.RULE_TYPING:
+        for s, t, (
+                lhs_mapping,
+                rhs_mapping), attrs in default_components.RULE_TYPING:
             self._hierarchy.add_rule_typing(
                 s, t, lhs_mapping, rhs_mapping,
                 lhs_total=True, rhs_total=True, attrs=attrs)
         for u, v, rel, attrs in default_components.RELATIONS:
             if (u, v) not in self._hierarchy.relations():
                 self._hierarchy.add_relation(u, v, rel, attrs)
-
-        self.nugget_dict_factory = ndf = self.nugget_dict_factory
-        self.nugget = ndf()
 
         # Initialization of knowledge-related components
         # Action graph related init
@@ -146,16 +135,14 @@ class KamiCorpus(object):
             "bnd_template")
         self.semantic_action_graph = self._hierarchy.get_graph(
             "semantic_action_graph")
-
-        self.nugget = self.nugget_dict_factory()
-        for n in self._hierarchy.graphs():
-            graph_attrs = self._hierarchy.get_graph_attrs(n)
-            if "type"in graph_attrs.keys() and\
-               "nugget" in graph_attrs["type"] and\
-               "corpus_id" in graph_attrs.keys() and\
-               self._id in graph_attrs["corpus_id"]:
-                self.nugget[n] = self._hierarchy.get_graph(n)
         self._nugget_count = len(self.nuggets())
+
+    def get_nugget(self, nugget_id):
+        """Get a nugget by ID."""
+        for node_id in self._hierarchy.graphs():
+            if self.is_nugget_graph(node_id):
+                return self._hierarchy.get_graph(nugget_id)
+        raise KamiException("Nugget '{}' is not found".format(nugget_id))
 
     def clear(self):
         """Clear data elements of corpus."""
@@ -191,11 +178,11 @@ class KamiCorpus(object):
             instance = {
                 n: n for n in rule.lhs.nodes()
             }
-        g_prime, r_g_prime = self._hierarchy.rewrite(
+        r_g_prime = self._hierarchy.rewrite(
             graph_id, rule=rule, instance=instance,
             rhs_typing=rhs_typing, strict=strict)
         self._init_shortcuts()
-        return (g_prime, r_g_prime)
+        return r_g_prime
 
     def find_matching(self, graph_id, pattern,
                       pattern_typing=None, nodes=None):
@@ -218,7 +205,7 @@ class KamiCorpus(object):
     def copy(cls, corpus_id, corpus):
         """Create a copy of the corpus."""
         if corpus._backend == "networkx":
-            hierarchy_copy = NetworkXHierarchy.copy(corpus._hierarchy)
+            hierarchy_copy = NXHierarchy.copy(corpus._hierarchy)
         elif corpus._backend == "neo4j":
             hierarchy_copy = Neo4jHierarchy.copy(corpus._hierarchy)
         return cls.from_hierarchy(corpus_id, hierarchy_copy)
@@ -232,6 +219,7 @@ class KamiCorpus(object):
         return typing
 
     def is_nugget_graph(self, node_id):
+        """Test if a hierarchy graph is a nugget."""
         graph_attrs = self._hierarchy.get_graph_attrs(node_id)
         if "type" in graph_attrs.keys():
             if "nugget" in graph_attrs["type"] and\
@@ -253,11 +241,13 @@ class KamiCorpus(object):
         """Get a list of semantic nuggets in the hierarchy."""
         nuggets = []
         for node_id in self._hierarchy.graphs():
-            if "semantic_nugget" in self._hierarchy.get_graph_attrs(node_id)["type"]:
+            if "semantic_nugget" in self._hierarchy.get_graph_attrs(
+                    node_id)["type"]:
                 nuggets.append(node_id)
         return nuggets
 
     def nugget_relations(self):
+        """Get all relations of nuggets."""
         nugget_rels = list()
         for u, v in self._hierarchy.relations():
             if self.is_nugget_graph(u):
@@ -273,6 +263,7 @@ class KamiCorpus(object):
         return templates
 
     def get_nugget_semantic_rels(self, nugget_id):
+        """Get nugget semantic relations."""
         all_rels = self._hierarchy.adjacent_relations(nugget_id)
         semantic_nuggets = self.semantic_nuggets()
         result = {}
@@ -285,8 +276,10 @@ class KamiCorpus(object):
         """Get a list of semantic nuggets related to mod interactions."""
         nuggets = []
         for node_id in self._hierarchy.graphs():
-            if "semantic_nugget" in self._hierarchy.get_graph_attrs(node_id)["type"] and\
-               "mod" in self._hierarchy.get_graph_attrs(node_id)["interaction_type"]:
+            if "semantic_nugget" in self._hierarchy.get_graph_attrs(
+                    node_id)["type"] and\
+               "mod" in self._hierarchy.get_graph_attrs(
+                    node_id)["interaction_type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -294,8 +287,10 @@ class KamiCorpus(object):
         """Get a list of semantic nuggets related to bnd interactions."""
         nuggets = []
         for node_id in self._hierarchy.graphs():
-            if "semantic_nugget" in self._hierarchy.get_graph_attrs(node_id)["type"] and\
-               "bnd" in self._hierarchy.get_graph_attrs(node_id)["interaction_type"]:
+            if "semantic_nugget" in self._hierarchy.get_graph_attrs(
+                    node_id)["type"] and\
+               "bnd" in self._hierarchy.get_graph_attrs(
+                    node_id)["interaction_type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -306,11 +301,12 @@ class KamiCorpus(object):
                 (len(self.action_graph.nodes()) == 0))
 
     def get_ag_node_data(self, node_id):
+        """Get data of the action graph node."""
         if node_id not in self.action_graph.nodes():
             raise KamiHierarchyError(
                 "Node '{}' is not found in the action graph".format(node_id))
         data = dict()
-        node_attrs = get_node(self.action_graph, node_id)
+        node_attrs = self.action_graph.get_node(node_id)
 
         for key, value in node_attrs.items():
             data[key] = value.toset()
@@ -318,8 +314,8 @@ class KamiCorpus(object):
         action_graph_typing = self.get_action_graph_typing()
 
         if action_graph_typing[node_id] == "residue":
-            gene_node = self.get_gene_of(node_id)
-            edge_attrs = get_edge(self.action_graph, node_id, gene_node)
+            gene_node = self.get_protoform_of(node_id)
+            edge_attrs = self.action_graph.get_edge(node_id, gene_node)
             if "loc" in edge_attrs:
                 data["loc"] = edge_attrs["loc"].toset()
         elif action_graph_typing[node_id] == "site" or\
@@ -332,20 +328,22 @@ class KamiCorpus(object):
                 data["order"] = edge_attrs["order"].toset()
         return data
 
-    def genes(self):
+    def protoforms(self):
         """Get a list of agent nodes in the action graph."""
         return nodes_of_type(
-            self.action_graph, self.get_action_graph_typing(), "gene")
+            self.action_graph, self.get_action_graph_typing(), "protoform")
 
-    def get_gene_by_uniprot(self, uniprotid):
-        for gene in self.genes():
-            attrs = get_node(self.action_graph, gene)
+    def get_protoform_by_uniprot(self, uniprotid):
+        """Get a protoform by the UniProt AC."""
+        for protoform in self.protoforms():
+            attrs = self.action_graph.get_node(protoform)
             u = list(attrs["uniprotid"])[0]
             if u == uniprotid:
-                return gene
+                return protoform
         return None
 
     def get_attached_bnd(self, node, immediate=True):
+        """Get BND nodes attached to the specified node."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
@@ -360,6 +358,7 @@ class KamiCorpus(object):
         return list(set(result))
 
     def get_attached_mod(self, node, immediate=True, all_directions=False):
+        """Get MOD nodes attached to the specified node."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
@@ -379,9 +378,10 @@ class KamiCorpus(object):
         return result
 
     def merge_ag_nodes(self, nodes):
+        """Merge nodes of the action graph."""
         ag_typing = self.get_action_graph_typing()
         if len(set([ag_typing[n] for n in nodes])) == 1:
-            pattern = nx.DiGraph()
+            pattern = NXGraph()
             pattern.add_nodes_from(nodes)
             r = Rule.from_transform(pattern)
             r.inject_merge_nodes(nodes)
@@ -391,6 +391,7 @@ class KamiCorpus(object):
                 "Cannot merge action graph nodes of different type!")
 
     def merge_bnds_of(self, node, subset=None):
+        """Merge BND nodes of the specified node."""
         all_bnds = self.get_attached_bnd(node)
         if subset is not None:
             for el in subset:
@@ -455,14 +456,14 @@ class KamiCorpus(object):
         """Get a list of states attached to a node with `agent_id`."""
         return self.ag_predecessors_of_type(agent_id, "state")
 
-    def get_gene_of(self, element_id):
+    def get_protoform_of(self, element_id):
         """Get agent id conntected to the element."""
         action_graph_typing = self.get_action_graph_typing()
 
-        if action_graph_typing[element_id] == "gene":
+        if action_graph_typing[element_id] == "protoform":
             return element_id
         else:
-            # bfs to find a gene
+            # bfs to find a protoform
             visited = set()
             next_level_to_visit = self.action_graph.successors(
                 element_id)
@@ -471,34 +472,36 @@ class KamiCorpus(object):
                 for n in next_level_to_visit:
                     if n not in visited:
                         visited.add(n)
-                        if action_graph_typing[n] == "gene":
+                        if action_graph_typing[n] == "protoform":
                             return n
                     new_level_to_visit.update(
                         self.action_graph.successors(n))
                 next_level_to_visit = new_level_to_visit
         raise KamiHierarchyError(
-            "No gene node is associated with an element '{}'".format(
+            "No protoform node is associated with an element '{}'".format(
                 element_id))
         return None
 
-    def get_genes_of_bnd(self, bnd_node):
-        """Get genes associated with a bidnind node."""
-        genes = set()
+    def get_protoforms_of_bnd(self, bnd_node):
+        """Get protoforms associated with a bidnind node."""
+        protoforms = set()
         for s in self.action_graph.predecessors(bnd_node):
-            genes.add(self.get_gene_of(s))
-        return genes
+            protoforms.add(self.get_protoform_of(s))
+        return protoforms
 
     def get_enzymes_of_mod(self, mod_node):
-        genes = set()
+        """Get enzymes of the modification action."""
+        protoforms = set()
         for s in self.action_graph.predecessors(mod_node):
-            genes.add(self.get_gene_of(s))
-        return genes
+            protoforms.add(self.get_protoform_of(s))
+        return protoforms
 
     def get_substrates_of_mod(self, mod_node):
-        genes = set()
+        """Get substrates of the modification action."""
+        protoforms = set()
         for s in self.action_graph.successors(mod_node):
-            genes.add(self.get_gene_of(s))
-        return genes
+            protoforms.add(self.get_protoform_of(s))
+        return protoforms
 
     def get_region_of(self, element_id):
         """Get region id conntected to the element."""
@@ -515,38 +518,34 @@ class KamiCorpus(object):
         return None
 
     def set_ag_meta_type(self, node_id, meta_type):
+        """."""
         self._hierarchy.set_node_typing(
             self._action_graph_id, "meta_model", node_id, meta_type)
 
-    def add_gene(self, gene, rewriting=False):
-        """Add gene node to action graph.
+    def add_protoform(self, protoform):
+        """Add protoform node to action graph.
 
-        gene : kami.entities.Gene
+        protoform : kami.entities.Protoform
         rewriting : bool
             Flag indicating if the action graph should be modified
             by SqPO rewriting (if True) or primitive operations (if False)
         """
         if self.action_graph is None:
             self.create_empty_action_graph()
-        if gene.uniprotid:
-            gene_id = gene.uniprotid
+        if protoform.uniprotid:
+            gene_id = protoform.uniprotid
         else:
             gene_id = generate_new_id(
                 self.action_graph, "unkown_agent")
-        if rewriting:
-            rule = Rule.from_transform(nx.DiGraph())
-            rule.inject_add_node(gene_id, gene.meta_data())
-            rhs_typing = {"meta_model": {gene_id: "gene"}}
-            _, rhs_instance = self.rewrite(
-                self._action_graph_id, rule, instance={},
-                rhs_typing=rhs_typing)
-            return rhs_instance[gene_id]
-        else:
-            add_node(self.action_graph, gene_id, gene.meta_data())
-            self.set_ag_meta_type(gene_id, "gene")
-            return gene_id
+        rule = Rule.from_transform(NXGraph())
+        rule.inject_add_node(gene_id, protoform.meta_data())
+        rhs_typing = {"meta_model": {gene_id: "protoform"}}
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance={},
+            rhs_typing=rhs_typing)
+        return rhs_instance[gene_id]
 
-    def add_mod(self, attrs=None, semantics=None, rewriting=False):
+    def add_mod(self, attrs=None, semantics=None):
         """Add mod node to the action graph.
 
         attrs : dict
@@ -562,18 +561,13 @@ class KamiCorpus(object):
 
         mod_id = generate_new_id(self.action_graph, "mod")
 
-        if rewriting:
-            rule = Rule.from_transform(nx.DiGraph())
-            rule.inject_add_node(mod_id, attrs)
-            rhs_typing = {"meta_model": {mod_id: "mod"}}
-            _, rhs_instance = self.rewrite(
-                self._action_graph_id, rule, instance={},
-                rhs_typing=rhs_typing)
-            res_mod_id = rhs_instance[mod_id]
-        else:
-            add_node(self.action_graph, mod_id, attrs)
-            self.set_ag_meta_typing(mod_id, "mod")
-            res_mod_id = mod_id
+        rule = Rule.from_transform(NXGraph())
+        rule.inject_add_node(mod_id, attrs)
+        rhs_typing = {"meta_model": {mod_id: "mod"}}
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance={},
+            rhs_typing=rhs_typing)
+        res_mod_id = rhs_instance[mod_id]
 
         # add semantic relations of the node
         for s in semantics:
@@ -599,7 +593,7 @@ class KamiCorpus(object):
                 result.update(semantic_nodes)
         return result
 
-    def add_region(self, region, ref_gene, semantics=None, rewriting=False):
+    def add_region(self, region, ref_gene, semantics=None):
         """Add a region node to action graph connected to the reference agent.
 
         region : kami.entities.Region
@@ -614,65 +608,58 @@ class KamiCorpus(object):
             by SqPO rewriting (if True) or primitive operations (if False)
         """
         # find the node corresponding to reference agent in the AG
-        if ref_gene not in self.genes():
+        if ref_gene not in self.protoforms():
             raise KamiHierarchyError(
-                "Gene '{}' is not found in the action graph".format(ref_gene))
+                "Protoform '{}' is not found in the action graph".format(ref_gene))
 
         semantics = normalize_to_set(semantics)
 
         region_id = generate_new_id(
             self.action_graph, "{}_{}".format(ref_gene, str(region)))
 
-        if rewriting:
-            pattern = nx.DiGraph()
-            pattern.add_node(ref_gene)
-            rule = Rule.from_transform(pattern)
-            rule.inject_add_node(region_id, region.meta_data())
-            rule.inject_add_edge(region_id, ref_gene, region.location())
-            rhs_typing = {"meta_model": {region_id: "region"}}
-            _, rhs_instance = self.rewrite(
-                self._action_graph_id, rule, instance={ref_gene: ref_gene},
-                rhs_typing=rhs_typing)
-            res_region_id = rhs_instance[region_id]
-        else:
-            add_node(self.action_graph, region_id, region.meta_data())
-            self.set_ag_meta_type(region_id, "region")
-            add_edge(
-                self.action_graph, region_id, ref_gene, region.location())
-            res_region_id = region_id
+        pattern = NXGraph()
+        pattern.add_node(ref_gene)
+        rule = Rule.from_transform(pattern)
+        rule.inject_add_node(region_id, region.meta_data())
+        rule.inject_add_edge(region_id, ref_gene, region.location())
+        rhs_typing = {"meta_model": {region_id: "region"}}
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance={ref_gene: ref_gene},
+            rhs_typing=rhs_typing)
+        res_region_id = rhs_instance[region_id]
 
         if semantics is not None:
             for s in semantics:
                 self.add_ag_node_semantics(res_region_id, s)
 
-        # reconnect all the residues & sites of the corresponding gene
+        # reconnect all the residues & sites of the corresponding protoform
         # that lie in the region range
         reconnect_residues(
-            self, ref_gene,
+            self.get_entity_identifier(), ref_gene,
             self.get_attached_residues(ref_gene),
             [res_region_id])
 
         reconnect_sites(
-            self, ref_gene,
+            self.get_entity_identifier(), ref_gene,
             self.get_attached_sites(ref_gene),
             [res_region_id]
         )
 
         return res_region_id
 
-    def add_site(self, site, ref_agent, semantics=None, rewriting=True):
+    def add_site(self, site, ref_agent, semantics=None):
         """Add site node to the action graph."""
-        ref_agent_in_genes = ref_agent in self.genes()
+        ref_agent_in_protoforms = ref_agent in self.protoforms()
         ref_agent_in_regions = ref_agent in self.regions()
 
-        if ref_agent_in_genes:
+        if ref_agent_in_protoforms:
             ref_gene = ref_agent
         else:
-            ref_gene = self.get_gene_of(ref_agent)
+            ref_gene = self.get_protoform_of(ref_agent)
 
         semantics = normalize_to_set(semantics)
 
-        if not ref_agent_in_genes and not ref_agent_in_regions:
+        if not ref_agent_in_protoforms and not ref_agent_in_regions:
             raise KamiHierarchyError(
                 "Neither agent nor region '%s' is not "
                 "found in the action graph" %
@@ -681,52 +668,46 @@ class KamiCorpus(object):
         site_id = generate_new_id(
             self.action_graph, "{}_{}".format(ref_agent, str(site)))
 
-        if rewriting:
-            pattern = nx.DiGraph()
-            pattern.add_node(ref_gene)
-            instance = {ref_gene: ref_gene}
-            if not ref_agent_in_genes:
-                pattern.add_node(ref_agent)
-                instance[ref_agent] = ref_agent
-            rule = Rule.from_transform(pattern)
-            rule.inject_add_node(site_id, site.meta_data())
-            rule.inject_add_edge(site_id, ref_gene, site.location())
-            if not ref_agent_in_genes:
-                rule.inject_add_edge(site_id, ref_agent, site.location())
-            rhs_typing = {"meta_model": {site_id: "site"}}
-            _, rhs_instance = self.rewrite(
-                self._action_graph_id, rule, instance, rhs_typing=rhs_typing)
-            new_site_id = rhs_instance[site_id]
-        else:
-            add_node(self.action_graph, site_id, site.meta_data())
-            self.set_ag_meta_type(site_id, "site")
-            add_edge(self.action_graph, site_id, ref_agent, site.location())
-            new_site_id = site_id
+        pattern = NXGraph()
+        pattern.add_node(ref_gene)
+        instance = {ref_gene: ref_gene}
+        if not ref_agent_in_protoforms:
+            pattern.add_node(ref_agent)
+            instance[ref_agent] = ref_agent
+        rule = Rule.from_transform(pattern)
+        rule.inject_add_node(site_id, site.meta_data())
+        rule.inject_add_edge(site_id, ref_gene, site.location())
+        if not ref_agent_in_protoforms:
+            rule.inject_add_edge(site_id, ref_agent, site.location())
+        rhs_typing = {"meta_model": {site_id: "site"}}
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance, rhs_typing=rhs_typing)
+        new_site_id = rhs_instance[site_id]
 
         for sem in semantics:
             self.add_ag_node_semantics(site_id, sem)
 
         reconnect_residues(
-            self, ref_gene, self.get_attached_residues(ref_gene),
+            self.get_entity_identifier(), ref_gene, self.get_attached_residues(ref_gene),
             sites=[new_site_id])
         reconnect_sites(
-            self, ref_gene, [new_site_id],
+            self.get_entity_identifier(), ref_gene, [new_site_id],
             self.get_attached_regions(ref_gene))
 
         return site_id
 
-    def add_residue(self, residue, ref_agent, semantics=None, rewriting=False):
+    def add_residue(self, residue, ref_agent, semantics=None):
         """Add residue node to the action_graph."""
         if ref_agent not in self.action_graph.nodes():
             raise KamiHierarchyError(
                 "Node '{}' does not exist in the action graph".format(
                     ref_agent))
 
-        ref_agent_in_genes = ref_agent in self.genes()
+        ref_agent_in_protoforms = ref_agent in self.protoforms()
         ref_agent_in_regions = ref_agent in self.regions()
         ref_agent_in_sites = ref_agent in self.sites()
 
-        if not ref_agent_in_genes and not ref_agent_in_regions and\
+        if not ref_agent_in_protoforms and not ref_agent_in_regions and\
            not ref_agent_in_sites:
             raise KamiHierarchyError(
                 "Cannot add a residue to the node '%s', node type "
@@ -744,7 +725,7 @@ class KamiCorpus(object):
 
         # try to find an existing residue with this
         residue_id = identifier.identify_residue(
-            residue, ref_agent, add_aa=True, rewriting=rewriting)
+            residue, ref_agent, add_aa=True)
 
         # if residue with this loc does not exist: create one
         if residue_id is None:
@@ -752,41 +733,32 @@ class KamiCorpus(object):
             residue_id = generate_new_id(
                 self.action_graph, "{}_{}".format(ref_agent, str(residue)))
 
-            if ref_agent_in_genes:
+            if ref_agent_in_protoforms:
                 ref_gene = ref_agent
             else:
-                ref_gene = self.get_gene_of(ref_agent)
+                ref_gene = self.get_protoform_of(ref_agent)
 
-            if rewriting:
-                pattern = nx.DiGraph()
-                pattern.add_node(ref_gene)
-                instance = {ref_gene: ref_gene}
-                if not ref_agent_in_genes:
-                    pattern.add_node(ref_agent)
-                    instance[ref_agent] = ref_agent
-                rule = Rule.from_transform(pattern)
-                rule.inject_add_node(residue_id, residue.meta_data())
-                rule.inject_add_edge(residue_id, ref_gene, residue.location())
-                if not ref_agent_in_genes:
-                    rule.inject_add_edge(
-                        residue_id, ref_agent, residue.location())
-                rhs_typing = {"meta_model": {residue_id: "residue"}}
-                _, rhs_instance = self.rewrite(
-                    self._action_graph_id, rule, instance, rhs_typing=rhs_typing)
-                new_residue_id = rhs_typing[residue_id]
-            else:
-                add_node(self.action_graph, residue_id,
-                         residue.meta_data())
-                self.set_ag_meta_type(residue_id, "residue")
-                add_edge(self.action_graph, residue_id, ref_gene,
-                         residue.location())
-                if not ref_agent_in_genes:
-                    add_edge(self.action_graph, residue_id, ref_agent)
-                new_residue_id = residue_id
+            pattern = NXGraph()
+            pattern.add_node(ref_gene)
+            instance = {ref_gene: ref_gene}
+            if not ref_agent_in_protoforms:
+                pattern.add_node(ref_agent)
+                instance[ref_agent] = ref_agent
+            rule = Rule.from_transform(pattern)
+            rule.inject_add_node(residue_id, residue.meta_data())
+            rule.inject_add_edge(residue_id, ref_gene, residue.location())
+            if not ref_agent_in_protoforms:
+                rule.inject_add_edge(
+                    residue_id, ref_agent, residue.location())
+            rhs_typing = {"meta_model": {residue_id: "residue"}}
+            rhs_instance = self.rewrite(
+                self._action_graph_id, rule, instance,
+                rhs_typing=rhs_typing)
+            new_residue_id = rhs_instance[residue_id]
 
             # reconnect regions/sites to the new residue
             reconnect_residues(
-                self, ref_gene, [new_residue_id],
+                self.get_entity_identifier(), ref_gene, [new_residue_id],
                 self.get_attached_regions(ref_gene),
                 self.get_attached_sites(ref_gene))
         else:
@@ -803,7 +775,7 @@ class KamiCorpus(object):
         # TODO: nice bnd ids generation
         bnd_id = generate_new_id(self.action_graph, "bnd")
 
-        add_node(self.action_graph, bnd_id, attrs)
+        self.action_graph.add_node(bnd_id, attrs)
         self.set_ag_meta_type(bnd_id, "bnd")
 
         # add semantic relations of the node
@@ -820,7 +792,7 @@ class KamiCorpus(object):
                 ref_agent
             )
         if self.get_action_graph_typing()[ref_agent] not in \
-           ["gene", "region", "site", "residue"]:
+           ["protoform", "region", "site", "residue"]:
             raise KamiHierarchyError(
                 "Cannot add a residue to the node '%s', node type "
                 "is not valid (expected 'agent', 'region', 'site' "
@@ -830,15 +802,16 @@ class KamiCorpus(object):
 
         # try to find an existing residue with this
         for state_node in self.get_attached_states(ref_agent):
-            if list(get_node(self.action_graph, state_node)["name"])[0] ==\
+            if list(self.action_graph.get_node(state_node)["name"])[0] ==\
                state.name:
-                get_node(self.action_graph, state_node)[state.name].add(state.test)
+                self.action_graph.get_node(state_node)[state.name].add(
+                    state.test)
                 return state_node
 
         state_id = ref_agent + "_" + str(state)
-        add_node(self.action_graph, state_id, state.meta_data())
+        self.action_graph.add_node(state_id, state.meta_data())
         self.set_ag_meta_type(state_id, "state")
-        add_edge(self.action_graph, state_id, ref_agent)
+        self.action_graph.add_edge(state_id, ref_agent)
 
         # add relation to a semantic ag node
         if semantics:
@@ -863,17 +836,21 @@ class KamiCorpus(object):
 
     def get_nugget_type(self, nugget_id):
         """Get type of the nugget specified by id."""
-        return list(self._hierarchy.get_graph_attrs(nugget_id)["interaction_type"])[0]
+        return list(self._hierarchy.get_graph_attrs(
+            nugget_id)["interaction_type"])[0]
 
     def is_mod_nugget(self, nugget_id):
+        """Test if the nugget represents MOD."""
         t = self.get_nugget_type(nugget_id)
         return t == "mod"
 
     def is_bnd_nugget(self, nugget_id):
+        """Test if the nugget represents BND."""
         t = self.get_nugget_type(nugget_id)
         return t == "bnd"
 
     def get_enzyme(self, nugget_id):
+        """Get enzyme of the MOD nugget."""
         if self.is_mod_nugget(nugget_id):
             enzyme = None
             rel = self._hierarchy.get_relation(
@@ -886,6 +863,7 @@ class KamiCorpus(object):
                 nugget_id))
 
     def get_substrate(self, nugget_id):
+        """Get substrate of the MOD nugget."""
         if self.is_mod_nugget(nugget_id):
             substrate = None
             rel = self._hierarchy.get_relation(
@@ -894,12 +872,13 @@ class KamiCorpus(object):
                 substrate = list(rel["substrate"])[0]
                 return substrate
             except:
-                print(rel, nugget_id)
+                pass
         else:
             raise KamiException("Nugget '{}' is not a mod nugget".format(
                 nugget_id))
 
     def get_left_partner(self, nugget_id):
+        """Get the left partner of the BND nugget."""
         if self.is_bnd_nugget(nugget_id):
             left = None
             rel = self._hierarchy.get_relation(
@@ -908,12 +887,13 @@ class KamiCorpus(object):
                 left = list(rel["left_partner"])[0]
                 return left
             except:
-                print(rel, nugget_id)
+                pass
         else:
             raise KamiException("Nugget '{}' is not a bnd nugget".format(
                 nugget_id))
 
     def get_right_partner(self, nugget_id):
+        """Get the right partner of the BND nugget."""
         if self.is_bnd_nugget(nugget_id):
             right = None
             rel = self._hierarchy.get_relation(
@@ -922,7 +902,7 @@ class KamiCorpus(object):
                 right = list(rel["right_partner"])[0]
                 return right
             except:
-                print(rel, nugget_id)
+                pass
         else:
             raise KamiException("Nugget '{}' is not a bnd nugget".format(
                 nugget_id))
@@ -933,6 +913,15 @@ class KamiCorpus(object):
         return self._hierarchy.get_relation(
             nugget_id, nugget_type + "_template")
 
+    def get_entity_identifier(self):
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            hierarchy=self,
+            graph_id=self._action_graph_id,
+            meta_model_id="meta_model")
+        return identifier
+
     def add_nugget(self, nugget_container, nugget_type,
                    template_rels=None, desc=None,
                    add_agents=True, anatomize=True,
@@ -941,14 +930,12 @@ class KamiCorpus(object):
         if self._action_graph_id not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
-        start = time.time()
-
         nugget_id = self._generate_next_nugget_id()
         nugget_graph_id = self._id + "_" + nugget_id
 
         # 2. Create a generation rule for this nugget
-        p = nx.DiGraph()
-        lhs = nx.DiGraph()
+        p = NXGraph()
+        lhs = NXGraph()
         generation_rule = Rule(p, lhs, nugget_container.graph)
         rhs_typing = {
             self._action_graph_id: nugget_container.reference_typing,
@@ -965,25 +952,19 @@ class KamiCorpus(object):
             attrs["desc"] = desc
         self._hierarchy.add_empty_graph(nugget_graph_id, attrs=attrs)
 
-        self.nugget[nugget_graph_id] = self._hierarchy.get_graph(nugget_graph_id)
         self._hierarchy.add_typing(
             nugget_graph_id, self._action_graph_id, dict())
 
         # 4. Apply nugget generation rule
-        for k, v in rhs_typing[self._action_graph_id].items():
-            print(get_node(nugget_container.graph, k))
-            print(get_node(self.action_graph, v))
-
-        g_prime, r_g_prime = self.rewrite(
+        r_g_prime = self.rewrite(
             nugget_graph_id,
             rule=generation_rule, instance={},
             rhs_typing=rhs_typing,
             strict=(not add_agents))
 
-        nugget_graph_template_rel = dict()
         if template_rels is not None:
             for template_id, template_rel in template_rels.items():
-
+                nugget_graph_template_rel = dict()
                 for rhs_node, template_nodes in template_rel.items():
                     if len(template_nodes) > 0:
                         nugget_node = r_g_prime[rhs_node]
@@ -994,50 +975,42 @@ class KamiCorpus(object):
                     nugget_graph_id, template_id,
                     nugget_graph_template_rel)
 
-        start = time.time()
-
-        # Get a set of genes added by the nugget
+        # Get a set of protoforms added by the nugget
         new_gene_nodes = set()
-        # print("Nugget nodes: ", nugget_container.nodes())
-        # print("Reference typing: ", nugget_container.reference_typing)
+
         for node in nugget_container.nodes():
-            if nugget_container.meta_typing[node] == "gene":
+            if nugget_container.meta_typing[node] == "protoform":
                 new_nugget_node = r_g_prime[node]
-                # print("\tNugget node", new_nugget_node)
+
                 try:
                     ag_node = self._hierarchy.get_typing(
                         nugget_graph_id, self._action_graph_id)[new_nugget_node]
-                    # print("\tAg node", ag_node)
-                    # print(nugget_container.reference_typing.values())
-                    # print()
+
                     if ag_node not in nugget_container.reference_typing.values():
-                        # print("\t\tNew gene ", ag_node)
+
                         new_gene_nodes.add(ag_node)
                 except:
-                    print("!!", new_nugget_node, self._hierarchy.get_typing(
-                        nugget_graph_id, self._action_graph_id))
+                    pass
 
-        # Check if all new genes agents from the nugget should be
+        # Check if all new protoforms agents from the nugget should be
         # distinct in the action grap
-        for gene in new_gene_nodes:
-            print(get_node(self.action_graph, gene))
 
-        genes_to_merge = {
-            list(get_node(self.action_graph, gene)["uniprotid"])[0]:
-                set() for gene in new_gene_nodes
+        protoforms_to_merge = {
+            list(self.action_graph.get_node(protoform)["uniprotid"])[0]:
+                set() for protoform in new_gene_nodes
         }
-        for gene in new_gene_nodes:
-            genes_to_merge[
-                list(get_node(self.action_graph, gene)["uniprotid"])[0]].add(
-                    gene)
+        for protoform in new_gene_nodes:
+            protoforms_to_merge[
+                list(self.action_graph.get_node(protoform)["uniprotid"])[0]].add(
+                    protoform)
 
-        for k, v in genes_to_merge.items():
+        for k, v in protoforms_to_merge.items():
             if len(v) > 1:
-                pattern = nx.DiGraph()
-                add_nodes_from(pattern, v)
+                pattern = NXGraph()
+                pattern.add_nodes_from(v)
                 rule = Rule.from_transform(pattern)
                 rule.inject_merge_nodes(v, node_id=k)
-                _, rhs_instance = self.rewrite(
+                rhs_instance = self.rewrite(
                     self._action_graph_id, rule,
                     instance={
                         n: n for n in pattern.nodes()
@@ -1052,42 +1025,34 @@ class KamiCorpus(object):
                         new_gene_nodes.remove(vv)
                 new_gene_nodes.add(merge_result)
 
-        # 5. Anatomize new genes added as the result of nugget creation
-        start = time.time()
+        # 5. Anatomize new protoforms added as the result of nugget creation
         new_ag_regions = []
         if anatomize is True:
             if len(new_gene_nodes) > 0:
-                for gene in new_gene_nodes:
-                    added_regions = anatomize_gene(self, gene)
+                for protoform in new_gene_nodes:
+                    added_regions = anatomize_gene(self, protoform)
                     new_ag_regions += added_regions
 
-        start = time.time()
-        all_genes = [
+        all_protoforms = [
             self._hierarchy.get_typing(
                 nugget_graph_id, self._action_graph_id)[node]
-            for node in self.nugget[nugget_graph_id].nodes()
+            for node in self.get_nugget(nugget_graph_id).nodes()
             if self.get_action_graph_typing()[
                 self._hierarchy.get_typing(
-                    nugget_graph_id, self._action_graph_id)[node]] == "gene"]
+                    nugget_graph_id, self._action_graph_id)[node]] == "protoform"]
 
         # Apply bookkeeping updates
         target_nodes = [
             self._hierarchy.get_typing(
                 nugget_graph_id, self._action_graph_id)[n]
-            for n in self.nugget[nugget_graph_id].nodes()
+            for n in self.get_nugget(nugget_graph_id).nodes()
         ] + new_ag_regions
 
-        identifier = EntityIdentifier(
-            self.action_graph,
-            self.get_action_graph_typing(),
-            hierarchy=self,
-            graph_id=self._action_graph_id,
-            meta_model_id="meta_model")
+        identifier = self.get_entity_identifier()
 
-        apply_bookkeeping(identifier, target_nodes, all_genes)
+        apply_bookkeeping(identifier, target_nodes, all_protoforms)
 
         # 6. Apply semantics to the nugget
-        start = time.time()
         if apply_semantics is True:
             if "mod" in self._hierarchy.get_graph_attrs(
                nugget_graph_id)["interaction_type"]:
@@ -1105,14 +1070,6 @@ class KamiCorpus(object):
         if self._action_graph_id not in self._hierarchy.graphs():
             self.create_empty_action_graph()
 
-        # identifier = EntityIdentifier(
-        #     self.action_graph,
-        #     self.get_action_graph_typing(),
-        #     hierarchy=self,
-        #     graph_id=self._action_graph_id,
-        #     meta_model_id="meta_model")
-
-        start = time.time()
         (
             nugget_container,
             nugget_type,
@@ -1121,7 +1078,6 @@ class KamiCorpus(object):
         ) = generate_nugget(self, interaction)
 
         # Add it to the hierarchy performing respective updates
-        start = time.time()
         nugget_id = self.add_nugget(
             nugget_container=nugget_container,
             nugget_type=nugget_type,
@@ -1130,7 +1086,7 @@ class KamiCorpus(object):
             add_agents=add_agents,
             anatomize=anatomize,
             apply_semantics=apply_semantics)
-        # print("Time to add nugget to the model: ", time.time() - start)
+
         return nugget_id
 
     def add_interactions(self, interactions, add_agents=True,
@@ -1168,12 +1124,12 @@ class KamiCorpus(object):
 
         return
 
-    def unique_kinase_region(self, gene):
-        """Get the unique kinase region of the gene."""
+    def unique_kinase_region(self, protoform):
+        """Get the unique kinase region of the protoform."""
         ag_sag_relation = self._hierarchy.get_relation(
             self._action_graph_id, "semantic_action_graph")
         kinase = None
-        for node in self.action_graph.predecessors(gene):
+        for node in self.action_graph.predecessors(protoform):
             if node in ag_sag_relation.keys() and\
                "protein_kinase" in ag_sag_relation[node]:
                     if kinase is None:
@@ -1182,12 +1138,12 @@ class KamiCorpus(object):
                         return None
         return kinase
 
-    def get_activity_state(self, gene):
-        """Get activity state of a gene in the action graph."""
-        states = self.get_attached_states(gene)
+    def get_activity_state(self, protoform):
+        """Get activity state of a protoform in the action graph."""
+        states = self.get_attached_states(protoform)
 
         for state in states:
-            if "activity" in get_node(self.action_graph, state)["name"]:
+            if "activity" in self.action_graph.get_node(state)["name"]:
                 return state
         return None
 
@@ -1225,7 +1181,7 @@ class KamiCorpus(object):
 
     def get_ag_node(self, node):
         """Get node from the action graph."""
-        return get_node(self.action_graph, node)
+        return self.action_graph.get_node(node)
 
     def to_json(self):
         """Return json repr of the corpus."""
@@ -1235,7 +1191,7 @@ class KamiCorpus(object):
         json_data["creation_time"] = self.creation_time
         json_data["last_modified"] = self.last_modified
 
-        json_data["action_graph"] = graph_to_json(self.action_graph)
+        json_data["action_graph"] = self.action_graph.to_json()
         json_data["action_graph_typing"] = self.get_action_graph_typing()
         json_data["action_graph_semantics"] = relation_to_json(
             self._hierarchy.get_relation(self._action_graph_id, "semantic_action_graph"))
@@ -1245,7 +1201,7 @@ class KamiCorpus(object):
             template = self.get_nugget_type(nugget) + "_template"
             nugget_json = {
                 "id": nugget,
-                "graph": graph_to_json(self.nugget[nugget]),
+                "graph": self.get_nugget(nugget).to_json(),
                 "desc": self.get_nugget_desc(nugget),
                 "typing": self.get_nugget_typing(nugget),
                 "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(nugget)),
@@ -1300,8 +1256,9 @@ class KamiCorpus(object):
         else:
             raise KamiHierarchyError("File '%s' does not exist!" % filename)
 
-    def instantiate(self, model_id, definitions=None, seed_genes=None, annotation=None,
-                    default_bnd_rate=None, default_brk_rate=None, default_mod_rate=None):
+    def instantiate(self, model_id, definitions=None, seed_protoforms=None,
+                    annotation=None, default_bnd_rate=None,
+                    default_brk_rate=None, default_mod_rate=None):
         graph_dict = {
             self._id + "_action_graph": model_id + "_action_graph"
         }
@@ -1326,7 +1283,7 @@ class KamiCorpus(object):
                 creation_time=str(datetime.datetime.now()),
                 last_modified=str(datetime.datetime.now()),
                 corpus_id=self._id,
-                seed_genes=seed_genes,
+                seed_protoforms=seed_protoforms,
                 definitions=definitions,
                 backend="neo4j",
                 driver=self._hierarchy._driver,
@@ -1337,40 +1294,34 @@ class KamiCorpus(object):
             raise KamiHierarchyError(
                 "Instantiation is not implemented with networkx backend")
 
-        # print("Initized model object")
         if definitions is not None:
             for d in definitions:
                 instantiation_rule, instance = d.generate_rule(
                     self.action_graph, self.get_action_graph_typing())
-                # print(
-                #     "Generated instantiation rule, applying to {}".format(model._action_graph_id))
                 model.rewrite(
                     model._action_graph_id,
                     instantiation_rule,
                     instance)
-                # print("Applied instantiation rule")
-
                 _clean_up_nuggets(model)
-                # print("Cleaned up nuggets")
         return model
 
     def get_uniprot(self, gene_id):
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         uniprotid = None
         if "uniprotid" in attrs.keys():
             uniprotid = list(attrs["uniprotid"])[0]
         return uniprotid
 
     def get_hgnc_symbol(self, gene_id):
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         hgnc_symbol = None
         if "hgnc_symbol" in attrs.keys():
             hgnc_symbol = list(attrs["hgnc_symbol"])[0]
         return hgnc_symbol
 
-    def get_gene_data(self, gene_id):
+    def get_protoform_data(self, gene_id):
         """."""
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         uniprotid = None
         if "uniprotid" in attrs.keys():
             uniprotid = list(attrs["uniprotid"])[0]
@@ -1391,11 +1342,11 @@ class KamiCorpus(object):
             self.get_action_graph_typing(),
             self, self._action_graph_id)
 
-        enzyme_genes = identifier.ancestors_of_type(mod_id, "gene")
-        substrate_genes = identifier.descendants_of_type(mod_id, "gene")
+        enzyme_protoforms = identifier.ancestors_of_type(mod_id, "protoform")
+        substrate_protoforms = identifier.descendants_of_type(mod_id, "protoform")
         nuggets = self._hierarchy.get_graphs_having_typing(
             self._action_graph_id, mod_id)
-        return (nuggets, enzyme_genes, substrate_genes)
+        return (nuggets, enzyme_protoforms, substrate_protoforms)
 
     def get_binding_data(self, bnd_id):
         """Get data related to a binding node."""
@@ -1404,13 +1355,13 @@ class KamiCorpus(object):
             self.get_action_graph_typing(),
             self, self._action_graph_id)
 
-        all_genes = identifier.ancestors_of_type(bnd_id, "gene")
+        all_protoforms = identifier.ancestors_of_type(bnd_id, "protoform")
         nuggets = self._hierarchy.get_graphs_having_typing(
             self._action_graph_id, bnd_id)
-        return (nuggets, all_genes)
+        return (nuggets, all_protoforms)
 
-    def get_gene_pairwise_interactions(self):
-        """Get pairwise interactions between genes."""
+    def get_protoform_pairwise_interactions(self):
+        """Get pairwise interactions between protoforms."""
         interactions = {}
 
         def _add_to_interactions(s, t, n, n_type, n_desc):
@@ -1443,17 +1394,17 @@ class KamiCorpus(object):
         return interactions
 
     def update_nugget_node_attr(self, nugget_id, node_id, node_attrs):
-        lhs = nx.DiGraph()
-        lhs_attrs = self.nugget[nugget_id].get_node(node_id)
-        add_node(lhs, node_id, lhs_attrs)
-        p = nx.DiGraph()
+        lhs = NXGraph()
+        lhs_attrs = self.get_nugget(nugget_id).get_node(node_id)
+        lhs.add_node(node_id, lhs_attrs)
+        p = NXGraph()
         p_attrs = {}
         for k, v in lhs_attrs.items():
             if k not in node_attrs.keys():
                 p_attrs[k] = v
-        add_node(p, node_id, p_attrs)
-        rhs = nx.DiGraph()
-        add_node(rhs, node_id, node_attrs)
+        p.add_node(node_id, p_attrs)
+        rhs = NXGraph()
+        rhs.add_node(node_id, node_attrs)
         rule = Rule(p, lhs, rhs)
         self.rewrite(nugget_id, rule)
 
@@ -1462,20 +1413,20 @@ class KamiCorpus(object):
             nugget_id, node_id, attrs_from_json(json_node_attrs))
 
     def update_nugget_edge_attr(self, nugget_id, source, target, edge_attrs):
-        lhs = nx.DiGraph()
-        lhs_attrs = self.nugget[nugget_id].get_edge(source, target)
-        add_nodes_from(lhs, [source, target])
-        add_edge(lhs, source, target, lhs_attrs)
-        p = nx.DiGraph()
-        add_nodes_from(p, [source, target])
+        lhs = NXGraph()
+        lhs_attrs = self.get_nugget(nugget_id).get_edge(source, target)
+        lhs.add_nodes_from([source, target])
+        lhs.add_edge(source, target, lhs_attrs)
+        p = NXGraph()
+        p.add_nodes_from([source, target])
         p_attrs = {}
         for k, v in lhs_attrs.items():
             if k not in edge_attrs.keys():
                 p_attrs[k] = v
-        add_edge(p, source, target, p_attrs)
-        rhs = nx.DiGraph()
-        add_nodes_from(rhs, [source, target])
-        add_edge(rhs, source, target, edge_attrs)
+        p.add_edge(source, target, p_attrs)
+        rhs = NXGraph()
+        rhs.add_nodes_from([source, target])
+        rhs.add_edge(source, target, edge_attrs)
         rule = Rule(p, lhs, rhs)
         self.rewrite(nugget_id, rule)
 
@@ -1522,14 +1473,13 @@ class KamiCorpus(object):
         return subcomponents
 
     def get_canonical_sequence(self, gene_node_id):
-        attrs = get_node(self.action_graph, gene_node_id)
+        attrs = self.action_graph.get_node(gene_node_id)
         uniprotid = self.get_uniprot(gene_node_id)
         if "canonical_sequence" in attrs:
             return list(attrs["canonical_sequence"])[0]
         else:
             seq = fetch_canonical_sequence(uniprotid)
-            add_node_attrs(
-                self.action_graph,
+            self.action_graph.add_node_attrs(
                 gene_node_id,
                 {
                     "canonical_sequence": seq
@@ -1539,10 +1489,10 @@ class KamiCorpus(object):
     def get_fragment_location(self, fragment_node_id):
         start = None
         end = None
-        gene = self.get_gene_of(fragment_node_id)
+        protoform = self.get_protoform_of(fragment_node_id)
 
-        if gene is not None:
-            attrs = get_edge(self.action_graph, fragment_node_id, gene)
+        if protoform is not None:
+            attrs = self.action_graph.get_edge(fragment_node_id, protoform)
             if "start" in attrs:
                 start = list(attrs["start"])[0]
             if "end" in attrs:
@@ -1551,28 +1501,27 @@ class KamiCorpus(object):
 
     def get_residue_location(self, residue_node_id):
         loc = None
-        gene = self.get_gene_of(residue_node_id)
+        protoform = self.get_protoform_of(residue_node_id)
 
-        if gene is not None:
-            attrs = get_edge(self.action_graph, residue_node_id, gene)
+        if protoform is not None:
+            attrs = self.action_graph.get_edge(residue_node_id, protoform)
             if "loc" in attrs:
                 loc = list(attrs["loc"])[0]
         return loc
 
     def interaction_edges(self):
-        interactions = self.get_gene_pairwise_interactions()
+        interactions = self.get_protoform_pairwise_interactions()
         edges = []
-        for gene, (partners, nuggets) in interactions.items():
+        for protoform, (partners, nuggets) in interactions.items():
             for i, partner in enumerate(partners):
-                if (gene, partner) not in edges and (partner, gene) not in edges:
-                    edges.append({"source": gene, "target": partner})
+                if (protoform, partner) not in edges and (partner, protoform) not in edges:
+                    edges.append({"source": protoform, "target": partner})
         return edges
 
     def remove_nugget(self, nugget_id):
         """Remove nugget from a corpus."""
         if nugget_id in self.nuggets():
             self._hierarchy.remove_graph(nugget_id)
-            del self.nugget[nugget_id]
 
     def get_mechanism_nuggets(self, mechanism_id):
         """."""

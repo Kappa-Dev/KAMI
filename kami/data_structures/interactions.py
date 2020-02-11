@@ -1,6 +1,6 @@
 """Collection of classes implementing interactions."""
 import sys
-from .entities import (Gene, SiteActor, RegionActor,
+from .entities import (Protoform, SiteActor, RegionActor,
                        Residue, State, Region, Site, actor_from_json, actor_to_json)
 
 from kami.exceptions import KamiError
@@ -105,8 +105,8 @@ class Modification(Interaction):
         return isinstance(self.enzyme, RegionActor)
 
     def enzyme_gene(self):
-        """Test if the enzyme actor is a Gene."""
-        return isinstance(self.enzyme, Gene)
+        """Test if the enzyme actor is a Protoform."""
+        return isinstance(self.enzyme, Protoform)
 
     @classmethod
     def from_json(cls, json_data):
@@ -486,7 +486,7 @@ class LigandModification(Interaction):
     """Class for Kami transmodification interaction."""
 
     def __init__(self, enzyme, substrate, target, value=True,
-                 enzyme_bnd_subactor="gene", substrate_bnd_subactor="gene",
+                 enzyme_bnd_subactor="protoform", substrate_bnd_subactor="protoform",
                  enzyme_bnd_region=None, enzyme_bnd_site=None,
                  substrate_bnd_region=None, substrate_bnd_site=None,
                  rate=None, annotation=None, desc=None):
@@ -608,11 +608,11 @@ class LigandModification(Interaction):
         if "value" in json_data.keys():
             value = json_data["value"]
 
-        enzyme_bnd_subactor = "gene"
+        enzyme_bnd_subactor = "protoform"
         if "enzyme_bnd_subactor" in json_data.keys():
             enzyme_bnd_subactor = json_data["enzyme_bnd_subactor"]
 
-        substrate_bnd_subactor = "gene"
+        substrate_bnd_subactor = "protoform"
         if "substrate_bnd_subactor" in json_data.keys():
             substrate_bnd_subactor = json_data["substrate_bnd_subactor"]
 

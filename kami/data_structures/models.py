@@ -3,9 +3,10 @@ import datetime
 import json
 import os
 
-import networkx as nx
+from regraph.backends.networkx.graphs import NXGraph
+from regraph.backends.networkx.hierarchies import NXHierarchy
+from regraph.backends.neo4j.hierarchies import Neo4jHierarchy
 
-from regraph import (Neo4jHierarchy, NetworkXHierarchy)
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from,
                                 get_node,
@@ -68,7 +69,7 @@ class KamiModel(object):
         self.default_mod_rate = default_mod_rate
 
         if backend == "networkx":
-            self._hierarchy = NetworkXHierarchy()
+            self._hierarchy = NXHierarchy()
         elif backend == "neo4j":
             if driver is not None:
                 self._hierarchy = Neo4jHierarchy(driver=driver)
@@ -252,7 +253,7 @@ class KamiModel(object):
     def proteins(self):
         """Get a list of agent nodes in the action graph."""
         return nodes_of_type(
-            self.action_graph, self.get_action_graph_typing(), "gene")
+            self.action_graph, self.get_action_graph_typing(), "protoform")
 
     def bindings(self):
         """Get a list of bnd nodes in the action graph."""
@@ -375,8 +376,8 @@ class KamiModel(object):
             self.get_action_graph_typing(),
             self, self._action_graph_id)
 
-        enzyme_genes = identifier.ancestors_of_type(mod_id, "gene")
-        substrate_genes = identifier.descendants_of_type(mod_id, "gene")
+        enzyme_genes = identifier.ancestors_of_type(mod_id, "protoform")
+        substrate_genes = identifier.descendants_of_type(mod_id, "protoform")
         nuggets = self._hierarchy.get_graphs_having_typing(
             self._action_graph_id, mod_id)
         return (nuggets, enzyme_genes, substrate_genes)
@@ -388,7 +389,7 @@ class KamiModel(object):
             self.get_action_graph_typing(),
             self, self._action_graph_id)
 
-        all_genes = identifier.ancestors_of_type(bnd_id, "gene")
+        all_genes = identifier.ancestors_of_type(bnd_id, "protoform")
         nuggets = self._hierarchy.get_graphs_having_typing(
             self._action_graph_id, bnd_id)
         return (nuggets, all_genes)
@@ -422,7 +423,7 @@ class KamiModel(object):
     def merge_ag_nodes(self, nodes):
         ag_typing = self.get_action_graph_typing()
         if len(set([ag_typing[n] for n in nodes])) == 1:
-            pattern = nx.DiGraph()
+            pattern = NXGraph()
             pattern.add_nodes_from(nodes)
             r = Rule.from_transform(pattern)
             r.inject_merge_nodes(nodes)
@@ -440,32 +441,32 @@ class KamiModel(object):
 
         # Get bindinds
         cypher = (
-            "MATCH (gene:meta_model {id: 'gene'}), \n" +
-            "(left:{})-[:typing]->(gene), \n".format(
+            "MATCH (protoform:meta_model {id: 'protoform'}), \n" +
+            "(left:{})-[:typing]->(protoform), \n".format(
                 self._action_graph_id) +
             "(right_proxy:{})-[:edge]->(bnd:{})<-[:edge]-(left_proxy:{})-[:edge*0..]->(left),\n".format(
                 self._action_graph_id, self._action_graph_id, self._action_graph_id) +
-            "(gene)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
+            "(protoform)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
                 self._action_graph_id) +
             "WHERE (bnd)-[:typing]->(:meta_model {id:'bnd'}) AND \n" +
-            "((left_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
-            "AND ((right_proxy)-[:typing]->(:meta_model {id: 'gene'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
+            "((left_proxy)-[:typing]->(:meta_model {id: 'protoform'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
+            "AND ((right_proxy)-[:typing]->(:meta_model {id: 'protoform'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
             "OPTIONAL MATCH (nugget_actions)-[:typing]->(bnd)\n" +
-            "RETURN left.id as gene, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
+            "RETURN left.id as protoform, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
         )
 
         result = self._hierarchy.execute(cypher)
         for record in result:
-            interactions[record["gene"]] = (
+            interactions[record["protoform"]] = (
                 record["partner"],
                 [item for sublist in record["nuggets"] for item in sublist]
             )
 
         # Get bindinds
         cypher = (
-            "MATCH (gene:meta_model {id: 'gene'}),\n" +
-            "(enzyme:{})-[:typing]->(gene), \n".format(self._action_graph_id) +
-            "(substrate:{})-[:typing]->(gene), \n".format(
+            "MATCH (protoform:meta_model {id: 'protoform'}),\n" +
+            "(enzyme:{})-[:typing]->(protoform), \n".format(self._action_graph_id) +
+            "(substrate:{})-[:typing]->(protoform), \n".format(
                 self._action_graph_id) +
             "(enzyme_proxy:{})-[:edge*0..]->(enzyme), \n".format(
                 self._action_graph_id) +
@@ -477,43 +478,43 @@ class KamiModel(object):
                 self._action_graph_id, self._action_graph_id) +
             "(s)-[:edge]->(substrate_proxy) \n" +
             "WHERE (mod)-[:typing]->(:meta_model {id:'mod'}) AND \n" +
-            "(enzyme_proxy_type.id = 'gene' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
-            "AND (substrate_proxy_type.id = 'gene' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
+            "(enzyme_proxy_type.id = 'protoform' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
+            "AND (substrate_proxy_type.id = 'protoform' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
             "OPTIONAL MATCH (nugget_actions)-[:typing]->(mod) \n" +
-            "RETURN enzyme.id as gene, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
+            "RETURN enzyme.id as protoform, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
         )
 
         result = self._hierarchy.execute(cypher)
         for record in result:
-            if record["gene"] in interactions:
-                interactions[record["gene"]] = (
-                    interactions[record["gene"]][0] + record["partner"],
-                    interactions[record["gene"]][1] + record["nuggets"]
+            if record["protoform"] in interactions:
+                interactions[record["protoform"]] = (
+                    interactions[record["protoform"]][0] + record["partner"],
+                    interactions[record["protoform"]][1] + record["nuggets"]
                 )
             else:
-                interactions[record["gene"]] = (
+                interactions[record["protoform"]] = (
                     record["partner"],
                     record["nuggets"]
                 )
             for i, partner in enumerate(record["partner"]):
                 if partner in interactions:
                     interactions[partner] = (
-                        interactions[partner][0] + [record["gene"]],
+                        interactions[partner][0] + [record["protoform"]],
                         interactions[partner][1] + [record["nuggets"][i]]
                     )
                 else:
                     interactions[partner] = (
-                        [record["gene"]], [record["nuggets"][i]])
+                        [record["protoform"]], [record["nuggets"][i]])
 
         return interactions
 
     def interaction_edges(self):
         interactions = self.get_protein_pairwise_interactions()
         edges = []
-        for gene, (partners, nuggets) in interactions.items():
+        for protoform, (partners, nuggets) in interactions.items():
             for i, partner in enumerate(partners):
-                if (gene, partner) not in edges and (partner, gene) not in edges:
-                    edges.append({"source": gene, "target": partner})
+                if (protoform, partner) not in edges and (partner, protoform) not in edges:
+                    edges.append({"source": protoform, "target": partner})
         return edges
 
     def remove_nugget(self, nugget_id):

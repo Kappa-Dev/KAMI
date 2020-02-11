@@ -10,7 +10,7 @@ from kami.aggregation.generators import (KamiGraph, Generator,
 from kami import (Modification,
                   Binding, SelfModification,
                   LigandModification, AnonymousModification)
-from kami import (Gene, Region, RegionActor, Residue,
+from kami import (Protoform, Region, RegionActor, Residue,
                   Site, SiteActor, State)
 from kami import KamiCorpus
 from kami.exceptions import KamiError
@@ -22,8 +22,8 @@ class TestGenerators(object):
     def __init__(self):
         """Define some initial content of the corpus."""
         corpus = KamiCorpus("test")
-        gene = Gene("A")
-        gene_id = corpus.add_gene(gene)
+        protoform = Protoform("A")
+        gene_id = corpus.add_gene(protoform)
         identifier = EntityIdentifier(
             corpus.action_graph,
             corpus.get_action_graph_typing())
@@ -117,8 +117,8 @@ class TestGenerators(object):
         """Test generation of graph components for a Site object."""
         # Site identification
         site_bob = Site(name="bob")
-        site100_200 = Site(start="100", end="200")
-        site110_150 = Site(start="110", end="150")
+        site100_200 = Site(start=100, end=200)
+        site110_150 = Site(start=110, end=150)
 
         site_bob_500_600 = Site(name="bob", start=500, end=600)
         site_bob_800_1000 = Site(name="bob", start=800, end=1000)
@@ -246,11 +246,11 @@ class TestGenerators(object):
         assert(len(nugget.nodes()) == 5)
 
     def test_gene_generator(self):
-        """Test generation of graph components for a Gene object."""
+        """Test generation of graph components for a Protoform object."""
         nugget = KamiGraph()
         nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
-        gene1 = Gene("B")
+        gene1 = Protoform("B")
 
         self.generator.generate_gene(nugget, gene1)
         self.generator.generate_gene(
@@ -259,7 +259,7 @@ class TestGenerators(object):
         nugget = KamiGraph()
         nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
-        gene2 = Gene(
+        gene2 = Protoform(
             "P00519",
             synonyms=["ABL1"],
             states=[State("active", True), State("active", False)],
@@ -294,7 +294,7 @@ class TestGenerators(object):
     def test_region_actor_generator(self):
         """Test generation of graph components for a RegionActor object."""
         region_actor = RegionActor(
-            gene=Gene("B"), region=Region("SH2"))
+            protoform=Protoform("B"), region=Region("SH2"))
 
         nugget = KamiGraph()
         nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
@@ -308,7 +308,7 @@ class TestGenerators(object):
         """Test generation of graph components for a SiteActor object."""
         # no region
         site_actor = SiteActor(
-            gene=Gene("B"), site=Site("pY"))
+            protoform=Protoform("B"), site=Site("pY"))
 
         nugget = KamiGraph()
         nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
@@ -319,7 +319,7 @@ class TestGenerators(object):
 
         # with a region in the middle
         site_actor_with_region = SiteActor(
-            gene=Gene("B"), site=Site("pY"), region=Region("kinase"))
+            protoform=Protoform("B"), site=Site("pY"), region=Region("kinase"))
 
         (gene_id, site_id, region_id) =\
             self.generator.generate_site_actor(nugget, site_actor_with_region)
@@ -329,17 +329,17 @@ class TestGenerators(object):
 
     def test_is_bnd_generator(self):
         """Test generation of graph components for a bound condition."""
-        gene = Gene("A")
-        site_actor = SiteActor(gene=Gene("A"), site=Site("pY"))
+        protoform = Protoform("A")
+        site_actor = SiteActor(protoform=Protoform("A"), site=Site("pY"))
         region_actor = RegionActor(
-            gene=Gene("A"), region=Region("Pkinase"))
+            protoform=Protoform("A"), region=Region("Pkinase"))
 
         nugget = KamiGraph()
         nugget.reference_typing[self.default_ag_gene] = self.default_ag_gene
 
         site = Site(
             "lala",
-            bound_to=[gene, gene]
+            bound_to=[protoform, protoform]
         )
         site_id =\
             self.generator.generate_site(
@@ -370,21 +370,21 @@ class TestGenerators(object):
 
     def test_mod_generator(self):
         """Test generation of a modification nugget graph."""
-        enzyme_gene = Gene("A")
+        enzyme_gene = Protoform("A")
         enzyme_region_actor = RegionActor(
-            gene=enzyme_gene,
+            protoform=enzyme_gene,
             region=Region("Pkinase"))
         enzyme_site_actor = SiteActor(
-            gene=enzyme_gene,
+            protoform=enzyme_gene,
             region=Region("Pkinase"),
             site=Site("tail"))
 
-        substrate_gene = Gene("B")
+        substrate_gene = Protoform("B")
         substrate_region_actor = RegionActor(
-            gene=substrate_gene,
+            protoform=substrate_gene,
             region=Region("SH2"))
         substrate_site_actor = SiteActor(
-            gene=substrate_gene,
+            protoform=substrate_gene,
             region=Region("SH2"),
             site=Site("finger"))
 
@@ -425,14 +425,14 @@ class TestGenerators(object):
             corpus.action_graph,
             corpus.get_action_graph_typing())
         generator = ModGenerator(identifier)
-        n, _, _, _, _= generator.generate(mod5)
+        n, _, _, _ = generator.generate(mod5)
         print_graph(n.graph)
 
     def test_anonymous_mod_generation(self):
         """Test generation of an anonymous modification nugget graph."""
-        gene = Gene("A")
+        protoform = Protoform("A")
         region_actor = RegionActor(
-            gene=gene,
+            protoform=protoform,
             region=Region("Pkinase"))
 
         mod = AnonymousModification(
@@ -445,14 +445,14 @@ class TestGenerators(object):
             corpus.action_graph,
             corpus.get_action_graph_typing())
         generator = AnonymousModGenerator(identifier)
-        n, _, _, _, _= generator.generate(mod)
+        n, _, _, _ = generator.generate(mod)
         print_graph(n.graph)
 
     def test_selfmod_generation(self):
         """Test generation of an automodification nugget graph."""
-        enzyme_gene = Gene("A")
+        enzyme_gene = Protoform("A")
         enzyme_region_actor = RegionActor(
-            gene=enzyme_gene,
+            protoform=enzyme_gene,
             region=Region("Pkinase"))
 
         automod = SelfModification(
@@ -467,17 +467,17 @@ class TestGenerators(object):
             corpus.action_graph,
             corpus.get_action_graph_typing())
         generator = SelfModGenerator(identifier)
-        n, _, _, _, _= generator.generate(automod)
+        n, _, _, _ = generator.generate(automod)
         print_graph(n.graph)
 
     def test_ligandmod_generation(self):
         """Test generation of a transmodification nugget graph."""
-        enzyme_gene = Gene("A")
+        enzyme_gene = Protoform("A")
         enzyme_region_actor = RegionActor(
-            gene=enzyme_gene,
+            protoform=enzyme_gene,
             region=Region("Pkinase"))
 
-        substrate = Gene("B")
+        substrate = Protoform("B")
 
         automod = LigandModification(
             enzyme_region_actor,
@@ -493,16 +493,16 @@ class TestGenerators(object):
             corpus.action_graph,
             corpus.get_action_graph_typing())
         generator = LigandModGenerator(identifier)
-        n, _, _, _, _= generator.generate(automod)
+        n, _, _, _ = generator.generate(automod)
         print_graph(n.graph)
 
         inter = LigandModification(
-            enzyme=RegionActor(gene=Gene(uniprotid="P30530",
+            enzyme=RegionActor(protoform=Protoform(uniprotid="P30530",
                                          hgnc_symbol="AXL"),
                                region=Region(name="Tyr_kinase",
                                              interproid="IPR020635",
                                              start=536, end=807)),
-            substrate=SiteActor(gene=Gene(uniprotid="P06239",
+            substrate=SiteActor(protoform=Protoform(uniprotid="P06239",
                                           hgnc_symbol="LCK"),
                                 site=Site(name="pY394",
                                           start=391, end=397)),
@@ -518,12 +518,12 @@ class TestGenerators(object):
         )
         corpus = KamiCorpus("test")
         corpus.add_interaction(inter, anatomize=False)
-        print_graph(corpus.nugget['test_nugget_1'])
+        print_graph(corpus.get_nugget('test_nugget_1'))
 
     def test_bnd_generation(self):
         """Test generation of a binding nugget graph."""
-        left = SiteActor(Gene("A"), Site("pY"), Region("Reg"))
-        right = Gene("B")
+        left = SiteActor(Protoform("A"), Site("pY"), Region("Reg"))
+        right = Protoform("B")
         bnd = Binding(left, right)
 
         corpus = KamiCorpus("test")
@@ -531,7 +531,7 @@ class TestGenerators(object):
             corpus.action_graph,
             corpus.get_action_graph_typing())
         generator = BndGenerator(identifier)
-        n, _, _, _, _ = generator.generate(bnd)
+        n, _, _, _ = generator.generate(bnd)
         print_graph(n.graph)
 
     def test_advanced_ligand_mod_generator(self):
@@ -544,16 +544,16 @@ class TestGenerators(object):
         generator = LigandModGenerator(identifier)
 
         enzyme = SiteActor(
-            gene=Gene("A"),
+            protoform=Protoform("A"),
             region=Region(name="RegionActor"),
             site=Site(name="SiteActor"))
         substrate = SiteActor(
-            gene=Gene("B"),
+            protoform=Protoform("B"),
             region=Region(name="RegionActor"),
             site=Site(name="SiteActor"))
 
         # simple subactors switching
-        subactors = ["gene", "region", "site"]
+        subactors = ["protoform", "region", "site"]
         for ea in subactors:
             for sa in subactors:
                 mod = LigandModification(
@@ -564,7 +564,7 @@ class TestGenerators(object):
                     enzyme_bnd_subactor=ea,
                     substrate_bnd_subactor=sa)
 
-            n, _, _, _, _ = generator.generate(mod)
+            n, _, _, _ = generator.generate(mod)
 
         mod = LigandModification(
             enzyme=enzyme,
@@ -574,7 +574,7 @@ class TestGenerators(object):
             enzyme_bnd_region=Region(name="SpecialBindingRegion"),
             substrate_bnd_region=Region(name="SpecialBindingRegion"))
 
-        n, _, _, _, _ = generator.generate(mod)
+        n, _, _, _ = generator.generate(mod)
 
         mod = LigandModification(
             enzyme=enzyme,
@@ -586,7 +586,7 @@ class TestGenerators(object):
             enzyme_bnd_site=Site(name="SpecialBindingSite"),
             substrate_bnd_site=Site(name="SpecialBindingSite"))
 
-        n, _, _, _, _= generator.generate(mod)
+        n, _, _, _ = generator.generate(mod)
 
         mod = LigandModification(
             enzyme=enzyme,
@@ -598,6 +598,6 @@ class TestGenerators(object):
             enzyme_bnd_site=Site(name="SpecialBindingSite"),
             substrate_bnd_site=Site(name="SpecialBindingSite"))
 
-        n, _, _, _, _= generator.generate(mod)
+        n, _, _, _ = generator.generate(mod)
         print_graph(n.graph)
         # adding binding components

@@ -9,18 +9,11 @@ or identification optional
 import copy
 import warnings
 
-import networkx as nx
-
-from regraph import (add_edge,
-                     add_node,
-                     add_node_attrs,
-                     remove_node,
-                     remove_edge,
-                     remove_node_attrs)
+from regraph import NXGraph
 
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.aggregation.bookkeeping import apply_bookkeeping
-from kami.data_structures.entities import (Gene, RegionActor,
+from kami.data_structures.entities import (Protoform, RegionActor,
                                            Residue, SiteActor, State
                                            )
 from kami.data_structures.interactions import (Modification, SelfModification,
@@ -56,9 +49,9 @@ class KamiGraph:
                  reference_typing=None):
         """Initialize graph container."""
         if graph:
-            self.graph = copy.deepcopy(graph)
+            self.graph = NXGraph.copy(graph)
         else:
-            self.graph = nx.DiGraph()
+            self.graph = NXGraph()
 
         self.node = self.graph.node
         self.edge = self.graph.adj
@@ -76,7 +69,7 @@ class KamiGraph:
     def add_node(self, node_id, attrs=None, meta_typing=None,
                  reference_typing=None):
         """Add node + typings to a nugget."""
-        add_node(self.graph, node_id, attrs)
+        self.graph.add_node(node_id, attrs)
         if meta_typing:
             self.meta_typing[node_id] = meta_typing
         if reference_typing:
@@ -84,24 +77,24 @@ class KamiGraph:
         return
 
     def add_node_attrs(self, node_id, attrs):
-        add_node_attrs(self.graph, node_id, attrs)
+        self.graph.add_node_attrs(node_id, attrs)
 
     def add_edge(self, s, t, attrs=None):
         """Add edge between the nodes of a nugget."""
-        add_edge(self.graph, s, t, attrs)
+        self.graph.add_edge(s, t, attrs)
         return
 
     def remove_node(self, node_id):
-        remove_node(self.graph, node_id)
+        self.graph.remove_node(node_id)
         del self.meta_typing[node_id]
         if node_id in self.reference_typing:
             del self.reference_typing[node_id]
 
     def remove_node_attrs(self, node_id, attrs):
-        remove_node_attrs(self.graph, node_id, attrs)
+        self.graph.remove_node_attrs(node_id, attrs)
 
     def remove_edge(self, s, t):
-        remove_edge(self.graph, s, t)
+        self.graph.remove_edge(s, t)
 
     def nodes(self):
         """Return a list of nodes of the nugget graph."""
@@ -138,15 +131,15 @@ class Generator(object):
         )
         return state_id
 
-    def generate_residue(self, nugget, residue, father, gene):
+    def generate_residue(self, nugget, residue, father, protoform):
         prefix = father
 
         residue_id = get_nugget_residue_id(nugget.graph, residue, prefix)
 
         action_graph_residue = None
-        if self.entity_identifier and gene in nugget.reference_typing.keys():
+        if self.entity_identifier and protoform in nugget.reference_typing.keys():
             action_graph_residue = self.entity_identifier.identify_residue(
-                residue, nugget.reference_typing[gene])
+                residue, nugget.reference_typing[protoform])
 
         nugget.add_node(
             residue_id,
@@ -194,7 +187,7 @@ class Generator(object):
                 nugget.nodes(), [partner_gene])
         return is_bnd_id
 
-    def generate_site(self, nugget, site, father, gene):
+    def generate_site(self, nugget, site, father, protoform):
         # 1. create region node
         prefix = father
         site_id = get_nugget_site_id(
@@ -224,7 +217,7 @@ class Generator(object):
                          residue.loc, site.start, site.end)
                     )
             (residue_id, _) = self.generate_residue(
-                nugget, residue, site_id, gene)
+                nugget, residue, site_id, protoform)
             nugget.add_edge(residue_id, site_id, residue.location())
 
         # create and attach states
@@ -321,54 +314,54 @@ class Generator(object):
 
         return region_id
 
-    def generate_gene(self, nugget, gene):
+    def generate_gene(self, nugget, protoform):
         """Generate agent group + indentify mapping."""
         # 1. create agent node
-        agent_id = get_nugget_gene_id(nugget.graph, gene)
+        agent_id = get_nugget_gene_id(nugget.graph, protoform)
 
         # 2. identify agent (map to a node in the action graph)
         action_graph_agent = None
         if self.entity_identifier:
-            action_graph_agent = self.entity_identifier.identify_gene(gene)
+            action_graph_agent = self.entity_identifier.identify_gene(protoform)
 
         nugget.add_node(
             agent_id,
-            gene.meta_data(),
-            meta_typing="gene",
+            protoform.meta_data(),
+            meta_typing="protoform",
             reference_typing=action_graph_agent
         )
 
         # 2. create and attach residues
-        for residue in gene.residues:
+        for residue in protoform.residues:
             (residue_id, _) = self.generate_residue(
                 nugget, residue, agent_id, agent_id)
             nugget.add_edge(residue_id, agent_id, residue.location())
 
         # 3. create and attach states
-        for state in gene.states:
+        for state in protoform.states:
             state_id = self.generate_state(
                 nugget, state, agent_id)
             nugget.add_edge(state_id, agent_id)
 
         # 4. create and attach regions
-        for region in gene.regions:
+        for region in protoform.regions:
             region_id = self.generate_region(
                 nugget, region, agent_id)
             nugget.add_edge(region_id, agent_id, region.location())
 
         # 5. create and attach sites
-        for site in gene.sites:
+        for site in protoform.sites:
             site_id = self.generate_site(
                 nugget, site, agent_id, agent_id)
             nugget.add_edge(site_id, agent_id, site.location())
 
         # 6. create and attach bounds
-        for bnd in gene.bound_to:
+        for bnd in protoform.bound_to:
             bound_locus_id = self.generate_bound(
                 nugget, bnd, agent_id, test=True)
             nugget.add_edge(agent_id, bound_locus_id)
 
-        for bnd in gene.unbound_from:
+        for bnd in protoform.unbound_from:
             bound_locus_id = self.generate_bound(
                 nugget, bnd, agent_id, test=False)
             nugget.add_edge(agent_id, bound_locus_id)
@@ -383,7 +376,7 @@ class Generator(object):
 
     def generate_region_actor(self, nugget, region_actor):
         agent_id = self.generate_gene(
-            nugget, region_actor.gene)
+            nugget, region_actor.protoform)
         region_id = self.generate_region(
             nugget, region_actor.region, agent_id)
         nugget.add_edge(region_id, agent_id, region_actor.region.location())
@@ -391,7 +384,7 @@ class Generator(object):
 
     def generate_site_actor(self, nugget, site_actor):
         agent_id = self.generate_gene(
-            nugget, site_actor.gene)
+            nugget, site_actor.protoform)
 
         site_id = self.generate_site(
             nugget, site_actor.site, agent_id, agent_id)
@@ -410,7 +403,7 @@ class Generator(object):
     def generate_actor(self, nugget, actor):
         actor_region = None
         actor_site = None
-        if isinstance(actor, Gene):
+        if isinstance(actor, Protoform):
             actor_gene = self.generate_gene(nugget, actor)
         elif isinstance(actor, RegionActor):
             (actor_gene, actor_region) = self.generate_region_actor(
@@ -426,7 +419,7 @@ class Generator(object):
         return actor_gene, actor_region, actor_site
 
     def generate_mod_target(self, nugget, target, attached_to,
-                            gene, mod_value=True):
+                            protoform, mod_value=True):
         residue = None
         if isinstance(target, State):
             if target.test == mod_value:
@@ -444,7 +437,7 @@ class Generator(object):
                         KamiWarning
                     )
                 (residue, state) = self.generate_residue(
-                    nugget, target, attached_to, gene)
+                    nugget, target, attached_to, protoform)
             else:
                 raise KamiError(
                     "Target of modification is required to be either "
@@ -674,7 +667,7 @@ class SelfModGenerator(Generator):
         if enzyme_site:
             template_rels["mod_template"][enzyme_site] = {"enzyme_site"}
 
-        # Process substrate components of the same gene
+        # Process substrate components of the same protoform
         substrate_region = None
         substrate_site = None
         if mod.substrate_region is not None:
@@ -805,7 +798,7 @@ class LigandModGenerator(Generator):
         # 4.1 Validation checks
         template_rels["bnd_template"][enzyme] = {"left_partner"} 
         template_rels["bnd_template"][substrate] = {"right_partner"}
-        if mod.enzyme_bnd_subactor == "gene":
+        if mod.enzyme_bnd_subactor == "protoform":
             pass
         elif mod.enzyme_bnd_subactor == "region":
             if enzyme_region is None:
@@ -826,10 +819,10 @@ class LigandModGenerator(Generator):
         else:
             raise KamiError(
                 "Invalid value of `enzyme_bnd_subactor` of LigandModification object:"
-                "expected 'gene', 'site' or 'region', got '{}'".format(
+                "expected 'protoform', 'site' or 'region', got '{}'".format(
                     mod.enzyme_bnd_subactor))
 
-        if mod.substrate_bnd_subactor == "gene":
+        if mod.substrate_bnd_subactor == "protoform":
             pass
         elif mod.substrate_bnd_subactor == "region":
             if substrate_region is None:
@@ -850,13 +843,13 @@ class LigandModGenerator(Generator):
         else:
             raise KamiError(
                 "Invalid value of `substrate_bnd_subactor` of LigandModification object:"
-                "expected 'gene', 'site' or 'region', got '{}'".format(
+                "expected 'protoform', 'site' or 'region', got '{}'".format(
                     mod.substrate_bnd_subactor))
 
         enzyme_bnd_region = None
         enzyme_bnd_site = None
         if mod.enzyme_bnd_region is not None:
-            if mod.enzyme_bnd_subactor == "gene":
+            if mod.enzyme_bnd_subactor == "protoform":
                 enzyme_bnd_region = self.generate_region(
                     nugget, mod.enzyme_bnd_region, enzyme)
                 template_rels["bnd_template"][enzyme_bnd_region] = {"left_partner_region"}
@@ -900,7 +893,7 @@ class LigandModGenerator(Generator):
         substrate_bnd_region = None
         substrate_bnd_site = None
         if mod.substrate_bnd_region is not None:
-            if mod.substrate_bnd_subactor == "gene":
+            if mod.substrate_bnd_subactor == "protoform":
                 substrate_bnd_region = self.generate_region(
                     nugget, mod.substrate_bnd_region, substrate)
                 nugget.add_edge(substrate_bnd_region, substrate,

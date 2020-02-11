@@ -2,7 +2,7 @@
 
 from regraph import print_graph
 
-from kami import (Gene, Region, RegionActor, Residue,
+from kami import (Protoform, Region, RegionActor, Residue,
                   Site, SiteActor, State)
 from kami import (Modification,
                   Binding,
@@ -28,10 +28,10 @@ class TestRepresentation(object):
         states = [State("activity", True), State("phosphorylation", True)]
 
         bounds = [
-            SiteActor(gene=Gene("Q07890"), site=Site("binding_site")),
-            Gene("P00519")]
+            SiteActor(protoform=Protoform("Q07890"), site=Site("binding_site")),
+            Protoform("P00519")]
 
-        self.gene = Gene(
+        self.protoform = Protoform(
             uniprotid,
             regions=regions,
             residues=residues,
@@ -41,23 +41,23 @@ class TestRepresentation(object):
             hgnc_symbol="EGFR",
             synonyms=["EGFR", "Epidermal growth factor receptor"])
 
-        self.enzyme_gene = Gene("Q07890")
+        self.enzyme_gene = Protoform("Q07890")
 
         self.enzyme_site_actor = SiteActor(
-            gene=self.enzyme_gene,
+            protoform=self.enzyme_gene,
             region=Region("Pkinase"),
             site=Site("tail"))
 
-        self.substrate_gene = Gene("P00519")
+        self.substrate_gene = Protoform("P00519")
         self.substrate_region_actor = RegionActor(
-            gene=self.substrate_gene,
+            protoform=self.substrate_gene,
             region=Region("SH2"))
 
         self.residue_mod_target = Residue("Y", 100, State("activity", False))
 
     def test_complex_gene(self):
-        print(self.gene)
-        print(self.gene.__repr__())
+        print(self.protoform)
+        print(self.protoform.__repr__())
 
     def test_modification(self):
         mod = Modification(

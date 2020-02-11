@@ -4,10 +4,10 @@ import warnings
 
 import indra.statements
 
-from kami.entities import (Gene, Region, RegionActor,
+from kami.data_structures.entities import (Protoform, Region, RegionActor,
                            Residue, Site, SiteActor, State)
 from kami.exceptions import IndraImportError, IndraImportWarning
-from kami.interactions import (Modification,
+from kami.data_structures.interactions import (Modification,
                                SelfModification,
                                LigandModification,
                                Binding,
@@ -96,14 +96,14 @@ class IndraImporter(object):
             if bnd.is_bound:
                 bounds.append(self._physical_agent_to_kami(bnd.agent))
 
-        gene = Gene(
+        gene = Protoform(
             uniprotid,
             synonyms=synonyms,
             xrefs=xrefs,
             location=location,
             residues=residues,
             states=states,
-            bounds=bounds
+            bound_to=bounds
         )
         return gene
 
@@ -237,13 +237,11 @@ class IndraImporter(object):
             nugget_gen = Modification(
                 enz_physical_agent, sub_physical_agent,
                 mod_residue, value, annotation=annotation,
-                direct=True
             )
         else:
             nugget_gen = Modification(
                 enz_physical_agent, sub_physical_agent,
                 state_obj, value, annotation=annotation,
-                direct=True
             )
 
         return nugget_gen
@@ -271,12 +269,10 @@ class IndraImporter(object):
             if mod_residue:
                 nugget_gen = SelfModification(
                     enz_physical_agent, mod_residue, value, annotation=annotation,
-                    direct=True
                 )
             else:
                 nugget_gen = SelfModification(
                     enz_physical_agent, state_obj, value, annotation=annotation,
-                    direct=True
                 )
 
             return nugget_gen
@@ -303,12 +299,12 @@ class IndraImporter(object):
             if mod_residue:
                 nugget_gen = LigandModification(
                     enzyme_agent, substrate_agent, mod_state, value,
-                    annotation=annotation, direct=True
+                    annotation=annotation
                 )
             else:
                 nugget_gen = LigandModification(
                     enzyme_agent, substrate_agent, mod_residue, value,
-                    annotation=annotation, direct=True
+                    annotation=annotation
                 )
             return nugget_gen
         else:
@@ -351,8 +347,7 @@ class IndraImporter(object):
 
         nugget_gen = Modification(
             enz_physical_agent, sub_physical_agent,
-            state_obj, mod_value, annotation=annotation,
-            direct=False
+            state_obj, mod_value, annotation=annotation
         )
 
         return nugget_gen
@@ -367,7 +362,7 @@ class IndraImporter(object):
 
         nugget_gen = AnonymousModification(
             agent, mod_state, mod_value,
-            annotation=annotation, direct=True
+            annotation=annotation
         )
         return nugget_gen
 

@@ -34,10 +34,10 @@ mod_nugget = {
 }
 
 mod_meta_typing = {
-    "enzyme": "gene",
+    "enzyme": "protoform",
     "enzyme_region": "region",
     "enzyme_site": "site",
-    "substrate": "gene",
+    "substrate": "protoform",
     "substrate_region": "region",
     "substrate_residue": "residue",
     "substrate_site": "site",
@@ -72,8 +72,8 @@ bnd_nugget = {
 }
 
 bnd_meta_typing = {
-    "left_partner": "gene",
-    "right_partner": "gene",
+    "left_partner": "protoform",
+    "right_partner": "protoform",
     "left_partner_region": "region",
     "right_partner_region": "region",
     "left_partner_site": "site",

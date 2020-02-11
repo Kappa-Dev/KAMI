@@ -3,10 +3,6 @@ import networkx as nx
 import numpy as np
 
 from regraph import Rule
-from regraph.primitives import (get_node,
-                                get_edge,
-                                add_node_attrs,
-                                find_matching)
 
 from kami.exceptions import KamiHierarchyError
 
@@ -51,9 +47,8 @@ def find_fragment(a_meta_data, a_location, dict_of_b, name=True):
             elif a_start <= b_start and a_end >= b_end:
                 return b_id
         elif a_name is not None and b_name is not None:
-            if name:
-                if a_name in b_name or b_name in a_name:
-                    satisfying_fragments.append(b_id)
+            if a_name in b_name or b_name in a_name:
+                satisfying_fragments.append(b_id)
         elif a_interpro is not None and b_interpro is not None:
             if len(a_interpro.intersection(b_interpro)) > 0:
                 satisfying_fragments.append(b_id)
@@ -90,6 +85,7 @@ def find_fragment(a_meta_data, a_location, dict_of_b, name=True):
 
 
 class EntityIdentifier:
+    """Class for identification of entities."""
 
     def __init__(self, graph, meta_typing, immediate=True,
                  hierarchy=None, graph_id=None, meta_model_id=None):
@@ -112,8 +108,7 @@ class EntityIdentifier:
                 self.graph_id, pattern,
                 pattern_typing=lhs_typing, nodes=nodes)
         else:
-            untyped_instances = find_matching(
-                self.graph, pattern, nodes=nodes)
+            untyped_instances = self.graph.find_matching(pattern, nodes=nodes)
             if lhs_typing is not None:
                 instances = []
                 for i in untyped_instances:
@@ -129,10 +124,10 @@ class EntityIdentifier:
     def rewrite_graph(self, rule, instance):
         """."""
         if self.hierarchy is not None:
-            _, rhs_instance = self.hierarchy.rewrite(
+            rhs_instance = self.hierarchy.rewrite(
                 self.graph_id, rule, instance)
         else:
-            _, rhs_instance = rule.apply_to(self.graph, instance, inplace=True)
+            rhs_instance = self.graph.rewrite(rule, instance, inplace=True)
         return rhs_instance
 
     def nodes_of_type(self, type_name):
@@ -145,7 +140,7 @@ class EntityIdentifier:
         return nodes
 
     def get_genes(self):
-        return self.nodes_of_type("gene")
+        return self.nodes_of_type("protoform")
 
     def get_regions(self):
         return self.nodes_of_type("region")
@@ -169,7 +164,8 @@ class EntityIdentifier:
         visited = set()
         next_level_to_visit = set([
             p for p in self.graph.predecessors(node_id)
-            if meta_type == "mod" or meta_type == "bnd" or (self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
+            if meta_type == "mod" or meta_type == "bnd" or (
+                self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
         ])
         while len(next_level_to_visit) > 0:
             new_level_to_visit = set()
@@ -180,36 +176,11 @@ class EntityIdentifier:
                 new_level_to_visit.update(
                     set([
                         p for p in self.graph.predecessors(n)
-                        if meta_type == "mod" or meta_type == "bnd" or (self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
+                        if meta_type == "mod" or meta_type == "bnd" or (
+                            self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
                     ]))
             next_level_to_visit = new_level_to_visit
         return ancestors
-
-        # ag_typing = self.get_action_graph_typing()
-        # all_predecessors = self.action_graph.predecessors(node_id)
-        # subcomponents = set([
-        #     p for p in all_predecessors
-        #     if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
-        # ] + [node_id])
-        # visited = set()
-        # next_level_to_visit = set([
-        #     p for p in all_predecessors
-        #     if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
-        # ])
-        # while len(next_level_to_visit) > 0:
-        #     new_level_to_visit = set()
-        #     for n in next_level_to_visit:
-        #         if n not in visited:
-        #             visited.add(n)
-        #             new_anc = set([
-        #                 p
-        #                 for p in self.action_graph.predecessors(n)
-        #                 if ag_typing[p] != "mod" and ag_typing[p] != "bnd"
-        #             ])
-        #             subcomponents.update(new_anc)
-        #         new_level_to_visit.update(new_anc)
-        #     next_level_to_visit = new_level_to_visit
-        # return subcomponents
 
     def descendants_of_type(self, node_id, meta_type):
         ancestors = self.successors_of_type(node_id, meta_type)
@@ -227,10 +198,10 @@ class EntityIdentifier:
         return ancestors
 
     def get_gene_of(self, node_id):
-        if self.meta_typing[node_id] == "gene":
+        if self.meta_typing[node_id] == "protoform":
             return node_id
         else:
-            # bfs to find a gene
+            # bfs to find a protoform
             visited = set()
             next_level_to_visit = set(self.graph.successors(node_id))
             while len(next_level_to_visit) > 0:
@@ -238,13 +209,13 @@ class EntityIdentifier:
                 for n in next_level_to_visit:
                     if n not in visited:
                         visited.add(n)
-                        if self.meta_typing[n] == "gene":
+                        if self.meta_typing[n] == "protoform":
                             return n
                     new_level_to_visit.update(
                         set(self.graph.successors(n)))
                 next_level_to_visit = new_level_to_visit
         raise ValueError(
-            "No gene node is associated with an element '{}'".fromat(
+            "No protoform node is associated with an element '{}'".fromat(
                 node_id))
         return None
 
@@ -274,12 +245,12 @@ class EntityIdentifier:
         else:
             return self.ancestors_of_type(node_id, "state")
 
-    def identify_gene(self, gene):
-        """Find corresponding gene in action graph."""
+    def identify_gene(self, protoform):
+        """Find corresponding protoform in action graph."""
         for node in self.get_genes():
-            gene_attrs = get_node(self.graph, node)
+            gene_attrs = self.graph.get_node(node)
             if "uniprotid" in gene_attrs.keys() and\
-               gene.uniprotid in gene_attrs["uniprotid"]:
+               protoform.uniprotid in gene_attrs["uniprotid"]:
                 return node
         return None
 
@@ -292,8 +263,8 @@ class EntityIdentifier:
                 fragment.meta_data(), fragment.location(),
                 {
                     f: (
-                        get_node(self.graph, f),
-                        get_edge(self.graph, f, ref_agent)
+                        self.graph.get_node(f),
+                        self.graph.get_edge(f, ref_agent)
                     )
                     for f in fragment_candidates
                 },
@@ -304,17 +275,17 @@ class EntityIdentifier:
                 ref_agent, fragment_type)
             candidates_data = dict()
             for f in fragment_candidates:
-                node_data = get_node(self.graph, f)
+                node_data = self.graph.get_node(f)
                 for s in self.graph.successors(f):
-                    location_data = get_edge(self.graph, f, s)
+                    location_data = self.graph.get_edge(f, s)
                     candidates_data[f] = (node_data, location_data)
 
             return find_fragment(
                 fragment.meta_data(), fragment.location(),
                 {
                     f: (
-                        get_node(self.graph, f),
-                        get_edge(self.graph, f, ref_agent)
+                        self.graph.get_node(f),
+                        self.graph.get_edge(f, ref_agent)
                     )
                     for f in fragment_candidates
                 },
@@ -337,7 +308,7 @@ class EntityIdentifier:
         if ref_agent not in self.get_genes() and\
            ref_agent not in self.get_regions():
             raise KamiHierarchyError(
-                "Gene with the UniProtAC '%s' is not found in the action graph" %
+                "Protoform with the UniProtAC '%s' is not found in the action graph" %
                 ref_agent
             )
         else:
@@ -351,7 +322,7 @@ class EntityIdentifier:
             Input residue entity to search for
         ref_agent
             Id of the reference agent to which residue belongs,
-            can reference either to a gene, a region or a site
+            can reference either to a protoform, a region or a site
             of the action graph
         add_aa : bool
             Add aa value if location is found but aa is not
@@ -365,16 +336,16 @@ class EntityIdentifier:
         if residue.loc is not None:
             for res in residue_candidates:
                 if (self.immediate):
-                    res_agent_edges = [get_edge(
-                        self.graph, res, ref_agent)]
+                    res_agent_edges = [
+                        self.graph.get_edge(res, ref_agent)]
                 else:
                     res_agent_edges = [
-                        get_edge(self.graph, res, s)
+                        self.graph.get_edge(res, s)
                         for s in self.graph.successors(res)]
                 for res_agent_edge in res_agent_edges:
                     if "loc" in res_agent_edge.keys():
                         if residue.loc == int(list(res_agent_edge["loc"])[0]):
-                            res_node = get_node(self.graph, res)
+                            res_node = self.graph.get_node(res)
                             if not residue.aa.issubset(
                                 res_node["aa"]) and\
                                     add_aa is True:
@@ -393,24 +364,22 @@ class EntityIdentifier:
                                             self.graph, instance={res: res},
                                             inplace=True)
                                 else:
-                                    add_node_attrs(
-                                        self.graph,
+                                    self.graph.add_node_attrs(
                                         res,
                                         {"aa": res_node["aa"].union(residue.aa)})
                             return res
         else:
             for res in residue_candidates:
                 if (self.immediate):
-                    res_agent_edges = [get_edge(
-                        self.graph, res, ref_agent)]
+                    res_agent_edges = [self.graph.get_edge(res, ref_agent)]
                 else:
                     res_agent_edges = [
-                        get_edge(self.graph, res, s)
+                        self.graph.get_edge(res, s)
                         for s in self.graph.successors(res)]
                 for res_agent_edge in res_agent_edges:
                     if "loc" not in res_agent_edge.keys() or\
                        res_agent_edge["loc"].is_empty():
-                        res_node = get_node(self.graph, res)
+                        res_node = self.graph.get_node(res)
                         if residue.aa <= res_node["aa"]:
                             return res
                         elif add_aa is True:
@@ -432,8 +401,7 @@ class EntityIdentifier:
                                         self.graph, instance=instance,
                                         inplace=True)
                             else:
-                                add_node_attrs(
-                                    self.graph,
+                                self.graph.add_node_attrs(
                                     res,
                                     {"aa": res_node["aa"].union(residue.aa)})
                             return res
@@ -443,7 +411,7 @@ class EntityIdentifier:
         """Find corresponding state of reference agent."""
         state_candidates = self.get_attached_states(ref_agent)
         for s in state_candidates:
-            name = list(get_node(self.graph, s)["name"])[0]
+            name = list(self.graph.get_node(s)["name"])[0]
             # values = action_graph.node[pred][name]
             if state.name == name:
                     # if state.value not in values:

@@ -1,6 +1,6 @@
 """Unit testing of entity identification used in aggregation."""
 from kami.aggregation.identifiers import EntityIdentifier
-from kami import (Gene, Region, Residue,
+from kami import (Protoform, Region, Residue,
                   Site, State)
 from kami import KamiCorpus
 
@@ -14,8 +14,8 @@ class TestIdentifiers(object):
         """Initialize with common hierarchy."""
         self.hierarchy = KamiCorpus("test")
 
-        gene = Gene("A")
-        self.gene_id = self.hierarchy.add_gene(gene)
+        protoform = Protoform("A")
+        self.gene_id = self.hierarchy.add_gene(protoform)
 
         named_region = Region("Kinase")
         interval_region = Region(start=100, end=200)
@@ -61,9 +61,9 @@ class TestIdentifiers(object):
         self.gene_state = self.hierarchy.add_state(gene_state, self.gene_id)
 
     def test_identify_gene(self):
-        """Test gene identification."""
-        gene1 = Gene("A")
-        gene2 = Gene("B")
+        """Test protoform identification."""
+        gene1 = Protoform("A")
+        gene2 = Protoform("B")
         identifier = EntityIdentifier(
             self.hierarchy.action_graph,
             self.hierarchy.get_action_graph_typing())

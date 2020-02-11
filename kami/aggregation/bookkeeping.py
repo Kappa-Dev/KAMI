@@ -1,35 +1,23 @@
 """Collection of bookkeeping updates."""
-import time
-import networkx as nx
 import warnings
 
-from regraph import Rule
-from regraph.primitives import (exists_edge,
-                                get_edge,
-                                get_node,
-                                add_edge,
-                                add_nodes_from,
-                                add_edges_from,
-                                add_edge_attrs,
-                                set_edge,
-                                merge_nodes,
-                                find_matching)
+import regraph
 
 from anatomizer.new_anatomizer import GeneAnatomy
 from kami.data_structures.entities import Region
 from kami.aggregation.identifiers import find_fragment
-from kami.exceptions import KamiHierarchyError, KamiHierarchyWarning
+from kami.exceptions import KamiHierarchyWarning
 from kami.utils.id_generators import generate_new_id
 
 
-def merge_residues(identifier, gene):
+def merge_residues(identifier, protoform):
     """Merge residues of the same location."""
-    residues = identifier.get_attached_residues(gene)
+    residues = identifier.get_attached_residues(protoform)
     locs = {}
     # group residues by their location
     for res in residues:
         loc = None
-        res_gene_edge = get_edge(identifier.graph, res, gene)
+        res_gene_edge = identifier.graph.get_edge(res, protoform)
         if "loc" in res_gene_edge.keys():
             loc = list(res_gene_edge["loc"])[0]
         if loc is not None:
@@ -41,22 +29,22 @@ def merge_residues(identifier, gene):
     for k, v in locs.items():
         if len(v) > 1:
             # merges these residues
-            merge_nodes(identifier.graph, v)
+            identifier.graph.merge_nodes(v)
 
 
-def reconnect_residues(identifier, gene, residues,
+def reconnect_residues(identifier, protoform, residues,
                        regions=None, sites=None):
-    """Reconnect residues of a gene to regions/sites of compatible range."""
+    """Reconnect residues of a protoform to regions/sites of compatible range."""
     for res in residues:
         loc = None
-        res_gene_edge = get_edge(identifier.graph, res, gene)
+        res_gene_edge = identifier.graph.get_edge(res, protoform)
         if "loc" in res_gene_edge.keys():
             loc = list(res_gene_edge["loc"])[0]
         if loc is not None:
             region_dict = {}
             if regions is not None:
                 for region in regions:
-                    region_gene_edge = get_edge(identifier.graph, region, gene)
+                    region_gene_edge = identifier.graph.get_edge(region, protoform)
                     if "start" in region_gene_edge and\
                        "end" in region_gene_edge:
                         start = min(
@@ -68,7 +56,7 @@ def reconnect_residues(identifier, gene, residues,
             site_dict = {}
             if sites is not None:
                 for site in sites:
-                    site_gene_edge = get_edge(identifier.graph, site, gene)
+                    site_gene_edge = identifier.graph.get_edge(site, protoform)
                     if "start" in site_gene_edge and\
                        "end" in site_gene_edge:
                         start = min(
@@ -81,11 +69,10 @@ def reconnect_residues(identifier, gene, residues,
                 if int(loc) >= start and\
                    int(loc) <= end and\
                    (res, region) not in identifier.graph.edges():
-                    add_edge(identifier.graph, res, region,
-                             {"loc": loc})
-                    add_edge_attrs(
-                        identifier.graph, res, gene,
-                        {"type": "transitive"})
+                    identifier.graph.add_edge(
+                        res, region, {"loc": loc})
+                    identifier.graph.add_edge_attrs(
+                        res, protoform, {"type": "transitive"})
 
             for site, (start, end) in site_dict.items():
                 if int(loc) >= start and\
@@ -95,22 +82,19 @@ def reconnect_residues(identifier, gene, residues,
                         if identifier.meta_typing[suc] != "site":
                             if identifier.meta_typing[suc] == "region" and\
                                suc in identifier.graph.successors(site):
-                                add_edge_attrs(
-                                    identifier.graph, res, suc,
-                                    {"type": "transitive"})
-                    add_edge_attrs(
-                        identifier.graph, res, gene,
-                        {"type": "transitive"})
-                    add_edge(identifier.graph, res, site,
-                             {"loc": loc})
+                                identifier.graph.add_edge_attrs(
+                                    res, suc, {"type": "transitive"})
+                    identifier.graph.add_edge_attrs(
+                        res, protoform, {"type": "transitive"})
+                    identifier.graph.add_edge(res, site, {"loc": loc})
 
 
-def reconnect_sites(identifier, gene, sites, regions):
-    """Reconnect sites of a gene to regions of compatible range."""
+def reconnect_sites(identifier, protoform, sites, regions):
+    """Reconnect sites of a protoform to regions of compatible range."""
     for site in sites:
         start = None
         end = None
-        site_gene_edge = get_edge(identifier.graph, site, gene)
+        site_gene_edge = identifier.graph.get_edge(site, protoform)
         if "start" in site_gene_edge.keys():
             start = list(site_gene_edge["start"])[0]
         if "end" in site_gene_edge.keys():
@@ -118,7 +102,7 @@ def reconnect_sites(identifier, gene, sites, regions):
 
         if start is not None and end is not None:
             for region in regions:
-                region_gene_edge = get_edge(identifier.graph, region, gene)
+                region_gene_edge = identifier.graph.get_edge(region, protoform)
                 if "start" in region_gene_edge and\
                    "end" in region_gene_edge:
                     region_start = min(
@@ -128,23 +112,22 @@ def reconnect_sites(identifier, gene, sites, regions):
                     if int(start) >= region_start and\
                        int(end) <= region_end and\
                        (site, region) not in identifier.graph.edges():
-                        add_edge(identifier.graph, site, region,
-                                 {"start": start, "end": end})
-                        add_edge_attrs(
-                            identifier.graph, site, gene,
-                            {"type": "transitive"})
+                        identifier.graph.add_edge(
+                            site, region,
+                            {"start": start, "end": end})
+                        identifier.graph.add_edge_attrs(
+                            site, protoform, {"type": "transitive"})
 
 
 def connect_transitive_components(identifier, new_nodes):
     """Add edges between components connected transitively."""
-    gene_region_site = nx.DiGraph()
-    add_nodes_from(gene_region_site, ["gene", "region", "site"])
-    add_edges_from(
-        gene_region_site, [("region", "gene"), ("site", "region")])
-    gene_region_site_rule = Rule.from_transform(gene_region_site)
-    gene_region_site_rule.inject_add_edge("site", "gene")
+    gene_region_site = regraph.NXGraph()
+    gene_region_site.add_nodes_from(["protoform", "region", "site"])
+    gene_region_site.add_edges_from([("region", "protoform"), ("site", "region")])
+    gene_region_site_rule = regraph.Rule.from_transform(gene_region_site)
+    gene_region_site_rule.inject_add_edge("site", "protoform")
     lhs_typing = {
-        "gene": "gene", "region": "region", "site": "site"
+        "protoform": "protoform", "region": "region", "site": "site"
     }
 
     instances = identifier.find_matching_in_graph(
@@ -153,23 +136,22 @@ def connect_transitive_components(identifier, new_nodes):
         new_nodes)
 
     for instance in instances:
-        if not exists_edge(identifier.graph,
-           instance["site"], instance["gene"]):
+        if not identifier.graph.exists_edge(
+           instance["site"], instance["protoform"]):
             edge_attrs = dict()
-            edge_attrs.update(get_edge(
-                identifier.graph,
+            edge_attrs.update(identifier.graph.get_edge(
                 instance["site"],
                 instance["region"]))
             edge_attrs["type"] = "transitive"
-            set_edge(gene_region_site_rule.rhs, "site", "gene", edge_attrs)
+            gene_region_site_rule.rhs.set_edge("site", "protoform", edge_attrs)
             identifier.rewrite_graph(
                 gene_region_site_rule, instance)
 
-    region_site_residue = nx.DiGraph()
-    add_nodes_from(region_site_residue, ["region", "site", "residue"])
-    add_edges_from(
-        region_site_residue, [("site", "region"), ("residue", "site")])
-    region_site_residue_rule = Rule.from_transform(region_site_residue)
+    region_site_residue = regraph.NXGraph()
+    region_site_residue.add_nodes_from(["region", "site", "residue"])
+    region_site_residue.add_edges_from(
+        [("site", "region"), ("residue", "site")])
+    region_site_residue_rule = regraph.Rule.from_transform(region_site_residue)
     region_site_residue_rule.inject_add_edge("residue", "region")
     lhs_typing = {
         "region": "region", "site": "site", "residue": "residue"
@@ -181,29 +163,26 @@ def connect_transitive_components(identifier, new_nodes):
         new_nodes)
 
     for instance in instances:
-        if not exists_edge(
-                identifier.graph,
+        if not identifier.graph.exists_edge(
                 instance["residue"], instance["region"]):
             edge_attrs = dict()
-            edge_attrs.update(get_edge(
-                identifier.graph,
+            edge_attrs.update(identifier.graph.get_edge(
                 instance["residue"],
                 instance["site"]))
             edge_attrs["type"] = "transitive"
-            set_edge(
-                region_site_residue_rule.rhs,
+            region_site_residue_rule.rhs.set_edge(
                 "residue", "region", edge_attrs)
             identifier.rewrite_graph(region_site_residue_rule, instance)
 
-    gene_region_residue = nx.DiGraph()
-    add_nodes_from(gene_region_residue, ["gene", "region", "residue"])
-    add_edges_from(
-        gene_region_residue, [("region", "gene"), ("residue", "region")])
-    gene_region_residue_rule = Rule.from_transform(gene_region_residue)
+    gene_region_residue = regraph.NXGraph()
+    gene_region_residue.add_nodes_from(["protoform", "region", "residue"])
+    gene_region_residue.add_edges_from(
+        [("region", "protoform"), ("residue", "region")])
+    gene_region_residue_rule = regraph.Rule.from_transform(gene_region_residue)
     gene_region_residue_rule.inject_add_edge(
-        "residue", "gene")
+        "residue", "protoform")
     lhs_typing = {
-        "gene": "gene", "region": "region", "residue": "residue"
+        "protoform": "protoform", "region": "region", "residue": "residue"
     }
 
     instances = identifier.find_matching_in_graph(
@@ -212,80 +191,71 @@ def connect_transitive_components(identifier, new_nodes):
         new_nodes)
 
     for instance in instances:
-        if not exists_edge(
-                identifier.graph,
-                instance["residue"], instance["gene"]):
+        if not identifier.graph.exists_edge(
+                instance["residue"], instance["protoform"]):
 
             edge_attrs = dict()
-            edge_attrs.update(get_edge(
-                identifier.graph,
+            edge_attrs.update(identifier.graph.get_edge(
                 instance["residue"], instance["region"]))
             edge_attrs["type"] = "transitive"
-            set_edge(
-                gene_region_residue_rule.rhs,
-                "residue", "gene", edge_attrs)
+            gene_region_residue_rule.rhs.set_edge("residue", "protoform", edge_attrs)
             identifier.rewrite_graph(gene_region_residue_rule, instance)
 
-    gene_site_residue = nx.DiGraph()
-    add_nodes_from(gene_site_residue, ["gene", "site", "residue"])
-    add_edges_from(
-        gene_site_residue, [("site", "gene"), ("residue", "site")])
-    gene_site_residue_rule = Rule.from_transform(gene_site_residue)
+    gene_site_residue = regraph.NXGraph()
+    gene_site_residue.add_nodes_from(["protoform", "site", "residue"])
+    gene_site_residue.add_edges_from([("site", "protoform"), ("residue", "site")])
+    gene_site_residue_rule = regraph.Rule.from_transform(gene_site_residue)
     gene_site_residue_rule.inject_add_edge(
-        "residue", "gene")
+        "residue", "protoform")
     lhs_typing = {
-        "gene": "gene", "site": "site", "residue": "residue"
+        "protoform": "protoform", "site": "site", "residue": "residue"
     }
 
     instances = identifier.find_matching_in_graph(
         gene_site_residue_rule.lhs, lhs_typing, new_nodes)
     for instance in instances:
-        if not exists_edge(
-                identifier.graph,
-                instance["residue"], instance["gene"]):
+        if not identifier.graph.exists_edge(
+                instance["residue"], instance["protoform"]):
 
             edge_attrs = dict()
-            edge_attrs.update(get_edge(
-                identifier.graph,
+            edge_attrs.update(identifier.graph.get_edge(
                 instance["residue"], instance["site"]))
             edge_attrs["type"] = "transitive"
-            set_edge(
-                gene_site_residue_rule.rhs,
-                "residue", "gene", edge_attrs)
+            gene_site_residue_rule.rhs.set_edge("residue", "protoform", edge_attrs)
             identifier.rewrite_graph(
                 gene_site_residue_rule, instance)
 
 
 def connect_nested_fragments(identifier, genes):
     """Add edges between spacially nested framgents."""
-    for gene in genes:
-        regions = identifier.get_attached_regions(gene)
-        for site in identifier.get_attached_sites(gene):
+    for protoform in genes:
+        regions = identifier.get_attached_regions(protoform)
+        for site in identifier.get_attached_sites(protoform):
             f = find_fragment(
-                {}, get_edge(identifier.graph, site, gene),
-                {r: ({}, get_edge(identifier.graph, r, gene)) for r in regions}
+                {}, identifier.graph.get_edge(site, protoform),
+                {r: ({}, identifier.graph.get_edge(r, protoform)) for r in regions}
             )
             if f is not None:
                 if identifier.meta_typing[f] == "region" and\
                    (site, f) not in identifier.graph.edges():
-                    add_edge(identifier.graph, site, f,
-                             get_edge(identifier.graph, site, gene))
-                    add_edge_attrs(
-                        identifier.graph,
-                        site, gene, {"type": "transitive"})
+                    identifier.graph.add_edge(
+                        site, f,
+                        identifier.graph.get_edge(site, protoform))
+                    identifier.graph.add_edge_attrs(
+                        site, protoform, {"type": "transitive"})
 
 
-def anatomize_gene(model, gene):
-    """Anatomize existing gene node in the action graph."""
+def anatomize_gene(model, protoform):
+    """Anatomize existing protoform node in the action graph."""
     new_regions = list()
-    if gene in model.action_graph.nodes() and\
-       gene in model.get_action_graph_typing().keys() and\
-       model.get_action_graph_typing()[gene] == "gene":
+    if protoform in model.action_graph.nodes() and\
+       protoform in model.get_action_graph_typing().keys() and\
+       model.get_action_graph_typing()[protoform] == "protoform":
         anatomy = None
         anatomization_rule = None
         instance = None
 
-        gene_attrs = get_node(model.action_graph, gene)
+        gene_attrs = model.action_graph.get_node(protoform)
         if "uniprotid" in gene_attrs and\
            len(gene_attrs["uniprotid"]) == 1:
             anatomy = GeneAnatomy(
@@ -318,18 +288,18 @@ def anatomize_gene(model, gene):
                 )
                 if anatomy is not None:
                     break
-        if anatomy is not None:
 
+        if anatomy is not None:
             # Generate an update rule to add
             # entities fetched by the anatomizer
 
-            lhs = nx.DiGraph()
-            add_nodes_from(lhs, ["gene"])
-            instance = {"gene": gene}
+            lhs = regraph.NXGraph()
+            lhs.add_nodes_from(["protoform"])
+            instance = {"protoform": protoform}
 
-            anatomization_rule = Rule.from_transform(lhs)
+            anatomization_rule = regraph.Rule.from_transform(lhs)
             anatomization_rule.inject_add_node_attrs(
-                "gene", {"hgnc_symbol": anatomy.hgnc_symbol})
+                "protoform", {"hgnc_symbol": anatomy.hgnc_symbol})
             anatomization_rule_typing = {
                 "meta_model": {}
             }
@@ -357,7 +327,7 @@ def anatomize_gene(model, gene):
                         region_id, region.meta_data())
                     new_regions.append(region_id)
                     anatomization_rule.inject_add_edge(
-                        region_id, "gene", region.location())
+                        region_id, "protoform", region.location())
 
                     anatomization_rule_typing["meta_model"][
                         region_id] = "region"
@@ -377,39 +347,42 @@ def anatomize_gene(model, gene):
                                 "name": "activity", "test": {True}})
                         anatomization_rule.inject_add_edge(
                             activity_state_id, region_id)
-                        semantic_relations[activity_state_id] = {"protein_kinase_activity"}
+                        semantic_relations[activity_state_id] = {
+                            "protein_kinase_activity"
+                        }
                         anatomization_rule_typing["meta_model"][
                             activity_state_id] = "state"
                     if "IPR000980" in domain.ipr_ids:
                         semantic_relations[region_id].add("sh2_domain")
 
-            existing_regions = model.get_attached_regions(gene)
+            existing_regions = model.get_attached_regions(protoform)
             for existing_region in existing_regions:
                 matching_region = find_fragment(
-                    get_node(model.action_graph, existing_region),
-                    get_edge(model.action_graph, existing_region, gene),
+                    model.action_graph.get_node(existing_region),
+                    model.action_graph.get_edge(existing_region, protoform),
                     {n: (
-                        get_node(anatomization_rule.rhs, n),
-                        get_edge(anatomization_rule.rhs, n, "gene")
+                        anatomization_rule.rhs.get_node(n),
+                        anatomization_rule.rhs.get_edge(n, "protoform")
                     ) for n in new_regions})
                 if matching_region is not None:
                     anatomization_rule._add_node_lhs(existing_region)
-                    anatomization_rule._add_edge_lhs(existing_region, "gene")
+                    anatomization_rule._add_edge_lhs(existing_region, "protoform")
                     instance[existing_region] = existing_region
-                    new_name = anatomization_rule.inject_merge_nodes(
+                    merged_rhs_id = anatomization_rule.rhs.merge_nodes(
                         [existing_region, matching_region])
-                    semantic_relations[new_name] = semantic_relations[
+                    anatomization_rule.p_rhs[existing_region] = merged_rhs_id
+
+                    semantic_relations[merged_rhs_id] = semantic_relations[
                         matching_region]
                     del semantic_relations[matching_region]
                     if matching_region in anatomization_rule_typing[
                             "meta_model"].keys():
                         del anatomization_rule_typing["meta_model"][
                             matching_region]
-
                     new_regions.remove(matching_region)
-                    new_regions.append(new_name)
+                    new_regions.append(merged_rhs_id)
 
-            _, rhs_g = model.rewrite(
+            rhs_g = model.rewrite(
                 model._action_graph_id, anatomization_rule,
                 instance, rhs_typing=anatomization_rule_typing)
 
@@ -421,12 +394,13 @@ def anatomize_gene(model, gene):
                         rhs_g[node_id], s)
         else:
             warnings.warn(
-                "Unable to anatomize gene node '%s'" % gene,
+                "Unable to anatomize protoform node '{}'".format(protoform),
                 KamiHierarchyWarning)
         return new_regions
     else:
-        print(
-            "Gene node '{}' does not exist in the model!".format(gene))
+        warnings.warn(
+            "Protoform node '{}' does not exist in the model!".format(protoform),
+            KamiHierarchyWarning)
         return []
 
 
