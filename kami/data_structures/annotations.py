@@ -2,16 +2,17 @@
 
 
 class CorpusAnnotation:
-    """Data structure for annotation."""
+    """Data structure for corpus annotation."""
 
     def __init__(self, name=None, desc=None, organism=None, text=None):
-        """."""
+        """Initialize."""
         self.name = name
         self.desc = desc
         self.organism = organism
         self.text = text
 
     def to_json(self):
+        """Convert to JSON."""
         return {
             "name": self.name,
             "desc": self.desc,
@@ -21,6 +22,7 @@ class CorpusAnnotation:
 
     @classmethod
     def from_json(cls, json_data):
+        """Load from JSON."""
         name = None
         desc = None
         organism = None
@@ -34,3 +36,9 @@ class CorpusAnnotation:
         if "text" in json_data.keys():
             text = json_data["text"]
         return cls(name, desc, organism, text)
+
+
+class ModelAnnotation(CorpusAnnotation):
+    """Data structure for model annotation."""
+
+    pass

@@ -4,7 +4,6 @@ Corpora in KAMI are decontextualised signalling knowledge bases.
 """
 import datetime
 import json
-import time
 import os
 
 from kami.resources import default_components
@@ -27,7 +26,7 @@ from kami.aggregation.generators import generate_nugget
 from kami.aggregation.semantics import (apply_mod_semantics,
                                         apply_bnd_semantics)
 from kami.aggregation.identifiers import EntityIdentifier
-from kami.data_structures.annotations import CorpusAnnotation
+from kami.data_structures.annotations import CorpusAnnotation, ModelAnnotation
 from kami.data_structures.models import KamiModel
 from kami.data_structures.interactions import Interaction
 
@@ -174,10 +173,6 @@ class KamiCorpus(object):
     def rewrite(self, graph_id, rule, instance=None,
                 rhs_typing=None, strict=False):
         """Overloading of the rewrite method."""
-        if instance is None:
-            instance = {
-                n: n for n in rule.lhs.nodes()
-            }
         r_g_prime = self._hierarchy.rewrite(
             graph_id, rule=rule, instance=instance,
             rhs_typing=rhs_typing, strict=strict)
@@ -347,35 +342,20 @@ class KamiCorpus(object):
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
-            self, self._action_graph_id)
+            self, self._action_graph_id,
+            immediate=immediate)
 
-        result = identifier.successors_of_type(node, "bnd")
-        if not immediate:
-            for r in identifier.get_attached_regions(node):
-                result += identifier.successors_of_type(r, "bnd")
-            for s in identifier.get_attached_sites(node):
-                result += identifier.successors_of_type(s, "bnd")
-        return list(set(result))
+        return identifier.get_attached_bnd(node)
 
     def get_attached_mod(self, node, immediate=True, all_directions=False):
         """Get MOD nodes attached to the specified node."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
-            self, self._action_graph_id)
+            self, self._action_graph_id,
+            immediate=immediate)
 
-        result = identifier.successors_of_type(node, "mod")
-
-        if not immediate:
-            for r in identifier.get_attached_regions(node):
-                result += identifier.successors_of_type(r, "mod")
-            for s in identifier.get_attached_sites(node):
-                result += identifier.successors_of_type(s, "mod")
-
-        if all_directions:
-            result += identifier.ancestors_of_type(node, "mod")
-
-        return result
+        return identifier.get_attached_mod(node, all_directions=all_directions)
 
     def merge_ag_nodes(self, nodes):
         """Merge nodes of the action graph."""
@@ -522,7 +502,7 @@ class KamiCorpus(object):
         self._hierarchy.set_node_typing(
             self._action_graph_id, "meta_model", node_id, meta_type)
 
-    def add_protoform(self, protoform):
+    def add_protoform(self, protoform, anatomize=True):
         """Add protoform node to action graph.
 
         protoform : kami.entities.Protoform
@@ -543,6 +523,10 @@ class KamiCorpus(object):
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={},
             rhs_typing=rhs_typing)
+
+        if anatomize is True:
+            anatomize_gene(self, rhs_instance[gene_id])
+
         return rhs_instance[gene_id]
 
     def add_mod(self, attrs=None, semantics=None):
@@ -610,7 +594,8 @@ class KamiCorpus(object):
         # find the node corresponding to reference agent in the AG
         if ref_gene not in self.protoforms():
             raise KamiHierarchyError(
-                "Protoform '{}' is not found in the action graph".format(ref_gene))
+                "Protoform '{}' is not found in the action graph".format(
+                    ref_gene))
 
         semantics = normalize_to_set(semantics)
 
@@ -688,7 +673,8 @@ class KamiCorpus(object):
             self.add_ag_node_semantics(site_id, sem)
 
         reconnect_residues(
-            self.get_entity_identifier(), ref_gene, self.get_attached_residues(ref_gene),
+            self.get_entity_identifier(), ref_gene, self.get_attached_residues(
+                ref_gene),
             sites=[new_site_id])
         reconnect_sites(
             self.get_entity_identifier(), ref_gene, [new_site_id],
@@ -788,16 +774,16 @@ class KamiCorpus(object):
         """Add state node to the action graph."""
         if ref_agent not in self.action_graph.nodes():
             raise KamiHierarchyError(
-                "Node '%s' does not exist in the action graph" %
-                ref_agent
+                "Node '{}' does not exist in the action graph".format(
+                    ref_agent)
             )
         if self.get_action_graph_typing()[ref_agent] not in \
            ["protoform", "region", "site", "residue"]:
             raise KamiHierarchyError(
-                "Cannot add a residue to the node '%s', node type "
+                "Cannot add a residue to the node '{}', node type "
                 "is not valid (expected 'agent', 'region', 'site' "
-                "or 'residue', '%s' was provided)" %
-                (ref_agent, self.get_action_graph_typing()[ref_agent])
+                "or 'residue', '{}' was provided)".format(
+                    ref_agent, self.get_action_graph_typing()[ref_agent])
             )
 
         # try to find an existing residue with this
@@ -914,6 +900,7 @@ class KamiCorpus(object):
             nugget_id, nugget_type + "_template")
 
     def get_entity_identifier(self):
+        """Get an identifier object with the AG being the reference graph."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
@@ -1016,7 +1003,6 @@ class KamiCorpus(object):
                         n: n for n in pattern.nodes()
                     })
 
-                # self.rename_node(self._action_graph_id, rhs_instance[k], k)
                 merge_result = rhs_instance[k]
                 if k in new_gene_nodes:
                     new_gene_nodes.remove(k)
@@ -1039,7 +1025,8 @@ class KamiCorpus(object):
             for node in self.get_nugget(nugget_graph_id).nodes()
             if self.get_action_graph_typing()[
                 self._hierarchy.get_typing(
-                    nugget_graph_id, self._action_graph_id)[node]] == "protoform"]
+                    nugget_graph_id,
+                    self._action_graph_id)[node]] == "protoform"]
 
         # Apply bookkeeping updates
         target_nodes = [
@@ -1194,7 +1181,8 @@ class KamiCorpus(object):
         json_data["action_graph"] = self.action_graph.to_json()
         json_data["action_graph_typing"] = self.get_action_graph_typing()
         json_data["action_graph_semantics"] = relation_to_json(
-            self._hierarchy.get_relation(self._action_graph_id, "semantic_action_graph"))
+            self._hierarchy.get_relation(
+                self._action_graph_id, "semantic_action_graph"))
 
         json_data["nuggets"] = []
         for nugget in self.nuggets():
@@ -1204,13 +1192,15 @@ class KamiCorpus(object):
                 "graph": self.get_nugget(nugget).to_json(),
                 "desc": self.get_nugget_desc(nugget),
                 "typing": self.get_nugget_typing(nugget),
-                "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(nugget)),
+                "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(
+                    nugget)),
                 "template_rel": (
                     template,
                     relation_to_json(self.get_nugget_template_rel(nugget))
                 ),
                 "semantic_rels": {
-                    s: relation_to_json(self._hierarchy.get_relation(nugget, s))
+                    s: relation_to_json(self._hierarchy.get_relation(
+                        nugget, s))
                     for s in self._hierarchy.adjacent_relations(nugget)
                     if s != template
                 }
@@ -1254,36 +1244,53 @@ class KamiCorpus(object):
                     uri=uri, user=user, password=password, driver=driver)
             return corpus
         else:
-            raise KamiHierarchyError("File '%s' does not exist!" % filename)
+            raise KamiHierarchyError("File '{}' does not exist!".format(filename))
 
-    def instantiate(self, model_id, definitions=None, seed_protoforms=None,
+    def instantiate(self, model_id, definitions=None, seed_genes=None,
                     annotation=None, default_bnd_rate=None,
                     default_brk_rate=None, default_mod_rate=None):
-        graph_dict = {
-            self._id + "_action_graph": model_id + "_action_graph"
-        }
+        """Instantiate a signalling model from a corpus.
 
-        nugget_attrs = dict()
-        for nugget in self.nuggets():
-            graph_dict[nugget] = model_id + "_" + nugget
-            nugget_attrs[model_id + "_" + nugget] = {
-                "model_id": model_id
-            }
-        self._hierarchy.duplicate_subgraph(
-            graph_dict, attach_graphs=["meta_model", "bnd_template", "mod_template"])
-        for k, v in nugget_attrs.items():
-            self._hierarchy.set_graph_attrs(k, v)
-        # print("Duplicated branch of the hierarchy")
+        Parameters
+        ----------
+        model_id : hashable
+            ID of the new model.
+        definitions : iterable of kami.data_structures.Definition
+            List of protein definitions used for instantiation.
+        seed_genes : iterable of str
+            List of UniProt AC's of genes whose protoforms should be added to
+            the model, the rest of the protoforms and their interactions
+            are filtered (and not included in the instantiated model).
+        annotation : kami.data_structures.annotations.CorpusAnnotation
+            Model annotations
+        """
+
+        if annotation is None:
+            annotation = ModelAnnotation()
 
         if self._backend == "neo4j":
-            if annotation is None:
-                annotation = CorpusAnnotation()
+            # To create a model we duplicate subgraph of the Neo4jHierarchy
+            graph_dict = {
+                self._id + "_action_graph": model_id + "_action_graph"
+            }
+            nugget_attrs = dict()
+            for nugget in self.nuggets():
+                graph_dict[nugget] = model_id + "_" + nugget
+                nugget_attrs[model_id + "_" + nugget] = {
+                    "model_id": model_id
+                }
+            self._hierarchy.duplicate_subgraph(
+                graph_dict, attach_graphs=[
+                    "meta_model", "bnd_template", "mod_template"])
+            for k, v in nugget_attrs.items():
+                self._hierarchy.set_graph_attrs(k, v)
+
             model = KamiModel(
                 model_id, annotation,
                 creation_time=str(datetime.datetime.now()),
                 last_modified=str(datetime.datetime.now()),
                 corpus_id=self._id,
-                seed_protoforms=seed_protoforms,
+                seed_genes=seed_genes,
                 definitions=definitions,
                 backend="neo4j",
                 driver=self._hierarchy._driver,
@@ -1291,8 +1298,17 @@ class KamiCorpus(object):
                 default_brk_rate=default_brk_rate,
                 default_mod_rate=default_mod_rate)
         else:
-            raise KamiHierarchyError(
-                "Instantiation is not implemented with networkx backend")
+            model = KamiModel(
+                model_id, annotation,
+                creation_time=str(datetime.datetime.now()),
+                last_modified=str(datetime.datetime.now()),
+                corpus_id=self._id,
+                seed_genes=seed_genes,
+                definitions=definitions,
+                default_bnd_rate=default_bnd_rate,
+                default_brk_rate=default_brk_rate,
+                default_mod_rate=default_mod_rate)
+            model._copy_knowledge_from_corpus(self)
 
         if definitions is not None:
             for d in definitions:
@@ -1302,7 +1318,6 @@ class KamiCorpus(object):
                     model._action_graph_id,
                     instantiation_rule,
                     instance)
-                _clean_up_nuggets(model)
         return model
 
     def get_uniprot(self, gene_id):

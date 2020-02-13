@@ -295,7 +295,14 @@ class Protoform(Actor, PhysicalEntity):
         if self.synonyms is not None:
             agent_attrs["synonyms"] = normalize_to_set(self.synonyms)
         if self.xrefs is not None:
-            agent_attrs["xrefs"] = normalize_to_set(list(self.xrefs.items()))
+            xrefs = []
+            for k, v in self.xrefs.items():
+                if type(v) == list:
+                    for vv in v:
+                        xrefs.append((k, vv))
+                else:
+                    xrefs.append((k, v))
+            agent_attrs["xrefs"] = normalize_to_set(xrefs)
         return agent_attrs
 
     def add_region(self, region):
@@ -316,6 +323,43 @@ class Protoform(Actor, PhysicalEntity):
             set(protoform.residues).issubset(self.residues) and\
             set(protoform.states).issubset(self.states)
         return self.same_reference(protoform) and contains_components
+
+
+class Protein(Actor, PhysicalEntity):
+    """Wrapper around Protoform specifying the protein product."""
+
+    def __init__(self, protoform, name=None):
+        """Initialize protein."""
+        self.protoform = protoform
+        self.name = name
+
+    def to_json(self):
+        """Convert to its JSON repr."""
+        json_data = {}
+        json_data["protoform"] = self.protoform.to_json()
+        if self.name:
+            json_data["name"] = self.name
+
+    @classmethod
+    def from_json(cls, json_data):
+        """Create Protoform object from JSON representation."""
+        protoform = Protoform.from_json(json_data["protoform"])
+        name = None
+        if "name" in json_data:
+            name = json_data["name"]
+        return cls(protoform, name)
+
+    def __str__(self):
+        """String represenation of a protoform."""
+        rep = str(self.protoform.uniprotid)
+        if self.name:
+            rep += "_" + self.name
+        return rep
+
+    def __repr__(self):
+        """Representation of a protoform."""
+        return "Protein(protoform={}, name={}".format(
+            self.protoform.__repr__(), self.name)
 
 
 class Region(PhysicalEntity):
@@ -958,16 +1002,19 @@ class State(object):
 class RegionActor(Actor):
     """Class for a region of a protoform as an actor of PPI."""
 
-    def __init__(self, protoform, region):
+    def __init__(self, protoform, region, variant_name=None):
         """Initialize RegionActor object."""
         self.region = region
         self.protoform = protoform
+        self.variant_name = variant_name
 
     def to_json(self):
         """Convert to its JSON repr."""
         json_data = {}
         json_data["protoform"] = self.protoform.to_json()
         json_data["region"] = self.region.to_json()
+        if self.variant_name:
+            json_data["variant_name"] = self.variant_name
         return json_data
 
     @classmethod
@@ -975,29 +1022,38 @@ class RegionActor(Actor):
         """Create RegionActor object from JSON representation."""
         protoform = Protoform.from_json(json_data["protoform"])
         region = Region.from_json(json_data["region"])
-        return cls(protoform, region)
+        variant_name = None
+        if "variant_name" in json_data:
+            variant_name = json_data["variant_name"]
+        return cls(protoform, region, variant_name)
 
     def __repr__(self):
         """Representation of a region actor object."""
-        return "RegionActor(protoform={}, region={})".format(
+        res = "RegionActor(protoform={}, region={}".format(
             self.protoform.__repr__(), self.region.__repr__())
+        if self.variant_name:
+            res += ", variant_name={}".format(self.variant_name)
+        return res + ")"
 
     def __str__(self):
         """String representation of a RegionActor object."""
         res = str(self.region) + "_"
         res += str(self.protoform)
+        if self.variant_name:
+            res += self.variant_name
         return res
 
 
 class SiteActor(Actor):
     """Class for a site of a protoform as an actor of PPI."""
 
-    def __init__(self, protoform, site, region=None):
+    def __init__(self, protoform, site, region=None, variant_name=None):
         """Initialize SiteActor object."""
         self.site = site
         # We normalize region to be iterable
         self.region = normalize_to_iterable(region)
         self.protoform = protoform
+        self.variant_name = variant_name
 
     def to_json(self):
         """Convert to its JSON repr."""
@@ -1006,6 +1062,8 @@ class SiteActor(Actor):
         if self.region:
             json_data["region"] = self.region.to_json()
         json_data["site"] = self.site.to_json()
+        if self.variant_name:
+            json_data["variant_name"] = self.variant_name
         return json_data
 
     @classmethod
@@ -1016,11 +1074,16 @@ class SiteActor(Actor):
         region = None
         if "region" in json_data.keys():
             region = Region.from_json(json_data["region"])
-        return cls(protoform, site, region)
+        variant_name = None
+        if "variant_name" in json_data:
+            variant_name = json_data["variant_name"]
+        return cls(protoform, site, region, variant_name)
 
     def __repr__(self):
         """Representation of a site actor object."""
         content = ""
+        if self.variant_name is not None:
+            content += "variant_name={}, ".format(self.variant_name)
         if self.region is not None:
             content += "region={}, ".format(self.region.__repr__())
         content += "site={}".format(self.site.__repr__())
@@ -1031,6 +1094,8 @@ class SiteActor(Actor):
     def __str__(self):
         """String representation of a SiteActor object."""
         res = str(self.protoform)
+        if self.variant_name is not None:
+            res += "_" + str(self.variant_name)
         if self.region is not None:
             for r in self.region:
                 res += "_" + str(r)

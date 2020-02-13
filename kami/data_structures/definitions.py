@@ -1,21 +1,22 @@
 """Collection of data structures for protein products/families definitions."""
-import copy
 import warnings
 
 import regraph.primitives as primitives
 from regraph import Rule, get_node, get_edge, set_node_attrs
-from regraph.utils import keys_by_value
 
-from kami.aggregation.generators import Generator, KamiGraph
+from kami.aggregation.generators import KamiGraph
 from kami.aggregation.identifiers import EntityIdentifier
 
-from kami.data_structures.entities import Protoform, Region, Site, Residue, State
-from kami.utils.id_generators import (generate_new_id)
+from kami.data_structures.entities import (Protoform, Region, Site,
+                                           Residue, State)
 
 
 class Product(object):
+    """Data structure for protein products."""
 
-    def __init__(self, removed_components=None, residues=None, name=None, desc=None):
+    def __init__(self, name, removed_components=None, residues=None, desc=None):
+        """Initialize a protein product."""
+        self.name = name
         self.removed_components = dict()
         if removed_components is None:
             removed_components = dict()
@@ -38,7 +39,6 @@ class Product(object):
         if residues is None:
             residues = list()
         self.residues = residues
-        self.name = name
         self.desc = desc
 
     def generate_graph(self, reference_graph, gene_node):
@@ -53,7 +53,6 @@ class Product(object):
         def remove_component(node):
             # Find all the subcomponents and remove them
             components = entity_identifier.subcomponents(node)
-            print("Components of ", node, components)
             for n in components:
                 graph.remove_node(n)
 

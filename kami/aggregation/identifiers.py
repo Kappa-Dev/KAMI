@@ -4,6 +4,7 @@ import numpy as np
 
 from regraph import Rule
 
+from kami.data_structures.entities import Region, Site, Residue, State
 from kami.exceptions import KamiHierarchyError
 
 
@@ -121,13 +122,13 @@ class EntityIdentifier:
                 instances = untyped_instances
         return instances
 
-    def rewrite_graph(self, rule, instance):
+    def rewrite_graph(self, rule, instance=None):
         """."""
         if self.hierarchy is not None:
             rhs_instance = self.hierarchy.rewrite(
                 self.graph_id, rule, instance)
         else:
-            rhs_instance = self.graph.rewrite(rule, instance, inplace=True)
+            rhs_instance = self.graph.rewrite(rule, instance)
         return rhs_instance
 
     def nodes_of_type(self, type_name):
@@ -252,6 +253,20 @@ class EntityIdentifier:
             if "uniprotid" in gene_attrs.keys() and\
                protoform.uniprotid in gene_attrs["uniprotid"]:
                 return node
+        return None
+
+    def identify_protein(self, protein):
+        """Find corresponding protoform in action graph."""
+        for node in self.get_genes():
+            gene_attrs = self.graph.get_node(node)
+            if "uniprotid" in gene_attrs.keys() and\
+               protein.protoform.uniprotid in gene_attrs["uniprotid"]:
+                if protein.name:
+                    if "variant_name" in gene_attrs.keys() and\
+                            protein.name in gene_attrs["variant_name"]:
+                        return node
+                else:
+                    return node
         return None
 
     def _identify_fragment(self, fragment,
@@ -412,15 +427,21 @@ class EntityIdentifier:
         state_candidates = self.get_attached_states(ref_agent)
         for s in state_candidates:
             name = list(self.graph.get_node(s)["name"])[0]
-            # values = action_graph.node[pred][name]
             if state.name == name:
-                    # if state.value not in values:
-                    #     add_node_attrs(
-                    #         action_graph,
-                    #         pred,
-                    #         {name: {state.value}})
                 return s
         return None
+
+    def identify_component(self, entity, ref_agent):
+        """Find corresponding component of the reference agent."""
+        if isinstance(entity, Region):
+            # Here smth doesnt work
+            return self.identify_region(entity, ref_agent)
+        elif isinstance(entity, Site):
+            return self.identify_site(entity, ref_agent)
+        elif isinstance(entity, Residue):
+            return self.identify_residue(entity, ref_agent)
+        elif isinstance(entity, State):
+            return self.identify_state(entity, ref_agent)
 
     def subcomponents(self, node_id):
         """Get all the subcomponent nodes."""
@@ -445,6 +466,31 @@ class EntityIdentifier:
                         if self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd"
                     ])
                     subcomponents.update(new_anc)
-                new_level_to_visit.update(new_anc)
+                    new_level_to_visit.update(new_anc)
             next_level_to_visit = new_level_to_visit
         return subcomponents
+
+    def get_attached_bnd(self, node):
+        """Get BND nodes attached to the specified node."""
+        result = self.successors_of_type(node, "bnd")
+        if not self.immediate:
+            for r in self.get_attached_regions(node):
+                result += self.successors_of_type(r, "bnd")
+            for s in self.get_attached_sites(node):
+                result += self.successors_of_type(s, "bnd")
+        return list(set(result))
+
+    def get_attached_mod(self, node, all_directions=False):
+        """Get MOD nodes attached to the specified node."""
+        result = self.successors_of_type(node, "mod")
+
+        if not self.immediate:
+            for r in self.get_attached_regions(node):
+                result += self.successors_of_type(r, "mod")
+            for s in self.get_attached_sites(node):
+                result += self.successors_of_type(s, "mod")
+
+        if all_directions:
+            result += self.ancestors_of_type(node, "mod")
+
+        return result

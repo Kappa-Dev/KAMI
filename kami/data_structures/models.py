@@ -109,13 +109,60 @@ class KamiModel(object):
             if (u, v) not in self._hierarchy.relations():
                 self._hierarchy.add_relation(u, v, rel, attrs)
 
-        self.nugget_dict_factory = ndf = self.nugget_dict_factory
-        self.nugget = ndf()
-
         _init_from_data(self, data, True)
 
         self._init_shortcuts()
         return
+
+    def _copy_knowledge_from_corpus(self, corpus):
+        """Copy the AG and nuggets from the corpus."""
+        if self._backend != "networkx":
+            raise KamiHierarchyError(
+                "Method '_copy_knowledge_from_corpus' is available only " +
+                "for networkx-based corpora, for neo4j corpora refer to " +
+                "the 'duplicate_subgraph' methond of Neo4jHierarchy")
+
+        # Copy the action graph
+        ag_obj = NXGraph.copy(corpus.action_graph)
+        self._hierarchy._update_graph(self._action_graph_id, ag_obj)
+        # Update a short-cup
+        self.action_graph =\
+            self._hierarchy.get_graph(self._action_graph_id)
+        self._hierarchy._update_mapping(
+            self._action_graph_id,
+            "meta_model",
+            corpus.get_action_graph_typing())
+
+        # Copy nuggets
+        nugget_map = dict()
+        for n in corpus.nuggets():
+            # Generate a nugget id
+            model_nugget_id = self._id + "_" + n
+            nugget_map[n] = model_nugget_id
+
+            # Add an empty nugget graph to the model
+            self._hierarchy.add_graph(
+                model_nugget_id, NXGraph(),
+                attrs=corpus._hierarchy.get_graph_attrs(n))
+            self._hierarchy.set_graph_attrs(
+                model_nugget_id,
+                {"model_id": self._id})
+
+            self._hierarchy.add_typing(
+                model_nugget_id, self._action_graph_id, dict())
+            self._hierarchy.add_relation(
+                model_nugget_id, corpus.get_nugget_type(n) + "_template", {})
+
+            # Update nugget related objects
+            nugget_obj = NXGraph.copy(corpus.get_nugget(n))
+            self._hierarchy._update_graph(model_nugget_id, nugget_obj)
+            self._hierarchy._update_mapping(
+                model_nugget_id, self._action_graph_id,
+                corpus.get_nugget_typing(n))
+            self._hierarchy._update_relation(
+                model_nugget_id, corpus.get_nugget_type(n) + "_template",
+                corpus.get_nugget_template_rel(n)
+            )
 
     def _init_shortcuts(self):
         """Initialize kami-specific shortcuts."""
@@ -130,14 +177,12 @@ class KamiModel(object):
         self.bnd_template = self._hierarchy.get_graph(
             "bnd_template")
 
-        self.nugget = self.nugget_dict_factory()
-        for n in self._hierarchy.graphs():
-            graph_attrs = self._hierarchy.get_graph_attrs(n)
-            if "type" in graph_attrs.keys() and\
-               "nugget" in graph_attrs["type"] and\
-               "model_id" in graph_attrs.keys() and\
-               self._id in graph_attrs["model_id"]:
-                self.nugget[n] = self._hierarchy.get_graph(n)
+    def get_nugget(self, nugget_id):
+        """Get a nugget by ID."""
+        for node_id in self._hierarchy.graphs():
+            if self.is_nugget_graph(node_id):
+                return self._hierarchy.get_graph(nugget_id)
+        raise KamiException("Nugget '{}' is not found".format(nugget_id))
 
     def clear(self):
         """Clear data elements of corpus."""
@@ -158,11 +203,6 @@ class KamiModel(object):
                 "meta_model",
                 dict()
             )
-            self._hierarchy.add_relation(
-                self._action_graph_id,
-                "semantic_action_graph",
-                dict()
-            )
             self.action_graph = self._hierarchy.get_graph(
                 self._action_graph_id)
 
@@ -173,11 +213,11 @@ class KamiModel(object):
             instance = {
                 n: n for n in rule.lhs.nodes()
             }
-        g_prime, r_g_prime = self._hierarchy.rewrite(
+        r_g_prime = self._hierarchy.rewrite(
             graph_id, rule=rule, instance=instance,
             rhs_typing=rhs_typing, strict=strict)
         self._init_shortcuts()
-        return (g_prime, r_g_prime)
+        return r_g_prime
 
     def find_matching(self, graph_id, pattern,
                       pattern_typing=None, nodes=None):
@@ -198,6 +238,16 @@ class KamiModel(object):
         """Get action graph attributes."""
         return self._hierarchy.get_graph_attrs(
             self._action_graph_id)
+
+    def get_proteins_by_uniprot(self, uniprotid):
+        """Get a protein by the UniProt AC."""
+        res = []
+        for protein in self.proteins():
+            attrs = self.action_graph.get_node(protein)
+            u = list(attrs["uniprotid"])[0]
+            if u == uniprotid:
+                res.append(protein)
+        return res
 
     def is_nugget_graph(self, node_id):
         """Test if node of the hierarchy is nugget."""
@@ -335,15 +385,13 @@ class KamiModel(object):
 
         json_data["action_graph"] = graph_to_json(self.action_graph)
         json_data["action_graph_typing"] = self.get_action_graph_typing()
-        json_data["action_graph_semantics"] = relation_to_json(
-            self._hierarchy.get_relation(self._action_graph_id, "semantic_action_graph"))
 
         json_data["nuggets"] = []
         for nugget in self.nuggets():
             template = self.get_nugget_type(nugget) + "_template"
             nugget_json = {
                 "id": nugget,
-                "graph": graph_to_json(self.nugget[nugget]),
+                "graph": graph_to_json(self.get_nugget(nugget)),
                 "desc": self.get_nugget_desc(nugget),
                 "typing": self.get_nugget_typing(nugget),
                 "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(nugget)),
@@ -402,11 +450,10 @@ class KamiModel(object):
         return uniprotid
 
     def get_variant_name(self, gene_id):
+        """Get the name of protein variant."""
         attrs = get_node(self.action_graph, gene_id)
-        uniprotid = None
         if "variant_name" in attrs.keys():
-            uniprotid = list(attrs["variant_name"])[0]
-        return uniprotid
+            return list(attrs["variant_name"])[0]
 
     def get_hgnc_symbol(self, gene_id):
         attrs = get_node(self.action_graph, gene_id)
@@ -521,7 +568,6 @@ class KamiModel(object):
         """Remove nugget from a model."""
         if nugget_id in self.nuggets():
             self._hierarchy.remove_graph(nugget_id)
-            del self.nugget[nugget_id]
 
     def is_mod_nugget(self, nugget_id):
         t = self.get_nugget_type(nugget_id)

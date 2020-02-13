@@ -4,14 +4,12 @@ import warnings
 
 import indra.statements
 
-from kami.data_structures.entities import (Protoform, Region, RegionActor,
-                           Residue, Site, SiteActor, State)
+from kami.data_structures.entities import (Protoform, Residue, State)
 from kami.exceptions import IndraImportError, IndraImportWarning
 from kami.data_structures.interactions import (Modification,
-                               SelfModification,
-                               LigandModification,
-                               Binding,
-                               AnonymousModification)
+                                               SelfModification,
+                                               LigandModification,
+                                               AnonymousModification)
 from kami.utils.xrefs import (uniprot_from_xrefs,
                               names_from_uniprot,
                               uniprot_from_names
@@ -57,6 +55,9 @@ class IndraImporter(object):
             if "uniprot" in new_db_refs.keys():
                 uniprotid = new_db_refs["uniprot"]
                 del new_db_refs["uniprot"]
+            if "up" in new_db_refs.keys():
+                uniprotid = new_db_refs["up"]
+                del new_db_refs["up"]
             xrefs = new_db_refs
 
         # no UniProt id in db_refs of indra Agent
@@ -94,18 +95,26 @@ class IndraImporter(object):
 
         for bnd in agent.bound_conditions:
             if bnd.is_bound:
-                bounds.append(self._physical_agent_to_kami(bnd.agent))
+                bnd_agent = self._physical_agent_to_kami(bnd.agent)
+                if bnd_agent is not None:
+                    bounds.append(bnd_agent)
 
-        gene = Protoform(
-            uniprotid,
-            synonyms=synonyms,
-            xrefs=xrefs,
-            location=location,
-            residues=residues,
-            states=states,
-            bound_to=bounds
-        )
-        return gene
+        if uniprotid is not None:
+            gene = Protoform(
+                uniprotid,
+                synonyms=synonyms,
+                xrefs=xrefs,
+                location=location,
+                residues=residues,
+                states=states,
+                bound_to=bounds
+            )
+            return gene
+        else:
+            warnings.warn(
+                "Interaction agent does not have an UniProt AC, skipping the statement.",
+                IndraImportWarning)
+            return None
 
     def _modification_to_state(self, statement):
         state_name = None
@@ -210,7 +219,11 @@ class IndraImporter(object):
         # convert indra agents to kami agents
 
         enz_physical_agent = self._physical_agent_to_kami(statement.enz)
+        if enz_physical_agent is None:
+            return
         sub_physical_agent = self._physical_agent_to_kami(statement.sub)
+        if sub_physical_agent is None:
+            return
 
         # extract modification type and value
         try:
@@ -250,6 +263,8 @@ class IndraImporter(object):
         """Handle INDRA self-modification classes."""
         if isinstance(statement, indra.statements.Autophosphorylation):
             enz_physical_agent = self._physical_agent_to_kami(statement.enz)
+            if enz_physical_agent is None:
+                return
 
             state = "phosphorylation"
             value = True
@@ -280,9 +295,13 @@ class IndraImporter(object):
             no_bound_enzyme = copy.deepcopy(statement.enz)
             no_bound_enzyme.bound_conditions = None
             enzyme_agent = self._physical_agent_to_kami(no_bound_enzyme)
+            if enzyme_agent is None:
+                return
             substrate_agent = self._physical_agent_to_kami(
                 statement.enz.bound_conditions[0]
             )
+            if substrate_agent is None:
+                return
 
             mod_state = State("phosphorylation", False)
 
@@ -336,6 +355,8 @@ class IndraImporter(object):
 
         enz_physical_agent = self._physical_agent_to_kami(statement.subj)
         sub_physical_agent = self._physical_agent_to_kami(statement.obj)
+        if enz_physical_agent is None or sub_physical_agent is None:
+            return
 
         # extract modification type and value
         state_name = statement.obj_activity
@@ -355,6 +376,9 @@ class IndraImporter(object):
     def _handle_active_form(self, statement):
         """Handle INDRA active form classes."""
         agent = self._physical_agent_to_kami(statement.agent)
+        if agent is None:
+            return
+
         mod_state = State(statement.activity, not statement.is_active)
         mod_value = statement.is_active
 

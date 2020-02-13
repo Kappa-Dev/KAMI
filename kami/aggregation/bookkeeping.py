@@ -29,7 +29,14 @@ def merge_residues(identifier, protoform):
     for k, v in locs.items():
         if len(v) > 1:
             # merges these residues
-            identifier.graph.merge_nodes(v)
+            if identifier.hierarchy:
+                pattern = regraph.NXGraph()
+                pattern.add_nodes_from(v)
+                rule = regraph.Rule.from_transform(pattern)
+                rule.inject_merge_nodes(v)
+                identifier.rewrite_graph(rule)
+            else:
+                identifier.graph.merge_nodes(v)
 
 
 def reconnect_residues(identifier, protoform, residues,
@@ -306,6 +313,7 @@ def anatomize_gene(model, protoform):
             # Build a rule that adds all regions and sites
             semantic_relations = dict()
             new_regions = []
+            new_states = {}
             for i, domain in enumerate(anatomy.domains):
                 if domain.feature_type == "Domain":
                     region = Region(
@@ -345,6 +353,7 @@ def anatomize_gene(model, protoform):
                         anatomization_rule.inject_add_node(
                             activity_state_id, {
                                 "name": "activity", "test": {True}})
+                        new_states[region_id] = activity_state_id
                         anatomization_rule.inject_add_edge(
                             activity_state_id, region_id)
                         semantic_relations[activity_state_id] = {
@@ -356,6 +365,7 @@ def anatomize_gene(model, protoform):
                         semantic_relations[region_id].add("sh2_domain")
 
             existing_regions = model.get_attached_regions(protoform)
+            merged_activities = {}
             for existing_region in existing_regions:
                 matching_region = find_fragment(
                     model.action_graph.get_node(existing_region),
@@ -368,6 +378,26 @@ def anatomize_gene(model, protoform):
                     anatomization_rule._add_node_lhs(existing_region)
                     anatomization_rule._add_edge_lhs(existing_region, "protoform")
                     instance[existing_region] = existing_region
+
+                    # Merge their activity state
+                    state_nodes = model.get_attached_states(existing_region)
+                    for s in state_nodes:
+                        if matching_region in new_states:
+                            s_attrs = model.action_graph.get_node(s)
+                            if "activity" in s_attrs["name"]:
+                                anatomization_rule._add_node_lhs(s)
+                                anatomization_rule._add_edge_lhs(
+                                    s, existing_region)
+                                instance[s] = s
+                                merged_state_rhs_id = anatomization_rule.rhs.merge_nodes(
+                                    [s, new_states[matching_region]])
+                                anatomization_rule.p_rhs[s] =\
+                                    merged_state_rhs_id
+                                merged_activities[
+                                    new_states[
+                                        matching_region]] = merged_state_rhs_id
+
+                    # Merge the new region with the existing
                     merged_rhs_id = anatomization_rule.rhs.merge_nodes(
                         [existing_region, matching_region])
                     anatomization_rule.p_rhs[existing_region] = merged_rhs_id
@@ -388,10 +418,13 @@ def anatomize_gene(model, protoform):
 
             for node_id, semantics in semantic_relations.items():
                 for s in semantics:
+                    if node_id in rhs_g:
+                        n = rhs_g[node_id]
+                    else:
+                        n = rhs_g[merged_activities[node_id]]
                     model._hierarchy.set_node_relation(
                         model._action_graph_id,
-                        "semantic_action_graph",
-                        rhs_g[node_id], s)
+                        "semantic_action_graph", n, s)
         else:
             warnings.warn(
                 "Unable to anatomize protoform node '{}'".format(protoform),
