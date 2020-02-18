@@ -331,16 +331,16 @@ class IndraImporter(object):
                 "Unknown type of self-modification: '%s'!" % str(statement)
             )
 
-    # def _handle_complex(self, statement):
-    #     """Handle INDRA complex classes."""
-    #     physical_agents = []
-    #     for member in statement.members:
-    #         physical_agents.append(self._physical_agent_to_kami(member))
+    def _handle_complex(self, statement):
+        """Handle INDRA complex classes."""
+        physical_agents = []
+        for member in statement.members:
+            physical_agents.append(self._physical_agent_to_kami(member))
 
-    #     annotation = self._annotation_to_kami(statement)
-    #     nugget_gen = Complex(physical_agents, annotation=annotation)
+        annotation = self._annotation_to_kami(statement)
+        nugget_gen = Complex(physical_agents, annotation=annotation)
 
-    #     return nugget_gen
+        return nugget_gen
 
     def _handle_regulate_activity(self, statement):
 
@@ -398,8 +398,8 @@ class IndraImporter(object):
             nugget = self._handle_modification(statement)
         elif isinstance(statement, indra.statements.SelfModification):
             nugget = self._handle_self_modification(statement)
-        # elif isinstance(statement, indra.statements.Complex):
-        #     nugget = self._handle_complex(statement)
+        elif isinstance(statement, indra.statements.Complex):
+            nugget = self._handle_complex(statement)
         elif isinstance(statement, indra.statements.RegulateActivity):
             nugget = self._handle_regulate_activity(statement)
         elif isinstance(statement, indra.statements.ActiveForm):

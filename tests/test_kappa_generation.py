@@ -47,7 +47,7 @@ class TestKappaGeneration(object):
         # Manually add a new components to an arbitrary protoform
         self.corpus.add_site(Site("New site"), new_protoform_node)
 
-        grb2 = Protoform("P62993")
+        grb2 = Protoform("P62993", states=[State("activity", True)])
         grb2_sh2 = RegionActor(
             protoform=grb2,
             region=Region(name="SH2"))
@@ -108,11 +108,17 @@ class TestKappaGeneration(object):
             stateful_components=[
                 (kinase, 75),
                 (Residue("Y", 1092, state=State("phosphorylation", True)), 30),
-                (Site(name="pY", bound_to=[
-                    RegionActor(protoform=grb2, region=Region(name="SH2"), variant_name="Ash-L")
-                ]), 30)
+                (Site(
+                    name="pY",
+                    residues=[Residue("Y", 1092,
+                                      state=State("phosphorylation", True))],
+                    bound_to=[
+                        RegionActor(
+                            protoform=grb2, region=Region(name="SH2"),
+                            variant_name="Ash-L")
+                    ]), 30)
             ],
-            bounds=[
+            bonds=[
                 (Protein(Protoform("P00533")), 30),
             ])
 
@@ -123,6 +129,7 @@ class TestKappaGeneration(object):
             canonical_protein=Protein(Protoform("P62993"), "Ash-L"),
             canonical_count=200,
             stateful_components=[
+                (State("activity", True), 20),
                 (Region(name="SH2", bound_to=[shc1_pY]), 40)
             ])
 
@@ -130,8 +137,9 @@ class TestKappaGeneration(object):
         # 10 molecules of S90D bound to the pY site of EGFR
         s90d_initial = KappaInitialCondition(
             canonical_protein=Protein(Protoform("P62993"), "S90D"),
-            canonical_count=20,
+            canonical_count=45,
             stateful_components=[
+                (State("activity", True), 20),
                 (Region(name="SH2", bound_to=[egfr_pY]), 10)
             ])
 
@@ -162,9 +170,11 @@ class TestKappaGeneration(object):
     def test_generate_from_corpus(self):
         """Test generation from corpus."""
         g = CorpusKappaGenerator(self.corpus, [self.grb2_definition])
-        g.generate()
+        k = g.generate(self.initial_conditions)
+        print(k)
 
     def test_generate_from_model(self):
         """Test generation from model.."""
         g = ModelKappaGenerator(self.model)
-        g.generate()
+        k = g.generate(self.initial_conditions)
+        print(k)
