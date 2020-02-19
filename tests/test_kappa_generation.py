@@ -3,9 +3,9 @@ from kami import KamiCorpus
 from kami.data_structures.entities import *
 from kami.data_structures.interactions import *
 from kami.data_structures.definitions import *
-from kami.exporters.new_kappa import (ModelKappaGenerator,
-                                      CorpusKappaGenerator,
-                                      KappaInitialCondition)
+from kami.exporters.kappa import (ModelKappaGenerator,
+                                  CorpusKappaGenerator,
+                                  KappaInitialCondition)
 
 
 class TestKappaGeneration(object):

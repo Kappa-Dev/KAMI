@@ -23,7 +23,7 @@ class TestGenerators(object):
         """Define some initial content of the corpus."""
         corpus = KamiCorpus("test")
         protoform = Protoform("A")
-        gene_id = corpus.add_gene(protoform)
+        gene_id = corpus.add_protoform(protoform)
         identifier = EntityIdentifier(
             corpus.action_graph,
             corpus.get_action_graph_typing())

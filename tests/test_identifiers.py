@@ -15,7 +15,7 @@ class TestIdentifiers(object):
         self.hierarchy = KamiCorpus("test")
 
         protoform = Protoform("A")
-        self.gene_id = self.hierarchy.add_gene(protoform)
+        self.gene_id = self.hierarchy.add_protoform(protoform)
 
         named_region = Region("Kinase")
         interval_region = Region(start=100, end=200)
