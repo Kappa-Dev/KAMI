@@ -76,7 +76,52 @@ class TestKappaGeneration(object):
 
         interaction2 = Binding(grb2_sh2_with_residues, egfr_pY)
 
-        self.corpus.add_interactions([interaction1, interaction2])
+        axl_PK = RegionActor(
+            protoform=Protoform("P30530", hgnc_symbol="AXL"),
+            region=Region("Protein kinase", start=536, end=807))
+        interaction3 = SelfModification(
+            axl_PK,
+            target=Residue("Y", 821, State("phosphorylation", False)),
+            value=True)
+
+        interaction4 = AnonymousModification(
+            RegionActor(
+                protoform=Protoform(
+                    "P30530", hgnc_symbol="AXL",
+                    residues=[
+                        Residue(
+                            "Y", 703, state=State("phosphorylation", True)),
+                        Residue(
+                            "Y", 779, state=State("phosphorylation", True))
+                    ]),
+                region=Region(
+                    "Protein kinase", start=536, end=807)),
+            target=State("activity", False),
+            value=True)
+
+        interaction5 = Binding(egfr, egfr)
+        interaction6 = Unbinding(egfr, egfr)
+
+        interaction7 = LigandModification(
+            egfr_kinase,
+            shc1,
+            target=Residue("Y", 317, State("phosphorylation", False)),
+            value=True,
+            enzyme_bnd_region=Region("BND_region"),
+            enzyme_bnd_site=Site("BND site"),
+            substrate_bnd_region=Region("BND region"),
+            substrate_bnd_site=Site("BND site"))
+
+        nuggets = self.corpus.add_interactions([
+            interaction1,
+            interaction2,
+            interaction3,
+            interaction4,
+            interaction5,
+            interaction6,
+            interaction7
+        ])
+
 
         # Create a protein definition for GRB2
         protoform = Protoform(
@@ -119,7 +164,7 @@ class TestKappaGeneration(object):
                     ]), 30)
             ],
             bonds=[
-                (Protein(Protoform("P00533")), 30),
+                (Protein(Protoform("P00533")), 30, "is_bnd"),
             ])
 
         # The following initial conditions specify:

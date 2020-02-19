@@ -5,6 +5,7 @@ import time
 
 from regraph.primitives import attrs_from_json
 from kami.exceptions import KamiException
+# from kami.aggregation import identifiers
 
 
 def normalize_to_set(arg):
@@ -210,3 +211,107 @@ def _clean_up_nuggets(kb):
                 "DETACH DELETE residue"
             )
             kb._hierarchy.execute(query)
+        else:
+            #  ----- Cleanup nuggets for networkx
+            nugget_typing = kb._hierarchy.get_typing(nugget, kb._action_graph_id)
+            ag_typing = kb.get_action_graph_typing()
+            n_meta_typing = {
+                k: ag_typing[v] for k, v in nugget_typing.items()
+            }
+            nugget_graph = kb.get_nugget(nugget)
+            nugget_identifier = identifiers.EntityIdentifier(
+                nugget_graph,
+                n_meta_typing,
+                immediate=False)
+            protoforms = nugget_identifier.get_genes()
+
+            # Remove edge to a mod/bnd from/to the actor that contains
+            # a residue with the empty aa
+
+            def _empty_aa_found(node):
+                protoform = nugget_identifier.get_gene_of(node)
+                residues = nugget_identifier.get_attached_residues(
+                    protoform)
+                deattach = True
+                for residue in residues:
+                    residue_attrs = nugget_graph.get_node(residue)
+                    if "aa" not in residue_attrs or\
+                            len(residue_attrs["aa"]) == 0:
+                        test = list(residue_attrs["test"])[0]
+                        if test is True:
+                            deattach = True
+                            break
+                return deattach
+
+            def _detach_edge_to_bnds(bnd_action, partner_to_ignore=None):
+                preds = nugget_graph.predecessors(bnd_action)
+                for p in preds:
+                    if p != partner_to_ignore:
+                        deattach = _empty_aa_found(p)
+                        if not deattach:
+                            # Find other bonds
+                            other_bnds = [
+                                bnd
+                                for bnd in nugget_identifier.get_attached_bnd(
+                                    p)
+                                if bnd != bnd_action
+                            ]
+                            for bnd in other_bnds:
+                                _detach_edge_to_bnds(bnd, p)
+                        else:
+                            nugget_graph.remove_edge(p, bnd_action)
+
+            if "bnd_template" in kb._hierarchy.adjacent_relations(nugget):
+                bnd_template = kb._hierarchy.get_relation(
+                    "bnd_template", nugget)
+                bnd_actions = bnd_template["bnd"]
+                # Find a BND node with type == do
+                do_bnd = None
+                for bnd_action in bnd_actions:
+                    attrs = nugget_graph.get_node(bnd_action)
+                    if list(attrs["type"])[0] == "do":
+                        do_bnd = bnd_action
+                        break
+                # Deattach preds of do_bnd if residue aa is empty
+                _detach_edge_to_bnds(do_bnd)
+
+            #     for left_partner in bnd_template["left_parter"]:
+            #         residues = nugget_identifier.get_attached_residues(
+            #             left_partner)
+            #         deattach = True
+            #         for residue in residues:
+            #             residue_attrs = nugget_graph.get_node(residue)
+            #             if "aa" not in residue_attrs or\
+            #                     len(residue_attrs["aa"]) == 0:
+            #                 test = list(residue_attrs["test"])[0]
+            #                 if test is True:
+            #                     deattach = True
+            #                     break
+            #         if deattach:
+            #             for bnd_action in bnd_actions:
+            #                 if nugget_graph.exist_edge()
+
+            #     for right_partner in bnd_template["right_partner"]:
+            #         pass
+
+            # for protoform in protoforms:
+            #     residues = nugget_identifier.get_attached_residues(
+            #         protoform)
+            #     deattach = True
+            #     for residue in residues:
+            #         residue_attrs = nugget_graph.get_node(residue)
+            #         if "aa" not in residue_attrs or\
+            #                 len(residue_attrs["aa"]) == 0:
+            #             test = list(residue_attrs["test"])[0]
+            #             if test is True:
+            #                 deattach = True
+            #                 break
+            #     if deattach:
+            #         # Deattach the protoform from the action
+            #         pass
+
+
+
+            # Remove all the graph components disconected from the action node
+
+            # Remove empty residue conditions

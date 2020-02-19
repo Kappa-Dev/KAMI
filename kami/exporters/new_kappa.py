@@ -346,10 +346,10 @@ class KappaGenerator(ABC):
                 template_rel = self.kb._hierarchy.get_relation(
                     "mod_template", n)
                 bnd_relation = None
+
                 if "bnd_template" in relations:
                     bnd_relation = self.kb._hierarchy.get_relation(
                         "bnd_template", n)
-
                 # Generate rules from the nugget
                 rules, rate = self._generate_mod_rules(
                     nugget_identifier, ag_typing, template_rel, bnd_relation)
@@ -371,7 +371,9 @@ class KappaGenerator(ABC):
 
     def generate_initial_conditions(self, concentrations, default_concentation):
         """Generate Kappa initial conditions."""
+
         def _retreive_states_and_bonds(state_nodes, comp, n, variant=None):
+            skip = False
             if isinstance(comp, State):
                 for s_node, site_name in state_nodes.items():
                     state_attrs = self.identifier.graph.get_node(s_node)
@@ -380,95 +382,89 @@ class KappaGenerator(ABC):
                         condition_dict["states"][
                             site_name] = "on" if comp.test else "off"
             elif isinstance(comp, Residue):
-                _retreive_states_and_bonds(state_nodes, comp.state, n)
+                skip = _retreive_states_and_bonds(state_nodes, comp.state, n)
             elif isinstance(comp, Site):
                 for residue in comp.residues:
-                    _retreive_states_and_bonds(state_nodes, residue, n)
-                for state in comp.states:
-                    _retreive_states_and_bonds(state_nodes, state, n)
-                for bound in comp.bound_to:
-                    site_node = self.identifier.identify_site(
-                        comp, protein_node)
-                    generic_sites = self.agents[protoform][
-                        "generic_kami_bnd_sites"]
-                    bnds = set()
-                    bnd_dict = dict()
-                    for (other_site_node, bnd_node), data in generic_sites.items():
-                        if other_site_node == site_node:
-                            bnds.add(bnd_node)
-                    if len(bnds) > 1:
-                        warnings.warn(
-                            "Multiple binding actions found!", KappaGenerationWarning)
-                    elif len(bnds) == 1:
-                        bnd = list(bnds)[0]
-                        site_name = generic_sites[(site_node, bnd)][0]
-                        bnd_dict[bnd] = (
-                            site_name,
-                            generic_sites[(site_node, bnd)][1]
-                        )
-                    else:
-                        variant_sites = self.agents[protoform][
-                            "variants"][variant]["kami_bnd_sites"]
-                        for (other_site_node, bnd_node), data in variant_sites.items():
+                    skip = _retreive_states_and_bonds(state_nodes, residue, n)
+                    if skip:
+                        break
+                if not skip:
+                    for state in comp.states:
+                        skip = _retreive_states_and_bonds(state_nodes, state, n)
+                        if skip:
+                            break
+                if not skip:
+                    for bound in comp.bound_to:
+                        site_node = self.identifier.identify_site(
+                            comp, protein_node)
+                        generic_sites = self.agents[protoform][
+                            "generic_kami_bnd_sites"]
+                        bnd_dict = dict()
+                        for (other_site_node, bnd_node), data in generic_sites.items():
                             if other_site_node == site_node:
-                                bnds.add(bnd_node)
-                        if len(bnds) > 1:
-                            warnings.warn(
-                                "Multiple binding actions found!", KappaGenerationWarning)
+                                bnd_dict[bnd_node] = data
+                        if len(bnd_dict) == 0:
+                            variant_sites = self.agents[protoform][
+                                "variants"][variant]["kami_bnd_sites"]
+                            for (other_site_node, bnd_node), data in variant_sites.items():
+                                if other_site_node == site_node:
+                                    bnd_dict[bnd_node] = data
+                        if len(bnd_dict) > 0:
+                            skip = _retreive_bonds(bnd_dict, bound, n)
+                            if skip:
+                                break
                         else:
-                            bnd = list(bnds)[0]
-                            site_name = variant_sites[(site_node, bnd)][0]
-                            bnd_dict[bnd] = (
-                                site_name,
-                                variant_sites[(site_node, bnd)][1]
-                            )
-                    _retreive_bonds(bnd_dict, bound, n)
+                            warnings.warn(
+                                "No binding actions with the specified actor found!",
+                                KappaGenerationWarning)
+                            skip = True
+                        if skip:
+                            break
             elif isinstance(comp, Region):
                 for site in comp.sites:
-                    _retreive_states_and_bonds(state_nodes, site, n)
-                for residue in comp.residues:
-                    _retreive_states_and_bonds(state_nodes, residue, n)
-                for state in comp.states:
-                    _retreive_states_and_bonds(state_nodes, state, n)
-                for bound in comp.bound_to:
-                    region_node = self.identifier.identify_region(
-                        comp, protein_node)
-                    generic_regions = self.agents[protoform][
-                        "generic_region_bnd_sites"]
-                    bnd_dict = {}
-                    bnds = set()
-                    for (other_region_node, bnd_node), data in generic_regions.items():
-                        if other_region_node == region_node:
-                            bnds.add(bnd_node)
-                    if len(bnds) > 1:
-                        warnings.warn(
-                            "Multiple binding actions found!", KappaGenerationWarning)
-                    elif len(bnds) == 1:
-                        bnd = list(bnds)[0]
-                        region_name = generic_regions[(region_node, bnd)][0]
-                        bnd_dict[bnd] = (
-                            region_name,
-                            generic_regions[(region_node, bnd)][1]
-                        )
-                    else:
-                        variant_regions = self.agents[protoform][
-                            "variants"][variant]["region_bnd_sites"]
-                        for (other_region_node, bnd_node), data in variant_regions.items():
+                    skip = _retreive_states_and_bonds(state_nodes, site, n)
+                if not skip:
+                    for residue in comp.residues:
+                        skip = _retreive_states_and_bonds(state_nodes, residue, n)
+                        if skip:
+                            break
+                if not skip:
+                    for state in comp.states:
+                        skip = _retreive_states_and_bonds(state_nodes, state, n)
+                        if skip:
+                            break
+                if not skip:
+                    for bound in comp.bound_to:
+                        region_node = self.identifier.identify_region(
+                            comp, protein_node)
+                        generic_regions = self.agents[protoform][
+                            "generic_region_bnd_sites"]
+                        bnd_dict = {}
+                        for (other_region_node, bnd_node), data in generic_regions.items():
                             if other_region_node == region_node:
-                                bnds.add(bnd_node)
-                        if len(bnds) > 1:
-                            warnings.warn(
-                                "Multiple binding actions found!", KappaGenerationWarning)
-                        else:
-                            bnd = list(bnds)[0]
-                            region_name = variant_regions[(region_node, bnd)][0]
-                            bnd_dict[bnd] = (
-                                region_name,
-                                variant_regions[(region_node, bnd)][1]
-                            )
-                    _retreive_bonds(bnd_dict, bound, n)
+                                bnd_dict[bnd_node] = data
+                        if len(bnd_dict) == 0:
+                            variant_regions = self.agents[protoform][
+                                "variants"][variant]["region_bnd_sites"]
+                            for (other_region_node, bnd_node), data in variant_regions.items():
+                                if other_region_node == region_node:
+                                    bnd_dict[bnd_node] = data
 
-        def _retreive_bonds(bnd_dict, comp, n):
+                        if len(bnd_dict) > 0:
+                            skip = _retreive_bonds(bnd_dict, bound, n)
+                            if skip:
+                                break
+                        else:
+                            warnings.warn(
+                                "No binding actions with the specified actor found!",
+                                KappaGenerationWarning)
+                            skip = True
+                        if skip:
+                            break
+            return skip
+
+        def _retreive_bonds(bnd_dict, comp, n, bnd_mechanism=None):
+            skip = False
             var_name = None
             if isinstance(comp, Protein):
                 var_name = comp.name
@@ -481,108 +477,184 @@ class KappaGenerator(ABC):
                 partner_id = self.identifier.identify_gene(comp.protoform)
             partner_uniprot = comp.protoform.uniprotid
 
-            for bnd_node, (site_name, partners) in bnd_dict.items():
-                if isinstance(comp, Protein):
-                    if self.identifier.graph.exists_edge(
-                            partner_id, bnd_node):
+            if isinstance(comp, Protein):
+                candidate_bnds = set()
+                for bnd_node, (site_name, partners) in bnd_dict.items():
+                    if self.identifier.graph.exists_edge(partner_id, bnd_node):
+                        candidate_bnds.add(bnd_node)
+                if len(candidate_bnds) == 1:
+                    bnd_node = list(candidate_bnds)[0]
+                    # Find the site of the partner
+                    partner_site_name = self.agents[partner_uniprot][
+                        "direct_bnd_sites"][bnd_node][0]
+                    condition_dict["bonds"][site_name] = (
+                        partner_site_name,
+                        self.agents[partner_uniprot]["agent_name"]
+                    )
+                elif len(candidate_bnds) > 1:
+                    if bnd_mechanism in candidate_bnds:
                         # Find the site of the partner
                         partner_site_name = self.agents[partner_uniprot][
-                            "direct_bnd_sites"][bnd_node][0]
+                            "direct_bnd_sites"][bnd_mechanism][0]
                         condition_dict["bonds"][site_name] = (
                             partner_site_name,
                             self.agents[partner_uniprot]["agent_name"]
                         )
-                elif isinstance(comp, RegionActor):
+                    else:
+                        warnings.warn(
+                            "Multiple binding mechanisms found: "
+                            "BND node id should be specified",
+                            KappaGenerationWarning)
+                        skip = True
+                else:
+                    warnings.warn(
+                        "No binding mechanisms found",
+                        KappaGenerationWarning)
+                    skip = True
+            elif isinstance(comp, RegionActor):
+                candidate_bnds = set()
+                for bnd_node, (site_name, partners) in bnd_dict.items():
                     partner_region_id = self.identifier.identify_region(
                         comp.region, partner_id)
-                    if self.identifier.graph.exists_edge(
-                            partner_region_id, bnd_node):
-                        # Find the site of the partner
-                        generic_region_bnd_sites =\
-                            self.agents[partner_uniprot]["generic_region_bnd_sites"]
+                    if self.identifier.graph.exists_edge(partner_region_id, bnd_node):
+                        candidate_bnds.add(bnd_node)
+                if len(candidate_bnds) == 1:
+                    # Find the site of the partner
+                    generic_region_bnd_sites =\
+                        self.agents[partner_uniprot][
+                            "generic_region_bnd_sites"]
 
-                        partner_site_name = None
+                    partner_site_name = None
 
-                        for (region_id, bnd_id) in generic_region_bnd_sites:
-                            if region_id == partner_region_id:
-                                partner_site_name = generic_region_bnd_sites[
-                                    (region_id, bnd_id)][0]
-                        if not partner_site_name:
-                            if comp.variant_name:
-                                variant_name = _normalize_variant_name(comp.variant_name)
-                                variant_region_bnd_sites =\
-                                    self.agents[partner_uniprot]["variants"][
-                                        variant_name]["region_bnd_sites"]
-                            elif len(self.agents[partner_uniprot]["variants"]) == 1:
-                                unique_variant = list(
-                                    self.agents[partner_uniprot]["variants"])[0]
-                                variant_region_bnd_sites =\
-                                    self.agents[partner_uniprot]["variants"][unique_variant][
-                                        "region_bnd_sites"]
-                            else:
-                                warnings.warn(
-                                    "Variant name is not specified, and there are multiple variants",
-                                    KappaGenerationWarning)
-
-                            for (region_id, bnd_id) in variant_region_bnd_sites:
-                                if region_id == partner_region_id:
-                                    partner_site_name = variant_region_bnd_sites[
-                                        (region_id, bnd_id)][0]
-                        if partner_site_name:
-                            condition_dict["bonds"][
-                                site_name] = (
-                                partner_site_name,
-                                self.agents[partner_uniprot]["agent_name"]
-                            )
+                    for (region_id, bnd_id) in generic_region_bnd_sites:
+                        if region_id == partner_region_id:
+                            partner_site_name = generic_region_bnd_sites[
+                                (region_id, bnd_id)][0]
+                    if not partner_site_name:
+                        if comp.variant_name:
+                            variant_name = _normalize_variant_name(comp.variant_name)
+                            variant_region_bnd_sites =\
+                                self.agents[partner_uniprot]["variants"][
+                                    variant_name]["region_bnd_sites"]
+                        elif len(self.agents[partner_uniprot]["variants"]) == 1:
+                            unique_variant = list(
+                                self.agents[partner_uniprot]["variants"])[0]
+                            variant_region_bnd_sites =\
+                                self.agents[partner_uniprot]["variants"][unique_variant][
+                                    "region_bnd_sites"]
                         else:
                             warnings.warn(
-                                "Region was not identified", KappaGenerationWarning)
+                                "Variant name is not specified, and there are multiple variants",
+                                KappaGenerationWarning)
+                            skip = True
 
-                elif isinstance(comp, SiteActor):
+                        for (region_id, bnd_id) in variant_region_bnd_sites:
+                            if region_id == partner_region_id:
+                                partner_site_name = variant_region_bnd_sites[
+                                    (region_id, bnd_id)][0]
+                    if partner_site_name:
+                        condition_dict["bonds"][
+                            site_name] = (
+                            partner_site_name,
+                            self.agents[partner_uniprot]["agent_name"]
+                        )
+                    else:
+                        warnings.warn(
+                            "Region was not identified", KappaGenerationWarning)
+                        skip = True
+                elif len(candidate_bnds) > 1:
+                    if bnd_mechanism in candidate_bnds:
+                        # Find the site of the partner
+                        partner_site_name = self.agents[partner_uniprot][
+                            "direct_bnd_sites"][bnd_mechanism][0]
+                        condition_dict["bonds"][
+                            site_name] = (
+                            partner_site_name,
+                            self.agents[partner_uniprot]["agent_name"]
+                        )
+                    else:
+                        warnings.warn(
+                            "Multiple binding mechanisms found: "
+                            "BND node id should be specified",
+                            KappaGenerationWarning)
+                        skip = True
+                else:
+                    warnings.warn(
+                        "No binding mechanisms found",
+                        KappaGenerationWarning)
+                    skip = True
+            elif isinstance(comp, SiteActor):
+                candidate_bnds = set()
+                for bnd_node, (site_name, partners) in bnd_dict.items():
                     partner_site_id = self.identifier.identify_site(
                         comp.site, partner_id)
                     if self.identifier.graph.exists_edge(
                             partner_site_id, bnd_node):
-                        # Find the site of the partner
-                        generic_kami_bnd_sites =\
-                            self.agents[partner_uniprot]["generic_kami_bnd_sites"]
+                        candidate_bnds.add(bnd_node)
+                if len(candidate_bnds) == 1:
+                    # Find the site of the partner
+                    generic_kami_bnd_sites =\
+                        self.agents[partner_uniprot]["generic_kami_bnd_sites"]
 
-                        partner_site_name = None
-                        for (site_id, bnd_id) in generic_kami_bnd_sites:
-                            if site_id == partner_site_id:
-                                partner_site_name = generic_kami_bnd_sites[
-                                    (site_id, bnd_id)][0]
-                        if not partner_site_name:
-                            if comp.variant_name:
-                                variant_name = _normalize_variant_name(comp.variant_name)
-                                variant_kami_bnd_sites =\
-                                    self.agents[partner_uniprot]["variants"][
-                                        variant_name]["kami_bnd_sites"]
-                            elif len(self.agents[partner_uniprot]["variants"]) == 1:
-                                unique_variant = list(
-                                    self.agents[partner_uniprot]["variants"])[0]
-                                variant_kami_bnd_sites =\
-                                    self.agents[partner_uniprot]["variants"][unique_variant][
-                                        "kami_bnd_sites"]
-                            else:
-                                warnings.warn(
-                                    "Variant name is not specified, and there are multiple variants",
-                                    KappaGenerationWarning)
-
-                            for (site_id, bnd_id) in variant_kami_bnd_sites:
-                                if site_id == partner_site_id:
-                                    partner_site_name = variant_kami_bnd_sites[
-                                        (site_id, bnd_id)][0]
-
-                        if partner_site_name:
-                            condition_dict["bonds"][
-                                site_name] = (
-                                partner_site_name,
-                                self.agents[partner_uniprot]["agent_name"],
-                            )
+                    partner_site_name = None
+                    for (site_id, bnd_id) in generic_kami_bnd_sites:
+                        if site_id == partner_site_id:
+                            partner_site_name = generic_kami_bnd_sites[
+                                (site_id, bnd_id)][0]
+                    if not partner_site_name:
+                        if comp.variant_name:
+                            variant_name = _normalize_variant_name(comp.variant_name)
+                            variant_kami_bnd_sites =\
+                                self.agents[partner_uniprot]["variants"][
+                                    variant_name]["kami_bnd_sites"]
+                        elif len(self.agents[partner_uniprot]["variants"]) == 1:
+                            unique_variant = list(
+                                self.agents[partner_uniprot]["variants"])[0]
+                            variant_kami_bnd_sites =\
+                                self.agents[partner_uniprot]["variants"][unique_variant][
+                                    "kami_bnd_sites"]
                         else:
                             warnings.warn(
-                                "Site was not identified", KappaGenerationWarning)
+                                "Variant name is not specified, and there are multiple variants",
+                                KappaGenerationWarning)
+                            skip = True
+                        for (site_id, bnd_id) in variant_kami_bnd_sites:
+                            if site_id == partner_site_id:
+                                partner_site_name = variant_kami_bnd_sites[
+                                    (site_id, bnd_id)][0]
+
+                    if partner_site_name:
+                        condition_dict["bonds"][
+                            site_name] = (
+                            partner_site_name,
+                            self.agents[partner_uniprot]["agent_name"],
+                        )
+                    else:
+                        warnings.warn(
+                            "Site was not identified", KappaGenerationWarning)
+                        skip = True
+                elif len(candidate_bnds) > 1:
+                    if bnd_mechanism in candidate_bnds:
+                        # Find the site of the partner
+                        partner_site_name = self.agents[partner_uniprot][
+                            "direct_bnd_sites"][bnd_mechanism][0]
+                        condition_dict["bonds"][
+                            site_name] = (
+                            partner_site_name,
+                            self.agents[partner_uniprot]["agent_name"]
+                        )
+                    else:
+                        warnings.warn(
+                            "Multiple binding mechanisms found: "
+                            "BND node id should be specified",
+                            KappaGenerationWarning)
+                        skip = True
+                else:
+                    warnings.warn(
+                        "No binding mechanisms found",
+                        KappaGenerationWarning)
+                    skip = True
+            return skip
 
         if len(concentrations) > 0:
             for condition in concentrations:
@@ -640,22 +712,31 @@ class KappaGenerator(ABC):
                         state_nodes = dict()
                         state_nodes.update(agent_dict["stateful_sites"])
                         state_nodes.update(generic_stateful_sites)
-                        _retreive_states_and_bonds(
+                        skip = _retreive_states_and_bonds(
                             state_nodes, component, count, variant)
-                        agent_dict["initial_conditions"]["non_canonical"].append(
-                            condition_dict)
+                        if not skip:
+                            agent_dict["initial_conditions"]["non_canonical"].append(
+                                condition_dict)
 
                     # Add bound initial conditions
-                    for component, count in condition.bonds:
+                    for element in condition.bonds:
+                        bnd_mechanism = None
+                        try:
+                            component, count, bnd_mechanism = element
+                        except:
+                            component, count = element
+
                         condition_dict = {
                             "bonds": {},
                             "count": count
                         }
-                        _retreive_bonds(
+                        skip = _retreive_bonds(
                             self.agents[protoform]["direct_bnd_sites"],
-                            component, count)
-                        agent_dict["initial_conditions"]["non_canonical"].append(
-                            condition_dict)
+                            component, count,
+                            bnd_mechanism)
+                        if not skip:
+                            agent_dict["initial_conditions"]["non_canonical"].append(
+                                condition_dict)
 
     def generate(self, concentrations=None, default_concentation=100):
         """Generate a Kappa script."""
@@ -931,6 +1012,7 @@ class ModelKappaGenerator(KappaGenerator):
         # The rule is generated only if the substrate node is not None
         if "substrate" in template_rel.keys():
             substrates = template_rel["substrate"]
+            enzymes = []
             if "enzyme" in template_rel.keys():
                 enzymes = template_rel["enzyme"]
 
@@ -982,75 +1064,104 @@ class ModelKappaGenerator(KappaGenerator):
                 if len(enzymes) > 0:
                     # Find enzyme agents and variants
                     for enzyme in enzymes:
-                        ag_enzyme = ag_typing[enzyme]
-                        enzyme_uniprotid = self.kb.get_uniprot(ag_enzyme)
+                        if enzyme == substrate:
+                            # We are in self modification case
+                            # Generate LHS and RHS of the substrate
+                            substrate_lhs, substrate_rhs =\
+                                self._generate_mod_agent_lhs_rhs(
+                                    substrate_uniprotid, substrate_agent_name,
+                                    variant,
+                                    substrate_states,
+                                    [],
+                                    target_states)
+                            rule = "{} -> {}".format(
+                                substrate_lhs,
+                                substrate_rhs)
+                            rules.append(rule)
+                        else:
+                            ag_enzyme = ag_typing[enzyme]
+                            enzyme_uniprotid = self.kb.get_uniprot(ag_enzyme)
 
-                        enzyme_agent_name = self.agents[enzyme_uniprotid][
-                            "agent_name"]
-                        enzyme_variant = self._get_variant_name(
-                            ag_enzyme, enzyme_uniprotid)
+                            enzyme_agent_name = self.agents[enzyme_uniprotid][
+                                "agent_name"]
+                            enzyme_variant = self._get_variant_name(
+                                ag_enzyme, enzyme_uniprotid)
 
-                        # Generate required states of the enzyme
-                        variant_state = ""
-                        if len(self.agents[enzyme_uniprotid]["variants"]) > 1:
-                            variant_state = "variant{{{}}}".format(
-                                enzyme_variant)
+                            # Generate required states of the enzyme
+                            variant_state = ""
+                            if len(self.agents[enzyme_uniprotid]["variants"]) > 1:
+                                variant_state = "variant{{{}}}".format(
+                                    enzyme_variant)
 
-                        states = self._generate_agent_state_strs(
-                            nugget_identifier, ag_typing, enzyme,
-                            enzyme_uniprotid, enzyme_variant)
+                            states = self._generate_agent_state_strs(
+                                nugget_identifier, ag_typing, enzyme,
+                                enzyme_uniprotid, enzyme_variant)
 
-                        enzyme_states = (
-                            variant_state +
-                            (", " if len(variant_state) > 0 and len(states) > 0 else "") +
-                            ", ".join(states)
-                        )
+                            enzyme_states = (
+                                variant_state +
+                                (", " if len(variant_state) > 0 and len(states) > 0 else "") +
+                                ", ".join(states)
+                            )
 
-                        # Check if the substrate is required to be bound to the enzyme
-                        substrate_bnd_sites = []
-                        enzyme_bnd_sites = []
-                        # If nugget is related to the bnd template
-                        # (i.e. substrate is required to be bound to
-                        # the enzyme)
-                        substrate_bnd_sites = []
-                        enzyme_bnd_sites = []
-                        if bnd_relation:
-                            # Identify binding sites
-                            bnd = list(bnd_relation["bnd"])[0]
-                            substrate_bnd_sites = self._generate_bond_strs(
-                                nugget_identifier,
-                                ag_typing, bnd_relation, "left",
-                                substrate, bnd,
-                                substrate_uniprotid,
-                                variant)
-                            enzyme_bnd_sites = self._generate_bond_strs(
-                                nugget_identifier,
-                                ag_typing, bnd_relation, "right",
-                                enzyme, bnd,
-                                enzyme_uniprotid,
-                                enzyme_variant)
+                            # Check if the substrate is required to be bound to the enzyme
+                            substrate_bnd_sites = []
+                            enzyme_bnd_sites = []
+                            # If nugget is related to the bnd template
+                            # (i.e. substrate is required to be bound to
+                            # the enzyme)
+                            substrate_bnd_sites = []
+                            enzyme_bnd_sites = []
+                            if bnd_relation:
+                                # Identify binding sites
+                                bnd = list(bnd_relation["bnd"])[0]
+                                substrate_bnd_sites = self._generate_bond_strs(
+                                    nugget_identifier,
+                                    ag_typing, bnd_relation, "left",
+                                    substrate, bnd,
+                                    substrate_uniprotid,
+                                    variant)
+                                if len(substrate_bnd_sites) == 0:
+                                    substrate_bnd_sites = self._generate_bond_strs(
+                                        nugget_identifier,
+                                        ag_typing, bnd_relation, "right",
+                                        substrate, bnd,
+                                        substrate_uniprotid,
+                                        variant)
+                                enzyme_bnd_sites = self._generate_bond_strs(
+                                    nugget_identifier,
+                                    ag_typing, bnd_relation, "right",
+                                    enzyme, bnd,
+                                    enzyme_uniprotid,
+                                    enzyme_variant)
+                                if len(enzyme_bnd_sites) == 0:
+                                    enzyme_bnd_sites = self._generate_bond_strs(
+                                        nugget_identifier,
+                                        ag_typing, bnd_relation, "left",
+                                        enzyme, bnd,
+                                        enzyme_uniprotid,
+                                        enzyme_variant)
 
-                        # Generate LHS and RHS of the substrate
-                        substrate_lhs, substrate_rhs =\
-                            self._generate_mod_agent_lhs_rhs(
-                                substrate_uniprotid, substrate_agent_name,
-                                variant,
-                                substrate_states,
-                                substrate_bnd_sites,
-                                target_states)
+                            # Generate LHS and RHS of the substrate
+                            substrate_lhs, substrate_rhs =\
+                                self._generate_mod_agent_lhs_rhs(
+                                    substrate_uniprotid, substrate_agent_name,
+                                    variant,
+                                    substrate_states,
+                                    substrate_bnd_sites,
+                                    target_states)
 
-                        # Generate LHS and RHS of the enzyme
-                        enzyme_lhs, enzyme_rhs =\
-                            self._generate_mod_agent_lhs_rhs(
-                                enzyme_uniprotid, enzyme_agent_name,
-                                enzyme_variant,
-                                enzyme_states,
-                                enzyme_bnd_sites)
+                            # Generate LHS and RHS of the enzyme
+                            enzyme_lhs, enzyme_rhs =\
+                                self._generate_mod_agent_lhs_rhs(
+                                    enzyme_uniprotid, enzyme_agent_name,
+                                    enzyme_variant,
+                                    enzyme_states,
+                                    enzyme_bnd_sites)
 
-                        rule = "{}, {} -> {}, {}".format(
-                            enzyme_lhs, substrate_lhs,
-                            enzyme_rhs, substrate_rhs)
-                        rules.append(rule)
+                            rule = "{}, {} -> {}, {}".format(
+                                enzyme_lhs, substrate_lhs,
+                                enzyme_rhs, substrate_rhs)
+                            rules.append(rule)
                 else:
                     substrate_lhs, substrate_rhs =\
                         self._generate_mod_agent_lhs_rhs(
@@ -1318,18 +1429,18 @@ class CorpusKappaGenerator(KappaGenerator):
             residues = nugget_identifier.get_attached_residues(agent_node)
             for r in residues:
                 res_attrs = nugget_identifier.graph.get_node(r)
-                aa = res_attrs["aa"]
-                test = res_attrs["test"]
+                aa = list(res_attrs["aa"])[0]
+                test = list(res_attrs["test"])[0]
 
                 if test:
                     variants_with_aa =\
                         self._find_variants_with_key_residue(
                             rule, instance,
                             ag_node, agent_variants,
-                            ag_typing[r], list(aa)[0])
-                for v in agent_variants:
-                    if v not in variants_with_aa:
-                        invalid_variants.add(v)
+                            ag_typing[r], aa)
+                    for v in agent_variants:
+                        if v not in variants_with_aa:
+                            invalid_variants.add(v)
 
         return agent_variants.difference(invalid_variants)
 
@@ -1341,6 +1452,7 @@ class CorpusKappaGenerator(KappaGenerator):
         # The rule is generated only if the substrate node is not None
         if "substrate" in template_rel.keys():
             substrates = template_rel["substrate"]
+            enzymes = []
             if "enzyme" in template_rel.keys():
                 enzymes = template_rel["enzyme"]
 
@@ -1386,65 +1498,93 @@ class CorpusKappaGenerator(KappaGenerator):
                     if len(enzymes) > 0:
                         # Find enzyme agents and variants
                         for enzyme in enzymes:
-                            ag_enzyme = ag_typing[enzyme]
-                            enzyme_uniprotid = self.kb.get_uniprot(ag_enzyme)
-
-                            enzyme_agent_name = self.agents[enzyme_uniprotid][
-                                "agent_name"]
-
-                            valid_ezyme_variants =\
-                                self._valid_agent_variants(
-                                    nugget_identifier, enzyme,
-                                    enzyme_uniprotid, ag_enzyme, ag_typing)
-
-                            # Generate required states of the enzyme
-                            enzyme_states = ",".join(
-                                self._generate_agent_state_strs(
-                                    nugget_identifier, ag_typing, enzyme,
-                                    enzyme_uniprotid))
-
-                            # Check if the substrate is required to be bound to the enzyme
-                            substrate_bnd_sites = []
-                            enzyme_bnd_sites = []
-                            # If nugget is related to the bnd template
-                            # (i.e. substrate is required to be bound to
-                            # the enzyme)
-                            substrate_bnd_sites = []
-                            enzyme_bnd_sites = []
-                            if bnd_relation:
-                                # Identify binding sites
-                                bnd = list(bnd_relation["bnd"])[0]
-                                substrate_bnd_sites = self._generate_bond_strs(
-                                    nugget_identifier,
-                                    ag_typing, bnd_relation, "left",
-                                    substrate, bnd,
-                                    substrate_uniprotid)
-                                enzyme_bnd_sites = self._generate_bond_strs(
-                                    nugget_identifier,
-                                    ag_typing, bnd_relation, "right",
-                                    enzyme, bnd,
-                                    enzyme_uniprotid)
-
-                            # Generate LHS and RHS of the substrate
-                            substrate_lhs, substrate_rhs =\
-                                self._generate_mod_agent_lhs_rhs(
-                                    substrate_uniprotid, substrate_agent_name,
-                                    variant, substrate_states,
-                                    substrate_bnd_sites,
-                                    target_states)
-
-                            for enzyme_variant in valid_ezyme_variants:
-                                # Generate LHS and RHS of the enzyme
-                                enzyme_lhs, enzyme_rhs =\
+                            if enzyme == substrate:
+                                # We are in self modification case
+                                # Generate LHS and RHS of the substrate
+                                substrate_lhs, substrate_rhs =\
                                     self._generate_mod_agent_lhs_rhs(
-                                        enzyme_uniprotid, enzyme_agent_name,
-                                        enzyme_variant, enzyme_states,
-                                        enzyme_bnd_sites)
-
-                                rule = "{}, {} -> {}, {}".format(
-                                    enzyme_lhs, substrate_lhs,
-                                    enzyme_rhs, substrate_rhs)
+                                        substrate_uniprotid,
+                                        substrate_agent_name,
+                                        variant,
+                                        substrate_states,
+                                        [],
+                                        target_states)
+                                rule = "{} -> {}".format(
+                                    substrate_lhs,
+                                    substrate_rhs)
                                 rules.append(rule)
+                            else:
+                                ag_enzyme = ag_typing[enzyme]
+                                enzyme_uniprotid = self.kb.get_uniprot(ag_enzyme)
+
+                                enzyme_agent_name = self.agents[enzyme_uniprotid][
+                                    "agent_name"]
+
+                                valid_ezyme_variants =\
+                                    self._valid_agent_variants(
+                                        nugget_identifier, enzyme,
+                                        enzyme_uniprotid, ag_enzyme, ag_typing)
+
+                                # Generate required states of the enzyme
+                                enzyme_states = ",".join(
+                                    self._generate_agent_state_strs(
+                                        nugget_identifier, ag_typing, enzyme,
+                                        enzyme_uniprotid))
+
+                                # Check if the substrate is required to be bound to the enzyme
+                                substrate_bnd_sites = []
+                                enzyme_bnd_sites = []
+                                # If nugget is related to the bnd template
+                                # (i.e. substrate is required to be bound to
+                                # the enzyme)
+                                substrate_bnd_sites = []
+                                enzyme_bnd_sites = []
+                                if bnd_relation:
+                                    # Identify binding sites
+                                    bnd = list(bnd_relation["bnd"])[0]
+                                    substrate_bnd_sites = self._generate_bond_strs(
+                                        nugget_identifier,
+                                        ag_typing, bnd_relation, "left",
+                                        substrate, bnd,
+                                        substrate_uniprotid)
+                                    if len(substrate_bnd_sites) == 0:
+                                        substrate_bnd_sites = self._generate_bond_strs(
+                                            nugget_identifier,
+                                            ag_typing, bnd_relation, "right",
+                                            substrate, bnd,
+                                            substrate_uniprotid)
+                                    enzyme_bnd_sites = self._generate_bond_strs(
+                                        nugget_identifier,
+                                        ag_typing, bnd_relation, "right",
+                                        enzyme, bnd,
+                                        enzyme_uniprotid)
+                                    if len(enzyme_bnd_sites) == 0:
+                                        enzyme_bnd_sites = self._generate_bond_strs(
+                                            nugget_identifier,
+                                            ag_typing, bnd_relation, "left",
+                                            enzyme, bnd,
+                                            enzyme_uniprotid)
+
+                                # Generate LHS and RHS of the substrate
+                                substrate_lhs, substrate_rhs =\
+                                    self._generate_mod_agent_lhs_rhs(
+                                        substrate_uniprotid, substrate_agent_name,
+                                        variant, substrate_states,
+                                        substrate_bnd_sites,
+                                        target_states)
+
+                                for enzyme_variant in valid_ezyme_variants:
+                                    # Generate LHS and RHS of the enzyme
+                                    enzyme_lhs, enzyme_rhs =\
+                                        self._generate_mod_agent_lhs_rhs(
+                                            enzyme_uniprotid, enzyme_agent_name,
+                                            enzyme_variant, enzyme_states,
+                                            enzyme_bnd_sites)
+
+                                    rule = "{}, {} -> {}, {}".format(
+                                        enzyme_lhs, substrate_lhs,
+                                        enzyme_rhs, substrate_rhs)
+                                    rules.append(rule)
                     else:
                         substrate_lhs, substrate_rhs =\
                             self._generate_mod_agent_lhs_rhs(

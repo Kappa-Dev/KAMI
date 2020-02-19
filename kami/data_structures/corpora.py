@@ -1318,6 +1318,7 @@ class KamiCorpus(object):
                     model._action_graph_id,
                     instantiation_rule,
                     instance)
+                model._clean_up_nuggets()
         return model
 
     def get_uniprot(self, gene_id):

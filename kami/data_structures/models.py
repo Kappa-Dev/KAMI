@@ -2,6 +2,7 @@
 import datetime
 import json
 import os
+import networkx as nx
 
 from regraph.backends.networkx.graphs import NXGraph
 from regraph.backends.networkx.hierarchies import NXHierarchy
@@ -140,6 +141,12 @@ class KamiModel(object):
             model_nugget_id = self._id + "_" + n
             nugget_map[n] = model_nugget_id
 
+            adj_relations = [
+                r
+                for r in corpus._hierarchy.adjacent_relations(n)
+                if r in ["mod_template", "bnd_template"]
+            ]
+
             # Add an empty nugget graph to the model
             self._hierarchy.add_graph(
                 model_nugget_id, NXGraph(),
@@ -150,8 +157,9 @@ class KamiModel(object):
 
             self._hierarchy.add_typing(
                 model_nugget_id, self._action_graph_id, dict())
-            self._hierarchy.add_relation(
-                model_nugget_id, corpus.get_nugget_type(n) + "_template", {})
+            for r in adj_relations:
+                self._hierarchy.add_relation(
+                    model_nugget_id, r, {})
 
             # Update nugget related objects
             nugget_obj = NXGraph.copy(corpus.get_nugget(n))
@@ -159,10 +167,11 @@ class KamiModel(object):
             self._hierarchy._update_mapping(
                 model_nugget_id, self._action_graph_id,
                 corpus.get_nugget_typing(n))
-            self._hierarchy._update_relation(
-                model_nugget_id, corpus.get_nugget_type(n) + "_template",
-                corpus.get_nugget_template_rel(n)
-            )
+            for r in adj_relations:
+                self._hierarchy._update_relation(
+                    model_nugget_id, r,
+                    corpus._hierarchy.get_relation(n, r)
+                )
 
     def _init_shortcuts(self):
         """Initialize kami-specific shortcuts."""
@@ -677,3 +686,166 @@ class KamiModel(object):
         else:
             raise KamiException(
                 "This method is not implemented for NetworkX-based hierarchies!")
+
+    def _clean_up_nuggets(self):
+        for nugget in self.nuggets():
+            if self._backend == "neo4j":
+                # Query to remove edge to a mod/bnd from/to the actor that contains
+                # a residue with the empty aa
+                query = (
+                    "MATCH (residue:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
+                    "WHERE (residue)-[:typing]->()-[:typing]->(:meta_model {id: 'residue'}) AND \n" +
+                    "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'}) AND \n" +
+                    "      true IN residue.test AND (NOT EXISTS(residue.aa) or residue.aa = [])\n " +
+                    "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
+                        nugget, nugget) +
+                    "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
+                    "      (action)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})\n"
+                    "DELETE r\n" +
+                    "WITH gene\n" +
+                    "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})<-[:edge]-(state:{})<-[r:edge]-(mod:{})".format(
+                        nugget, nugget, nugget) +
+                    "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND" +
+                    "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
+                    "DELETE r"
+                )
+                # print(query)
+                self._hierarchy.execute(query)
+                # # Query to remove edge to the action from the actor that contains
+                # # a state with the empty test
+                # query = (
+                #     "MATCH (state:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
+                #     "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND \n" +
+                #     "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'} AND \n" +
+                #     "      NOT EXISTS(state.test) or state.test = []\n " +
+                #     "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
+                #         nugget, nugget) +
+                #     "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
+                #     "      (action)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})\n"
+                #     "DELETE r\n" +
+                #     "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})<-[:edge]-(state:{})<-[r:edge]-(mod:{})".format(
+                #         nugget, nugget, nugget) +
+                #     "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND" +
+                #     "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
+                #     "DELETE r"
+                # )
+                # self._hierarchy.execute(query)
+
+                # Remove all the graph components disconected from the action node
+                query = (
+                    "MATCH (n:{}), (m:{})\n".format(
+                        nugget, nugget, self._action_graph_id) +
+                    "WHERE ((m)-[:typing]->(:{})-[:typing]->({{id: 'bnd'}}) OR \n".format(
+                        self._action_graph_id) +
+                    "       (m)-[:typing]->(:{})-[:typing]->({{id: 'mod'}})) AND \n".format(
+                        self._action_graph_id) +
+                    "      NOT (n)-[:edge*1..]-(m) AND n.id <> m.id\n" +
+                    "DETACH DELETE n"
+                )
+                # print(query)
+                self._hierarchy.execute(query)
+
+                # Remove empty residue conditions
+                query = (
+                    "MATCH (residue:{})-[:typing*1..]->(:meta_model {{id: 'residue'}}) \n".format(
+                        nugget) +
+                    "WHERE NOT EXISTS(residue.aa) OR residue.aa=[]\n" +
+                    "DETACH DELETE residue"
+                )
+                self._hierarchy.execute(query)
+            else:
+                #  ----- Cleanup nuggets for networkx
+                nugget_typing = self._hierarchy.get_typing(
+                    nugget, self._action_graph_id)
+                ag_typing = self.get_action_graph_typing()
+                n_meta_typing = {
+                    k: ag_typing[v] for k, v in nugget_typing.items()
+                }
+                nugget_graph = self.get_nugget(nugget)
+                nugget_identifier = EntityIdentifier(
+                    nugget_graph,
+                    n_meta_typing,
+                    immediate=False)
+                # protoforms = nugget_identifier.get_genes()
+
+                def _empty_aa_found(node):
+                    protoform = nugget_identifier.get_gene_of(node)
+                    residues = nugget_identifier.get_attached_residues(
+                        protoform)
+                    deattach = False
+                    for residue in residues:
+                        residue_attrs = nugget_graph.get_node(residue)
+                        if "aa" not in residue_attrs or\
+                                len(residue_attrs["aa"]) == 0:
+                            test = list(residue_attrs["test"])[0]
+                            if test is True:
+                                deattach = True
+                                break
+                    return deattach
+
+                def _detach_edge_to_bnds(bnd_action, partner_to_ignore=None):
+                    preds = nugget_graph.predecessors(bnd_action)
+                    for p in preds:
+                        if p != partner_to_ignore:
+                            deattach = _empty_aa_found(p)
+                            if not deattach:
+                                # Find other bonds
+                                other_bnds = [
+                                    bnd
+                                    for bnd in nugget_identifier.get_attached_bnd(
+                                        p)
+                                    if bnd != bnd_action
+                                ]
+                                for bnd in other_bnds:
+                                    _detach_edge_to_bnds(bnd, p)
+                            else:
+                                nugget_graph.remove_edge(p, bnd_action)
+
+                if "mod_template" in self._hierarchy.adjacent_relations(nugget):
+                    pass
+                elif "bnd_template" in self._hierarchy.adjacent_relations(nugget):
+                    # Remove edge to a mod/bnd from/to the actor that contains
+                    # a residue with the empty aa
+                    bnd_template = self._hierarchy.get_relation(
+                        "bnd_template", nugget)
+                    bnd_actions = bnd_template["bnd"]
+                    # Find a BND node with type == do
+                    do_bnd = None
+                    for bnd_action in bnd_actions:
+                        attrs = nugget_graph.get_node(bnd_action)
+                        if list(attrs["type"])[0] == "do":
+                            do_bnd = bnd_action
+                            break
+                    # Deattach preds of do_bnd if residue aa is empty
+                    _detach_edge_to_bnds(do_bnd)
+
+                    # Remove all the graph components disconected from
+                    # the action node
+                    connected_components = nx.weakly_connected_components(
+                        nugget_graph._graph)
+
+                    components_to_remove = []
+                    for comp in connected_components:
+                        if do_bnd not in comp:
+                            components_to_remove.append(comp)
+
+                    for comp in components_to_remove:
+                        for n in comp:
+                            pattern = NXGraph()
+                            pattern.add_node(n)
+                            rule = Rule.from_transform(pattern)
+                            rule.inject_remove_node(n)
+                            self.rewrite(nugget, rule)
+
+                    # Remove empty residue conditions
+                    for protoform in nugget_identifier.get_genes():
+                        residues = nugget_identifier.get_attached_residues(protoform)
+                        for res in residues:
+                            residues_attrs = nugget_graph.get_node(res)
+                            if "aa" not in residues_attrs or\
+                                    len(residues_attrs["aa"]) == 0:
+                                pattern = NXGraph()
+                                pattern.add_node(res)
+                                rule = Rule.from_transform(pattern)
+                                rule.inject_remove_node(res)
+                                self.rewrite(nugget, rule)
