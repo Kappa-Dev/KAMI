@@ -297,7 +297,7 @@ def apply_mod_semantics(model, nugget_id):
                 phospho_semantic_rel[rhs_nugget[activity_state]] =\
                     "protein_kinase_activity"
                 model._hierarchy.set_node_relation(
-                    nugget_id, "mod_template", enz_region, "enz_region")
+                    nugget_id, "mod_template", enz_region, "enzyme_region")
             else:
                 # The repective protoform in the action graph contains
                 # either no or multiple kinase regions

@@ -6,7 +6,7 @@ import warnings
 from jpype import (java, startJVM, getDefaultJVMPath,
                    JPackage, isJVMStarted)
 
-from kami.data_structures.entities import Gene, Residue, Region, State, RegionActor
+from kami.data_structures.entities import Protoform, Residue, Region, State, RegionActor
 from kami.data_structures.interactions import Modification, Binding, AnonymousModification
 
 
@@ -71,10 +71,13 @@ def resolve_aa(modification):
 def resolve_state(state):
     """."""
     for key, name in STATE_KEYS.items():
-        if "de" + key in state:
-            return name, False
-        elif key in state:
-            return name, True
+        if state:
+            if "de" + key in state:
+                return name, False
+            elif key in state:
+                return name, True
+        else:
+            return state
     if state == "residue modification, active":
         return "activity", True
     elif state == "residue modification, inactive":
@@ -211,25 +214,28 @@ class BioPAXModel():
     def fetch_protein_reference(self, uri):
         """."""
         protein_reference = self.model_.getByID(uri)
-        xref = set(protein_reference.getXref())
+        xrefs = set(protein_reference.getXref())
         uniprotid = None
-        if len(xref) > 1:
-            warnings.warn(
-                "Protein reference %s (%s) has ambiguous Unified Reference!" %
-                (str(protein_reference.getName()), str(protein_reference)))
-        elif len(xref) < 1:
-            warnings.warn(
-                "Protein reference %s (%s) does not have Unified Reference!" %
-                (str(protein_reference.getName()), str(protein_reference)))
-
+        # if len(xref) > 1:
+        #     warnings.warn(
+        #         "Protein reference %s (%s) has ambiguous Unified Reference!" %
+        #         (str(protein_reference.getName()), str(protein_reference)))
+        # elif len(xref) < 1:
+        #     warnings.warn(
+        #         "Protein reference %s (%s) does not have Unified Reference!" %
+        #         (str(protein_reference.getName()), str(protein_reference)))
         result_xrefs = {}
-        if len(xref) == 1:
-            protein_id = list(xref)[0]
-            if protein_id.getDb() == "UniProt":
-                uniprotid = protein_id.getId()
-        if len(xref) > 1:
-            for el in xref:
-                result_xrefs[el.getDb()] = el.getId()
+        for ref in xrefs:
+            db = ref.getDb()
+            if "uniprot" in ref.getDb().lower():
+                uniprotid = ref.getId()
+            else:
+                result_xrefs[db] = ref.getId()
+
+        if uniprotid is None:
+            warnings.warn(
+                "Protein reference '{}' does not contain a UniProt ID !".format(
+                    protein_reference.getName()))
 
         name = list(protein_reference.getName())
         locations = set()
@@ -309,8 +315,10 @@ class BioPaxImporter(object):
     def _process_states(self, data):
         res = []
         for el in data:
-            name, val = resolve_state(el)
-            res.append(State(name, val))
+            s = resolve_state(el)
+            if s:
+                name, val = s
+                res.append(State(name, val))
         return res
 
     def process_feature(self, feature_uri):
@@ -333,14 +341,14 @@ class BioPaxImporter(object):
             uniprot, xrefs, name, locations =\
                 self.data.fetch_protein_reference(ref_uri)
             if uniprot is not None:
-                gene = {}
-                gene["uniprot"] = uniprot
-                gene["xrefs"] = xrefs
-                gene["names"] = name
-                gene["locations"] = locations
-                gene["regions"] = []
-                gene["residues"] = []
-                gene["states"] = []
+                protoform = {}
+                protoform["uniprot"] = uniprot
+                protoform["xrefs"] = xrefs
+                protoform["names"] = name
+                protoform["locations"] = locations
+                protoform["regions"] = []
+                protoform["residues"] = []
+                protoform["states"] = []
                 region = None
                 mods = self.data.get_modifications(uri, ignore_features)
                 if self.data.is_fragment(uri):
@@ -357,51 +365,51 @@ class BioPaxImporter(object):
                     for r_uri in mods["residues"]:
                         aa, loc = self.data.fetch_residue_reference(r_uri)
                         name = self.data.fetch_state_reference(r_uri)
-                        gene["residues"].append(
+                        protoform["residues"].append(
                             {"aa": aa, "loc": loc, "state": name})
                     for s_uri in mods["flags"]:
                         name = self.data.fetch_state_reference(s_uri)
-                        gene["states"].append(name)
+                        protoform["states"].append(name)
                     if region["start"] is not None or\
                        region["end"] is not None:
                         res = RegionActor(
-                            gene=Gene(
-                                uniprotid=gene["uniprot"],
-                                synonyms=gene["names"],
-                                xrefs=gene["xrefs"],
-                                location=gene["locations"]),
+                            protoform=Protoform(
+                                uniprotid=protoform["uniprot"],
+                                synonyms=protoform["names"],
+                                xrefs=protoform["xrefs"],
+                                location=protoform["locations"]),
                             region=Region(
                                 start=region["start"],
                                 end=region["end"],
                                 residues=self._process_residues(
-                                    gene["residues"]),
-                                states=self._process_states(gene["states"])
+                                    protoform["residues"]),
+                                states=self._process_states(protoform["states"])
                             )
                         )
                     else:
-                        res = Gene(
-                            uniprotid=gene["uniprot"],
-                            synonyms=gene["names"],
-                            xrefs=gene["xrefs"],
-                            location=gene["locations"],
-                            residues=self._process_residues(gene["residues"]),
-                            states=self._process_states(gene["states"]))
+                        res = Protoform(
+                            uniprotid=protoform["uniprot"],
+                            synonyms=protoform["names"],
+                            xrefs=protoform["xrefs"],
+                            location=protoform["locations"],
+                            residues=self._process_residues(protoform["residues"]),
+                            states=self._process_states(protoform["states"]))
                 else:
                     for r_uri in mods["residues"]:
                         aa, loc = self.data.fetch_residue_reference(r_uri)
                         name = self.data.fetch_state_reference(r_uri)
-                        gene["residues"].append(
+                        protoform["residues"].append(
                             {"aa": aa, "loc": loc, "state": name})
                     for s_uri in mods["flags"]:
                         name = self.data.fetch_state_reference(s_uri)
-                        gene["states"].append(name)
-                    res = Gene(
-                        uniprotid=gene["uniprot"],
-                        synonyms=gene["names"],
-                        xrefs=gene["xrefs"],
-                        location=gene["locations"],
-                        residues=self._process_residues(gene["residues"]),
-                        states=self._process_states(gene["states"])
+                        protoform["states"].append(name)
+                    res = Protoform(
+                        uniprotid=protoform["uniprot"],
+                        synonyms=protoform["names"],
+                        xrefs=protoform["xrefs"],
+                        location=protoform["locations"],
+                        residues=self._process_residues(protoform["residues"]),
+                        states=self._process_states(protoform["states"])
                     )
                 return res
         return None
@@ -422,10 +430,10 @@ class BioPaxImporter(object):
                 res = self.process_feature(f)
                 if res is not None:
                     data, t = res
-                if t == "residue":
-                    source_residues[(data[0], data[1])] = (data[2], data[3], f)
-                elif t == "state":
-                    source_states[data[0]] = (data[1], f)
+                    if t == "residue":
+                        source_residues[(data[0], data[1])] = (data[2], data[3], f)
+                    elif t == "state":
+                        source_states[data[0]] = (data[1], f)
         target_states = dict()
         target_residues = dict()
         for f in target_features:
@@ -433,10 +441,10 @@ class BioPaxImporter(object):
                 res = self.process_feature(f)
                 if res is not None:
                     data, t = res
-                if t == "residue":
-                    target_residues[(data[0], data[1])] = (data[2], data[3], f)
-                elif t == "state":
-                    target_states[data[0]] = (data[1], f)
+                    if t == "residue":
+                        target_residues[(data[0], data[1])] = (data[2], data[3], f)
+                    elif t == "state":
+                        target_states[data[0]] = (data[1], f)
         for key, val in source_states.items():
             if key in target_states.keys() and\
                val[0] != target_states[key][0]:
@@ -524,7 +532,7 @@ class BioPaxImporter(object):
 
             if activation is True:
                 # remove activity state from the right
-                if isinstance(substrate, Gene):
+                if isinstance(substrate, Protoform):
                     new_substrate = copy.deepcopy(substrate)
                     new_states = []
                     for state in new_substrate.states:
@@ -535,7 +543,7 @@ class BioPaxImporter(object):
                         new_substrate, State("activity", False), True)
 
                 if inactivation is True:
-                    if isinstance(substrate, Gene):
+                    if isinstance(substrate, Protoform):
                         new_substrate = copy.deepcopy(substrate)
                         new_states = []
                         for state in new_substrate.states:
@@ -553,7 +561,6 @@ class BioPaxImporter(object):
         right_uri = components[1].getUri()
         left = self.process_protein(left_uri)
         right = self.process_protein(right_uri)
-
         if left is not None and right is not None:
             bnds.append(Binding(left, right))
 
@@ -647,7 +654,7 @@ class BioPaxImporter(object):
         return bnd_data
 
     def generate_interactions(self):
-        """Generate interactions from loaded BioPAX model."""
+        """Protoformrate interactions from loaded BioPAX model."""
         interactions = []
         mod_data = self.collect_modifications()
         for k, v in mod_data.items():

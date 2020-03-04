@@ -411,7 +411,7 @@ class IndraImporter(object):
             )
         return nugget
 
-    def from_statements(self, statement_list):
+    def import_statements(self, statement_list):
         """Read out a list of INDRA statements into a list of interactions."""
         interactions = []
         for s in statement_list:
