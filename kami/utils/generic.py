@@ -3,7 +3,7 @@ import collections
 import copy
 import time
 
-from regraph.primitives import attrs_from_json
+from regraph.utils import attrs_from_json
 from kami.exceptions import KamiException
 # from kami.aggregation import identifiers
 
