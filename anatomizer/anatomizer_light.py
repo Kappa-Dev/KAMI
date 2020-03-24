@@ -1,14 +1,22 @@
 """Collection of utils for fetching data online on the fly."""
 import os
+import json
 import requests
+import ssl
+from urllib import request
+from urllib.error import HTTPError
+from time import sleep
+
 from anatomizer.utils import _merge_fragments, _nest_domains
 
 
+INTERPRO_BASE_URL = "https://www.ebi.ac.uk:443/interpro/api/entry/InterPro/protein/UniProt/{}/?page_size=100"
 RESOURCES = os.path.join(os.path.dirname(__file__), 'resources')
 TYPES_SHORT_NAMES_FILE = "types_short_names.dat"
 
 
 def get_uniprot_record(uniprot_ac, columns=None):
+    """Get the raw UniProt record."""
     url = 'https://www.uniprot.org/uniprot/' + uniprot_ac + '.tab'
     params = None
     if columns is not None:
@@ -20,13 +28,47 @@ def get_uniprot_record(uniprot_ac, columns=None):
         return None
 
 
-def get_interpro_record(ipr_id):
-    url = "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch/interpro/" + ipr_id + "/tab"
-    data = requests.get(url)
-    if data.status_code == 200:
-        return data.text
-    else:
-        return None
+def get_interpro_entries(uniprot_ac):
+    """Get the raw InterPro enties."""
+    # disable SSL verification to avoid config issues
+    context = ssl._create_unverified_context()
+
+    next_url = INTERPRO_BASE_URL.format(uniprot_ac)
+
+    # json header
+    results = []
+
+    while next_url:
+        try:
+            req = request.Request(
+                next_url, headers={"Accept": "application/json"})
+            res = request.urlopen(req, context=context)
+            # If the API times out due a long running query
+            if res.status == 408:
+                # wait just over a minute
+                sleep(61)
+                # then continue this loop with the same URL
+                continue
+            elif res.status == 204:
+                # no data so leave loop
+                break
+            payload = json.loads(res.read().decode())
+            next_url = payload["next"]
+        except HTTPError as e:
+            if e.code == 408:
+                sleep(61)
+                continue
+            else:
+                raise e
+
+        for i, item in enumerate(payload["results"]):
+            results.append(item)
+
+        # Don't overload the server, give it time before asking for more
+        if next_url:
+            sleep(1)
+
+    return results
 
 
 def fetch_gene_meta_data(uniprot_ac):
@@ -46,76 +88,101 @@ def fetch_canonical_sequence(uniprot_ac):
     return result
 
 
+def overlap(start1, end1, start2, end2):
+    """Compute the ratio of overlap."""
+    ratio = 0
+    # First, check if there is an overlap at all.
+    highstart = max(start1, start2)
+    lowend = min(end1, end2)
+    if highstart < lowend:
+        # Compute number of overlapping residues
+        overlap = lowend - highstart
+        # Compute the total span
+        lowstart = min(start1, start2)
+        highend = max(end1, end2)
+        span = highend - lowstart
+        # Compute ratio
+        ratio = float(overlap) / float(span)
+    return ratio
+
+
+def generate_canonical_name(interproids, names):
+    """Generate canonical domain name."""
+    PK = "IPR000719"
+    PK_name = "Protein kinase"
+    SH2 = "IPR000980"
+    SH2_name = "SH2"
+    if PK in interproids:
+        return PK_name
+    elif SH2 in interproids:
+        return SH2_name
+    else:
+        if len(names) > 0:
+            return names[0]
+
+
+def merge_raw_domains(raw_domains, overlap_threshold=0.8):
+    """Merge overlapping domains."""
+    groups = {
+        i: set() for i in range(len(raw_domains))
+    }
+    visited = set()
+
+    for i, raw_domain1 in enumerate(raw_domains):
+        if i not in visited:
+            visited.add(i)
+            start1 = raw_domain1["start"]
+            end1 = raw_domain1["end"]
+            for j, raw_domain2 in enumerate(raw_domains):
+                if j not in visited:
+                    start2 = raw_domain2["start"]
+                    end2 = raw_domain2["end"]
+                    o = overlap(start1, end1, start2, end2)
+                    if o >= overlap_threshold:
+                        if i in groups:
+                            groups[i].add(j)
+                            if j in groups:
+                                del groups[j]
+                        visited.add(j)
+    domains = []
+    for k, v in groups.items():
+        domain = {}
+        d0 = raw_domains[k]
+        domain["interproids"] = [d0["interproid"]]
+        domain["names"] = [d0["name"]]
+        starts = [d0["start"]]
+        ends = [d0["end"]] 
+        for vv in v:
+            d = raw_domains[vv]
+            domain["interproids"].append(d["interproid"])
+            domain["names"].append(d["name"])
+            starts.append(d["start"])
+            ends.append(d["end"])
+        domain["end"] = min(starts)
+        domain["start"] = min(ends)
+        domain["canonical_name"] = generate_canonical_name(
+            domain["interproids"], domain["names"])
+        domains.append(domain)
+    return domains
+
+
 def fetch_gene_domains(uniprot_ac, merge_features=True,
-                       nest_features=True, merge_overlap=0.7, nest_overlap=0.7,
-                       nest_level=1):
-    """Fetch all the domains online."""
-    url = "https://www.ebi.ac.uk/interpro/protein/" + uniprot_ac + "?export=tsv"
-    data = requests.get(url)
-    if data.status_code == 200:
-        try:
-            raw_tab = data.text.split("\n")[1:]
-            features = []
-            for row in raw_tab:
-                record = row.split("\t")
-                if len(record) > 1:
-                    # print(record)
-                    feature_dict = {}
-                    feature_dict['ipr_id'] = record[11]
-                    feature_dict['ipr_name'] = record[12]
-                    feature_dict['xname'] = record[5]
-                    feature_dict['xid'] = record[4]
-                    feature_dict['xdatabase'] = record[3]
-
-                    feature_dict['ipr_id'] = record[11]
-                    feature_dict['ipr_name'] = record[12]
-
-                    # Get type and short name
-                    file = os.path.join(RESOURCES, TYPES_SHORT_NAMES_FILE)
-                    short_name = None
-                    feature_type = None
-                    if os.path.isfile(file):
-                        with open(file, "r+") as f:
-                            for l in f:
-                                row = l.split("\t")
-                                if len(row) == 3:
-                                    if row[0] == feature_dict['ipr_id']:
-                                        feature_type = row[1]
-                                        short_name = row[2]
-                                        break
-                    if short_name is None or feature_type is None:
-                        data = get_interpro_record(feature_dict['ipr_id'])
-                        if data is not None:
-                            ipr_record = data.split("\n")[2].split("\t")
-                            if len(ipr_record) > 1:
-                                feature_dict["short_name"] = ipr_record[2]
-                                feature_dict["feature_type"] = ipr_record[1]
-                    else:
-                        feature_dict['short_name'] = short_name
-                        feature_dict['feature_type'] = feature_type
-
-                    start = int(record[6])
-                    end = int(record[7])
-                    length = end - start
-                    feature_dict['start'] = start
-                    feature_dict['end'] = end
-                    feature_dict['length'] = length
-                    if len(feature_dict['ipr_id']) > 0 and\
-                       feature_dict["feature_type"] == "Domain":
-                        features.append(feature_dict)
-
-            domains = []
-            if merge_features:
-                domains = _merge_fragments(
-                    features, overlap_threshold=merge_overlap)
-            else:
-                return features
-
-            # 4. (optional) Nest features
-            if nest_features:
-                domains = _nest_domains(domains, merge_overlap, max_level=nest_level)
-
-            return domains
-
-        except Exception as e:
-            print(e)
+                       merge_overlap=0.8):
+    """Fetch all the domains from InterPro."""
+    result = get_interpro_entries(uniprot_ac)
+    raw_domains = []
+    for r in result:
+        feature_type = r["metadata"]["type"]
+        if feature_type == "domain":
+            for p in r["proteins"]:
+                if p["accession"] == uniprot_ac.lower():
+                    for location in p["entry_protein_locations"]:
+                        for fragment in location["fragments"]:
+                            domain = {}
+                            domain["interproid"] = r["metadata"]["accession"]
+                            domain["name"] = r["metadata"]["name"]
+                            domain["start"] = fragment["start"]
+                            domain["end"] = fragment["end"]
+                            raw_domains.append(domain)
+    domains = merge_raw_domains(raw_domains, merge_overlap)
+    return domains
