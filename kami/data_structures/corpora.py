@@ -236,8 +236,9 @@ class KamiCorpus(object):
         """Get a list of semantic nuggets in the hierarchy."""
         nuggets = []
         for node_id in self._hierarchy.graphs():
-            if "semantic_nugget" in self._hierarchy.get_graph_attrs(
-                    node_id)["type"]:
+            attrs = self._hierarchy.get_graph_attrs(
+                node_id)
+            if "type" in attrs and "semantic_nugget" in attrs["type"]:
                 nuggets.append(node_id)
         return nuggets
 
@@ -1276,12 +1277,15 @@ class KamiCorpus(object):
             nugget_attrs = dict()
             for nugget in self.nuggets():
                 graph_dict[nugget] = model_id + "_" + nugget
-                nugget_attrs[model_id + "_" + nugget] = {
-                    "model_id": model_id
-                }
+                attrs = self._hierarchy.get_graph_attrs(nugget)
+                nugget_attrs[model_id + "_" + nugget] = attrs
+                nugget_attrs[model_id + "_" + nugget][
+                    "model_id"] = model_id
+
             self._hierarchy.duplicate_subgraph(
                 graph_dict, attach_graphs=[
                     "meta_model", "bnd_template", "mod_template"])
+
             for k, v in nugget_attrs.items():
                 self._hierarchy.set_graph_attrs(k, v)
 
@@ -1347,7 +1351,7 @@ class KamiCorpus(object):
         synonyms = None
         if "synonyms" in attrs.keys():
             synonyms = list(attrs["synonyms"])
-        nuggets = self._hierarchy.get_graphs_having_typing(
+        nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, gene_id)
         return (uniprotid, hgnc_symbol, synonyms, nuggets)
 
@@ -1360,7 +1364,7 @@ class KamiCorpus(object):
 
         enzyme_protoforms = identifier.ancestors_of_type(mod_id, "protoform")
         substrate_protoforms = identifier.descendants_of_type(mod_id, "protoform")
-        nuggets = self._hierarchy.get_graphs_having_typing(
+        nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, mod_id)
         return (nuggets, enzyme_protoforms, substrate_protoforms)
 
@@ -1372,7 +1376,7 @@ class KamiCorpus(object):
             self, self._action_graph_id)
 
         all_protoforms = identifier.ancestors_of_type(bnd_id, "protoform")
-        nuggets = self._hierarchy.get_graphs_having_typing(
+        nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, bnd_id)
         return (nuggets, all_protoforms)
 

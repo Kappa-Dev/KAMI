@@ -11,9 +11,8 @@ from regraph.backends.neo4j.hierarchies import Neo4jHierarchy
 from regraph.primitives import (add_nodes_from,
                                 add_edges_from,
                                 get_node,
-                                graph_to_json,
-                                attrs_to_json)
-from regraph.utils import relation_to_json
+                                graph_to_json)
+from regraph.utils import relation_to_json, attrs_to_json
 
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
@@ -135,11 +134,9 @@ class KamiModel(object):
             corpus.get_action_graph_typing())
 
         # Copy nuggets
-        nugget_map = dict()
         for n in corpus.nuggets():
             # Generate a nugget id
             model_nugget_id = self._id + "_" + n
-            nugget_map[n] = model_nugget_id
 
             adj_relations = [
                 r
@@ -153,7 +150,8 @@ class KamiModel(object):
                 attrs=corpus._hierarchy.get_graph_attrs(n))
             self._hierarchy.set_graph_attrs(
                 model_nugget_id,
-                {"model_id": self._id})
+                {"model_id": self._id},
+                update=False)
 
             self._hierarchy.add_typing(
                 model_nugget_id, self._action_graph_id, dict())
@@ -298,7 +296,8 @@ class KamiModel(object):
     def nuggets(self):
         """Get a list of nuggets in the hierarchy."""
         nuggets = []
-        for node_id in self._hierarchy.graphs():
+        for node_id in self._hierarchy.predecessors(
+                self._action_graph_id):
             if self.is_nugget_graph(node_id):
                 nuggets.append(node_id)
         return nuggets
@@ -422,7 +421,7 @@ class KamiModel(object):
         hgnc_symbol = None
         if "hgnc_symbol" in attrs.keys():
             hgnc_symbol = list(attrs["hgnc_symbol"])[0]
-        nuggets = self._hierarchy.get_graphs_having_typing(
+        nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, gene_id)
         return (uniprotid, hgnc_symbol, nuggets)
 
@@ -435,7 +434,7 @@ class KamiModel(object):
 
         enzyme_genes = identifier.ancestors_of_type(mod_id, "protoform")
         substrate_genes = identifier.descendants_of_type(mod_id, "protoform")
-        nuggets = self._hierarchy.get_graphs_having_typing(
+        nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, mod_id)
         return (nuggets, enzyme_genes, substrate_genes)
 
@@ -447,7 +446,7 @@ class KamiModel(object):
             self, self._action_graph_id)
 
         all_genes = identifier.ancestors_of_type(bnd_id, "protoform")
-        nuggets = self._hierarchy.get_graphs_having_typing(
+        nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, bnd_id)
         return (nuggets, all_genes)
 

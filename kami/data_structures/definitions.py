@@ -135,7 +135,10 @@ class Product(object):
         desc = None
         if "desc" in json_dict:
             desc = json_dict["desc"]
-        return cls(removed_components, residues, name, desc)
+        return cls(name,
+                   removed_components=removed_components,
+                   residues=residues,
+                   desc=desc)
 
 
 class Definition:
