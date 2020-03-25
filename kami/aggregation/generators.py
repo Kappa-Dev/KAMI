@@ -32,6 +32,20 @@ from kami.utils.id_generators import (get_nugget_gene_id,
                                       get_nugget_bnd_id,)
 
 
+def _add_to_template_rel(template_rel, left, right):
+    if left in template_rel:
+        template_rel[left].add(right)
+    else:
+        template_rel[left] = set()
+
+
+def _update_template_rel(template_rel, other_rel):
+    for k, v in other_rel.items():
+        if k not in template_rel:
+            template_rel[k] = set()
+        template_rel[k].update(v)
+
+
 class KamiGraph:
     """Graph container data structure.
 
@@ -159,8 +173,15 @@ class Generator(object):
         return (residue_id, state_id)
 
     def generate_bound(self, nugget, partner, father, test=True):
-        (partner_gene, partner_region, partner_site) = self.generate_actor(
-            nugget, partner)
+
+        bnd_template = dict()
+
+        (partner_gene, partner_region, partner_site, partner_bnd_template) =\
+            self.generate_actor(
+                nugget, partner)
+        _update_template_rel(bnd_template, partner_bnd_template)
+
+        bnd_template[partner_gene] = {"right_partner"}
 
         # generate prefix for is_bnd_id
         prefix = father
@@ -173,22 +194,31 @@ class Generator(object):
             attrs={"type": "be", "test": test},
             meta_typing="bnd"
         )
+
+        bnd_template[is_bnd_id] = {"bnd"}
+
         if partner_site is not None:
             nugget.add_edge(partner_site, is_bnd_id)
+            bnd_template[partner_site] = {"right_partner_site"}
         elif partner_region is not None:
             nugget.add_edge(partner_region, is_bnd_id)
         else:
             nugget.add_edge(partner_gene, is_bnd_id)
+
+        if partner_region:
+            bnd_template[partner_region] = {"right_partner_region"}
 
         if self.bookkeeping:
             apply_bookkeeping(
                 EntityIdentifier(
                     nugget.graph, nugget.meta_typing),
                 nugget.nodes(), [partner_gene])
-        return is_bnd_id
+        return is_bnd_id, bnd_template
 
     def generate_site(self, nugget, site, father, protoform):
         # 1. create region node
+        bnd_template = {}
+
         prefix = father
         site_id = get_nugget_site_id(
             nugget.graph, str(site), prefix
@@ -228,19 +258,26 @@ class Generator(object):
 
         # 5. create and attach bounds
         for partner in site.bound_to:
-            is_bnd_id = self.generate_bound(
+            is_bnd_id, right_bnd_template = self.generate_bound(
                 nugget, partner, site_id, test=True)
+            _update_template_rel(bnd_template, right_bnd_template)
             nugget.add_edge(site_id, is_bnd_id)
 
         for partner in site.unbound_from:
-            is_notbnd_id = self.generate_bound(
+            is_notbnd_id, right_bnd_template = self.generate_bound(
                 nugget, partner, site_id, test=False)
+            _update_template_rel(bnd_template, right_bnd_template)
             nugget.add_edge(site_id, is_notbnd_id)
 
-        return site_id
+        if len(bnd_template) > 0:
+            bnd_template[site_id] = {"left_partner_site"}
+
+        return site_id, bnd_template
 
     def generate_region(self, nugget, region, father):
         # 1. create region node
+        bnd_template = {}
+
         prefix = father
 
         region_id = get_nugget_region_id(
@@ -285,8 +322,9 @@ class Generator(object):
                         (str(site), str(region),
                          site.start, site.end, region.start, region.end)
                     )
-            site_id = self.generate_site(
+            site_id, site_bnd_template = self.generate_site(
                 nugget, site, region_id, father)
+            _update_template_rel(bnd_template, site_bnd_template)
             nugget.add_edge(site_id, region_id, site.location())
 
         # 4. create and attach states
@@ -297,14 +335,19 @@ class Generator(object):
 
         # 5. create and attach bounds
         for partners in region.bound_to:
-            bound_locus_id = self.generate_bound(
+            bound_locus_id, right_bnd_template = self.generate_bound(
                 nugget, partners, region_id, test=True)
             nugget.add_edge(region_id, bound_locus_id)
+            _update_template_rel(bnd_template, right_bnd_template)
 
         for partners in region.unbound_from:
-            bound_locus_id = self.generate_bound(
+            bound_locus_id, right_bnd_template = self.generate_bound(
                 nugget, partners, region_id, test=False)
             nugget.add_edge(region_id, bound_locus_id)
+            _update_template_rel(bnd_template, right_bnd_template)
+
+        if len(bnd_template) > 0:
+            bnd_template[region_id] = {"left_partner_region"}
 
         if self.bookkeeping:
             apply_bookkeeping(
@@ -312,12 +355,14 @@ class Generator(object):
                     nugget.graph, nugget.meta_typing),
                 nugget.nodes(), [])
 
-        return region_id
+        return region_id, bnd_template
 
     def generate_gene(self, nugget, protoform):
         """Generate agent group + indentify mapping."""
         # 1. create agent node
         agent_id = get_nugget_gene_id(nugget.graph, protoform)
+
+        bnd_template = {}
 
         # 2. identify agent (map to a node in the action graph)
         action_graph_agent = None
@@ -345,26 +390,30 @@ class Generator(object):
 
         # 4. create and attach regions
         for region in protoform.regions:
-            region_id = self.generate_region(
+            region_id, region_bnd_template = self.generate_region(
                 nugget, region, agent_id)
             nugget.add_edge(region_id, agent_id, region.location())
+            _update_template_rel(bnd_template, region_bnd_template)
 
         # 5. create and attach sites
         for site in protoform.sites:
-            site_id = self.generate_site(
+            site_id, site_bnd_template = self.generate_site(
                 nugget, site, agent_id, agent_id)
             nugget.add_edge(site_id, agent_id, site.location())
+            _update_template_rel(bnd_template, site_bnd_template)
 
         # 6. create and attach bounds
         for bnd in protoform.bound_to:
-            bound_locus_id = self.generate_bound(
+            bound_locus_id, right_bnd_template = self.generate_bound(
                 nugget, bnd, agent_id, test=True)
             nugget.add_edge(agent_id, bound_locus_id)
+            _update_template_rel(bnd_template, right_bnd_template)
 
         for bnd in protoform.unbound_from:
-            bound_locus_id = self.generate_bound(
+            bound_locus_id, right_bnd_template = self.generate_bound(
                 nugget, bnd, agent_id, test=False)
             nugget.add_edge(agent_id, bound_locus_id)
+            _update_template_rel(bnd_template, right_bnd_template)
 
         if self.bookkeeping:
             apply_bookkeeping(
@@ -372,51 +421,62 @@ class Generator(object):
                     nugget.graph, nugget.meta_typing),
                 nugget.nodes(), [agent_id])
 
-        return agent_id
+        if len(bnd_template) > 0:
+            bnd_template[agent_id] = {"left_partner"}
+
+        return agent_id, bnd_template
 
     def generate_region_actor(self, nugget, region_actor):
-        agent_id = self.generate_gene(
+        bnd_template = {}
+        agent_id, gene_bnd_template = self.generate_gene(
             nugget, region_actor.protoform)
-        region_id = self.generate_region(
+        _update_template_rel(bnd_template, gene_bnd_template)
+        region_id, region_bnd_template = self.generate_region(
             nugget, region_actor.region, agent_id)
+        _update_template_rel(bnd_template, region_bnd_template)
         nugget.add_edge(region_id, agent_id, region_actor.region.location())
-        return (agent_id, region_id)
+        return (agent_id, region_id, bnd_template)
 
     def generate_site_actor(self, nugget, site_actor):
-        agent_id = self.generate_gene(
+        bnd_template = {}
+        agent_id, gene_bnd_template = self.generate_gene(
             nugget, site_actor.protoform)
+        _update_template_rel(bnd_template, gene_bnd_template)
 
-        site_id = self.generate_site(
+        site_id, site_bnd_template = self.generate_site(
             nugget, site_actor.site, agent_id, agent_id)
+        _update_template_rel(bnd_template, site_bnd_template)
+
         region_id = None
         if len(site_actor.region) > 0:
             for r in site_actor.region:
-                region_id = self.generate_region(
+                region_id, region_bnd_template = self.generate_region(
                     nugget, r, agent_id)
+                _update_template_rel(bnd_template, region_bnd_template)
                 nugget.add_edge(region_id, agent_id, r.location())
                 nugget.add_edge(site_id, region_id, site_actor.site.location())
         else:
             nugget.add_edge(site_id, agent_id, site_actor.site.location())
 
-        return (agent_id, site_id, region_id)
+        return (agent_id, site_id, region_id, bnd_template)
 
     def generate_actor(self, nugget, actor):
         actor_region = None
         actor_site = None
         if isinstance(actor, Protoform):
-            actor_gene = self.generate_gene(nugget, actor)
+            actor_gene, bnd_template = self.generate_gene(nugget, actor)
         elif isinstance(actor, RegionActor):
-            (actor_gene, actor_region) = self.generate_region_actor(
+            (actor_gene, actor_region, bnd_template) = self.generate_region_actor(
                 nugget, actor)
         elif isinstance(actor, SiteActor):
-            (actor_gene, actor_site, actor_region) =\
+            (actor_gene, actor_site, actor_region, bnd_template) =\
                 self.generate_site_actor(
                     nugget, actor)
         else:
             raise NuggetGenerationError(
                 "Unkown type of a PPI actor: '%s'" % type(actor)
             )
-        return actor_gene, actor_region, actor_site
+        return actor_gene, actor_region, actor_site, bnd_template
 
     def generate_mod_target(self, nugget, target, attached_to,
                             protoform, mod_value=True):
@@ -467,11 +527,16 @@ class ModGenerator(Generator):
         """Create a mod nugget graph and find its typing."""
         nugget = KamiGraph()
 
-        template_rels = {"mod_template": dict()}
+        template_rels = {
+            "mod_template": dict(),
+        }
+
+        bnd_template = dict()
 
         # 1. Process enzyme
-        (enzyme, enzyme_region, enzyme_site) = self.generate_actor(
+        (enzyme, enzyme_region, enzyme_site, enzyme_bnd_template) = self.generate_actor(
             nugget, mod.enzyme)
+        _update_template_rel(bnd_template, enzyme_bnd_template)
         template_rels["mod_template"][enzyme] = {"enzyme"}
         if enzyme_region:
             template_rels["mod_template"][enzyme_region] = {"enzyme_region"}
@@ -479,13 +544,17 @@ class ModGenerator(Generator):
             template_rels["mod_template"][enzyme_site] = {"enzyme_site"}
 
         # Process substrate
-        (substrate, substrate_region, substrate_site) = self.generate_actor(
-            nugget, mod.substrate)
+        (substrate, substrate_region, substrate_site, substrate_bnd_template) =\
+            self.generate_actor(nugget, mod.substrate)
+        _update_template_rel(bnd_template, substrate_bnd_template)
         template_rels["mod_template"][substrate] = {"substrate"}
         if substrate_region:
             template_rels["mod_template"][substrate_region] = {"substrate_region"}
         if substrate_site:
             template_rels["mod_template"][substrate_site] = {"substrate_site"}
+
+        if len(bnd_template) > 0:
+            template_rels["bnd_template"] = bnd_template
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
@@ -521,6 +590,8 @@ class ModGenerator(Generator):
             nugget.add_edge(enzyme, "mod")
         nugget.add_edge("mod", mod_state_id)
 
+        print(template_rels)
+
         return (
             nugget, "mod",
             template_rels,
@@ -540,8 +611,12 @@ class BndGenerator(Generator):
         left = []
         right = []
 
+        bnd_template = dict()
+
         # 1. create bnd actors
-        gene_id, region_id, site_id = self.generate_actor(nugget, bnd.left)
+        gene_id, region_id, site_id, actior_bnd_template = self.generate_actor(
+            nugget, bnd.left)
+        _update_template_rel(bnd_template, actior_bnd_template)
         template_rels["bnd_template"][gene_id] = {"left_partner"}
         if site_id is not None:
             left.append(site_id)
@@ -553,7 +628,10 @@ class BndGenerator(Generator):
         if site_id is None and region_id is None:
             left.append(gene_id)
 
-        gene_id, region_id, site_id = self.generate_actor(nugget, bnd.right)
+        gene_id, region_id, site_id, actior_bnd_template = self.generate_actor(
+            nugget, bnd.right)
+
+        _update_template_rel(bnd_template, actior_bnd_template)
         template_rels["bnd_template"][gene_id] = {"right_partner"}
         if site_id is not None:
             right.append(site_id)
@@ -564,6 +642,9 @@ class BndGenerator(Generator):
                 right.append(region_id)
         if site_id is None and region_id is None:
             right.append(gene_id)
+
+        if len(bnd_template) > 0:
+            _update_template_rel(template_rels["bnd_template"], bnd_template)
 
         # 2. create binding action
         left_ids = "_".join(left)
@@ -607,14 +688,20 @@ class AnonymousModGenerator(Generator):
             "mod_template": dict()
         }
 
+        bnd_template = dict()
+
         # Process substrate
-        (substrate, substrate_region, substrate_site) = self.generate_actor(
-            nugget, mod.substrate)
+        (substrate, substrate_region, substrate_site, actor_bnd_template) =\
+            self.generate_actor(nugget, mod.substrate)
+        _update_template_rel(bnd_template, actor_bnd_template)
         template_rels["mod_template"][substrate] = {"substrate"}
         if substrate_region:
             template_rels["mod_template"][substrate_region] = {"substrate_region"}
         if substrate_site:
             template_rels["mod_template"][substrate_site] = {"substrate_site"}
+
+        if len(bnd_template) > 0:
+            template_rels["bnd_template"] = bnd_template
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
@@ -658,9 +745,11 @@ class SelfModGenerator(Generator):
 
         template_rels = {"mod_template": dict()}
 
+        bnd_template = {}
         # 1. Process enzyme
-        (enzyme, enzyme_region, enzyme_site) = self.generate_actor(
+        (enzyme, enzyme_region, enzyme_site, enzyme_bnd_template) = self.generate_actor(
             nugget, mod.enzyme)
+        _update_template_rel(bnd_template, enzyme_bnd_template)
         template_rels["mod_template"][enzyme] = {"enzyme", "substrate"}
         if enzyme_region:
             template_rels["mod_template"][enzyme_region] = {"enzyme_region"}
@@ -671,25 +760,31 @@ class SelfModGenerator(Generator):
         substrate_region = None
         substrate_site = None
         if mod.substrate_region is not None:
-            substrate_region = self.generate_region(
+            substrate_region, s_reg_bnd_template = self.generate_region(
                 nugget, mod.substrate_region, enzyme)
+            _update_template_rel(bnd_template, s_reg_bnd_template)
             template_rels["mod_template"][substrate_region] = {"substrate_region"}
             nugget.add_edge(
                 substrate_region, enzyme, mod.substrate_region.location())
         if mod.substrate_site is not None:
             if substrate_region is not None:
-                substrate_site = self.generate_site(
+                substrate_site, s_site_bnd_template = self.generate_site(
                     nugget, mod.substrate_site, substrate_region, enzyme)
+                _update_template_rel(bnd_template, s_site_bnd_template)
                 nugget.add_edge(
                     substrate_site, substrate_region,
                     mod.substrate_site.location())
             else:
-                substrate_site = self.generate_site(
+                substrate_site, s_site_bnd_template = self.generate_site(
                     nugget, mod.substrate_site, enzyme, enzyme)
+                _update_template_rel(bnd_template, s_site_bnd_template)
                 nugget.add_edge(
                     substrate_site, enzyme,
                     mod.substrate_site.location())
             template_rels["mod_template"][substrate_site] = {"substrate_site"}
+
+        if len(bnd_template) > 0:
+            template_rels["bnd_template"] = bnd_template
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
@@ -742,9 +837,12 @@ class LigandModGenerator(Generator):
             "bnd_template": {}
         }
 
+        bnd_template = {}
+
         # 1. Process enzyme
-        (enzyme, enzyme_region, enzyme_site) = self.generate_actor(
+        (enzyme, enzyme_region, enzyme_site, enzyme_bnd_template) = self.generate_actor(
             nugget, mod.enzyme)
+        _update_template_rel(bnd_template, enzyme_bnd_template)
         template_rels["mod_template"][enzyme] = {"enzyme"}
         if enzyme_region:
             template_rels["mod_template"][enzyme_region] = {"enzyme_region"}
@@ -752,8 +850,11 @@ class LigandModGenerator(Generator):
             template_rels["mod_template"][enzyme_site] = {"enzyme_site"}
 
         # Process substrate
-        (substrate, substrate_region, substrate_site) = self.generate_actor(
-            nugget, mod.substrate)
+        (substrate, substrate_region, substrate_site, substrate_bnd_template) =\
+            self.generate_actor(
+                nugget, mod.substrate)
+
+        _update_template_rel(bnd_template, substrate_bnd_template)
         template_rels["mod_template"][substrate] = {"substrate"}
         if substrate_region:
             template_rels["mod_template"][substrate_region] = {"substrate_region"}
@@ -850,8 +951,9 @@ class LigandModGenerator(Generator):
         enzyme_bnd_site = None
         if mod.enzyme_bnd_region is not None:
             if mod.enzyme_bnd_subactor == "protoform":
-                enzyme_bnd_region = self.generate_region(
+                enzyme_bnd_region, enzyme_bnd_template = self.generate_region(
                     nugget, mod.enzyme_bnd_region, enzyme)
+                _update_template_rel(bnd_template, enzyme_bnd_template)
                 template_rels["bnd_template"][enzyme_bnd_region] = {"left_partner_region"}
                 nugget.add_edge(enzyme_bnd_region, enzyme,
                                 mod.enzyme_bnd_region.location())
@@ -877,8 +979,9 @@ class LigandModGenerator(Generator):
                     father = enzyme_bnd_region
                 else:
                     father = enzyme
-                enzyme_bnd_site = self.generate_site(
+                enzyme_bnd_site, site_bnd_template = self.generate_site(
                     nugget, mod.enzyme_bnd_site, father, enzyme)
+                _update_template_rel(bnd_template, site_bnd_template)
                 template_rels["bnd_template"][enzyme_bnd_site] = {"left_partner_site"}
                 if enzyme_bnd_region is not None:
                     nugget.add_edge(
@@ -894,11 +997,13 @@ class LigandModGenerator(Generator):
         substrate_bnd_site = None
         if mod.substrate_bnd_region is not None:
             if mod.substrate_bnd_subactor == "protoform":
-                substrate_bnd_region = self.generate_region(
+                substrate_bnd_region, region_bnd_template = self.generate_region(
                     nugget, mod.substrate_bnd_region, substrate)
+                _update_template_rel(bnd_template, region_bnd_template)
                 nugget.add_edge(substrate_bnd_region, substrate,
                                 mod.substrate_bnd_region.location())
-                template_rels["bnd_template"][substrate_bnd_region] = {"right_partner_region"}
+                template_rels["bnd_template"][substrate_bnd_region] = {
+                    "right_partner_region"}
             else:
                 raise KamiError(
                     "Cannot add substrate binding region '{}' to ".format(
@@ -921,8 +1026,9 @@ class LigandModGenerator(Generator):
                     father = substrate_bnd_region
                 else:
                     father = substrate
-                substrate_bnd_site = self.generate_site(
+                substrate_bnd_site, site_bnd_template = self.generate_site(
                     nugget, mod.substrate_bnd_site, father, substrate)
+                _update_template_rel(bnd_template, site_bnd_template)
                 template_rels["bnd_template"][substrate_bnd_site] = {"right_partner_site"}
                 if substrate_bnd_region is not None:
                     nugget.add_edge(
@@ -933,6 +1039,9 @@ class LigandModGenerator(Generator):
                                     mod.substrate_bnd_site.location())
         elif mod.substrate_bnd_subactor == "site":
             substrate_bnd_site = substrate_site
+
+        if len(bnd_template) > 0:
+            _update_template_rel(template_rels["bnd_template"], bnd_template)
 
         nugget.add_node("is_bnd", attrs={"type": "be", "test": True},
                         meta_typing="bnd")

@@ -339,9 +339,9 @@ class KappaGenerator(ABC):
             if (self.kb.get_nugget_desc(n)):
                 nugget_desc = self.kb.get_nugget_desc(
                     n).replace("\n", ", ")
-
             self.rules[n]["desc"] = nugget_desc
-
+            rules = []
+            rate = None
             if "mod_template" in relations:
                 template_rel = self.kb._hierarchy.get_relation(
                     "mod_template", n)
@@ -355,7 +355,9 @@ class KappaGenerator(ABC):
                     nugget_identifier, ag_typing, template_rel, bnd_relation)
                 if rate is None:
                     rate = "'default_mod_rate'"
-            else:
+            elif "bnd_template" in relations:
+                print(n, nugget_desc)
+                print(relations)
                 template_rel = self.kb._hierarchy.get_relation(
                     "bnd_template", n)
                 # Generate rules from the nugget
