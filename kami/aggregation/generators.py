@@ -3,8 +3,6 @@
 `KamiGraph`
 `Generator`
 
-TODO: Make generation of graph elements independent of identification
-or identification optional
 """
 import copy
 import warnings
@@ -553,8 +551,8 @@ class ModGenerator(Generator):
         if substrate_site:
             template_rels["mod_template"][substrate_site] = {"substrate_site"}
 
-        if len(bnd_template) > 0:
-            template_rels["bnd_template"] = bnd_template
+        # if len(bnd_template) > 0:
+        #     template_rels["bnd_template"] = bnd_template
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
@@ -589,8 +587,6 @@ class ModGenerator(Generator):
         else:
             nugget.add_edge(enzyme, "mod")
         nugget.add_edge("mod", mod_state_id)
-
-        print(template_rels)
 
         return (
             nugget, "mod",
@@ -643,8 +639,8 @@ class BndGenerator(Generator):
         if site_id is None and region_id is None:
             right.append(gene_id)
 
-        if len(bnd_template) > 0:
-            _update_template_rel(template_rels["bnd_template"], bnd_template)
+        # if len(bnd_template) > 0:
+        #     _update_template_rel(template_rels["bnd_template"], bnd_template)
 
         # 2. create binding action
         left_ids = "_".join(left)
@@ -700,8 +696,8 @@ class AnonymousModGenerator(Generator):
         if substrate_site:
             template_rels["mod_template"][substrate_site] = {"substrate_site"}
 
-        if len(bnd_template) > 0:
-            template_rels["bnd_template"] = bnd_template
+        # if len(bnd_template) > 0:
+        #     template_rels["bnd_template"] = bnd_template
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
@@ -783,8 +779,8 @@ class SelfModGenerator(Generator):
                     mod.substrate_site.location())
             template_rels["mod_template"][substrate_site] = {"substrate_site"}
 
-        if len(bnd_template) > 0:
-            template_rels["bnd_template"] = bnd_template
+        # if len(bnd_template) > 0:
+        #     template_rels["bnd_template"] = bnd_template
 
         # 2. create mod node
         mod_attrs = mod.to_attrs()
@@ -834,7 +830,7 @@ class LigandModGenerator(Generator):
         nugget = KamiGraph()
         template_rels = {
             "mod_template": {},
-            "bnd_template": {}
+            # "bnd_template": {}
         }
 
         bnd_template = {}
@@ -897,8 +893,8 @@ class LigandModGenerator(Generator):
 
         # 4. Process enzyme/substrate binding conditions
         # 4.1 Validation checks
-        template_rels["bnd_template"][enzyme] = {"left_partner"} 
-        template_rels["bnd_template"][substrate] = {"right_partner"}
+        # template_rels["bnd_template"][enzyme] = {"left_partner"} 
+        # template_rels["bnd_template"][substrate] = {"right_partner"}
         if mod.enzyme_bnd_subactor == "protoform":
             pass
         elif mod.enzyme_bnd_subactor == "region":
@@ -907,16 +903,16 @@ class LigandModGenerator(Generator):
                     "Cannot use region as an enzyme binding subactor: "
                     "no regions are included in the enzyme actor '{}'!".format(
                         mod.enzyme.__repr__()))
-            else:
-                template_rels["bnd_template"][enzyme_region] = {"left_partner_region"}
+            # else:
+            #     template_rels["bnd_template"][enzyme_region] = {"left_partner_region"}
         elif mod.enzyme_bnd_subactor == "site":
             if enzyme_site is None:
                 raise KamiError(
                     "Cannot use site as an enzyme binding subactor: "
                     "no sites are included in the enzyme actor '{}'!".format(
                         mod.enzyme.__repr__()))
-            else:
-                template_rels["bnd_template"][enzyme_site] = {"left_partner_site"}
+            # else:
+            #     template_rels["bnd_template"][enzyme_site] = {"left_partner_site"}
         else:
             raise KamiError(
                 "Invalid value of `enzyme_bnd_subactor` of LigandModification object:"
@@ -931,16 +927,16 @@ class LigandModGenerator(Generator):
                     "Cannot use region as a substrate binding subactor: "
                     "no regions are included in the substrate actor '{}'!".format(
                         mod.substrate.__repr__()))
-            else:
-                template_rels["bnd_template"][substrate_region] = {"right_partner_region"} 
+            # else:
+            #     template_rels["bnd_template"][substrate_region] = {"right_partner_region"} 
         elif mod.substrate_bnd_subactor == "site":
             if substrate_site is None:
                 raise KamiError(
                     "Cannot use site as a substrate binding subactor: "
                     "no sites are included in the substrate actor '{}'!".format(
                         mod.substrate.__repr__()))
-            else:
-                template_rels["bnd_template"][substrate_site] = {"right_partner_site"}
+            # else:
+            #     template_rels["bnd_template"][substrate_site] = {"right_partner_site"}
         else:
             raise KamiError(
                 "Invalid value of `substrate_bnd_subactor` of LigandModification object:"
@@ -954,7 +950,7 @@ class LigandModGenerator(Generator):
                 enzyme_bnd_region, enzyme_bnd_template = self.generate_region(
                     nugget, mod.enzyme_bnd_region, enzyme)
                 _update_template_rel(bnd_template, enzyme_bnd_template)
-                template_rels["bnd_template"][enzyme_bnd_region] = {"left_partner_region"}
+                # template_rels["bnd_template"][enzyme_bnd_region] = {"left_partner_region"}
                 nugget.add_edge(enzyme_bnd_region, enzyme,
                                 mod.enzyme_bnd_region.location())
             else:
@@ -982,7 +978,7 @@ class LigandModGenerator(Generator):
                 enzyme_bnd_site, site_bnd_template = self.generate_site(
                     nugget, mod.enzyme_bnd_site, father, enzyme)
                 _update_template_rel(bnd_template, site_bnd_template)
-                template_rels["bnd_template"][enzyme_bnd_site] = {"left_partner_site"}
+                # template_rels["bnd_template"][enzyme_bnd_site] = {"left_partner_site"}
                 if enzyme_bnd_region is not None:
                     nugget.add_edge(
                         enzyme_bnd_site, enzyme_bnd_region,
@@ -1002,8 +998,7 @@ class LigandModGenerator(Generator):
                 _update_template_rel(bnd_template, region_bnd_template)
                 nugget.add_edge(substrate_bnd_region, substrate,
                                 mod.substrate_bnd_region.location())
-                template_rels["bnd_template"][substrate_bnd_region] = {
-                    "right_partner_region"}
+                # template_rels["bnd_template"][substrate_bnd_region] = {"right_partner_region"}
             else:
                 raise KamiError(
                     "Cannot add substrate binding region '{}' to ".format(
@@ -1029,7 +1024,7 @@ class LigandModGenerator(Generator):
                 substrate_bnd_site, site_bnd_template = self.generate_site(
                     nugget, mod.substrate_bnd_site, father, substrate)
                 _update_template_rel(bnd_template, site_bnd_template)
-                template_rels["bnd_template"][substrate_bnd_site] = {"right_partner_site"}
+                # template_rels["bnd_template"][substrate_bnd_site] = {"right_partner_site"}
                 if substrate_bnd_region is not None:
                     nugget.add_edge(
                         substrate_bnd_site, substrate_bnd_region,
@@ -1040,12 +1035,12 @@ class LigandModGenerator(Generator):
         elif mod.substrate_bnd_subactor == "site":
             substrate_bnd_site = substrate_site
 
-        if len(bnd_template) > 0:
-            _update_template_rel(template_rels["bnd_template"], bnd_template)
+        # if len(bnd_template) > 0:
+        #     _update_template_rel(template_rels["bnd_template"], bnd_template)
 
         nugget.add_node("is_bnd", attrs={"type": "be", "test": True},
                         meta_typing="bnd")
-        template_rels["bnd_template"]["is_bnd"] = {"bnd"}
+        # template_rels["bnd_template"]["is_bnd"] = {"bnd"}
 
         if enzyme_bnd_site is not None:
             nugget.add_edge(enzyme_bnd_site, "is_bnd")

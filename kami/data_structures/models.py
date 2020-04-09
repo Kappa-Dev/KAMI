@@ -52,7 +52,7 @@ class KamiModel(object):
     def __init__(self, model_id, annotation=None,
                  creation_time=None, last_modified=None,
                  corpus_id=None, seed_genes=None, definitions=None,
-                 backend="networkx",
+                 component_equivalence=None, backend="networkx",
                  uri=None, user=None, password=None, driver=None, data=None,
                  default_bnd_rate=None,
                  default_brk_rate=None,
@@ -64,6 +64,7 @@ class KamiModel(object):
         self._backend = backend
         self._seed_genes = seed_genes
         self._definitions = definitions
+        self._component_equivalence = component_equivalence
         self.default_bnd_rate = default_bnd_rate
         self.default_brk_rate = default_brk_rate
         self.default_mod_rate = default_mod_rate
@@ -138,11 +139,11 @@ class KamiModel(object):
             # Generate a nugget id
             model_nugget_id = self._id + "_" + n
 
-            adj_relations = [
+            adj_relations = set([
                 r
                 for r in corpus._hierarchy.adjacent_relations(n)
                 if r in ["mod_template", "bnd_template"]
-            ]
+            ])
 
             # Add an empty nugget graph to the model
             self._hierarchy.add_graph(
@@ -150,11 +151,11 @@ class KamiModel(object):
                 attrs=corpus._hierarchy.get_graph_attrs(n))
             self._hierarchy.set_graph_attrs(
                 model_nugget_id,
-                {"model_id": self._id},
-                update=False)
+                {"model_id": self._id})
 
             self._hierarchy.add_typing(
                 model_nugget_id, self._action_graph_id, dict())
+
             for r in adj_relations:
                 self._hierarchy.add_relation(
                     model_nugget_id, r, {})
@@ -340,13 +341,13 @@ class KamiModel(object):
     def from_json(cls, model_id, json_data, annotation=None,
                   creation_time=None, last_modified=None,
                   corpus_id=None, seed_genes=None, definitions=None,
-                  backend="networkx",
+                  component_equivalence=None, backend="networkx",
                   uri=None, user=None, password=None, driver=None):
         """Create hierarchy from json representation."""
         model = cls(model_id, annotation=annotation,
                     creation_time=creation_time, last_modified=last_modified,
                     corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
-                    backend=backend,
+                    component_equivalence=component_equivalence, backend=backend,
                     uri=uri, user=user, password=password, driver=driver,
                     data=json_data)
         return model
@@ -355,7 +356,7 @@ class KamiModel(object):
     def load_json(cls, model_id, filename, annotation=None,
                   creation_time=None, last_modified=None,
                   corpus_id=None, seed_genes=None, definitions=None,
-                  backend="networkx",
+                  component_equivalence=None, backend="networkx",
                   uri=None, user=None, password=None, driver=None):
         """Load a KamiCorpus from its json representation."""
         if os.path.isfile(filename):
@@ -365,7 +366,7 @@ class KamiModel(object):
                     model_id, json_data, annotation=annotation,
                     creation_time=creation_time, last_modified=last_modified,
                     corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
-                    backend=backend,
+                    component_equivalence=None, backend=backend,
                     uri=uri, user=user, password=password, driver=driver)
             return model
         else:
@@ -386,6 +387,7 @@ class KamiModel(object):
         json_data["origin"]["corpus_id"] = self._corpus_id
         json_data["origin"]["seed_genes"] = self._seed_genes
         json_data["origin"]["definitions"] = self._definitions
+        json_data["origin"]["component_equivalence"] = self._component_equivalence
 
         json_data["annotation"] = self.annotation.to_json()
         json_data["creation_time"] = self.creation_time
@@ -782,8 +784,13 @@ class KamiModel(object):
                                 break
                     return deattach
 
-                def _detach_edge_to_bnds(bnd_action, partner_to_ignore=None):
+                already_detached = []
+
+                def _detach_edge_to_bnds(bnd_action,
+                                         partner_to_ignore=None):
                     preds = nugget_graph.predecessors(bnd_action)
+
+                    edges_to_remove = set()
                     for p in preds:
                         if p != partner_to_ignore:
                             deattach = _empty_aa_found(p)
@@ -796,9 +803,14 @@ class KamiModel(object):
                                     if bnd != bnd_action
                                 ]
                                 for bnd in other_bnds:
-                                    _detach_edge_to_bnds(bnd, p)
+                                    if bnd not in already_detached:
+                                        already_detached.append(bnd)
+                                        _detach_edge_to_bnds(bnd, p)
                             else:
-                                nugget_graph.remove_edge(p, bnd_action)
+                                edges_to_remove.add((p, bnd_action))
+                                # already_detached.append(bnd_action)
+                    for s, t in edges_to_remove:
+                        nugget_graph.remove_edge(s, t)
 
                 if "mod_template" in self._hierarchy.adjacent_relations(nugget):
                     pass
@@ -848,3 +860,13 @@ class KamiModel(object):
                                 rule = Rule.from_transform(pattern)
                                 rule.inject_remove_node(res)
                                 self.rewrite(nugget, rule)
+
+    def _add_component_equivalence(self, rule, lhs_instance, rhs_instance):
+        """Add instantiation rule."""
+        if self._component_equivalence is None:
+            self._component_equivalence = dict()
+
+        for lhs_node, p_nodes in rule.cloned_nodes().items():
+            for p_node in p_nodes:
+                self._component_equivalence[rhs_instance[rule.p_rhs[p_node]]] =\
+                    lhs_instance[lhs_node]

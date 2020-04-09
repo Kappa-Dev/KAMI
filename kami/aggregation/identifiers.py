@@ -1,6 +1,7 @@
 """Collection of untils for identification of entities in a KAMI."""
 import networkx as nx
 import numpy as np
+import warnings
 
 from regraph import Rule
 
@@ -479,6 +480,74 @@ class EntityIdentifier:
             for s in self.get_attached_sites(node):
                 result += self.successors_of_type(s, "bnd")
         return list(set(result))
+
+    def identify_bnd_template(self, bnd_node):
+        """Get binding partners of a bnd node."""
+        def _fill_partner_components(pred, role):
+            if self.meta_typing[pred] == "site":
+                template[role + "_partner_site"].add(pred)
+                template[role + "_partner"].add(self.get_gene_of(pred))
+
+                edge_found = False
+                for partner in template[role + "_partner"]:
+                    if self.graph.exists_edge(pred, partner):
+                        edge_found = True
+                        break
+                if not edge_found:
+                    # find left partner region
+                    regions = set()
+                    for partner in template[role + "_partner"]:
+                        regions.update(self.get_attached_regions(partner))
+
+                    for r in regions:
+                        if self.graph.exists_edge(pred, r):
+                            if role + "_partner_region" in template:
+                                template[role + "_partner_region"].add(r)
+                            else:
+                                template[role + "_partner_region"] = {r}
+            elif self.meta_typing[pred] == "region":
+                template[role + "_partner_region"].add(pred)
+                template[role + "_partner"].add(self.get_gene_of(pred))
+            else:
+                template[role + "_partner"].add(pred)
+
+        template = {
+            "left_partner": set(),
+            "left_partner_region": set(),
+            "left_partner_site": set(),
+            "right_partner": set(),
+            "right_partner_region": set(),
+            "right_partner_site": set()
+        }
+        preds = list(self.graph.predecessors(bnd_node))
+        if len(preds) != 2:
+            # Merge by the uniprot id
+            uniprots = set([
+                list(
+                    self.graph.get_node(
+                        (self.get_gene_of(p)))["uniprotid"])[0] for p in preds
+            ])
+            if len(uniprots) != 2:
+                warnings.warn(
+                    "More than two bnd partners found" +
+                    "cannot identify bnd template!"
+                )
+                return template
+            else:
+                uniprot1 = list(uniprots)[0]
+                uniprot2 = list(uniprots)[1]
+                for p in preds:
+                    p_uniprot = list(self.graph.get_node(
+                        (self.get_gene_of(p)))["uniprotid"])[0]
+                    if p_uniprot == uniprot1:
+                        _fill_partner_components(p, "left")
+                    if p_uniprot == uniprot2:
+                        _fill_partner_components(p, "right")
+        else:
+            _fill_partner_components(preds[0], "left")
+            _fill_partner_components(preds[1], "right")
+
+        return template
 
     def get_attached_mod(self, node, all_directions=False):
         """Get MOD nodes attached to the specified node."""

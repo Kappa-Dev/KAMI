@@ -1318,10 +1318,12 @@ class KamiCorpus(object):
             for d in definitions:
                 instantiation_rule, instance = d.generate_rule(
                     self.action_graph, self.get_action_graph_typing())
-                model.rewrite(
+                rhs_g = model.rewrite(
                     model._action_graph_id,
                     instantiation_rule,
                     instance)
+                model._add_component_equivalence(
+                    instantiation_rule, instance, rhs_g)
                 model._clean_up_nuggets()
         return model
 

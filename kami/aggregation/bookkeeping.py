@@ -255,8 +255,9 @@ def connect_nested_fragments(identifier, genes):
 def anatomize_gene(model, protoform):
     """Anatomize existing protoform node in the action graph."""
     new_regions = list()
+
     if protoform in model.action_graph.nodes() and\
-       protoform in model.get_action_graph_typing().keys() and\
+       protoform in model.get_action_graph_typing() and\
        model.get_action_graph_typing()[protoform] == "protoform":
         anatomization_rule = None
         instance = None
@@ -271,7 +272,6 @@ def anatomize_gene(model, protoform):
             domains = fetch_gene_domains(uniprot_ac, merge_overlap=0.1)
         except:
             pass
-
         if meta_data or domains:
             # Generate an update rule to add
             # entities fetched by the anatomizer

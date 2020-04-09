@@ -18,6 +18,8 @@ class TestKappaGeneration(object):
 
         # Create an interaction object
         egfr = Protoform("P00533")
+        egf = Protoform("P01133")
+
         kinase = Region(
             name="Protein kinase",
             start=712,
@@ -99,18 +101,22 @@ class TestKappaGeneration(object):
             target=State("activity", False),
             value=True)
 
-        interaction5 = Binding(egfr, egfr)
-        interaction6 = Unbinding(egfr, egfr)
+        egf_egfr = Protoform(
+            egfr.uniprotid,
+            bound_to=[egf])
+        interaction5 = Binding(
+            egf_egfr, egf_egfr)
+        interaction6 = Unbinding(egf_egfr, egf_egfr)
 
         interaction7 = LigandModification(
             egfr_kinase,
             shc1,
             target=Residue("Y", 317, State("phosphorylation", False)),
             value=True,
-            enzyme_bnd_region=Region("BND_region"),
-            enzyme_bnd_site=Site("BND site"),
-            substrate_bnd_region=Region("BND region"),
-            substrate_bnd_site=Site("BND site"))
+            enzyme_bnd_region=Region("egfr_BND"),
+            enzyme_bnd_site=Site("egfr_BND"),
+            substrate_bnd_region=Region("shc1_BND"),
+            substrate_bnd_site=Site("sch1_BND"))
 
         nuggets = self.corpus.add_interactions([
             interaction1,
@@ -121,7 +127,6 @@ class TestKappaGeneration(object):
             interaction6,
             interaction7
         ])
-
 
         # Create a protein definition for GRB2
         protoform = Protoform(
@@ -139,7 +144,10 @@ class TestKappaGeneration(object):
         self.grb2_definition = Definition(protoform, [ashl, s90d, grb3])
 
         self.model = self.corpus.instantiate(
-            "EGFR_signalling_GRB2", [self.grb2_definition])
+            "EGFR_signalling_GRB2", [self.grb2_definition],
+            default_bnd_rate=0.1,
+            default_brk_rate=0.1,
+            default_mod_rate=0.1)
 
         # The following initial condition specifies:
         # 150 molecules of the canonical EGFR protein (no PTMs, bounds or activity)
@@ -214,12 +222,116 @@ class TestKappaGeneration(object):
 
     def test_generate_from_corpus(self):
         """Test generation from corpus."""
-        g = CorpusKappaGenerator(self.corpus, [self.grb2_definition])
+        # try:
+        g = CorpusKappaGenerator(
+            self.corpus, [self.grb2_definition],
+            default_bnd_rate=0.1,
+            default_brk_rate=0.1,
+            default_mod_rate=0.1)
         k = g.generate(self.initial_conditions)
         print(k)
+        # except:
+        #     pass
 
     def test_generate_from_model(self):
         """Test generation from model.."""
+        # try:
         g = ModelKappaGenerator(self.model)
         k = g.generate(self.initial_conditions)
         print(k)
+        # except:
+        #     pass
+
+    def test_hardcore_is_bound(self):
+        dummy_partner = SiteActor(
+            protoform=Protoform("C"),
+            region=Region(name="Cr"),
+            site=Site(name="Cs"))
+
+        enzyme = SiteActor(
+            protoform=Protoform("A", bound_to=[dummy_partner]),
+            region=Region(name="Ar", bound_to=[dummy_partner]),
+            site=Site(name="As", bound_to=[dummy_partner]))
+        substrate = SiteActor(
+            protoform=Protoform("B", bound_to=[dummy_partner]),
+            region=Region(name="Br", bound_to=[dummy_partner]),
+            site=Site(name="Bs", bound_to=[dummy_partner]))
+
+        mod = Binding(
+            enzyme,
+            substrate)
+
+        corpus = KamiCorpus("test")
+        nugget_id = corpus.add_interaction(mod)
+
+        g = CorpusKappaGenerator(corpus, [])
+        k = g.generate()
+        print(k)
+
+    def test_toy_example(self):
+        a = Protoform("A")
+        b = Protoform("B")
+        c = Protoform("C")
+        d = Protoform("D")
+        e = Protoform("E")
+
+        interactions = [
+            Binding(a, b),
+            Modification(a, b, State("activity", False), True),
+            SelfModification(a, target=State("activity", False), value=True),
+            AnonymousModification(c, target=State("activity", False), value=True),
+            LigandModification(a, b, target=State("activity", False), value=True),
+            Binding(
+                RegionActor(a, Region("REGION", bound_to=[Protoform("C")])),
+                # Protoform("A", ),
+                Protoform("B", bound_to=[Protoform("D", bound_to=[Protoform("E")])])),
+            Modification(
+                Protoform("A", bound_to=[Protoform("C")]),
+                Protoform("B", bound_to=[Protoform("D")]),
+                State("activity", False), True
+            )
+        ]
+        corpus = KamiCorpus("test")
+        corpus.add_interactions(interactions)
+
+        a1 = Product("A1")
+        a2 = Product("A2")
+        a1_def = Definition(a, [a1, a2])
+
+        b1 = Product("B1")
+        b2 = Product("B2")
+        b1_def = Definition(b, [b1, b2])
+
+        c1 = Product("C1")
+        c2 = Product("C2")
+        c1_def = Definition(c, [c1, c2])
+
+        d1 = Product("D1")
+        d2 = Product("D2")
+        d1_def = Definition(d, [d1, d2])
+
+        e1 = Product("E1")
+        e2 = Product("E2")
+        e_def = Definition(e, [e1, e2])
+
+        # Single variant for every gene
+        # try:
+        g = CorpusKappaGenerator(
+            corpus, [a1_def, b1_def, c1_def, d1_def, e_def])
+        k = g.generate()
+        print(k)
+        # except Exception as e:
+        #     print(e)
+
+        model = corpus.instantiate(
+            "Model",
+            [a1_def, b1_def, c1_def, d1_def, e_def],
+            default_bnd_rate=0.1,
+            default_brk_rate=0.1,
+            default_mod_rate=0.1)
+        # try:
+        g = ModelKappaGenerator(model)
+        k = g.generate()
+        print(k)
+        # except Exception as e:
+        #     print(e)
