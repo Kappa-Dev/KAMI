@@ -29,21 +29,30 @@ class KamiModel(object):
 
     Attributes
     ----------
-    _id : str
+    _id : str,
+        Identifier of the model
     _backend : str, "networkx" or "neo4j"
-    _hierarchy : regraph.neo4j(networkx).Neo4j(NetworkX)Hierarchy
+    _hierarchy : NXHierarchy or Neo4jHierarchy
+        Graph hierarchy object containg the model
+    _corpus_id : hashable
+        Identifier of the original corpus from which
+        the model was instantiated
+    _action_graph_id : hashable
+        Id of the action graph in the graph hierarchy
+    _seed_genes : iterable
+        Collection of UniProt AC's of genes used to
+        instantiate the model
+    _definitions : iterable of kami.data_structure.definitions.Definition
+        Collection of definitions used to instantiate the model
+    _component_equivalence : dict
+        Dictionary containing the equivalence classes of various elements
+        of the action graph, i.e. defining whether proteins or their
+        components where instantiated from the same structural
+        component.
 
     annotation : kami.data_structures.annotations.CorpusAnnotation
     creation_time : str
     last_modified : str
-    corpus_id : str
-    seed_genes : iterable of str
-    definitions : iterable of kami.data_structure.definitions.Definition
-
-    action_graph : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
-    nugget : dict
-    mod_template : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
-    bnd_templae : rengraph.neo4j.Neo4jGraph / regraph.networkx.DiGraph
 
     """
 

@@ -1217,17 +1217,33 @@ class KappaGenerator(ABC):
                                 states_str = "{}{{{}}}".format(site, value)
                                 elements.append(states_str)
 
+                        print("\n\n")
+                        print(condition["bonds"])
+                        print("\n\n")
+
                         # Bound counts
-                        for site, (partner_site, partner_agent) in condition[
-                                "bonds"].items():
-                            bond_str = (
-                                "{}[{}.{}]".format(
-                                    site, partner_site, partner_agent)
-                            )
-                            elements.append(bond_str)
-                        concentrations_str.append("{} {}({})".format(
-                            count,
-                            agent_data["agent_name"], ", ".join(elements)))
+                        agent_bound_sites = []
+                        partners = []
+                        for i, (site, (partner_site, partner_agent)) in enumerate(
+                                condition["bonds"].items()):
+                            agent_bound_sites.append(
+                                "{}[{}]".format(site, i + 1))
+                            partners.append(
+                                "{}({}[{}])".format(
+                                    partner_agent, partner_site, i + 1))
+                            # bond_str = (
+                            #     "{}[{}.{}]".format(
+                            #         site, partner_site, partner_agent)
+                            # )
+                            # elements.append(bond_str)
+                        concentrations_str.append(
+                            "{} {}({})".format(
+                                count,
+                                agent_data["agent_name"],
+                                ",".join(agent_bound_sites)) +
+                            (", " if len(partners) > 0 else "") +
+                            ", ".join(partners)
+                        )
 
             # Add generated sites to the agent signature
             if len(all_sites) > 0:

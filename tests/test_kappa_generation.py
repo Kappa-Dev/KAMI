@@ -233,105 +233,105 @@ class TestKappaGeneration(object):
         # except:
         #     pass
 
-    def test_generate_from_model(self):
-        """Test generation from model.."""
-        # try:
-        g = ModelKappaGenerator(self.model)
-        k = g.generate(self.initial_conditions)
-        print(k)
-        # except:
-        #     pass
+    # def test_generate_from_model(self):
+    #     """Test generation from model.."""
+    #     # try:
+    #     g = ModelKappaGenerator(self.model)
+    #     k = g.generate(self.initial_conditions)
+    #     print(k)
+    #     # except:
+    #     #     pass
 
-    def test_hardcore_is_bound(self):
-        dummy_partner = SiteActor(
-            protoform=Protoform("C"),
-            region=Region(name="Cr"),
-            site=Site(name="Cs"))
+    # def test_hardcore_is_bound(self):
+    #     dummy_partner = SiteActor(
+    #         protoform=Protoform("C"),
+    #         region=Region(name="Cr"),
+    #         site=Site(name="Cs"))
 
-        enzyme = SiteActor(
-            protoform=Protoform("A", bound_to=[dummy_partner]),
-            region=Region(name="Ar", bound_to=[dummy_partner]),
-            site=Site(name="As", bound_to=[dummy_partner]))
-        substrate = SiteActor(
-            protoform=Protoform("B", bound_to=[dummy_partner]),
-            region=Region(name="Br", bound_to=[dummy_partner]),
-            site=Site(name="Bs", bound_to=[dummy_partner]))
+    #     enzyme = SiteActor(
+    #         protoform=Protoform("A", bound_to=[dummy_partner]),
+    #         region=Region(name="Ar", bound_to=[dummy_partner]),
+    #         site=Site(name="As", bound_to=[dummy_partner]))
+    #     substrate = SiteActor(
+    #         protoform=Protoform("B", bound_to=[dummy_partner]),
+    #         region=Region(name="Br", bound_to=[dummy_partner]),
+    #         site=Site(name="Bs", bound_to=[dummy_partner]))
 
-        mod = Binding(
-            enzyme,
-            substrate)
+    #     mod = Binding(
+    #         enzyme,
+    #         substrate)
 
-        corpus = KamiCorpus("test")
-        nugget_id = corpus.add_interaction(mod)
+    #     corpus = KamiCorpus("test")
+    #     nugget_id = corpus.add_interaction(mod)
 
-        g = CorpusKappaGenerator(corpus, [])
-        k = g.generate()
-        print(k)
+    #     g = CorpusKappaGenerator(corpus, [])
+    #     k = g.generate()
+    #     print(k)
 
-    def test_toy_example(self):
-        a = Protoform("A")
-        b = Protoform("B")
-        c = Protoform("C")
-        d = Protoform("D")
-        e = Protoform("E")
+    # def test_toy_example(self):
+    #     a = Protoform("A")
+    #     b = Protoform("B")
+    #     c = Protoform("C")
+    #     d = Protoform("D")
+    #     e = Protoform("E")
 
-        interactions = [
-            Binding(a, b),
-            Modification(a, b, State("activity", False), True),
-            SelfModification(a, target=State("activity", False), value=True),
-            AnonymousModification(c, target=State("activity", False), value=True),
-            LigandModification(a, b, target=State("activity", False), value=True),
-            Binding(
-                RegionActor(a, Region("REGION", bound_to=[Protoform("C")])),
-                # Protoform("A", ),
-                Protoform("B", bound_to=[Protoform("D", bound_to=[Protoform("E")])])),
-            Modification(
-                Protoform("A", bound_to=[Protoform("C")]),
-                Protoform("B", bound_to=[Protoform("D")]),
-                State("activity", False), True
-            )
-        ]
-        corpus = KamiCorpus("test")
-        corpus.add_interactions(interactions)
+    #     interactions = [
+    #         Binding(a, b),
+    #         Modification(a, b, State("activity", False), True),
+    #         SelfModification(a, target=State("activity", False), value=True),
+    #         AnonymousModification(c, target=State("activity", False), value=True),
+    #         LigandModification(a, b, target=State("activity", False), value=True),
+    #         Binding(
+    #             RegionActor(a, Region("REGION", bound_to=[Protoform("C")])),
+    #             # Protoform("A", ),
+    #             Protoform("B", bound_to=[Protoform("D", bound_to=[Protoform("E")])])),
+    #         Modification(
+    #             Protoform("A", bound_to=[Protoform("C")]),
+    #             Protoform("B", bound_to=[Protoform("D")]),
+    #             State("activity", False), True
+    #         )
+    #     ]
+    #     corpus = KamiCorpus("test")
+    #     corpus.add_interactions(interactions)
 
-        a1 = Product("A1")
-        a2 = Product("A2")
-        a1_def = Definition(a, [a1, a2])
+    #     a1 = Product("A1")
+    #     a2 = Product("A2")
+    #     a1_def = Definition(a, [a1, a2])
 
-        b1 = Product("B1")
-        b2 = Product("B2")
-        b1_def = Definition(b, [b1, b2])
+    #     b1 = Product("B1")
+    #     b2 = Product("B2")
+    #     b1_def = Definition(b, [b1, b2])
 
-        c1 = Product("C1")
-        c2 = Product("C2")
-        c1_def = Definition(c, [c1, c2])
+    #     c1 = Product("C1")
+    #     c2 = Product("C2")
+    #     c1_def = Definition(c, [c1, c2])
 
-        d1 = Product("D1")
-        d2 = Product("D2")
-        d1_def = Definition(d, [d1, d2])
+    #     d1 = Product("D1")
+    #     d2 = Product("D2")
+    #     d1_def = Definition(d, [d1, d2])
 
-        e1 = Product("E1")
-        e2 = Product("E2")
-        e_def = Definition(e, [e1, e2])
+    #     e1 = Product("E1")
+    #     e2 = Product("E2")
+    #     e_def = Definition(e, [e1, e2])
 
-        # Single variant for every gene
-        # try:
-        g = CorpusKappaGenerator(
-            corpus, [a1_def, b1_def, c1_def, d1_def, e_def])
-        k = g.generate()
-        print(k)
-        # except Exception as e:
-        #     print(e)
+    #     # Single variant for every gene
+    #     # try:
+    #     g = CorpusKappaGenerator(
+    #         corpus, [a1_def, b1_def, c1_def, d1_def, e_def])
+    #     k = g.generate()
+    #     print(k)
+    #     # except Exception as e:
+    #     #     print(e)
 
-        model = corpus.instantiate(
-            "Model",
-            [a1_def, b1_def, c1_def, d1_def, e_def],
-            default_bnd_rate=0.1,
-            default_brk_rate=0.1,
-            default_mod_rate=0.1)
-        # try:
-        g = ModelKappaGenerator(model)
-        k = g.generate()
-        print(k)
-        # except Exception as e:
-        #     print(e)
+    #     model = corpus.instantiate(
+    #         "Model",
+    #         [a1_def, b1_def, c1_def, d1_def, e_def],
+    #         default_bnd_rate=0.1,
+    #         default_brk_rate=0.1,
+    #         default_mod_rate=0.1)
+    #     # try:
+    #     g = ModelKappaGenerator(model)
+    #     k = g.generate()
+    #     print(k)
+    #     # except Exception as e:
+    #     #     print(e)

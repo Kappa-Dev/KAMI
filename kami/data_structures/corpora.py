@@ -15,8 +15,7 @@ from anatomizer.anatomizer_light import fetch_canonical_sequence
 
 from kami.utils.generic import (normalize_to_set,
                                 nodes_of_type,
-                                _init_from_data,
-                                _clean_up_nuggets)
+                                _init_from_data)
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           apply_bookkeeping,
@@ -39,9 +38,13 @@ class KamiCorpus(object):
     Attributes
     ----------
     _id : str,
+        Identifier of the knowledge corpus
     _backend : str, "networkx" or "neo4j"
-    _hierarchy : regraph.neo4j(networkx).Neo4j(NetworkX)Hierarchy
-    _nugget_count : int
+    _hierarchy : NXHierarchy or Neo4jHierarchy
+        Graph hierarchy object containg the corpus
+    _action_graph_id : hashable
+        Id of the action graph in the graph hierarchy
+
 
     annotation: kami.data_structures.annotations.CorpusAnnotation
     creation_time : str
