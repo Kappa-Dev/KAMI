@@ -181,7 +181,7 @@ class BioPAXModel():
         residues = set()
         flags = set()
         entity = self.model_.getByID(physical_entity_uri)
-        features = entity.feature
+        features = entity.getFeature()
         for f in features:
             if ignore_features is None or f.getUri() not in ignore_features:
                 if f.getModelInterface() == self.modification_feature_class_:

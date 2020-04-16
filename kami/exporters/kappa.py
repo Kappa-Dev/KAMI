@@ -788,6 +788,7 @@ class KappaGenerator(ABC):
             elif "bnd_template" in relations:
                 template_rel = self.kb._hierarchy.get_relation(
                     "bnd_template", n)
+
                 # Generate rules from the nugget
                 rules, rate, bnd_flag =\
                     self._generate_bnd_rules(
@@ -914,7 +915,7 @@ class KappaGenerator(ABC):
             partner_id = self.identifier.identify_protein(
                 Protein(comp.protoform, name=var_name))
             if partner_id is None:
-                partner_id = self.identifier.identify_gene(comp.protoform)
+                partner_id = self.identifier.identify_protoform(comp.protoform)
             partner_uniprot = comp.protoform.uniprotid
 
             if isinstance(comp, Protein):
@@ -1062,7 +1063,7 @@ class KappaGenerator(ABC):
                 protein_node = self.identifier.identify_protein(
                     condition.canonical_protein)
                 if protein_node is None:
-                    protein_node = self.identifier.identify_gene(
+                    protein_node = self.identifier.identify_protoform(
                         condition.canonical_protein.protoform)
 
                 agent_dict = None
@@ -1216,10 +1217,6 @@ class KappaGenerator(ABC):
                             for site, value in condition["states"].items():
                                 states_str = "{}{{{}}}".format(site, value)
                                 elements.append(states_str)
-
-                        print("\n\n")
-                        print(condition["bonds"])
-                        print("\n\n")
 
                         # Bound counts
                         agent_bound_sites = []
@@ -1781,7 +1778,7 @@ class CorpusKappaGenerator(KappaGenerator):
         self.instantiation_rules = dict()
         for i, d in enumerate(definitions):
             # rule, instance = self.instantiation_rules[ref_node]
-            protoform = self.identifier.identify_gene(d.protoform)
+            protoform = self.identifier.identify_protoform(d.protoform)
             instantiation_rule, instance = d.generate_rule(
                 corpus.action_graph, corpus.get_action_graph_typing())
             self.instantiation_rules[protoform] = (

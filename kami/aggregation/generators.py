@@ -365,7 +365,7 @@ class Generator(object):
         # 2. identify agent (map to a node in the action graph)
         action_graph_agent = None
         if self.entity_identifier:
-            action_graph_agent = self.entity_identifier.identify_gene(protoform)
+            action_graph_agent = self.entity_identifier.identify_protoform(protoform)
 
         nugget.add_node(
             agent_id,

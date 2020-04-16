@@ -86,11 +86,47 @@ def find_fragment(a_meta_data, a_location, dict_of_b, name=True):
         return None
 
 
+def get_uniprot(data):
+    """Get UniProt AC from data."""
+    uniprotid = None
+    if "uniprotid" in data.keys():
+        uniprotid = list(data["uniprotid"])[0]
+    return uniprotid
+
+
 class EntityIdentifier:
-    """Class for identification of entities."""
+    """Class for identification of entities in the wrapped graph.
+
+    An object of the EntityIdentifier class represents a wrapper
+    around a graph object (corresponding to, for example, an
+    action graph or a nugget), where the identification of entities
+    is performed. Typically, an identifier takes as an input some
+    data or an instance of a class from the `kami.entities` module
+    and tries to identify the corresponding nodes in the wrapped graph.
+
+    Attributes
+    ----------
+    graph : regraph.Graph
+        Graph where the identification of entities is performed
+    meta_typing : dict
+        Typing of the nodes in the wrapped graph by KAMI's meta-model
+    immediate : bool, optional
+        Flag indicating if the entities in the identification
+        are immediately adjacent to the reference node. For example,
+        if True `get_attached_regions` returns all the regions
+        immediately attached to the provided node.
+    hierarchy : regraph.Hierarchy, optional
+        Hierarchy where the wrapped graph object is situated. If specified,
+        rewriting of the graph is performed through the hierarchy interface
+    graph_id : hashable, optional
+        Id of the wrapped graph in the hierarchy
+    meta_model_id : hashable, optional
+        Id of the meta-model in the hierarchy
+    """
 
     def __init__(self, graph, meta_typing, immediate=True,
                  hierarchy=None, graph_id=None, meta_model_id=None):
+        """Initialize entity identifier."""
         self.graph = graph
         self.meta_typing = meta_typing
         self.immediate = immediate
@@ -100,7 +136,7 @@ class EntityIdentifier:
 
     def find_matching_in_graph(self, pattern, lhs_typing=None,
                                nodes=None):
-        """."""
+        """Find matching of the pattern in the wrapped graph."""
         if self.hierarchy is not None:
             if lhs_typing is not None:
                 lhs_typing = {
@@ -124,7 +160,7 @@ class EntityIdentifier:
         return instances
 
     def rewrite_graph(self, rule, instance=None):
-        """."""
+        """Rewrite the wrapped graph."""
         if self.hierarchy is not None:
             rhs_instance = self.hierarchy.rewrite(
                 self.graph_id, rule, instance)
@@ -141,13 +177,16 @@ class EntityIdentifier:
                     nodes.append(node)
         return nodes
 
-    def get_genes(self):
+    def get_protoforms(self):
+        """Get all the protoform nodes."""
         return self.nodes_of_type("protoform")
 
     def get_regions(self):
+        """Get all the region nodes."""
         return self.nodes_of_type("region")
 
     def predecessors_of_type(self, node_id, meta_type):
+        """Get all the predecessors of the node with the specified type."""
         preds = []
         for pred in self.graph.predecessors(node_id):
             if self.meta_typing[pred] == meta_type:
@@ -155,6 +194,7 @@ class EntityIdentifier:
         return preds
 
     def successors_of_type(self, node_id, meta_type):
+        """Get all the successors of the node with the specified type."""
         sucs = []
         for suc in self.graph.successors(node_id):
             if self.meta_typing[suc] == meta_type:
@@ -162,6 +202,7 @@ class EntityIdentifier:
         return sucs
 
     def ancestors_of_type(self, node_id, meta_type):
+        """Get all the ancestors of the node with the specified type."""
         ancestors = self.predecessors_of_type(node_id, meta_type)
         visited = set()
         next_level_to_visit = set([
@@ -179,12 +220,14 @@ class EntityIdentifier:
                     set([
                         p for p in self.graph.predecessors(n)
                         if meta_type == "mod" or meta_type == "bnd" or (
-                            self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd")
+                            self.meta_typing[p] != "mod" and
+                            self.meta_typing[p] != "bnd")
                     ]))
             next_level_to_visit = new_level_to_visit
         return ancestors
 
     def descendants_of_type(self, node_id, meta_type):
+        """Get all the descendants of the node with the specified type."""
         ancestors = self.successors_of_type(node_id, meta_type)
         visited = set()
         next_level_to_visit = set(self.graph.successors(node_id))
@@ -199,7 +242,8 @@ class EntityIdentifier:
             next_level_to_visit = new_level_to_visit
         return ancestors
 
-    def get_gene_of(self, node_id):
+    def get_protoform_of(self, node_id):
+        """Get protoform of the node id."""
         if self.meta_typing[node_id] == "protoform":
             return node_id
         else:
@@ -222,34 +266,36 @@ class EntityIdentifier:
         return None
 
     def get_attached_regions(self, node_id):
-        """Get a list of regions belonging to a specified agent."""
+        """Get a list of regions belonging to the specified component."""
         if self.immediate:
             return self.predecessors_of_type(node_id, "region")
         else:
             return self.ancestors_of_type(node_id, "region")
 
     def get_attached_sites(self, node_id):
-        """Get a list of sites belonging to a specified agent."""
+        """Get a list of sites belonging to the specified component."""
         if self.immediate:
             return self.predecessors_of_type(node_id, "site")
         else:
             return self.ancestors_of_type(node_id, "site")
 
     def get_attached_residues(self, node_id):
+        """Get a list of residues belonging to the specified component."""
         if self.immediate:
             return self.predecessors_of_type(node_id, "residue")
         else:
             return self.ancestors_of_type(node_id, "residue")
 
     def get_attached_states(self, node_id):
+        """Get a list of states belonging to the specified component."""
         if self.immediate:
             return self.predecessors_of_type(node_id, "state")
         else:
             return self.ancestors_of_type(node_id, "state")
 
-    def identify_gene(self, protoform):
-        """Find corresponding protoform in action graph."""
-        for node in self.get_genes():
+    def identify_protoform(self, protoform):
+        """Find protoform using the input entity."""
+        for node in self.get_protoforms():
             gene_attrs = self.graph.get_node(node)
             if "uniprotid" in gene_attrs.keys() and\
                protoform.uniprotid in gene_attrs["uniprotid"]:
@@ -257,8 +303,8 @@ class EntityIdentifier:
         return None
 
     def identify_protein(self, protein):
-        """Find corresponding protoform in action graph."""
-        for node in self.get_genes():
+        """Find protein using the input entity."""
+        for node in self.get_protoforms():
             gene_attrs = self.graph.get_node(node)
             if "uniprotid" in gene_attrs.keys() and\
                protein.protoform.uniprotid in gene_attrs["uniprotid"]:
@@ -272,6 +318,7 @@ class EntityIdentifier:
 
     def _identify_fragment(self, fragment,
                            ref_agent, fragment_type, name=True):
+        """Identify fragment (region or site) using the entity."""
         if self.immediate:
             fragment_candidates = self.predecessors_of_type(
                 ref_agent, fragment_type)
@@ -309,10 +356,10 @@ class EntityIdentifier:
             )
 
     def identify_region(self, region, ref_agent):
-        """Find corresponding region in action graph."""
-        if ref_agent not in self.get_genes():
+        """Find corresponding region in the graph."""
+        if ref_agent not in self.get_protoforms():
             raise KamiHierarchyError(
-                "Agent with UniProtID '%s' is not found in the action graph" %
+                "Agent with UniProtID '%s' is not found in the graph" %
                 ref_agent
             )
         else:
@@ -320,11 +367,11 @@ class EntityIdentifier:
                 region, ref_agent, "region")
 
     def identify_site(self, site, ref_agent):
-        """Find corresponding site in action graph."""
-        if ref_agent not in self.get_genes() and\
+        """Find corresponding site in the graph."""
+        if ref_agent not in self.get_protoforms() and\
            ref_agent not in self.get_regions():
             raise KamiHierarchyError(
-                "Protoform with the UniProtAC '%s' is not found in the action graph" %
+                "Protoform with the UniProtAC '%s' is not found in the graph" %
                 ref_agent
             )
         else:
@@ -346,7 +393,7 @@ class EntityIdentifier:
             If True, add aa value using SqPO rewriting, otherwise
             using primitives (used if `add_aa` is True)
         """
-        ref_gene = self.get_gene_of(ref_agent)
+        ref_gene = self.get_protoform_of(ref_agent)
         residue_candidates = self.get_attached_residues(ref_gene)
 
         if residue.loc is not None:
@@ -424,7 +471,7 @@ class EntityIdentifier:
         return None
 
     def identify_state(self, state, ref_agent):
-        """Find corresponding state of reference agent."""
+        """Find the state of the reference agent by entity."""
         state_candidates = self.get_attached_states(ref_agent)
         for s in state_candidates:
             name = list(self.graph.get_node(s)["name"])[0]
@@ -433,7 +480,7 @@ class EntityIdentifier:
         return None
 
     def identify_component(self, entity, ref_agent):
-        """Find corresponding component of the reference agent."""
+        """Find a component of the reference agent by the input entity."""
         if isinstance(entity, Region):
             # Here smth doesnt work
             return self.identify_region(entity, ref_agent)
@@ -445,7 +492,11 @@ class EntityIdentifier:
             return self.identify_state(entity, ref_agent)
 
     def subcomponents(self, node_id):
-        """Get all the subcomponent nodes."""
+        """Get all the subcomponent nodes.
+
+        For example, if the input node_id is a protoform, returns all the
+        regions, sites, residues and states attached to the protoform.
+        """
         all_predecessors = list(self.graph.predecessors(node_id))
         subcomponents = set([
             p for p in all_predecessors
@@ -464,7 +515,8 @@ class EntityIdentifier:
                     new_anc = set([
                         p
                         for p in self.graph.predecessors(n)
-                        if self.meta_typing[p] != "mod" and self.meta_typing[p] != "bnd"
+                        if self.meta_typing[p] != "mod" and
+                        self.meta_typing[p] != "bnd"
                     ])
                     subcomponents.update(new_anc)
                     new_level_to_visit.update(new_anc)
@@ -482,11 +534,18 @@ class EntityIdentifier:
         return list(set(result))
 
     def identify_bnd_template(self, bnd_node):
-        """Get binding partners of a bnd node."""
+        """Get binding template given a bnd node.
+
+        Given the id of a binding node in the graph,
+        identify the left and the right partners of the
+        binding together with their acting components
+        (regions or/and sites they use to perform
+        the binding).
+        """
         def _fill_partner_components(pred, role):
             if self.meta_typing[pred] == "site":
                 template[role + "_partner_site"].add(pred)
-                template[role + "_partner"].add(self.get_gene_of(pred))
+                template[role + "_partner"].add(self.get_protoform_of(pred))
 
                 edge_found = False
                 for partner in template[role + "_partner"]:
@@ -507,7 +566,7 @@ class EntityIdentifier:
                                 template[role + "_partner_region"] = {r}
             elif self.meta_typing[pred] == "region":
                 template[role + "_partner_region"].add(pred)
-                template[role + "_partner"].add(self.get_gene_of(pred))
+                template[role + "_partner"].add(self.get_protoform_of(pred))
             else:
                 template[role + "_partner"].add(pred)
 
@@ -525,7 +584,7 @@ class EntityIdentifier:
             uniprots = set([
                 list(
                     self.graph.get_node(
-                        (self.get_gene_of(p)))["uniprotid"])[0] for p in preds
+                        (self.get_protoform_of(p)))["uniprotid"])[0] for p in preds
             ])
             if len(uniprots) != 2:
                 warnings.warn(
@@ -538,7 +597,7 @@ class EntityIdentifier:
                 uniprot2 = list(uniprots)[1]
                 for p in preds:
                     p_uniprot = list(self.graph.get_node(
-                        (self.get_gene_of(p)))["uniprotid"])[0]
+                        (self.get_protoform_of(p)))["uniprotid"])[0]
                     if p_uniprot == uniprot1:
                         _fill_partner_components(p, "left")
                     if p_uniprot == uniprot2:
@@ -547,6 +606,65 @@ class EntityIdentifier:
             _fill_partner_components(preds[0], "left")
             _fill_partner_components(preds[1], "right")
 
+        return template
+
+    def _get_acting_components(self, node):
+        agent = None
+        region = None
+        site = None
+        if self.meta_typing[node] == "site":
+            site = node
+            agent = self.get_protoform_of(node)
+
+            edge_found = False
+            if self.graph.exists_edge(node, agent):
+                edge_found = True
+            if not edge_found:
+                # find left partner region
+                regions = set()
+                regions.update(self.get_attached_regions(agent))
+
+                for r in regions:
+                    if self.graph.exists_edge(node, r):
+                        region = r
+                        break
+
+        elif self.meta_typing[node] == "region":
+            region = node
+            agent = self.get_protoform_of(node)
+        else:
+            agent = node
+        return agent, region, site
+
+    def identify_mod_template(self, mod_node):
+        """Get modification template given a mod node.
+
+        Given the id of a modification node in the graph,
+        identify the enzyme and the substrate of the
+        modification together with their acting components
+        (regions or/and sites they use to perform
+        the modification).
+        """
+        template = {
+            "enzyme": set(),
+            "enzyme_region": set(),
+            "enzyme_site": set(),
+            "substrate": set(),
+            "substrate_region": set(),
+            "substrate_site": set(),
+            "substrate_residue": set(),
+            "mod_state": set(),
+            "mod": set()
+        }
+        preds = list(self.graph.predecessors(mod_node))
+        for pred in preds:
+            agent, region, site = self._get_acting_components(
+                pred)
+            template["enzyme"].add(agent)
+            if region:
+                template["enzyme_region"].add(region)
+            if site:
+                template["enzyme_site"].add(region)
         return template
 
     def get_attached_mod(self, node, all_directions=False):
@@ -563,3 +681,46 @@ class EntityIdentifier:
             result += self.ancestors_of_type(node, "mod")
 
         return result
+
+    def get_protoform_by_uniprot(self, uniprotid):
+        """Get a protoform by the UniProt AC."""
+        for protoform in self.get_protoforms():
+            attrs = self.graph.get_node(protoform)
+            u = list(attrs["uniprotid"])[0]
+            if u == uniprotid:
+                return protoform
+        return None
+
+    def get_modifications(self, enzyme_ac, substrate_ac):
+        """Get modification interactions."""
+        mods = set()
+        enzyme_node = self.get_protoform_by_uniprot(enzyme_ac)
+        for mod in self.get_attached_mod(enzyme_node):
+            for s in self.graph.successors(mod):
+                substrate_node = self.get_protoform_of(s)
+                up = get_uniprot(self.graph.get_node(substrate_node))
+                if up == substrate_ac:
+                    # the right partner of binding matches
+                    mods.add(mod)
+        return mods
+
+    def get_bindings(self, left_ac, right_ac):
+        """Get binding interactions."""
+        left_node = self.get_protoform_by_uniprot(left_ac)
+
+        # Find all the bnd nodes connecting the left with the right
+        bnds = set()
+        for bnd in self.get_attached_bnd(left_node):
+            preds = self.graph.predecessors(bnd)
+            if left_ac != right_ac:
+                for p in preds:
+                    right_node = self.get_protoform_of(p)
+                    up = get_uniprot(self.graph.get_node(right_node))
+                    if up == right_ac:
+                        # the right partner of binding matches
+                        bnds.add(bnd)
+            else:
+                if len(preds) == 1:
+                    bnds.add(bnd)
+
+        return bnds

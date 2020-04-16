@@ -89,7 +89,7 @@ class TestKamiCorpus(object):
         identifier = EntityIdentifier(
             self.model.action_graph,
             self.model.get_action_graph_typing())
-        protoform = identifier.identify_gene(Protoform("P00533"))
+        protoform = identifier.identify_protoform(Protoform("P00533"))
 
         residue = Residue("Y", 200)
         residue_id = self.model.add_residue(residue, protoform)

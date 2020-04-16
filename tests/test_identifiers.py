@@ -60,15 +60,15 @@ class TestIdentifiers(object):
             region_state, self.named_region)
         self.gene_state = self.hierarchy.add_state(gene_state, self.gene_id)
 
-    def test_identify_gene(self):
+    def test_identify_protoform(self):
         """Test protoform identification."""
         gene1 = Protoform("A")
         gene2 = Protoform("B")
         identifier = EntityIdentifier(
             self.hierarchy.action_graph,
             self.hierarchy.get_action_graph_typing())
-        result1 = identifier.identify_gene(gene1)
-        result2 = identifier.identify_gene(gene2)
+        result1 = identifier.identify_protoform(gene1)
+        result2 = identifier.identify_protoform(gene2)
         assert(result1 == self.gene_id)
         assert(result2 is None)
 
