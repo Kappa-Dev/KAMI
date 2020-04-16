@@ -502,9 +502,11 @@ class KamiCorpus(object):
         return None
 
     def set_ag_meta_type(self, node_id, meta_type):
-        """."""
-        self._hierarchy.set_node_typing(
-            self._action_graph_id, "meta_model", node_id, meta_type)
+        """Set typing of a node from the AG by the meta-model."""
+        ag_typing = self.get_action_graph_typing()
+        ag_typing[node_id] = meta_type
+        self._hierarchy._update_mapping(
+            self._action_graph_id, "meta_model", ag_typing)
 
     def add_protoform(self, protoform, anatomize=True):
         """Add protoform node to action graph.
@@ -1378,12 +1380,29 @@ class KamiCorpus(object):
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
-            self, self._action_graph_id)
+            hierarchy=self, graph_id=self._action_graph_id)
 
         all_protoforms = identifier.ancestors_of_type(bnd_id, "protoform")
         nuggets = self._hierarchy.graphs_typed_by_node(
             self._action_graph_id, bnd_id)
         return (nuggets, all_protoforms)
+
+    def get_bindings(self, left_ac, right_ac):
+        """Get all bnd mechanisms between left and right."""
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            immediate=False)
+        return identifier.get_bindings(left_ac, right_ac)
+
+    def get_modifications(self, enzyme_ac, substrate_ac):
+        """Get all bnd mechanisms between left and right."""
+        identifier = EntityIdentifier(
+            self.action_graph,
+            self.get_action_graph_typing(),
+            immediate=False)
+        return identifier.get_modifications(
+            enzyme_ac, substrate_ac)
 
     def get_protoform_pairwise_interactions(self):
         """Get pairwise interactions between protoforms."""

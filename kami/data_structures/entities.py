@@ -361,6 +361,12 @@ class Protein(Actor, PhysicalEntity):
         return "Protein(protoform={}, name={}".format(
             self.protoform.__repr__(), self.name)
 
+    def meta_data(self):
+        """Convert agent object to attrs."""
+        agent_attrs = self.protoform.meta_data()
+        if self.name is not None:
+            agent_attrs["name"] = {self.name}
+
 
 class Region(PhysicalEntity):
     """Class for a conserved protoform region."""
@@ -871,6 +877,7 @@ class Residue():
         """Convert to its JSON repr."""
         json_data = {}
         json_data["aa"] = list(self.aa)
+        json_data["test"] = list(self.test)
         if self.loc:
             json_data["loc"] = self.loc
         if self.state:

@@ -162,7 +162,7 @@ class Definition:
         entity_identifier = EntityIdentifier(
             reference_graph, meta_typing,
             immediate=False)
-        gene_node = entity_identifier.identify_gene(self.protoform)
+        gene_node = entity_identifier.identify_protoform(self.protoform)
         if gene_node is not None:
             # Build protoform graph
             subcomponents = entity_identifier.subcomponents(gene_node)
