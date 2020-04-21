@@ -58,4 +58,8 @@ class KappaGenerationWarning(KamiWarning):
 
 
 class KamiQLError(KamiException):
-    """Class for KAMIql exceptions."""
+    """Class for KamiQL exceptions."""
+
+
+class KamiQLWarning(KamiWarning):
+    """Class for KamiQL warnings."""
