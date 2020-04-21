@@ -55,3 +55,7 @@ class KamiInteractionError(KamiException):
 
 class KappaGenerationWarning(KamiWarning):
     """Class for Kappa generation warnings."""
+
+
+class KamiQLError(KamiException):
+    """Class for KAMIql exceptions."""

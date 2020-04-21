@@ -13,14 +13,14 @@ base_graph = {
     "nodes": [
         "component",
         "state",
-        "action"
+        "interaction"
     ],
     "edges": [
         ("component", "component"),
         ("state", "component"),
-        ("component", "action"),
-        ("action", "component"),
-        ("action", "state")
+        ("component", "interaction"),
+        ("interaction", "component"),
+        ("interaction", "state")
     ]
 }
 
@@ -163,8 +163,8 @@ meta_model_base_typing = {
     "site": "component",
     "residue": "component",
     "state": "state",
-    "mod": "action",
-    "syn": "action",
-    "deg": "action",
-    "bnd": "action"
+    "mod": "interaction",
+    "syn": "interaction",
+    "deg": "interaction",
+    "bnd": "interaction"
 }
