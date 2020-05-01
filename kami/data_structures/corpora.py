@@ -9,6 +9,7 @@ import os
 from kami.resources import default_components
 
 from regraph import (Rule, Neo4jHierarchy, NXHierarchy, NXGraph)
+from regraph.audit import VersionedHierarchy
 from regraph.utils import relation_to_json, attrs_to_json, attrs_from_json
 
 from anatomizer.anatomizer_light import fetch_canonical_sequence
@@ -81,6 +82,7 @@ class KamiCorpus(object):
         elif backend == "neo4j":
             self._hierarchy = Neo4jHierarchy(
                 uri=uri, user=user, password=password, driver=driver)
+        self._versioning = VersionedHierarchy(self._hierarchy)
 
         if creation_time is None:
             creation_time = datetime.datetime.now().strftime(
@@ -174,11 +176,12 @@ class KamiCorpus(object):
                 self._action_graph_id)
 
     def rewrite(self, graph_id, rule, instance=None,
-                rhs_typing=None, strict=False):
+                rhs_typing=None, strict=False, message=""):
         """Overloading of the rewrite method."""
-        r_g_prime = self._hierarchy.rewrite(
+        r_g_prime = self._versioning.rewrite(
             graph_id, rule=rule, instance=instance,
-            rhs_typing=rhs_typing, strict=strict)
+            rhs_typing=rhs_typing, strict=strict,
+            message=message)
         self._init_shortcuts()
         return r_g_prime
 
@@ -361,7 +364,7 @@ class KamiCorpus(object):
 
         return identifier.get_attached_mod(node, all_directions=all_directions)
 
-    def merge_ag_nodes(self, nodes):
+    def merge_ag_nodes(self, nodes, message=""):
         """Merge nodes of the action graph."""
         ag_typing = self.get_action_graph_typing()
         if len(set([ag_typing[n] for n in nodes])) == 1:
@@ -369,12 +372,12 @@ class KamiCorpus(object):
             pattern.add_nodes_from(nodes)
             r = Rule.from_transform(pattern)
             r.inject_merge_nodes(nodes)
-            self.rewrite(self._action_graph_id, r)
+            self.rewrite(self._action_graph_id, r, message=message)
         else:
             raise KamiException(
                 "Cannot merge action graph nodes of different type!")
 
-    def merge_bnds_of(self, node, subset=None):
+    def merge_bnds_of(self, node, subset=None, message=""):
         """Merge BND nodes of the specified node."""
         all_bnds = self.get_attached_bnd(node)
         if subset is not None:
@@ -386,7 +389,7 @@ class KamiCorpus(object):
             bnds_to_merge = subset
         else:
             bnds_to_merge = all_bnds
-        self.merge_ag_nodes(bnds_to_merge)
+        self.merge_ag_nodes(bnds_to_merge, message)
 
     def regions(self):
         """Get a list of region nodes in the action graph."""
@@ -528,7 +531,9 @@ class KamiCorpus(object):
         rhs_typing = {"meta_model": {gene_id: "protoform"}}
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={},
-            rhs_typing=rhs_typing)
+            rhs_typing=rhs_typing,
+            message="Manual addition of the protoform with UniProtAC '{}'".format(
+                gene_id))
 
         if anatomize is True:
             anatomize_gene(self, rhs_instance[gene_id])
@@ -554,9 +559,15 @@ class KamiCorpus(object):
         rule = Rule.from_transform(NXGraph())
         rule.inject_add_node(mod_id, attrs)
         rhs_typing = {"meta_model": {mod_id: "mod"}}
+
+        message = (
+            "Manual addition of the modification mechanism"
+        )
+
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={},
-            rhs_typing=rhs_typing)
+            rhs_typing=rhs_typing,
+            message=message)
         res_mod_id = rhs_instance[mod_id]
 
         # add semantic relations of the node
@@ -603,6 +614,8 @@ class KamiCorpus(object):
                 "Protoform '{}' is not found in the action graph".format(
                     ref_gene))
 
+        ref_uniprot = self.get_uniprot(ref_gene)
+
         semantics = normalize_to_set(semantics)
 
         region_id = generate_new_id(
@@ -614,9 +627,15 @@ class KamiCorpus(object):
         rule.inject_add_node(region_id, region.meta_data())
         rule.inject_add_edge(region_id, ref_gene, region.location())
         rhs_typing = {"meta_model": {region_id: "region"}}
+
+        message = (
+            "Manual addition of the region '{}' to the protoform".format(region) +
+            "with the UniProtAC '{}'".format(ref_uniprot)
+        )
+
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={ref_gene: ref_gene},
-            rhs_typing=rhs_typing)
+            rhs_typing=rhs_typing, message=message)
         res_region_id = rhs_instance[region_id]
 
         if semantics is not None:
@@ -656,6 +675,7 @@ class KamiCorpus(object):
                 "found in the action graph" %
                 ref_agent
             )
+
         site_id = generate_new_id(
             self.action_graph, "{}_{}".format(ref_agent, str(site)))
 
@@ -671,8 +691,37 @@ class KamiCorpus(object):
         if not ref_agent_in_protoforms:
             rule.inject_add_edge(site_id, ref_agent, site.location())
         rhs_typing = {"meta_model": {site_id: "site"}}
+
+        ref_uniprot = self.get_uniprot(ref_gene)
+        if ref_agent_in_regions:
+            region_str = ""
+            region_attrs = self.action_graph.get_node(ref_agent)
+            if "name" in region_attrs:
+                region_str += list(region_attrs["name"])[0]
+            edge_attrs = self.action_graph.get_edge(
+                ref_agent, ref_gene)
+            if "start" in edge_attrs and "end" in edge_attrs:
+                region_str += "({}-{})".format(
+                    list(edge_attrs["start"])[0], list(edge_attrs["end"])[0])
+
+            ref_agent_str = (
+                "region '{}' of the protoform ".format(
+                    region_str if region_str else "Unknown region") +
+                "with the UniProtAC '{}'".format(ref_uniprot)
+            )
+        else:
+            ref_agent_str = (
+                "the protoform with the UniProtAC '{}'".format(ref_uniprot)
+            )
+
+        message = (
+            "Manual addition of the site '{}' to the " +
+            ref_agent_str
+        )
+
         rhs_instance = self.rewrite(
-            self._action_graph_id, rule, instance, rhs_typing=rhs_typing)
+            self._action_graph_id, rule, instance, rhs_typing=rhs_typing,
+            message=message)
         new_site_id = rhs_instance[site_id]
 
         for sem in semantics:
@@ -949,11 +998,21 @@ class KamiCorpus(object):
             nugget_graph_id, self._action_graph_id, dict())
 
         # 4. Apply nugget generation rule
+        if desc:
+            interaction_repr = desc
+        else:
+            # TODO: here add a small nugget summary
+            interaction_repr = "no description"
+
+        message = "Added interaction '{}'".format(
+            interaction_repr)
+
         r_g_prime = self.rewrite(
             nugget_graph_id,
             rule=generation_rule, instance={},
             rhs_typing=rhs_typing,
-            strict=(not add_agents))
+            strict=(not add_agents),
+            message=message)
 
         if template_rels is not None:
             for template_id, template_rel in template_rels.items():
@@ -1568,7 +1627,7 @@ class KamiCorpus(object):
             self._hierarchy.remove_graph(nugget_id)
 
     def get_mechanism_nuggets(self, mechanism_id):
-        """."""
+        """Get nuggets associated with the interaction mechanism."""
         if (self._backend == "neo4j"):
             cypher = (
                 "MATCH (n:{} {{id: '{}'}}), (m)-[:typing]->(n)\n".format(
@@ -1580,3 +1639,11 @@ class KamiCorpus(object):
         else:
             raise KamiException(
                 "This method is not implemented for NetworkX-based hierarchies!")
+
+    def new_branch(self, branch_name):
+        """Create a new branch of the corpus."""
+        self._versioning.branch(branch_name)
+
+    def switch_branch(self, branch_name):
+        """Switch to the branch of the corpus."""
+        self._versioning.switch_branch(branch_name)
