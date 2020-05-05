@@ -164,7 +164,8 @@ class EntityIdentifier:
         """Rewrite the wrapped graph."""
         if self.hierarchy is not None:
             rhs_instance = self.hierarchy.rewrite(
-                self.graph_id, rule, instance, message=message,
+                self.graph_id, rule, instance,
+                message=message,
                 update_type=update_type)
         else:
             rhs_instance = self.graph.rewrite(rule, instance)
@@ -396,6 +397,8 @@ class EntityIdentifier:
             using primitives (used if `add_aa` is True)
         """
         ref_gene = self.get_protoform_of(ref_agent)
+        ref_uniprot = get_uniprot(self.graph.get_node(ref_gene))
+
         residue_candidates = self.get_attached_residues(ref_gene)
 
         if residue.loc is not None:
@@ -423,11 +426,17 @@ class EntityIdentifier:
                                     if self.hierarchy is not None:
                                         self.hierarchy.rewrite(
                                             self.graph_id, rule,
-                                            instance={res: res})
+                                            instance={res: res},
+                                            message=(
+                                                "Added the key '{}' to the residue '{}' ".format(
+                                                    residue.aa, residue.loc) +
+                                                "of the protoform with the UniProtAC '{}'".fromat(
+                                                    ref_uniprot)
+                                            ),
+                                            update_type="auto")
                                     else:
-                                        rule.apply_to(
-                                            self.graph, instance={res: res},
-                                            inplace=True)
+                                        self.graph.rewrite(
+                                            rule, instance={res: res})
                                 else:
                                     self.graph.add_node_attrs(
                                         res,
@@ -460,11 +469,18 @@ class EntityIdentifier:
                                 instance[res] = res
                                 if self.hierarchy is not None:
                                     self.hierarchy.rewrite(
-                                        self.graph_id, rule, instance=instance)
+                                        self.graph_id, rule, instance=instance,
+                                        message=(
+                                            "Added the key '{}' to the pool of residues ".format(
+                                                residue.aa) +
+                                            "woth no location of the protoform with the "
+                                            "UniProtAC '{}'".fromat(ref_uniprot)
+                                        ),
+                                        update_type="auto"
+                                    )
                                 else:
-                                    rule.apply_to(
-                                        self.graph, instance=instance,
-                                        inplace=True)
+                                    self.graph.rewrite(
+                                        rule, instance=instance)
                             else:
                                 self.graph.add_node_attrs(
                                     res,

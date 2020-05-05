@@ -2,23 +2,15 @@
 import datetime
 import json
 import os
-import networkx as nx
 
-from regraph.backends.networkx.graphs import NXGraph
-from regraph.backends.networkx.hierarchies import NXHierarchy
-from regraph.backends.neo4j.hierarchies import Neo4jHierarchy
-
-from regraph.primitives import (add_nodes_from,
-                                add_edges_from,
-                                get_node,
-                                graph_to_json)
+from regraph import (Rule, NXGraph, NXHierarchy, Neo4jHierarchy)
+from regraph.audit import VersionedHierarchy
 from regraph.utils import relation_to_json, attrs_to_json
 
 from kami.aggregation.identifiers import EntityIdentifier
 from kami.data_structures.annotations import CorpusAnnotation
 from kami.resources import default_components
 from kami.utils.generic import (nodes_of_type, _init_from_data)
-from regraph import Rule
 
 
 from kami.exceptions import KamiHierarchyError, KamiException
@@ -85,7 +77,7 @@ class KamiModel(object):
                 self._hierarchy = Neo4jHierarchy(driver=driver)
             else:
                 self._hierarchy = Neo4jHierarchy(uri, user, password)
-
+        self._versioning = VersionedHierarchy(self._hierarchy)
         if creation_time is None:
             creation_time = str(datetime.datetime.now())
         self.creation_time = creation_time
@@ -101,8 +93,8 @@ class KamiModel(object):
             if graph_id not in self._hierarchy.graphs():
                 self._hierarchy.add_empty_graph(graph_id, attrs)
                 g = self._hierarchy.get_graph(graph_id)
-                add_nodes_from(g, graph["nodes"])
-                add_edges_from(g, graph["edges"])
+                g.add_nodes_from(graph["nodes"])
+                g.add_edges_from(graph["edges"])
 
         for s, t, mapping, attrs in default_components.MODEL_TYPING:
             if (s, t) not in self._hierarchy.typings():
@@ -224,15 +216,13 @@ class KamiModel(object):
                 self._action_graph_id)
 
     def rewrite(self, graph_id, rule, instance=None,
-                rhs_typing=None, strict=False):
+                rhs_typing=None, strict=False,
+                message="Model update", update_type="manual"):
         """Overloading of the rewrite method."""
-        if instance is None:
-            instance = {
-                n: n for n in rule.lhs.nodes()
-            }
-        r_g_prime = self._hierarchy.rewrite(
+        r_g_prime, _ = self._versioning.rewrite(
             graph_id, rule=rule, instance=instance,
-            rhs_typing=rhs_typing, strict=strict)
+            rhs_typing=rhs_typing, strict=strict,
+            message=message, update_type=update_type)
         self._init_shortcuts()
         return r_g_prime
 
@@ -290,7 +280,8 @@ class KamiModel(object):
 
     def get_nugget_type(self, nugget_id):
         """Get type of the nugget specified by id."""
-        return list(self._hierarchy.get_graph_attrs(nugget_id)["interaction_type"])[0]
+        return list(self._hierarchy.get_graph_attrs(
+            nugget_id)["interaction_type"])[0]
 
     def get_nugget_template_rel(self, nugget_id):
         """Get relation of a nugget to a template."""
@@ -355,8 +346,10 @@ class KamiModel(object):
         """Create hierarchy from json representation."""
         model = cls(model_id, annotation=annotation,
                     creation_time=creation_time, last_modified=last_modified,
-                    corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
-                    component_equivalence=component_equivalence, backend=backend,
+                    corpus_id=corpus_id, seed_genes=seed_genes,
+                    definitions=definitions,
+                    component_equivalence=component_equivalence,
+                    backend=backend,
                     uri=uri, user=user, password=password, driver=driver,
                     data=json_data)
         return model
@@ -374,7 +367,8 @@ class KamiModel(object):
                 model = cls.from_json(
                     model_id, json_data, annotation=annotation,
                     creation_time=creation_time, last_modified=last_modified,
-                    corpus_id=corpus_id, seed_genes=seed_genes, definitions=definitions,
+                    corpus_id=corpus_id, seed_genes=seed_genes,
+                    definitions=definitions,
                     component_equivalence=None, backend=backend,
                     uri=uri, user=user, password=password, driver=driver)
             return model
@@ -396,7 +390,8 @@ class KamiModel(object):
         json_data["origin"]["corpus_id"] = self._corpus_id
         json_data["origin"]["seed_genes"] = self._seed_genes
         json_data["origin"]["definitions"] = self._definitions
-        json_data["origin"]["component_equivalence"] = self._component_equivalence
+        json_data["origin"][
+            "component_equivalence"] = self._component_equivalence
 
         json_data["annotation"] = self.annotation.to_json()
         json_data["creation_time"] = self.creation_time
@@ -410,7 +405,7 @@ class KamiModel(object):
             template = self.get_nugget_type(nugget) + "_template"
             nugget_json = {
                 "id": nugget,
-                "graph": graph_to_json(self.get_nugget(nugget)),
+                "graph": self.get_nugget(nugget).to_json(),
                 "desc": self.get_nugget_desc(nugget),
                 "typing": self.get_nugget_typing(nugget),
                 "attrs": attrs_to_json(self._hierarchy.get_graph_attrs(nugget)),
@@ -425,7 +420,7 @@ class KamiModel(object):
 
     def get_gene_data(self, gene_id):
         """."""
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         uniprotid = None
         if "uniprotid" in attrs.keys():
             uniprotid = list(attrs["uniprotid"])[0]
@@ -437,7 +432,7 @@ class KamiModel(object):
         return (uniprotid, hgnc_symbol, nuggets)
 
     def get_modification_data(self, mod_id):
-
+        """."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
@@ -450,7 +445,7 @@ class KamiModel(object):
         return (nuggets, enzyme_genes, substrate_genes)
 
     def get_binding_data(self, bnd_id):
-
+        """."""
         identifier = EntityIdentifier(
             self.action_graph,
             self.get_action_graph_typing(),
@@ -462,7 +457,7 @@ class KamiModel(object):
         return (nuggets, all_genes)
 
     def get_uniprot(self, gene_id):
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         uniprotid = None
         if "uniprotid" in attrs.keys():
             uniprotid = list(attrs["uniprotid"])[0]
@@ -470,12 +465,12 @@ class KamiModel(object):
 
     def get_variant_name(self, gene_id):
         """Get the name of protein variant."""
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         if "variant_name" in attrs.keys():
             return list(attrs["variant_name"])[0]
 
     def get_hgnc_symbol(self, gene_id):
-        attrs = get_node(self.action_graph, gene_id)
+        attrs = self.action_graph.get_node(gene_id)
         hgnc_symbol = None
         if "hgnc_symbol" in attrs.keys():
             hgnc_symbol = list(attrs["hgnc_symbol"])[0]
@@ -486,92 +481,49 @@ class KamiModel(object):
         self._hierarchy.set_graph_attrs(
             nugget_id, {"desc": new_desc})
 
-    def merge_ag_nodes(self, nodes):
-        ag_typing = self.get_action_graph_typing()
-        if len(set([ag_typing[n] for n in nodes])) == 1:
-            pattern = NXGraph()
-            pattern.add_nodes_from(nodes)
-            r = Rule.from_transform(pattern)
-            r.inject_merge_nodes(nodes)
-            self.rewrite(self._action_graph_id, r)
-        else:
-            raise KamiException(
-                "Cannot merge action graph nodes of different type!")
+    # def merge_ag_nodes(self, nodes):
+    #     ag_typing = self.get_action_graph_typing()
+    #     if len(set([ag_typing[n] for n in nodes])) == 1:
+    #         pattern = NXGraph()
+    #         pattern.add_nodes_from(nodes)
+    #         r = Rule.from_transform(pattern)
+    #         r.inject_merge_nodes(nodes)
+    #         self.rewrite(self._action_graph_id, r)
+    #     else:
+    #         raise KamiException(
+    #             "Cannot merge action graph nodes of different type!")
 
     def get_protein_pairwise_interactions(self):
-
-        if "backend" == "networkx":
-            raise KamiException("Not implemented for networkx!")
-
+        """Get pairwise interactions between protoforms."""
         interactions = {}
 
-        # Get bindinds
-        cypher = (
-            "MATCH (protoform:meta_model {id: 'protoform'}), \n" +
-            "(left:{})-[:typing]->(protoform), \n".format(
-                self._action_graph_id) +
-            "(right_proxy:{})-[:edge]->(bnd:{})<-[:edge]-(left_proxy:{})-[:edge*0..]->(left),\n".format(
-                self._action_graph_id, self._action_graph_id, self._action_graph_id) +
-            "(protoform)<-[:typing]-(right:{})<-[:edge*0..]-(right_proxy) \n".format(
-                self._action_graph_id) +
-            "WHERE (bnd)-[:typing]->(:meta_model {id:'bnd'}) AND \n" +
-            "((left_proxy)-[:typing]->(:meta_model {id: 'protoform'}) or (left_proxy)-[:typing]->(:meta_model {id: 'region'}) or (left_proxy)-[:typing]->(:meta_model {id: 'site'}) ) \n" +
-            "AND ((right_proxy)-[:typing]->(:meta_model {id: 'protoform'}) or (right_proxy)-[:typing]->(:meta_model {id: 'region'}) or (right_proxy)-[:typing]->(:meta_model {id: 'site'}))\n" + 
-            "OPTIONAL MATCH (nugget_actions)-[:typing]->(bnd)\n" +
-            "RETURN left.id as protoform, collect(labels(nugget_actions)) as nuggets, collect(right.id) as partner\n"
-        )
-
-        result = self._hierarchy.execute(cypher)
-        for record in result:
-            interactions[record["protoform"]] = (
-                record["partner"],
-                [item for sublist in record["nuggets"] for item in sublist]
-            )
-
-        # Get bindinds
-        cypher = (
-            "MATCH (protoform:meta_model {id: 'protoform'}),\n" +
-            "(enzyme:{})-[:typing]->(protoform), \n".format(self._action_graph_id) +
-            "(substrate:{})-[:typing]->(protoform), \n".format(
-                self._action_graph_id) +
-            "(enzyme_proxy:{})-[:edge*0..]->(enzyme), \n".format(
-                self._action_graph_id) +
-            "(substrate_proxy:{})-[:edge*0..]->(substrate), \n".format(
-                self._action_graph_id) +
-            "(enzyme_proxy)-[:typing]->(enzyme_proxy_type:meta_model), \n" +
-            "(substrate_proxy)-[:typing]->(substrate_proxy_type:meta_model), \n" +
-            "(enzyme_proxy)-[:edge]->(mod:{})-[:edge]->(s:{})-[:typing]->(:meta_model {{id: 'state'}}), \n".format(
-                self._action_graph_id, self._action_graph_id) +
-            "(s)-[:edge]->(substrate_proxy) \n" +
-            "WHERE (mod)-[:typing]->(:meta_model {id:'mod'}) AND \n" +
-            "(enzyme_proxy_type.id = 'protoform' or enzyme_proxy_type.id='region' or enzyme_proxy_type.id='site') \n" +
-            "AND (substrate_proxy_type.id = 'protoform' or substrate_proxy_type.id='region' or substrate_proxy_type.id='site' or substrate_proxy_type.id = 'residue')  \n" +
-            "OPTIONAL MATCH (nugget_actions)-[:typing]->(mod) \n" +
-            "RETURN enzyme.id as protoform, collect(labels(nugget_actions)) as nuggets, collect(substrate.id) as partner"
-        )
-
-        result = self._hierarchy.execute(cypher)
-        for record in result:
-            if record["protoform"] in interactions:
-                interactions[record["protoform"]] = (
-                    interactions[record["protoform"]][0] + record["partner"],
-                    interactions[record["protoform"]][1] + record["nuggets"]
-                )
-            else:
-                interactions[record["protoform"]] = (
-                    record["partner"],
-                    record["nuggets"]
-                )
-            for i, partner in enumerate(record["partner"]):
-                if partner in interactions:
-                    interactions[partner] = (
-                        interactions[partner][0] + [record["protoform"]],
-                        interactions[partner][1] + [record["nuggets"][i]]
-                    )
+        def _add_to_interactions(s, t, n, n_type, n_desc):
+            if s in interactions:
+                if t in interactions[s]:
+                    interactions[s][t].add((n, n_type, n_desc))
                 else:
-                    interactions[partner] = (
-                        [record["protoform"]], [record["nuggets"][i]])
+                    interactions[s][t] = {(n, n_type, n_desc)}
+            else:
+                interactions[s] = {
+                    t: {(n, n_type, n_desc)}
+                }
 
+        for n in self.nuggets():
+            ag_typing = self._hierarchy.get_typing(n, self._action_graph_id)
+            if self.is_mod_nugget(n):
+                enzyme = self.get_enzyme(n)
+                substrate = self.get_substrate(n)
+                if enzyme is not None and substrate is not None:
+                    _add_to_interactions(
+                        ag_typing[enzyme], ag_typing[substrate],
+                        n, "mod", self.get_nugget_desc(n))
+            elif self.is_bnd_nugget(n):
+                left = self.get_left_partner(n)
+                right = self.get_right_partner(n)
+                if left is not None and right is not None:
+                    _add_to_interactions(
+                        ag_typing[left], ag_typing[right],
+                        n, "bnd", self.get_nugget_desc(n))
         return interactions
 
     def interaction_edges(self):
@@ -699,7 +651,6 @@ class KamiModel(object):
 
     def _clean_up_nuggets(self):
         for nugget in self.nuggets():
-
             nugget_typing = self._hierarchy.get_typing(
                 nugget, self._action_graph_id)
             ag_typing = self.get_action_graph_typing()
@@ -712,7 +663,6 @@ class KamiModel(object):
                 nugget_graph,
                 n_meta_typing,
                 immediate=False)
-            # protoforms = nugget_identifier.get_protoforms()
 
             def _empty_aa_found(node):
                 protoform = nugget_identifier.get_protoform_of(node)
@@ -784,7 +734,10 @@ class KamiModel(object):
                     pattern.add_node(n)
                     rule = Rule.from_transform(pattern)
                     rule.inject_remove_node(n)
-                    self.rewrite(nugget, rule)
+                    self.rewrite(
+                        nugget, rule,
+                        message="Nugget clean-up: removed detached components",
+                        update_type="auto")
 
                 # Remove empty residue conditions
                 for protoform in nugget_identifier.get_protoforms():
@@ -797,7 +750,10 @@ class KamiModel(object):
                             pattern.add_node(res)
                             rule = Rule.from_transform(pattern)
                             rule.inject_remove_node(res)
-                            self.rewrite(nugget, rule)
+                            self.rewrite(
+                                nugget, rule,
+                                message="Nugget clean-up: removed residues with empty aa",
+                                update_type="auto")
 
     def _add_component_equivalence(self, rule, lhs_instance, rhs_instance):
         """Add instantiation rule."""

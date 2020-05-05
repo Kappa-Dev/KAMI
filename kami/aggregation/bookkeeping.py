@@ -38,7 +38,7 @@ def merge_residues(identifier, protoform):
                 protoform_attrs = identifier.graph.get_node(protoform)
                 uniprot = list(protoform_attrs["uniprotid"])[0]
                 message = (
-                    "Merging residues with the same location '{}' ".format(
+                    "Merged residues with the same location '{}' ".format(
                         k) +
                     "of the protoform with the UniProtAC '{}'".format(uniprot)
                 )
@@ -165,7 +165,7 @@ def connect_transitive_components(identifier, new_nodes):
             gene_region_site_rule.rhs.set_edge("site", "protoform", edge_attrs)
 
             message = (
-                "Reconnection of transitive components: pattern "
+                "Reconnected transitive components: pattern "
                 "'Protoform<-Region<-Site(ID '{}'), created Protoform<-Site".format(
                     instance["site"])
             )
@@ -201,7 +201,7 @@ def connect_transitive_components(identifier, new_nodes):
                 "residue", "region", edge_attrs)
 
             message = (
-                "Reconnection of transitive components: pattern "
+                "Reconnected transitive components: pattern "
                 "'Region<-Site<-Residue(ID '{}'), created Region<-Residue".format(
                     instance["residue"])
             )
@@ -235,7 +235,7 @@ def connect_transitive_components(identifier, new_nodes):
             edge_attrs["type"] = "transitive"
             gene_region_residue_rule.rhs.set_edge("residue", "protoform", edge_attrs)
             message = (
-                "Reconnection of transitive components: pattern "
+                "Reconnected transitive components: pattern "
                 "'Protoform<-Region<-Residue(ID '{}'), created Protoform<-Residue".format(
                     instance["residue"])
             )
@@ -266,7 +266,7 @@ def connect_transitive_components(identifier, new_nodes):
             gene_site_residue_rule.rhs.set_edge("residue", "protoform", edge_attrs)
 
             message = (
-                "Reconnection of transitive components: pattern "
+                "Reconnected transitive components: pattern "
                 "'Protoform<-Site<-Residue(ID '{}'), created Protoform<-Residue".format(
                     instance["residue"])
             )
@@ -455,7 +455,7 @@ def anatomize_gene(model, protoform):
                     new_regions.append(merged_rhs_id)
 
             message = (
-                "Anatomization of the protoform with the UniProtAC '{}'".format(
+                "Anatomizated the protoform with the UniProtAC '{}'".format(
                     uniprot_ac)
             )
 

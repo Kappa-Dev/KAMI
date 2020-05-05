@@ -16,7 +16,8 @@ from anatomizer.anatomizer_light import fetch_canonical_sequence
 
 from kami.utils.generic import (normalize_to_set,
                                 nodes_of_type,
-                                _init_from_data)
+                                _init_from_data,
+                                _generate_ref_agent_str)
 from kami.utils.id_generators import generate_new_id
 from kami.aggregation.bookkeeping import (anatomize_gene,
                                           apply_bookkeeping,
@@ -570,7 +571,7 @@ class KamiCorpus(object):
         rhs_typing = {"meta_model": {mod_id: "mod"}}
 
         message = (
-            "Manual addition of a modification mechanism"
+            "Added a modification mechanism"
         )
 
         rhs_instance = self.rewrite(
@@ -597,7 +598,7 @@ class KamiCorpus(object):
         rhs_typing = {"meta_model": {bnd_id: "bnd"}}
 
         message = (
-            "Manual addition of a binding mechanism"
+            "Added a binding mechanism"
         )
 
         rhs_instance = self.rewrite(
@@ -612,48 +613,6 @@ class KamiCorpus(object):
             self.add_ag_node_semantics(res_bnd_id, s)
 
         return res_bnd_id
-
-    def _generate_ref_agent_str(self, ref_agent, ref_gene,
-                                ref_agent_in_regions=False,
-                                ref_agent_in_sites=False,
-                                ref_agent_in_residues=False):
-        ref_uniprot = self.get_uniprot(ref_gene)
-        ref_agent_str = ""
-        if ref_agent_in_regions or ref_agent_in_sites:
-            region_str = ""
-            region_attrs = self.action_graph.get_node(ref_agent)
-            if "name" in region_attrs:
-                region_str += list(region_attrs["name"])[0]
-            edge_attrs = self.action_graph.get_edge(
-                ref_agent, ref_gene)
-            if "start" in edge_attrs and "end" in edge_attrs:
-                region_str += "({}-{})".format(
-                    list(edge_attrs["start"])[0], list(edge_attrs["end"])[0])
-
-            ref_agent_str = (
-                "{} '{}' of ".format(
-                    "region" if ref_agent_in_regions else "site",
-                    region_str if region_str else "Unknown fragment")
-            )
-        elif ref_agent_in_residues:
-            residue_str = ""
-            residue_attrs = self.action_graph.get_node(ref_agent)
-            if "aa" in residue_attrs:
-                residue_str += list(residue_attrs["aa"])[0]
-            edge_attrs = self.action_graph.get_edge(
-                ref_agent, ref_gene)
-            if "loc" in edge_attrs:
-                residue_str += str(list(edge_attrs["loc"])[0])
-
-            ref_agent_str = (
-                "'Residue({})' of ".format(
-                    residue_str if residue_str else "NA")
-            )
-
-        ref_agent_str += (
-            "the protoform with the UniProtAC '{}'".format(ref_uniprot)
-        )
-        return ref_agent_str
 
     def add_protoform(self, protoform, anatomize=True):
         """Add protoform node to action graph.
@@ -676,7 +635,7 @@ class KamiCorpus(object):
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={},
             rhs_typing=rhs_typing,
-            message="Manual addition of the protoform with the UniProtAC '{}'".format(
+            message="Added the protoform with the UniProtAC '{}'".format(
                 gene_id),
             update_type="manual")
 
@@ -720,7 +679,7 @@ class KamiCorpus(object):
         rhs_typing = {"meta_model": {region_id: "region"}}
 
         message = (
-            "Manual addition of the region '{}' to the protoform ".format(region) +
+            "Added the region '{}' to the protoform ".format(region) +
             "with the UniProtAC '{}'".format(ref_uniprot)
         )
 
@@ -784,11 +743,11 @@ class KamiCorpus(object):
             rule.inject_add_edge(site_id, ref_agent, site.location())
         rhs_typing = {"meta_model": {site_id: "site"}}
 
-        ref_agent_str = self._generate_ref_agent_str(
-            ref_agent, ref_gene, ref_agent_in_regions)
+        ref_agent_str = _generate_ref_agent_str(
+            self, ref_agent, ref_gene, ref_agent_in_regions)
 
         message = (
-            "Manual addition of the site '{}' to the ".format(site) +
+            "Added the site '{}' to the ".format(site) +
             ref_agent_str
         )
 
@@ -866,12 +825,12 @@ class KamiCorpus(object):
                     residue_id, ref_agent, residue.location())
             rhs_typing = {"meta_model": {residue_id: "residue"}}
 
-            ref_agent_str = self._generate_ref_agent_str(
-                ref_agent, ref_gene, ref_agent_in_regions,
+            ref_agent_str = _generate_ref_agent_str(
+                self, ref_agent, ref_gene, ref_agent_in_regions,
                 ref_agent_in_sites)
 
             message = (
-                "Manual addition of the residue '{}' to the ".format(residue) +
+                "Added the residue '{}' to the ".format(residue) +
                 ref_agent_str
             )
 
@@ -938,12 +897,12 @@ class KamiCorpus(object):
         ref_agent_in_sites = self.is_site(ref_agent)
         ref_agent_in_residues = self.is_residue(ref_agent)
 
-        ref_agent_str = self._generate_ref_agent_str(
-            ref_agent, ref_gene, ref_agent_in_regions,
+        ref_agent_str = _generate_ref_agent_str(
+            self, ref_agent, ref_gene, ref_agent_in_regions,
             ref_agent_in_sites, ref_agent_in_residues)
 
         message = (
-            "Manual addition of the state '{}' to the ".format(state) +
+            "Added the state '{}' to the ".format(state) +
             ref_agent_str
         )
 
@@ -1168,7 +1127,7 @@ class KamiCorpus(object):
                     instance={
                         n: n for n in pattern.nodes()
                     },
-                    message="Merging protoforms with the same UniProtAC '{}".format(
+                    message="Merged protoforms with the same UniProtAC '{}'".format(
                         k),
                     update_type="auto")
 
@@ -1453,7 +1412,6 @@ class KamiCorpus(object):
             self._hierarchy.duplicate_subgraph(
                 graph_dict, attach_graphs=[
                     "meta_model", "bnd_template", "mod_template"])
-
             for k, v in nugget_attrs.items():
                 self._hierarchy.set_graph_attrs(k, v)
 
@@ -1470,6 +1428,8 @@ class KamiCorpus(object):
                 default_brk_rate=default_brk_rate,
                 default_mod_rate=default_mod_rate)
         else:
+            # To create a model we first copy knowledge
+            # present in the corpus
             model = KamiModel(
                 model_id, annotation,
                 creation_time=str(datetime.datetime.now()),
@@ -1483,13 +1443,17 @@ class KamiCorpus(object):
             model._copy_knowledge_from_corpus(self)
 
         if definitions is not None:
+            # We then apply an instantiation rule generated for
+            # every provided definition and clean-up invalidated nuggets
             for d in definitions:
                 instantiation_rule, instance = d.generate_rule(
                     self.action_graph, self.get_action_graph_typing())
                 rhs_g = model.rewrite(
                     model._action_graph_id,
                     instantiation_rule,
-                    instance)
+                    instance,
+                    message="Instantiation update",
+                    update_type="auto")
                 model._add_component_equivalence(
                     instantiation_rule, instance, rhs_g)
                 model._clean_up_nuggets()

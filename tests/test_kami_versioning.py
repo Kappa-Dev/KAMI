@@ -12,7 +12,10 @@ class TestKamiVersioning(object):
     def __init__(self):
         """Initialize tests."""
         self.corpus = TEST_CORPUS
-        self.corpus._versioning.print_history()
+        # self.corpus._versioning.print_history()
+        self.model = TEST_MODEL
+        self.model._versioning.print_history()
+        print()
 
 
     def test_audit_actions(self):
@@ -32,4 +35,4 @@ class TestKamiVersioning(object):
         residue_node = self.corpus.add_residue(Residue("S", 100), site_node)
         self.corpus.add_state(State("phosphorylation", True), residue_node)
 
-        print(self.corpus._versioning.print_history())
+        # self.corpus._versioning.print_history()

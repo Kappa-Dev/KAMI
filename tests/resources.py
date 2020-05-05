@@ -51,7 +51,7 @@ shc1_pY = SiteActor(
     site=Site(
         name="pY",
         residues=[Residue("Y", 317, State("phosphorylation", True))]))
-interaction1 = Binding(grb2_sh2, shc1_pY)
+interaction1 = Binding(grb2_sh2, shc1)
 
 grb2_sh2_with_residues = RegionActor(
     protoform=grb2,
