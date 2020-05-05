@@ -170,6 +170,7 @@ def apply_mod_semantics(model, nugget_id):
                     if ag_activity is not None:
                         rhs_typing[model._action_graph_id][new_activity_state] =\
                             ag_activity
+
                     # Apply autocompletion rule
                     rhs_g = model.rewrite(
                         nugget_id, autocompletion_rule,

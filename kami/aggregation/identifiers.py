@@ -159,11 +159,13 @@ class EntityIdentifier:
                 instances = untyped_instances
         return instances
 
-    def rewrite_graph(self, rule, instance=None):
+    def rewrite_graph(self, rule, instance=None,
+                      message="", update_type=None):
         """Rewrite the wrapped graph."""
         if self.hierarchy is not None:
             rhs_instance = self.hierarchy.rewrite(
-                self.graph_id, rule, instance)
+                self.graph_id, rule, instance, message=message,
+                update_type=update_type)
         else:
             rhs_instance = self.graph.rewrite(rule, instance)
         return rhs_instance

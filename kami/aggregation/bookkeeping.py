@@ -34,7 +34,19 @@ def merge_residues(identifier, protoform):
                 pattern.add_nodes_from(v)
                 rule = regraph.Rule.from_transform(pattern)
                 rule.inject_merge_nodes(v)
-                identifier.rewrite_graph(rule)
+
+                protoform_attrs = identifier.graph.get_node(protoform)
+                uniprot = list(protoform_attrs["uniprotid"])[0]
+                message = (
+                    "Merging residues with the same location '{}' ".format(
+                        k) +
+                    "of the protoform with the UniProtAC '{}'".format(uniprot)
+                )
+
+                identifier.rewrite_graph(
+                    rule,
+                    message=message,
+                    update_type="auto")
             else:
                 identifier.graph.merge_nodes(v)
 
@@ -151,8 +163,16 @@ def connect_transitive_components(identifier, new_nodes):
                 instance["region"]))
             edge_attrs["type"] = "transitive"
             gene_region_site_rule.rhs.set_edge("site", "protoform", edge_attrs)
+
+            message = (
+                "Reconnection of transitive components: pattern "
+                "'Protoform<-Region<-Site(ID '{}'), created Protoform<-Site".format(
+                    instance["site"])
+            )
+
             identifier.rewrite_graph(
-                gene_region_site_rule, instance)
+                gene_region_site_rule, instance,
+                message=message, update_type="auto")
 
     region_site_residue = regraph.NXGraph()
     region_site_residue.add_nodes_from(["region", "site", "residue"])
@@ -179,7 +199,15 @@ def connect_transitive_components(identifier, new_nodes):
             edge_attrs["type"] = "transitive"
             region_site_residue_rule.rhs.set_edge(
                 "residue", "region", edge_attrs)
-            identifier.rewrite_graph(region_site_residue_rule, instance)
+
+            message = (
+                "Reconnection of transitive components: pattern "
+                "'Region<-Site<-Residue(ID '{}'), created Region<-Residue".format(
+                    instance["residue"])
+            )
+            identifier.rewrite_graph(
+                region_site_residue_rule, instance,
+                message=message, update_type="auto")
 
     gene_region_residue = regraph.NXGraph()
     gene_region_residue.add_nodes_from(["protoform", "region", "residue"])
@@ -206,7 +234,14 @@ def connect_transitive_components(identifier, new_nodes):
                 instance["residue"], instance["region"]))
             edge_attrs["type"] = "transitive"
             gene_region_residue_rule.rhs.set_edge("residue", "protoform", edge_attrs)
-            identifier.rewrite_graph(gene_region_residue_rule, instance)
+            message = (
+                "Reconnection of transitive components: pattern "
+                "'Protoform<-Region<-Residue(ID '{}'), created Protoform<-Residue".format(
+                    instance["residue"])
+            )
+            identifier.rewrite_graph(
+                gene_region_residue_rule, instance,
+                message=message, update_type="auto")
 
     gene_site_residue = regraph.NXGraph()
     gene_site_residue.add_nodes_from(["protoform", "site", "residue"])
@@ -229,8 +264,16 @@ def connect_transitive_components(identifier, new_nodes):
                 instance["residue"], instance["site"]))
             edge_attrs["type"] = "transitive"
             gene_site_residue_rule.rhs.set_edge("residue", "protoform", edge_attrs)
+
+            message = (
+                "Reconnection of transitive components: pattern "
+                "'Protoform<-Site<-Residue(ID '{}'), created Protoform<-Residue".format(
+                    instance["residue"])
+            )
+
             identifier.rewrite_graph(
-                gene_site_residue_rule, instance)
+                gene_site_residue_rule, instance,
+                message=message, update_type="auto")
 
 
 def connect_nested_fragments(identifier, genes):
@@ -390,6 +433,10 @@ def anatomize_gene(model, protoform):
                                     [s, new_states[matching_region]])
                                 anatomization_rule.p_rhs[s] =\
                                     merged_state_rhs_id
+                                del anatomization_rule_typing["meta_model"][
+                                    new_states[matching_region]]
+                                anatomization_rule_typing[
+                                    "meta_model"][merged_state_rhs_id] = "state"
                                 merged_activities[
                                     new_states[
                                         matching_region]] = merged_state_rhs_id
@@ -398,20 +445,24 @@ def anatomize_gene(model, protoform):
                     merged_rhs_id = anatomization_rule.rhs.merge_nodes(
                         [existing_region, matching_region])
                     anatomization_rule.p_rhs[existing_region] = merged_rhs_id
+                    del anatomization_rule_typing["meta_model"][matching_region]
+                    anatomization_rule_typing["meta_model"][merged_rhs_id] = "region"
 
-                    semantic_relations[merged_rhs_id] = semantic_relations[
-                        matching_region]
+                    s = semantic_relations[matching_region]
                     del semantic_relations[matching_region]
-                    if matching_region in anatomization_rule_typing[
-                            "meta_model"].keys():
-                        del anatomization_rule_typing["meta_model"][
-                            matching_region]
+                    semantic_relations[merged_rhs_id] = s
                     new_regions.remove(matching_region)
                     new_regions.append(merged_rhs_id)
 
+            message = (
+                "Anatomization of the protoform with the UniProtAC '{}'".format(
+                    uniprot_ac)
+            )
+
             rhs_g = model.rewrite(
                 model._action_graph_id, anatomization_rule,
-                instance, rhs_typing=anatomization_rule_typing)
+                instance, rhs_typing=anatomization_rule_typing,
+                message=message, update_type="auto")
 
             for node_id, semantics in semantic_relations.items():
                 for s in semantics:

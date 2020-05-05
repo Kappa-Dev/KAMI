@@ -176,12 +176,13 @@ class KamiCorpus(object):
                 self._action_graph_id)
 
     def rewrite(self, graph_id, rule, instance=None,
-                rhs_typing=None, strict=False, message=""):
+                rhs_typing=None, strict=False,
+                message="Corpus update", update_type="manual"):
         """Overloading of the rewrite method."""
-        r_g_prime = self._versioning.rewrite(
+        r_g_prime, _ = self._versioning.rewrite(
             graph_id, rule=rule, instance=instance,
             rhs_typing=rhs_typing, strict=strict,
-            message=message)
+            message=message, update_type=update_type)
         self._init_shortcuts()
         return r_g_prime
 
@@ -229,6 +230,22 @@ class KamiCorpus(object):
                "model_id" not in graph_attrs.keys():
                 return True
         return False
+
+    def is_protoform(self, ref_node):
+        """Check if the AG node represents a protoform."""
+        return self.get_action_graph_typing()[ref_node] == "protoform"
+
+    def is_region(self, ref_node):
+        """Check if the AG node represents a region."""
+        return self.get_action_graph_typing()[ref_node] == "region"
+
+    def is_site(self, ref_node):
+        """Check if the AG node represents a site."""
+        return self.get_action_graph_typing()[ref_node] == "site"
+
+    def is_residue(self, ref_node):
+        """Check if the AG node represents a residue."""
+        return self.get_action_graph_typing()[ref_node] == "residue"
 
     def nuggets(self):
         """Get a list of nuggets in the hierarchy."""
@@ -372,7 +389,10 @@ class KamiCorpus(object):
             pattern.add_nodes_from(nodes)
             r = Rule.from_transform(pattern)
             r.inject_merge_nodes(nodes)
-            self.rewrite(self._action_graph_id, r, message=message)
+            self.rewrite(
+                self._action_graph_id, r,
+                message=message,
+                update_type="manual")
         else:
             raise KamiException(
                 "Cannot merge action graph nodes of different type!")
@@ -452,8 +472,8 @@ class KamiCorpus(object):
         else:
             # bfs to find a protoform
             visited = set()
-            next_level_to_visit = self.action_graph.successors(
-                element_id)
+            next_level_to_visit = list(self.action_graph.successors(
+                element_id))
             while len(next_level_to_visit) > 0:
                 new_level_to_visit = set()
                 for n in next_level_to_visit:
@@ -511,34 +531,23 @@ class KamiCorpus(object):
         self._hierarchy._update_mapping(
             self._action_graph_id, "meta_model", ag_typing)
 
-    def add_protoform(self, protoform, anatomize=True):
-        """Add protoform node to action graph.
+    def add_ag_node_semantics(self, node_id, semantic_node):
+        """Add relation of `node_id` with `semantic_node`."""
+        self._hierarchy.set_node_relation(
+            self._action_graph_id,
+            "semantic_action_graph",
+            node_id, semantic_node)
+        return
 
-        protoform : kami.entities.Protoform
-        rewriting : bool
-            Flag indicating if the action graph should be modified
-            by SqPO rewriting (if True) or primitive operations (if False)
-        """
-        if self.action_graph is None:
-            self.create_empty_action_graph()
-        if protoform.uniprotid:
-            gene_id = protoform.uniprotid
-        else:
-            gene_id = generate_new_id(
-                self.action_graph, "unkown_agent")
-        rule = Rule.from_transform(NXGraph())
-        rule.inject_add_node(gene_id, protoform.meta_data())
-        rhs_typing = {"meta_model": {gene_id: "protoform"}}
-        rhs_instance = self.rewrite(
-            self._action_graph_id, rule, instance={},
-            rhs_typing=rhs_typing,
-            message="Manual addition of the protoform with UniProtAC '{}'".format(
-                gene_id))
-
-        if anatomize is True:
-            anatomize_gene(self, rhs_instance[gene_id])
-
-        return rhs_instance[gene_id]
+    def ag_node_semantics(self, node_id):
+        """Get semantic nodes related to the `node_id`."""
+        result = set()
+        rel = self._hierarchy.get_relation(
+            self._action_graph_id, "semantic_action_graph")
+        for node, semantic_nodes in rel.items():
+            if node == node_id:
+                result.update(semantic_nodes)
+        return result
 
     def add_mod(self, attrs=None, semantics=None):
         """Add mod node to the action graph.
@@ -561,13 +570,14 @@ class KamiCorpus(object):
         rhs_typing = {"meta_model": {mod_id: "mod"}}
 
         message = (
-            "Manual addition of the modification mechanism"
+            "Manual addition of a modification mechanism"
         )
 
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={},
             rhs_typing=rhs_typing,
-            message=message)
+            message=message,
+            update_type="manual")
         res_mod_id = rhs_instance[mod_id]
 
         # add semantic relations of the node
@@ -576,23 +586,104 @@ class KamiCorpus(object):
 
         return res_mod_id
 
-    def add_ag_node_semantics(self, node_id, semantic_node):
-        """Add relation of `node_id` with `semantic_node`."""
-        self._hierarchy.set_node_relation(
-            self._action_graph_id,
-            "semantic_action_graph",
-            node_id, semantic_node)
-        return
+    def add_bnd(self, attrs=None, semantics=None):
+        """Add bnd node to the action graph."""
+        semantics = normalize_to_set(semantics)
 
-    def ag_node_semantics(self, node_id):
-        """Get semantic nodes related to the `node_id`."""
-        result = set()
-        rel = self._hierarchy.get_relation(
-            self._action_graph_id, "semantic_action_graph")
-        for node, semantic_nodes in rel.items():
-            if node == node_id:
-                result.update(semantic_nodes)
-        return result
+        bnd_id = generate_new_id(self.action_graph, "bnd")
+
+        rule = Rule.from_transform(NXGraph())
+        rule.inject_add_node(bnd_id, attrs)
+        rhs_typing = {"meta_model": {bnd_id: "bnd"}}
+
+        message = (
+            "Manual addition of a binding mechanism"
+        )
+
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance={},
+            rhs_typing=rhs_typing,
+            message=message,
+            update_type="manual")
+        res_bnd_id = rhs_instance[bnd_id]
+
+        # add semantic relations of the node
+        for s in semantics:
+            self.add_ag_node_semantics(res_bnd_id, s)
+
+        return res_bnd_id
+
+    def _generate_ref_agent_str(self, ref_agent, ref_gene,
+                                ref_agent_in_regions=False,
+                                ref_agent_in_sites=False,
+                                ref_agent_in_residues=False):
+        ref_uniprot = self.get_uniprot(ref_gene)
+        ref_agent_str = ""
+        if ref_agent_in_regions or ref_agent_in_sites:
+            region_str = ""
+            region_attrs = self.action_graph.get_node(ref_agent)
+            if "name" in region_attrs:
+                region_str += list(region_attrs["name"])[0]
+            edge_attrs = self.action_graph.get_edge(
+                ref_agent, ref_gene)
+            if "start" in edge_attrs and "end" in edge_attrs:
+                region_str += "({}-{})".format(
+                    list(edge_attrs["start"])[0], list(edge_attrs["end"])[0])
+
+            ref_agent_str = (
+                "{} '{}' of ".format(
+                    "region" if ref_agent_in_regions else "site",
+                    region_str if region_str else "Unknown fragment")
+            )
+        elif ref_agent_in_residues:
+            residue_str = ""
+            residue_attrs = self.action_graph.get_node(ref_agent)
+            if "aa" in residue_attrs:
+                residue_str += list(residue_attrs["aa"])[0]
+            edge_attrs = self.action_graph.get_edge(
+                ref_agent, ref_gene)
+            if "loc" in edge_attrs:
+                residue_str += str(list(edge_attrs["loc"])[0])
+
+            ref_agent_str = (
+                "'Residue({})' of ".format(
+                    residue_str if residue_str else "NA")
+            )
+
+        ref_agent_str += (
+            "the protoform with the UniProtAC '{}'".format(ref_uniprot)
+        )
+        return ref_agent_str
+
+    def add_protoform(self, protoform, anatomize=True):
+        """Add protoform node to action graph.
+
+        protoform : kami.entities.Protoform
+        rewriting : bool
+            Flag indicating if the action graph should be modified
+            by SqPO rewriting (if True) or primitive operations (if False)
+        """
+        if self.action_graph is None:
+            self.create_empty_action_graph()
+        if protoform.uniprotid:
+            gene_id = protoform.uniprotid
+        else:
+            gene_id = generate_new_id(
+                self.action_graph, "unkown_agent")
+        rule = Rule.from_transform(NXGraph())
+        rule.inject_add_node(gene_id, protoform.meta_data())
+        rhs_typing = {"meta_model": {gene_id: "protoform"}}
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance={},
+            rhs_typing=rhs_typing,
+            message="Manual addition of the protoform with the UniProtAC '{}'".format(
+                gene_id),
+            update_type="manual")
+
+        if anatomize is True:
+            anatomize_gene(self, rhs_instance[gene_id])
+
+        return rhs_instance[gene_id]
 
     def add_region(self, region, ref_gene, semantics=None):
         """Add a region node to action graph connected to the reference agent.
@@ -609,7 +700,7 @@ class KamiCorpus(object):
             by SqPO rewriting (if True) or primitive operations (if False)
         """
         # find the node corresponding to reference agent in the AG
-        if ref_gene not in self.protoforms():
+        if not self.is_protoform(ref_gene):
             raise KamiHierarchyError(
                 "Protoform '{}' is not found in the action graph".format(
                     ref_gene))
@@ -629,13 +720,14 @@ class KamiCorpus(object):
         rhs_typing = {"meta_model": {region_id: "region"}}
 
         message = (
-            "Manual addition of the region '{}' to the protoform".format(region) +
+            "Manual addition of the region '{}' to the protoform ".format(region) +
             "with the UniProtAC '{}'".format(ref_uniprot)
         )
 
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance={ref_gene: ref_gene},
-            rhs_typing=rhs_typing, message=message)
+            rhs_typing=rhs_typing, message=message,
+            update_type="manual")
         res_region_id = rhs_instance[region_id]
 
         if semantics is not None:
@@ -659,8 +751,8 @@ class KamiCorpus(object):
 
     def add_site(self, site, ref_agent, semantics=None):
         """Add site node to the action graph."""
-        ref_agent_in_protoforms = ref_agent in self.protoforms()
-        ref_agent_in_regions = ref_agent in self.regions()
+        ref_agent_in_protoforms = self.is_protoform(ref_agent)
+        ref_agent_in_regions = self.is_region(ref_agent)
 
         if ref_agent_in_protoforms:
             ref_gene = ref_agent
@@ -692,36 +784,17 @@ class KamiCorpus(object):
             rule.inject_add_edge(site_id, ref_agent, site.location())
         rhs_typing = {"meta_model": {site_id: "site"}}
 
-        ref_uniprot = self.get_uniprot(ref_gene)
-        if ref_agent_in_regions:
-            region_str = ""
-            region_attrs = self.action_graph.get_node(ref_agent)
-            if "name" in region_attrs:
-                region_str += list(region_attrs["name"])[0]
-            edge_attrs = self.action_graph.get_edge(
-                ref_agent, ref_gene)
-            if "start" in edge_attrs and "end" in edge_attrs:
-                region_str += "({}-{})".format(
-                    list(edge_attrs["start"])[0], list(edge_attrs["end"])[0])
-
-            ref_agent_str = (
-                "region '{}' of the protoform ".format(
-                    region_str if region_str else "Unknown region") +
-                "with the UniProtAC '{}'".format(ref_uniprot)
-            )
-        else:
-            ref_agent_str = (
-                "the protoform with the UniProtAC '{}'".format(ref_uniprot)
-            )
+        ref_agent_str = self._generate_ref_agent_str(
+            ref_agent, ref_gene, ref_agent_in_regions)
 
         message = (
-            "Manual addition of the site '{}' to the " +
+            "Manual addition of the site '{}' to the ".format(site) +
             ref_agent_str
         )
 
         rhs_instance = self.rewrite(
             self._action_graph_id, rule, instance, rhs_typing=rhs_typing,
-            message=message)
+            message=message, update_type="manual")
         new_site_id = rhs_instance[site_id]
 
         for sem in semantics:
@@ -744,9 +817,9 @@ class KamiCorpus(object):
                 "Node '{}' does not exist in the action graph".format(
                     ref_agent))
 
-        ref_agent_in_protoforms = ref_agent in self.protoforms()
-        ref_agent_in_regions = ref_agent in self.regions()
-        ref_agent_in_sites = ref_agent in self.sites()
+        ref_agent_in_protoforms = self.is_protoform(ref_agent)
+        ref_agent_in_regions = self.is_region(ref_agent)
+        ref_agent_in_sites = self.is_site(ref_agent)
 
         if not ref_agent_in_protoforms and not ref_agent_in_regions and\
            not ref_agent_in_sites:
@@ -792,9 +865,20 @@ class KamiCorpus(object):
                 rule.inject_add_edge(
                     residue_id, ref_agent, residue.location())
             rhs_typing = {"meta_model": {residue_id: "residue"}}
+
+            ref_agent_str = self._generate_ref_agent_str(
+                ref_agent, ref_gene, ref_agent_in_regions,
+                ref_agent_in_sites)
+
+            message = (
+                "Manual addition of the residue '{}' to the ".format(residue) +
+                ref_agent_str
+            )
+
             rhs_instance = self.rewrite(
                 self._action_graph_id, rule, instance,
-                rhs_typing=rhs_typing)
+                rhs_typing=rhs_typing, message=message,
+                update_type="manual")
             new_residue_id = rhs_instance[residue_id]
 
             # reconnect regions/sites to the new residue
@@ -810,20 +894,6 @@ class KamiCorpus(object):
             self.add_ag_node_semantics(new_residue_id, s)
 
         return new_residue_id
-
-    def add_bnd(self, attrs=None, semantics=None):
-        """Add bnd node to the action graph."""
-        # TODO: nice bnd ids generation
-        bnd_id = generate_new_id(self.action_graph, "bnd")
-
-        self.action_graph.add_node(bnd_id, attrs)
-        self.set_ag_meta_type(bnd_id, "bnd")
-
-        # add semantic relations of the node
-        if semantics:
-            for s in semantics:
-                self.add_ag_node_semantics(bnd_id, s)
-        return bnd_id
 
     def add_state(self, state, ref_agent, semantics=None):
         """Add state node to the action graph."""
@@ -849,16 +919,46 @@ class KamiCorpus(object):
                     state.test)
                 return state_node
 
+        ref_gene = self.get_protoform_of(ref_agent)
+
         state_id = ref_agent + "_" + str(state)
-        self.action_graph.add_node(state_id, state.meta_data())
-        self.set_ag_meta_type(state_id, "state")
-        self.action_graph.add_edge(state_id, ref_agent)
+
+        rule = Rule.from_transform(NXGraph())
+        rule.inject_add_node(state_id, state.meta_data())
+        rhs_typing = {"meta_model": {state_id: "state"}}
+
+        pattern = NXGraph()
+        pattern.add_node(ref_agent)
+        rule = Rule.from_transform(pattern)
+        rule.inject_add_node(state_id, state.meta_data())
+        rule.inject_add_edge(state_id, ref_agent)
+        instance = {ref_agent: ref_agent}
+
+        ref_agent_in_regions = self.is_region(ref_agent)
+        ref_agent_in_sites = self.is_site(ref_agent)
+        ref_agent_in_residues = self.is_residue(ref_agent)
+
+        ref_agent_str = self._generate_ref_agent_str(
+            ref_agent, ref_gene, ref_agent_in_regions,
+            ref_agent_in_sites, ref_agent_in_residues)
+
+        message = (
+            "Manual addition of the state '{}' to the ".format(state) +
+            ref_agent_str
+        )
+
+        rhs_instance = self.rewrite(
+            self._action_graph_id, rule, instance=instance,
+            rhs_typing=rhs_typing,
+            message=message,
+            update_type="manual")
+        res_state_id = rhs_instance[state_id]
 
         # add relation to a semantic ag node
         if semantics:
             for s in semantics:
-                self.add_ag_node_semantics(state_id, s)
-        return state_id
+                self.add_ag_node_semantics(res_state_id, s)
+        return res_state_id
 
     def _generate_next_nugget_id(self, name=None):
         """Generate id for a new nugget."""
@@ -1012,7 +1112,8 @@ class KamiCorpus(object):
             rule=generation_rule, instance={},
             rhs_typing=rhs_typing,
             strict=(not add_agents),
-            message=message)
+            message=message,
+            update_type="manual")
 
         if template_rels is not None:
             for template_id, template_rel in template_rels.items():
@@ -1066,7 +1167,10 @@ class KamiCorpus(object):
                     self._action_graph_id, rule,
                     instance={
                         n: n for n in pattern.nodes()
-                    })
+                    },
+                    message="Merging protoforms with the same UniProtAC '{}".format(
+                        k),
+                    update_type="auto")
 
                 merge_result = rhs_instance[k]
                 if k in new_gene_nodes:
@@ -1509,7 +1613,15 @@ class KamiCorpus(object):
         rhs = NXGraph()
         rhs.add_node(node_id, node_attrs)
         rule = Rule(p, lhs, rhs)
-        self.rewrite(nugget_id, rule)
+        self.rewrite(
+            nugget_id, rule,
+            message=(
+                "Manual update of the attributes (value '{}') ".format(
+                    node_attrs) +
+                "of the node '{}' in the nugget '{}'".format(node_id, nugget_id)
+            ),
+            update_type="manual"
+        )
 
     def update_nugget_node_attr_from_json(self, nugget_id, node_id, json_node_attrs):
         self.update_nugget_node_attr(
@@ -1531,7 +1643,16 @@ class KamiCorpus(object):
         rhs.add_nodes_from([source, target])
         rhs.add_edge(source, target, edge_attrs)
         rule = Rule(p, lhs, rhs)
-        self.rewrite(nugget_id, rule)
+        self.rewrite(
+            nugget_id, rule,
+            message=(
+                "Manual update of the attributes (value '{}') ".format(
+                    edge_attrs) +
+                "of the edge '{}->{}' in the nugget '{}'".format(
+                    source, target, nugget_id)
+            ),
+            update_type="manual"
+        )
 
     def update_nugget_edge_attr_from_json(self, nugget_id, source, target, json_node_attrs):
         self.update_nugget_edge_attr(

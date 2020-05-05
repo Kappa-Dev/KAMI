@@ -1,5 +1,6 @@
 """Set of unit tests for the KAMIql engine."""
 import time
+import warnings
 
 from kami import KamiCorpus
 from kami import (Protoform, Region, State, RegionActor,
@@ -18,13 +19,18 @@ class TestKamiQL:
         """Initialize tests."""
         # Create an empty KAMI corpus
         self.nxcorpus = KamiCorpus("EGFR_signalling")
-        self.neo4jcorpus = KamiCorpus(
-            "egfr",
-            backend="neo4j",
-            uri="bolt://localhost:7687",
-            user="neo4j",
-            password="admin")
-        self.neo4jcorpus._hierarchy._clear()
+        try:
+            self.neo4jcorpus = KamiCorpus(
+                "egfr",
+                backend="neo4j",
+                uri="bolt://localhost:7687",
+                user="neo4j",
+                password="admin")
+            self.neo4jcorpus._hierarchy._clear()
+        except:
+            warnings.warn(
+                "Neo4j is down, skipping Neo4j-related tests")
+            self.neo4jcorpus = None
 
         # Create an interaction object
         egfr = Protoform("P00533")
