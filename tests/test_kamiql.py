@@ -1,6 +1,8 @@
 """Set of unit tests for the KAMIql engine."""
 import time
 
+from regraph import Neo4jHierarchy
+
 from kami import KamiCorpus
 from kami import (Protoform, Region, State, RegionActor,
                   LigandModification, Residue, Site,
@@ -18,13 +20,19 @@ class TestKamiQL:
         """Initialize tests."""
         # Create an empty KAMI corpus
         self.nxcorpus = KamiCorpus("EGFR_signalling")
+
+        h = Neo4jHierarchy(
+            uri="bolt://localhost:7687",
+            user="neo4j",
+            password="admin")
+        h._clear()
         self.neo4jcorpus = KamiCorpus(
             "egfr",
             backend="neo4j",
             uri="bolt://localhost:7687",
             user="neo4j",
             password="admin")
-        self.neo4jcorpus._hierarchy._clear()
+        # self.neo4jcorpus._hierarchy._clear()
 
         # Create an interaction object
         egfr = Protoform("P00533")
@@ -167,12 +175,16 @@ class TestKamiQL:
         """Test queries on the action graph."""
         engine = KamiQLEngine(self.nxcorpus)
         start_time = time.time()
-        engine.query_action_graph(self.query1)
+        instances = engine.query_action_graph(self.query1)
         print("NX time: ", time.time() - start_time)
+        print(instances)
+        print()
 
     def test_neo4j_ag_queries(self):
         """Test queries on the action graph."""
         engine = KamiQLEngine(self.neo4jcorpus)
         start_time = time.time()
-        engine.query_action_graph(self.query1)
+        instances = engine.query_action_graph(self.query1)
         print("Neo4j time: ", time.time() - start_time)
+        print(instances)
+        print()

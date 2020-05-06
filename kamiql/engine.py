@@ -336,8 +336,7 @@ class KamiQLEngine(object):
 
         result = []
         for pattern_dict, pattern_typing in patterns:
-            print("Matching pattern.....")
-            print(pattern_dict)
             result += self._kb._hierarchy.advanced_find_matching(
                 self._kb._action_graph_id,
                 pattern_dict, pattern_typing)
+        return result

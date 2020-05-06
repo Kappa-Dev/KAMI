@@ -1025,14 +1025,14 @@ class KamiCorpus(object):
                     added_regions = anatomize_gene(self, protoform)
                     new_ag_regions += added_regions
 
-        all_protoforms = [
-            self._hierarchy.get_typing(
-                nugget_graph_id, self._action_graph_id)[node]
-            for node in self.get_nugget(nugget_graph_id).nodes()
-            if self.get_action_graph_typing()[
-                self._hierarchy.get_typing(
-                    nugget_graph_id,
-                    self._action_graph_id)[node]] == "protoform"]
+        all_protoforms = []
+        nugget_typing = self._hierarchy.get_typing(
+            nugget_graph_id, self._action_graph_id)
+        ag_typing = self.get_action_graph_typing()
+        for node in self.get_nugget(nugget_graph_id).nodes():
+            ag_node = nugget_typing[node]
+            if ag_typing[ag_node] == "protoform":
+                all_protoforms.append(ag_node)
 
         # Apply bookkeeping updates
         target_nodes = [
