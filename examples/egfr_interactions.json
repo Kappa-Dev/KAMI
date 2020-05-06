@@ -1,0 +1,537 @@
+[
+    {
+        "type": "Binding",
+        "left": {
+            "data": {
+                "uniprotid": "P01133",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "right": {
+            "data": {
+                "uniprotid": "P00533",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "desc": "EGF binds EGFR"
+    },
+    {
+        "type": "Binding",
+        "left": {
+            "data": {
+                "uniprotid": "P00533",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [
+                    {
+                        "data": {
+                            "uniprotid": "P01133",
+                            "regions": [],
+                            "sites": [],
+                            "residues": [],
+                            "states": [],
+                            "bound_to": [],
+                            "unbound_from": []
+                        },
+                        "type": "Protoform"
+                    }
+                ],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "right": {
+            "data": {
+                "uniprotid": "P00533",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [
+                    {
+                        "data": {
+                            "uniprotid": "P01133",
+                            "regions": [],
+                            "sites": [],
+                            "residues": [],
+                            "states": [],
+                            "bound_to": [],
+                            "unbound_from": []
+                        },
+                        "type": "Protoform"
+                    }
+                ],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "desc": "EGFR homodimerization"
+    },
+    {
+        "type": "Binding",
+        "left": {
+            "data": {
+                "protoform": {
+                    "uniprotid": "P00533",
+                    "regions": [],
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                },
+                "site": {
+                    "name": "pY",
+                    "interproid": null,
+                    "start": 1087,
+                    "end": 1097,
+                    "order": null,
+                    "label": null,
+                    "sites": [],
+                    "residues": [
+                        {
+                            "aa": [
+                                "Y"
+                            ],
+                            "loc": 1092,
+                            "state": {
+                                "name": "phosphorylation",
+                                "test": true
+                            }
+                        }
+                    ],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                }
+            },
+            "type": "SiteActor"
+        },
+        "right": {
+            "data": {
+                "protoform": {
+                    "uniprotid": "P62993",
+                    "regions": [],
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                },
+                "region": {
+                    "name": "SH2",
+                    "start": 58,
+                    "end": 152,
+                    "sites": [],
+                    "residues": [
+                        {
+                            "aa": [
+                                "S"
+                            ],
+                            "test": [
+                                true
+                            ],
+                            "loc": 90
+                        },
+                        {
+                            "aa": [
+                                "D"
+                            ],
+                            "test": [
+                                false
+                            ],
+                            "loc": 90
+                        }
+                    ],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                }
+            },
+            "type": "RegionActor"
+        },
+        "desc": "GRB2 binds EGFR pY1092"
+    },
+    {
+        "type": "Binding",
+        "left": {
+            "data": {
+                "uniprotid": "P00533",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "right": {
+            "data": {
+                "uniprotid": "P00533",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "desc": "EGFR homodimer"
+    },
+    {
+        "type": "LigandModification",
+        "enzyme": {
+            "data": {
+                "protoform": {
+                    "uniprotid": "P00533",
+                    "regions": [],
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                },
+                "region": {
+                    "name": "Protein kinase",
+                    "start": 712,
+                    "end": 979,
+                    "sites": [],
+                    "residues": [],
+                    "states": [
+                        {
+                            "name": "activity",
+                            "test": true
+                        }
+                    ],
+                    "bound_to": [],
+                    "unbound_from": []
+                }
+            },
+            "type": "RegionActor"
+        },
+        "substrate": {
+            "data": {
+                "uniprotid": "P00533",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "target": {
+            "type": "Residue",
+            "data": {
+                "aa": [
+                    "Y"
+                ],
+                "loc": 1092,
+                "state": {
+                    "name": "phosphorylation",
+                    "test": true
+                }
+            }
+        },
+        "value": true,
+        "enzyme_bnd_subactor": "protoform",
+        "substrate_bnd_subactor": "protoform",
+        "desc": "EGFR homodimer phosphorylation"
+    },
+    {
+        "type": "Binding",
+        "left": {
+            "data": {
+                "protoform": {
+                    "uniprotid": "P29353",
+                    "regions": [],
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                },
+                "site": {
+                    "name": "pY",
+                    "interproid": null,
+                    "start": 345,
+                    "end": 355,
+                    "order": null,
+                    "label": null,
+                    "sites": [],
+                    "residues": [
+                        {
+                            "aa": [
+                                "Y"
+                            ],
+                            "loc": 349,
+                            "state": {
+                                "name": "phosphorylation",
+                                "test": true
+                            }
+                        }
+                    ],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                }
+            },
+            "type": "SiteActor"
+        },
+        "right": {
+            "data": {
+                "protoform": {
+                    "uniprotid": "P62993",
+                    "regions": [],
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                },
+                "region": {
+                    "name": "SH2",
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                }
+            },
+            "type": "RegionActor"
+        },
+        "desc": "GRB2 binds SHC1 pY349"
+    },
+    {
+        "type": "Modification",
+        "enzyme": {
+            "data": {
+                "uniprotid": "P12931",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "substrate": {
+            "data": {
+                "uniprotid": "P40763",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "target": {
+            "type": "Residue",
+            "data": {
+                "aa": [
+                    "Y"
+                ],
+                "loc": 705,
+                "state": {
+                    "name": "phosphorylation",
+                    "test": false
+                }
+            }
+        },
+        "value": true,
+        "desc": "SRC phosphorylates STAT3"
+    },
+    {
+        "type": "Modification",
+        "enzyme": {
+            "data": {
+                "uniprotid": "P12931",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "substrate": {
+            "data": {
+                "uniprotid": "O60674",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "target": {
+            "type": "Residue",
+            "data": {
+                "aa": [
+                    "Y"
+                ],
+                "loc": 1007,
+                "state": {
+                    "name": "phosphorylation",
+                    "test": false
+                }
+            }
+        },
+        "value": true,
+        "desc": "SRC phosphorylates JAK2"
+    },
+    {
+        "type": "Modification",
+        "enzyme": {
+            "data": {
+                "protoform": {
+                    "uniprotid": "O60674",
+                    "regions": [],
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                },
+                "region": {
+                    "name": "Protein kinase",
+                    "start": 844,
+                    "end": 1127,
+                    "sites": [],
+                    "residues": [],
+                    "states": [],
+                    "bound_to": [],
+                    "unbound_from": []
+                }
+            },
+            "type": "RegionActor"
+        },
+        "substrate": {
+            "data": {
+                "uniprotid": "P40763",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "target": {
+            "type": "Residue",
+            "data": {
+                "aa": [
+                    "Y"
+                ],
+                "loc": 705,
+                "state": {
+                    "name": "phosphorylation",
+                    "test": false
+                }
+            }
+        },
+        "value": true,
+        "desc": "JAK2 phosphorylates STAT3"
+    },
+    {
+        "type": "Modification",
+        "enzyme": {
+            "data": {
+                "uniprotid": "P12931",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "substrate": {
+            "data": {
+                "uniprotid": "P29353",
+                "regions": [],
+                "sites": [],
+                "residues": [],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "target": {
+            "type": "Residue",
+            "data": {
+                "aa": [
+                    "Y"
+                ],
+                "loc": 349,
+                "state": {
+                    "name": "phosphorylation",
+                    "test": false
+                }
+            }
+        },
+        "value": true,
+        "desc": "SRC phosphorylates SHC"
+    },
+    {
+        "type": "AnonymousModification",
+        "substrate": {
+            "data": {
+                "uniprotid": "O60674",
+                "regions": [],
+                "sites": [],
+                "residues": [
+                    {
+                        "aa": [
+                            "Y"
+                        ],
+                        "loc": 1007,
+                        "state": {
+                            "name": "phosphorylation",
+                            "test": true
+                        }
+                    }
+                ],
+                "states": [],
+                "bound_to": [],
+                "unbound_from": []
+            },
+            "type": "Protoform"
+        },
+        "target": {
+            "type": "State",
+            "data": {
+                "name": "activity",
+                "test": false
+            }
+        },
+        "value": true,
+        "desc": "Activity definition of JAK2 PK"
+    }
+]
