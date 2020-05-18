@@ -238,7 +238,7 @@ def apply_mod_semantics(corpus, nugget_id):
                 if bnd_template_rel:
                     kinase_bnds =\
                         corpus.ag_successors_of_type(
-                            ag_enz_region, "bnd")
+                            unique_kinase_region, "bnd")
 
                 pattern = NXGraph()
                 pattern.add_nodes_from(
@@ -263,7 +263,8 @@ def apply_mod_semantics(corpus, nugget_id):
                     merged_mods = [ag_mod_node] + kinase_mods
                     new_mod_id = mod_merge_rule.inject_merge_nodes(merged_mods)
                     merged_actions_str.append(
-                        "merged MOD-mechanisms {}".format() if merged_mods else "")
+                        "merged MOD-mechanisms {}".format(merged_mods)
+                        if merged_mods else "")
 
                 merged_bnds = None
                 if len(kinase_bnds) > 0:
@@ -272,14 +273,15 @@ def apply_mod_semantics(corpus, nugget_id):
                     merged_bnds = [ag_bnd_node] + kinase_bnds
                     new_bnd_id = mod_merge_rule.inject_merge_nodes(merged_bnds)
                     merged_actions_str.append(
-                        "merged BND-mechanisms {}".format() if merged_bnds else "")
+                        "merged BND-mechanisms {}".format(merged_bnds)
+                        if merged_bnds else "")
 
                 message = (
                     "Rewired phosphorylation ('{}') to be mediated by ".format(
                         ag_mod_node) +
                     "the existing protein kinase {} ".format(
                         _generate_fragment_repr(
-                            corpus, ag_enzyme, ag_enz_region)) +
+                            corpus, ag_enzyme, unique_kinase_region)) +
                     "of the protoform with the UniProt AC '{}' {}".format(
                         enzyme_uniprot,
                         "({})".format(", ".join(merged_actions_str))
@@ -340,7 +342,7 @@ def apply_mod_semantics(corpus, nugget_id):
                     "with the protein kinase {} ".format(
                         _generate_fragment_repr(
                             corpus, ag_enzyme,
-                            ag_enz_region)) +
+                            unique_kinase_region)) +
                     "of the protoform with the UniProt AC '{}'".format(enzyme_uniprot)
                 )
 

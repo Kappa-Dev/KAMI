@@ -8,12 +8,119 @@ from regraph.audit import VersionedHierarchy
 from regraph.utils import relation_to_json, attrs_to_json
 
 from kami.aggregation.identifiers import EntityIdentifier
-from kami.data_structures.annotations import CorpusAnnotation
+from kami.data_structures.annotations import (ModelAnnotation, CorpusAnnotation,
+                                              ContextAnnotation)
 from kami.resources import default_components
 from kami.utils.generic import (nodes_of_type, _init_from_data)
 
 
 from kami.exceptions import KamiHierarchyError, KamiException
+
+
+class KamiContext(object):
+    """Class for KAMI contexts."""
+
+    def __init__(self, seed_protoforms, definitions, annotation=None):
+        """Initialize KAMI context."""
+        self.seed_protoforms = seed_protoforms
+        self.definitions = definitions
+        if annotation is None:
+            annotation = ContextAnnotation()
+        self.annotation = annotation
+
+
+class NewKamiModel(object):
+    """Class for KAMI contextualized models."""
+
+    def __init__(self, corpus, context, model_id, annotation=None,
+                 creation_time=None, last_modified=None, default_bnd_rate=None,
+                 default_brk_rate=None, default_mod_rate=None,
+                 generate_instantiation_rules=False):
+        """Initialize KAMI model."""
+        self.corpus = corpus
+        self.context = context
+        self.default_bnd_rate = default_bnd_rate
+        self.default_brk_rate = default_brk_rate
+        self.default_mod_rate = default_mod_rate
+        if creation_time is None:
+            creation_time = str(datetime.datetime.now())
+        self.creation_time = creation_time
+        if annotation is None:
+            annotation = ModelAnnotation()
+        self.annotation = annotation
+        if last_modified is None:
+            last_modified = self.creation_time
+        self.last_modified = last_modified
+        self._instantiation_rules = None
+        if generate_instantiation_rules:
+            self.generate_instantiation_rules()
+
+    def generate_instantiation_rules(self):
+        """Generate instantiation rule hierarchy."""
+        self._instantiation_rules = []
+        for d in self.context.definitions:
+            self._instantiation_rules.append(
+                d.generate_rule(
+                    self.action_graph, self.get_action_graph_typing()))
+
+    def get_instantiated_nugget(self, nugget_id):
+        """Generate instantiated nugget object."""
+        if self._instantiation_rules is not None:
+            # Get a rule and apply it to the copy of the
+            # nugget
+            pass
+        else:
+            # Generate instantiation rule for the nugget
+            pass
+
+    def get_instantiated_action_graph(self):
+        """Generate instantiated action graph object."""
+        if self._instantiation_rules is not None:
+            # Get a rule and apply it to the copy of the
+            # action graph
+            pass
+        else:
+            # Generate instantiation rule for the action graph
+            pass
+
+    def instantiated_action_graph_d3_json(self):
+        """Generate instantiated action graph JSON."""
+        pass
+
+    def empty(self):
+        """Test if model is empty."""
+        return (len(self.corpus.nuggets()) == 0) and\
+               ((self.corpus.action_graph is None) or
+                (len(self.corpus.action_graph.nodes()) == 0))
+
+    def proteins(self):
+        """Get a list of agent nodes in the action graph."""
+        protoforms = nodes_of_type(
+            self.corpus.action_graph,
+            self.corpus.get_action_graph_typing(), "protoform")
+        # TODO: unfold proteins to protoforms
+        pass
+
+    @classmethod
+    def from_json(cls, corpus, json_data):
+        """Create a model from json representation."""
+        pass
+
+    @classmethod
+    def load_json(cls, corpus, filename):
+        """Load a KamiModel from its json representation."""
+        pass
+
+    def export_json(self, filename):
+        """Export model to json."""
+        with open(filename, 'w') as f:
+            j_data = self.to_json()
+            json.dump(j_data, f)
+
+    def to_json(self):
+        """Return json repr of the model."""
+        json_data = {}
+        return json_data
 
 
 class KamiModel(object):

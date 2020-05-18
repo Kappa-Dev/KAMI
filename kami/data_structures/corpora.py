@@ -1305,6 +1305,7 @@ class KamiCorpus(object):
         json_data["annotation"] = self.annotation.to_json()
         json_data["creation_time"] = self.creation_time
         json_data["last_modified"] = self.last_modified
+        json_data["versioning"] = self._versioning.to_json()
 
         json_data["action_graph"] = self.action_graph.to_json()
         json_data["action_graph_typing"] = self.get_action_graph_typing()
@@ -1473,7 +1474,14 @@ class KamiCorpus(object):
             hgnc_symbol = list(attrs["hgnc_symbol"])[0]
         return hgnc_symbol
 
-    def get_protoform_data(self, gene_id):
+    def get_synonyms(self, gene_id):
+        attrs = self.action_graph.get_node(gene_id)
+        synonyms = None
+        if "synonyms" in attrs.keys():
+            synonyms = list(attrs["synonyms"])
+        return synonyms
+
+    def get_protoform_data(self, gene_id, get_nuggets=True):
         """."""
         attrs = self.action_graph.get_node(gene_id)
         uniprotid = None
@@ -1485,8 +1493,10 @@ class KamiCorpus(object):
         synonyms = None
         if "synonyms" in attrs.keys():
             synonyms = list(attrs["synonyms"])
-        nuggets = self._hierarchy.graphs_typed_by_node(
-            self._action_graph_id, gene_id)
+        nuggets = None
+        if get_nuggets:
+            nuggets = self._hierarchy.graphs_typed_by_node(
+                self._action_graph_id, gene_id)
         return (uniprotid, hgnc_symbol, synonyms, nuggets)
 
     def get_modification_data(self, mod_id):
@@ -1732,3 +1742,16 @@ class KamiCorpus(object):
     def switch_branch(self, branch_name):
         """Switch to the branch of the corpus."""
         self._versioning.switch_branch(branch_name)
+
+    def print_revision_history(self):
+        """Print revision history of the corpus."""
+        print("Time\tBranch\tType\tMessage")
+        for n in self._versioning._revision_graph.nodes():
+            print("{}\t{}\t{}\t{}".format(
+                self._versioning._revision_graph.nodes[n]["time"].strftime(
+                    "%d/%m/%Y %H:%M:%S"),
+                self._versioning._revision_graph.nodes[n]["branch"],
+                self._versioning._revision_graph.nodes[n]["update_type"]
+                if "update_type" in self._versioning._revision_graph.nodes[n]
+                else "auto",
+                self._versioning._revision_graph.nodes[n]["message"]))

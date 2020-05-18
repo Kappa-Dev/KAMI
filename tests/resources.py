@@ -8,8 +8,8 @@ from kami.exporters.kappa import KappaInitialCondition
 TEST_CORPUS = KamiCorpus("EGFR_signalling")
 
 # Create an interaction object
-egfr = Protoform("P00533")
-egf = Protoform("P01133")
+egfr = Protoform("P00533", hgnc_symbol="EGFR")
+egf = Protoform("P01133", hgnc_symbol="EGF")
 
 kinase = Region(
     name="Protein kinase",
@@ -40,12 +40,12 @@ new_protoform_node = TEST_CORPUS.add_protoform(Protoform("P62993"))
 # Manually add a new components to an arbitrary protoform
 TEST_CORPUS.add_site(Site("New site"), new_protoform_node)
 
-grb2 = Protoform("P62993", states=[State("activity", True)])
+grb2 = Protoform("P62993", hgnc_symbol="GRB2", states=[State("activity", True)])
 grb2_sh2 = RegionActor(
     protoform=grb2,
     region=Region(name="SH2"))
 
-shc1 = Protoform("P29353")
+shc1 = Protoform("P29353", hgnc_symbol="SHC1")
 shc1_pY = SiteActor(
     protoform=shc1,
     site=Site(

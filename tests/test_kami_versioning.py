@@ -12,9 +12,9 @@ class TestKamiVersioning(object):
     def __init__(self):
         """Initialize tests."""
         self.corpus = TEST_CORPUS
-        # self.corpus._versioning.print_history()
+        self.corpus.print_revision_history()
         self.model = TEST_MODEL
-        self.model._versioning.print_history()
+        # self.model._versioning.print_history()
         print()
 
 

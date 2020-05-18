@@ -324,6 +324,11 @@ class Protoform(Actor, PhysicalEntity):
             set(protoform.states).issubset(self.states)
         return self.same_reference(protoform) and contains_components
 
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        return "protoform {}".format(
+            self.hgnc_symbol if self.hgnc_symbol else self.uniprotid)
+
 
 class Protein(Actor, PhysicalEntity):
     """Wrapper around Protoform specifying the protein product."""
@@ -366,6 +371,12 @@ class Protein(Actor, PhysicalEntity):
         agent_attrs = self.protoform.meta_data()
         if self.name is not None:
             agent_attrs["name"] = {self.name}
+
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        return "protein {} (product of the {})".format(
+            self.name,
+            self.protoform.generate_desc())
 
 
 class Region(PhysicalEntity):
@@ -636,6 +647,14 @@ class Region(PhysicalEntity):
 
         return self.same_reference(region)
 
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        return "region {}{}".format(
+            self.name if self.name else "",
+            "({}-{})".format(self.start, self.end)
+            if self.start and self.end
+            else "")
+
 
 class Site(PhysicalEntity):
     """Class for a protoform's interaction site."""
@@ -859,6 +878,14 @@ class Site(PhysicalEntity):
 
         return self.same_reference(site)
 
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        return "site {}{}".format(
+            self.name if self.name else "",
+            "({}-{})".format(self.start, self.end)
+            if self.start and self.end
+            else "")
+
 
 class Residue():
     """Class for a residue."""
@@ -960,6 +987,16 @@ class Residue():
             self.test.issubset(residue.test) and
             residue_has_state)
 
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        keys_locs = [
+            "{}{}".format(el, self.loc if self.loc else "")
+            for el in self.aa
+        ]
+        return "residue{} {}".format(
+            "s" if len(keys_locs) > 1 else "",
+            ", ".join(keys_locs))
+
 
 class State(object):
     """Class for a KAMI state."""
@@ -1005,6 +1042,11 @@ class State(object):
             "test": normalize_to_set(self.test)
         }
 
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        return "state {}({})".format(
+            self.name, self.test)
+
 
 class RegionActor(Actor):
     """Class for a region of a protoform as an actor of PPI."""
@@ -1049,6 +1091,14 @@ class RegionActor(Actor):
         if self.variant_name:
             res += self.variant_name
         return res
+
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        return "{} of the {}".format(
+            self.region.generate_desc(),
+            Protein(self.protoform, self.variant_name).generate_desc()
+            if self.variant_name
+            else self.protoform.generate_desc())
 
 
 class SiteActor(Actor):
@@ -1108,3 +1158,16 @@ class SiteActor(Actor):
                 res += "_" + str(r)
         res += "_" + str(self.site)
         return res
+
+    def generate_desc(self):
+        """Generate text description of the actor."""
+        regions_desc = " and ".join(
+            [r.generate_desc() for r in self.region])
+        return "{}{} of the {}".format(
+            self.site.generate_desc(),
+            ""
+            if not len(regions_desc) == 0
+            else " of the {}".format(regions_desc),
+            Protein(self.protoform, self.variant_name).generate_desc()
+            if self.variant_name
+            else self.protoform.generate_desc())

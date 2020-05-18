@@ -158,8 +158,8 @@ def merge_raw_domains(raw_domains, overlap_threshold=0.8):
             domain["names"].append(d["name"])
             starts.append(d["start"])
             ends.append(d["end"])
-        domain["end"] = min(starts)
-        domain["start"] = min(ends)
+        domain["start"] = min(starts)
+        domain["end"] = min(ends)
         domain["canonical_name"] = generate_canonical_name(
             domain["interproids"], domain["names"])
         domains.append(domain)

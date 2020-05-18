@@ -3,6 +3,7 @@ import collections
 import copy
 import time
 
+from regraph.audit import VersionedHierarchy
 from regraph.utils import attrs_from_json
 from kami.exceptions import KamiException
 # from kami.aggregation import identifiers
@@ -62,7 +63,9 @@ def _init_from_data(kb, data, instantiated=False):
                 kb._action_graph_id,
                 data["action_graph"],
                 {"type": "action_graph"})
-            # print("Finished after: ", time.time() - start)
+            if "versioning" in data:
+                kb._versioning = VersionedHierarchy.from_json(
+                    kb._hierarchy, data["versioning"])
 
             if "action_graph_typing" in data.keys():
                 ag_typing = copy.deepcopy(
