@@ -506,6 +506,20 @@ class KappaGenerator(ABC):
         for s in template_rel["mod_state"]:
             # Get site of a state
             ag_state = ag_typing[s]
+            # print("Looking for: ", ag_state)
+            # print("Agent of interest: ", ag_typing[list(template_rel["substrate"])[0]])
+            # print(
+            #     "predecessors: ",
+            #     self.identifier.graph.predecessors(),
+            #     ag_typing[list(template_rel["substrate"])[0]])
+            # print(
+            #     "All states: ",
+            #     self.identifier.get_attached_states(
+            #         ag_typing[list(template_rel["substrate"])[0]]))
+            # print(self.identifier.immediate)
+            # print(self.agents[substrate_uniprotid][
+            #     "stateful_sites"])
+            # print()
             target_site = self.agents[substrate_uniprotid][
                 "stateful_sites"][ag_state]
             target_states.append((s, target_site, target_value))
@@ -664,6 +678,7 @@ class KappaGenerator(ABC):
 
         # Retreive information on the binding node
         bnd_node = list(template_rel["bnd"])[0]
+
         ag_bnd_node = ag_typing[bnd_node]
         bnd_attrs = nugget_identifier.graph.get_node(bnd_node)
         bnd_flag = True

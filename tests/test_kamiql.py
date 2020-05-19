@@ -2,6 +2,8 @@
 import time
 import warnings
 
+from regraph import Neo4jHierarchy
+
 from kami import KamiCorpus
 from kami import (Protoform, Region, State, RegionActor,
                   LigandModification, Residue, Site,
@@ -20,13 +22,18 @@ class TestKamiQL:
         # Create an empty KAMI corpus
         self.nxcorpus = KamiCorpus("EGFR_signalling")
         try:
+            h = Neo4jHierarchy(
+                uri="bolt://localhost:7687",
+                user="neo4j",
+                password="admin")
+            h._clear()
             self.neo4jcorpus = KamiCorpus(
                 "egfr",
                 backend="neo4j",
                 uri="bolt://localhost:7687",
                 user="neo4j",
                 password="admin")
-            self.neo4jcorpus._hierarchy._clear()
+
         except:
             warnings.warn(
                 "Neo4j is down, skipping Neo4j-related tests")
@@ -169,12 +176,12 @@ class TestKamiQL:
             """
         )
 
-    def test_nx_ag_queries(self):
-        """Test queries on the action graph."""
-        engine = KamiQLEngine(self.nxcorpus)
-        start_time = time.time()
-        engine.query_action_graph(self.query1)
-        print("NX time: ", time.time() - start_time)
+    # def test_nx_ag_queries(self):
+    #     """Test queries on the action graph."""
+    #     engine = KamiQLEngine(self.nxcorpus)
+    #     start_time = time.time()
+    #     engine.query_action_graph(self.query1)
+    #     print("NX time: ", time.time() - start_time)
 
     def test_neo4j_ag_queries(self):
         """Test queries on the action graph."""

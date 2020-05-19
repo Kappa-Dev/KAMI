@@ -63,6 +63,25 @@ class NewKamiModel(object):
                 d.generate_rule(
                     self.action_graph, self.get_action_graph_typing()))
 
+    def _get_composed_instantiation_rule(self):
+        """Create a composed rule performing instantiation."""
+        global_instance = {}
+        global_lhs = NXGraph()
+        global_p = NXGraph()
+        global_rhs = NXGraph()
+        p_lhs = {}
+        p_rhs = {}
+        for rule, instance in self._instantiation_rules:
+            global_instance.update(instance)
+            global_lhs.add_nodes_from(rule.lhs.nodes(data=True))
+            global_lhs.add_edges_from(rule.lhs.edges(data=True))
+            global_p.add_nodes_from(rule.p.nodes(data=True))
+            global_p.add_edges_from(rule.p.edges(data=True))
+            global_rhs.add_nodes_from(rule.rhs.nodes(data=True))
+            global_rhs.add_edges_from(rule.rhs.edges(data=True))
+            p_lhs.update(rule.p_lhs)
+            p_rhs.update(rule.p_rhs)
+
     def get_instantiated_nugget(self, nugget_id):
         """Generate instantiated nugget object."""
         if self._instantiation_rules is not None:
