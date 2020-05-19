@@ -149,6 +149,7 @@ class TestBlackBox(object):
             "pY_residue",
             "phosphorylation"]
 
+        print(corpus.get_nugget(nugget_id).nodes())
         assert("pY_site" in corpus.get_nugget(nugget_id).nodes())
         assert("pY_residue" in corpus.get_nugget(nugget_id).nodes())
         assert("pY_residue_phospho" in corpus.get_nugget(nugget_id).nodes())

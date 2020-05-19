@@ -65,9 +65,6 @@ class KamiGraph:
         else:
             self.graph = NXGraph()
 
-        self.node = self.graph.node
-        self.edge = self.graph.adj
-
         if meta_typing:
             self.meta_typing = copy.deepcopy(meta_typing)
         else:

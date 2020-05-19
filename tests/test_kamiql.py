@@ -1,5 +1,8 @@
 """Set of unit tests for the KAMIql engine."""
 import time
+import warnings
+
+from regraph import Neo4jHierarchy
 
 from regraph import Neo4jHierarchy
 
@@ -20,19 +23,22 @@ class TestKamiQL:
         """Initialize tests."""
         # Create an empty KAMI corpus
         self.nxcorpus = KamiCorpus("EGFR_signalling")
-
-        h = Neo4jHierarchy(
-            uri="bolt://localhost:7687",
-            user="neo4j",
-            password="admin")
-        h._clear()
-        self.neo4jcorpus = KamiCorpus(
-            "egfr",
-            backend="neo4j",
-            uri="bolt://localhost:7687",
-            user="neo4j",
-            password="admin")
-        # self.neo4jcorpus._hierarchy._clear()
+        try:
+            h = Neo4jHierarchy(
+                uri="bolt://localhost:7687",
+                user="neo4j",
+                password="admin")
+            h._clear()
+            self.neo4jcorpus = KamiCorpus(
+                "egfr",
+                backend="neo4j",
+                uri="bolt://localhost:7687",
+                user="neo4j",
+                password="admin")
+        except:
+            warnings.warn(
+                "Neo4j is down, skipping Neo4j-related tests")
+            self.neo4jcorpus = None
 
         # Create an interaction object
         egfr = Protoform("P00533")
@@ -171,14 +177,14 @@ class TestKamiQL:
             """
         )
 
-    def test_nx_ag_queries(self):
-        """Test queries on the action graph."""
-        engine = KamiQLEngine(self.nxcorpus)
-        start_time = time.time()
-        instances = engine.query_action_graph(self.query1)
-        print("NX time: ", time.time() - start_time)
-        print(instances)
-        print()
+    # def test_nx_ag_queries(self):
+    #     """Test queries on the action graph."""
+    #     engine = KamiQLEngine(self.nxcorpus)
+    #     start_time = time.time()
+    #     instances = engine.query_action_graph(self.query1)
+    #     print("NX time: ", time.time() - start_time)
+    #     print(instances)
+    #     print()
 
     def test_neo4j_ag_queries(self):
         """Test queries on the action graph."""

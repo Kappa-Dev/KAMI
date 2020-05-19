@@ -54,14 +54,14 @@ class TestGenerators(object):
 
         assert(len(nugget.graph.nodes()) == 4)
 
-        assert("name" in nugget.graph.node[state1].keys())
-        assert("activity" in nugget.graph.node[state1]["name"])
-        assert("name" in nugget.graph.node[state2].keys())
-        assert("activity" in nugget.graph.node[state2]["name"])
-        assert("name" in nugget.graph.node[state3].keys())
-        assert("activity" in nugget.graph.node[state3]["name"])
-        assert("name" in nugget.graph.node[state4].keys())
-        assert("activity" in nugget.graph.node[state4]["name"])
+        assert("name" in nugget.graph.get_node(state1).keys())
+        assert("activity" in nugget.graph.get_node(state1)["name"])
+        assert("name" in nugget.graph.get_node(state2).keys())
+        assert("activity" in nugget.graph.get_node(state2)["name"])
+        assert("name" in nugget.graph.get_node(state3).keys())
+        assert("activity" in nugget.graph.get_node(state3)["name"])
+        assert("name" in nugget.graph.get_node(state4).keys())
+        assert("activity" in nugget.graph.get_node(state4)["name"])
 
         assert(nugget.meta_typing[state1] == "state")
         assert(nugget.meta_typing[state2] == "state")
@@ -104,9 +104,9 @@ class TestGenerators(object):
                 nugget, y100_active, self.default_ag_gene, self.default_ag_gene)
 
         assert(len(nugget.nodes()) == 7)
-        assert("T" in nugget.graph.node[residue1]["aa"])
-        assert("T" in nugget.graph.node[residue2]["aa"])
-        assert("T" in nugget.graph.node[residue3]["aa"])
+        assert("T" in nugget.graph.get_node(residue1)["aa"])
+        assert("T" in nugget.graph.get_node(residue2)["aa"])
+        assert("T" in nugget.graph.get_node(residue3)["aa"])
         assert(nugget.meta_typing[residue1] == "residue")
         assert(nugget.meta_typing[residue2] == "residue")
         assert(nugget.meta_typing[residue3] == "residue")
@@ -289,7 +289,7 @@ class TestGenerators(object):
         assert(len(nugget.nodes()) == 17)
         assert(len(nugget.edges()) == 16)
         assert(gene_id in nugget.graph.nodes())
-        assert("P00519" in nugget.graph.node[gene_id]['uniprotid'])
+        assert("P00519" in nugget.graph.get_node(gene_id)['uniprotid'])
 
     def test_region_actor_generator(self):
         """Test generation of graph components for a RegionActor object."""

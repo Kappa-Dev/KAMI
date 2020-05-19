@@ -1,8 +1,8 @@
 """Collection of data structures for annotation of corpora/models."""
 
 
-class CorpusAnnotation:
-    """Data structure for corpus annotation."""
+class GenericAnnotation:
+    """Data structure for generic annotation."""
 
     def __init__(self, name=None, desc=None, organism=None, text=None):
         """Initialize."""
@@ -38,7 +38,19 @@ class CorpusAnnotation:
         return cls(name, desc, organism, text)
 
 
-class ModelAnnotation(CorpusAnnotation):
+class CorpusAnnotation(GenericAnnotation):
     """Data structure for model annotation."""
+
+    pass
+
+
+class ModelAnnotation(GenericAnnotation):
+    """Data structure for model annotation."""
+
+    pass
+
+
+class ContextAnnotation(GenericAnnotation):
+    """Data structure for context annotation."""
 
     pass

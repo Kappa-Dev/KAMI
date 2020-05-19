@@ -3,6 +3,7 @@ import collections
 import copy
 import time
 
+from regraph.audit import VersionedHierarchy
 from regraph.utils import attrs_from_json
 from kami.exceptions import KamiException
 # from kami.aggregation import identifiers
@@ -62,7 +63,9 @@ def _init_from_data(kb, data, instantiated=False):
                 kb._action_graph_id,
                 data["action_graph"],
                 {"type": "action_graph"})
-            # print("Finished after: ", time.time() - start)
+            if "versioning" in data:
+                kb._versioning = VersionedHierarchy.from_json(
+                    kb._hierarchy, data["versioning"])
 
             if "action_graph_typing" in data.keys():
                 ag_typing = copy.deepcopy(
@@ -145,173 +148,71 @@ def _init_from_data(kb, data, instantiated=False):
             kb.create_empty_action_graph()
 
 
-def _clean_up_nuggets(kb):
-    for nugget in kb.nuggets():
-        if kb._backend == "neo4j":
-            # Query to remove edge to a mod/bnd from/to the actor that contains
-            # a residue with the empty aa
-            query = (
-                "MATCH (residue:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
-                "WHERE (residue)-[:typing]->()-[:typing]->(:meta_model {id: 'residue'}) AND \n" +
-                "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'}) AND \n" +
-                "      true IN residue.test AND (NOT EXISTS(residue.aa) or residue.aa = [])\n " +
-                "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
-                    nugget, nugget) +
-                "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
-                "      (action)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})\n"
-                "DELETE r\n" +
-                "WITH gene\n" +
-                "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})<-[:edge]-(state:{})<-[r:edge]-(mod:{})".format(
-                    nugget, nugget, nugget) +
-                "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND" +
-                "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
-                "DELETE r"
-            )
-            # print(query)
-            kb._hierarchy.execute(query)
-            # # Query to remove edge to the action from the actor that contains
-            # # a state with the empty test
-            # query = (
-            #     "MATCH (state:{})-[:edge*1..]->(gene:{})\n".format(nugget, nugget) +
-            #     "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND \n" +
-            #     "      (gene)-[:typing]->()-[:typing]->(:meta_model {id: 'gene'} AND \n" +
-            #     "      NOT EXISTS(state.test) or state.test = []\n " +
-            #     "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})-[r:edge]->(action:{})\n".format(
-            #         nugget, nugget) +
-            #     "WHERE (action)-[:typing]->()-[:typing]->(:meta_model {id: 'bnd'}) OR\n" +
-            #     "      (action)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})\n"
-            #     "DELETE r\n" +
-            #     "OPTIONAL MATCH (gene)<-[:edge*0..]-(proxy:{})<-[:edge]-(state:{})<-[r:edge]-(mod:{})".format(
-            #         nugget, nugget, nugget) +
-            #     "WHERE (state)-[:typing]->()-[:typing]->(:meta_model {id: 'state'}) AND" +
-            #     "(mod)-[:typing]->()-[:typing]->(:meta_model {id: 'mod'})" +
-            #     "DELETE r"
-            # )
-            # kb._hierarchy.execute(query)
-
-            # Remove all the graph components disconected from the action node
-            query = (
-                "MATCH (n:{}), (m:{})\n".format(
-                    nugget, nugget, kb._action_graph_id) +
-                "WHERE ((m)-[:typing]->(:{})-[:typing]->({{id: 'bnd'}}) OR \n".format(
-                    kb._action_graph_id) +
-                "       (m)-[:typing]->(:{})-[:typing]->({{id: 'mod'}})) AND \n".format(
-                    kb._action_graph_id) +
-                "      NOT (n)-[:edge*1..]-(m) AND n.id <> m.id\n" +
-                "DETACH DELETE n"
-            )
-            # print(query)
-            kb._hierarchy.execute(query)
-
-            # Remove empty residue conditions
-            query = (
-                "MATCH (residue:{})-[:typing*1..]->(:meta_model {{id: 'residue'}}) \n".format(
-                    nugget) +
-                "WHERE NOT EXISTS(residue.aa) OR residue.aa=[]\n" +
-                "DETACH DELETE residue"
-            )
-            kb._hierarchy.execute(query)
-        else:
-            #  ----- Cleanup nuggets for networkx
-            nugget_typing = kb._hierarchy.get_typing(nugget, kb._action_graph_id)
-            ag_typing = kb.get_action_graph_typing()
-            n_meta_typing = {
-                k: ag_typing[v] for k, v in nugget_typing.items()
-            }
-            nugget_graph = kb.get_nugget(nugget)
-            nugget_identifier = identifiers.EntityIdentifier(
-                nugget_graph,
-                n_meta_typing,
-                immediate=False)
-            protoforms = nugget_identifier.get_genes()
-
-            # Remove edge to a mod/bnd from/to the actor that contains
-            # a residue with the empty aa
-
-            def _empty_aa_found(node):
-                protoform = nugget_identifier.get_gene_of(node)
-                residues = nugget_identifier.get_attached_residues(
-                    protoform)
-                deattach = True
-                for residue in residues:
-                    residue_attrs = nugget_graph.get_node(residue)
-                    if "aa" not in residue_attrs or\
-                            len(residue_attrs["aa"]) == 0:
-                        test = list(residue_attrs["test"])[0]
-                        if test is True:
-                            deattach = True
-                            break
-                return deattach
-
-            def _detach_edge_to_bnds(bnd_action, partner_to_ignore=None):
-                preds = nugget_graph.predecessors(bnd_action)
-                for p in preds:
-                    if p != partner_to_ignore:
-                        deattach = _empty_aa_found(p)
-                        if not deattach:
-                            # Find other bonds
-                            other_bnds = [
-                                bnd
-                                for bnd in nugget_identifier.get_attached_bnd(
-                                    p)
-                                if bnd != bnd_action
-                            ]
-                            for bnd in other_bnds:
-                                _detach_edge_to_bnds(bnd, p)
-                        else:
-                            nugget_graph.remove_edge(p, bnd_action)
-
-            if "bnd_template" in kb._hierarchy.adjacent_relations(nugget):
-                bnd_template = kb._hierarchy.get_relation(
-                    "bnd_template", nugget)
-                bnd_actions = bnd_template["bnd"]
-                # Find a BND node with type == do
-                do_bnd = None
-                for bnd_action in bnd_actions:
-                    attrs = nugget_graph.get_node(bnd_action)
-                    if list(attrs["type"])[0] == "do":
-                        do_bnd = bnd_action
-                        break
-                # Deattach preds of do_bnd if residue aa is empty
-                _detach_edge_to_bnds(do_bnd)
-
-            #     for left_partner in bnd_template["left_parter"]:
-            #         residues = nugget_identifier.get_attached_residues(
-            #             left_partner)
-            #         deattach = True
-            #         for residue in residues:
-            #             residue_attrs = nugget_graph.get_node(residue)
-            #             if "aa" not in residue_attrs or\
-            #                     len(residue_attrs["aa"]) == 0:
-            #                 test = list(residue_attrs["test"])[0]
-            #                 if test is True:
-            #                     deattach = True
-            #                     break
-            #         if deattach:
-            #             for bnd_action in bnd_actions:
-            #                 if nugget_graph.exist_edge()
-
-            #     for right_partner in bnd_template["right_partner"]:
-            #         pass
-
-            # for protoform in protoforms:
-            #     residues = nugget_identifier.get_attached_residues(
-            #         protoform)
-            #     deattach = True
-            #     for residue in residues:
-            #         residue_attrs = nugget_graph.get_node(residue)
-            #         if "aa" not in residue_attrs or\
-            #                 len(residue_attrs["aa"]) == 0:
-            #             test = list(residue_attrs["test"])[0]
-            #             if test is True:
-            #                 deattach = True
-            #                 break
-            #     if deattach:
-            #         # Deattach the protoform from the action
-            #         pass
+def _generate_fragment_repr(corpus, protoform_node,
+                            fragment_node, fragment_type="region"):
+    region_attrs = corpus.action_graph.get_node(fragment_node)
+    name = None
+    if "name" in region_attrs:
+        name = list(region_attrs["name"])[0]
+    edge_attrs = corpus.action_graph.get_edge(
+        fragment_node, protoform_node)
+    start = None
+    end = None
+    if "start" in edge_attrs:
+        start = list(edge_attrs["start"])[0]
+    if "end" in edge_attrs:
+        end = list(edge_attrs["end"])[0]
+    region_str = "{} {} {}".format(
+        fragment_type,
+        "'{}'".format(name) if name else "with no name",
+        ("({}-{})".format(start if start else "X", end if end else "X")
+            if (start or end) else "")
+    )
+    return region_str
 
 
+def _generate_residue_repr(corpus, protoform_node, residue_node):
+    residue_attrs = corpus.action_graph.get_node(residue_node)
+    aa = None
+    if "aa" in residue_attrs:
+        aa = list(residue_attrs["aa"])[0]
+    edge_attrs = corpus.action_graph.get_edge(
+        residue_node, protoform_node)
+    loc = None
+    if "loc" in edge_attrs:
+        loc = list(edge_attrs["loc"])[0]
 
-            # Remove all the graph components disconected from the action node
+    residue_str = "residue {}{}".format(
+        aa if aa else "", loc if loc else "")
+    return residue_str
 
-            # Remove empty residue conditions
+
+def _generate_ref_agent_str(corpus, ref_agent, ref_gene,
+                            ref_agent_in_regions=False,
+                            ref_agent_in_sites=False,
+                            ref_agent_in_residues=False):
+    """Generate str representation of the ref agent."""
+    ref_uniprot = corpus.get_uniprot(ref_gene)
+    ref_agent_str = ""
+    if ref_agent_in_regions or ref_agent_in_sites:
+        region_str = ""
+        region_attrs = corpus.action_graph.get_node(ref_agent)
+        if "name" in region_attrs:
+            region_str += list(region_attrs["name"])[0]
+        edge_attrs = corpus.action_graph.get_edge(
+            ref_agent, ref_gene)
+        if "start" in edge_attrs and "end" in edge_attrs:
+            region_str += "({}-{})".format(
+                list(edge_attrs["start"])[0], list(edge_attrs["end"])[0])
+
+        region_repr = _generate_fragment_repr(
+            corpus, ref_gene, ref_agent, "region" if ref_agent_in_regions else "site")
+        ref_agent_str = "{} of ".format(region_repr)
+    elif ref_agent_in_residues:
+        ref_agent_str = _generate_residue_repr(
+            corpus, ref_gene, ref_agent) + " of "
+
+    ref_agent_str += (
+        "the protoform with the UniProtAC '{}'".format(ref_uniprot)
+    )
+    return ref_agent_str

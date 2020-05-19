@@ -6,6 +6,12 @@ from .entities import (Protoform, SiteActor, RegionActor,
 from kami.exceptions import KamiError
 
 
+def capitalize(s):
+    ls = list(s)
+    ls[0] = ls[0].upper()
+    return "".join(ls)
+
+
 def _target_to_json(target):
     json_data = {}
     if isinstance(target, Residue):
@@ -58,8 +64,9 @@ class Modification(Interaction):
         self.value = value
         self.rate = rate
         self.annotation = annotation
+        if desc is None:
+            desc = capitalize(self.generate_desc())
         self.desc = desc
-        return
 
     def __str__(self):
         """String representation of Modification class."""
@@ -145,6 +152,20 @@ class Modification(Interaction):
             json_data["desc"] = self.desc
         return json_data
 
+    def generate_desc(self):
+        """Generate text description of the interaction."""
+        residue_rep = ""
+        if isinstance(self.target, State):
+            state_rep = self.target.generate_desc()
+        else:
+            state_rep = self.target.state.generate_desc()
+            residue_rep = self.target.generate_desc()
+
+        desc = "{} modifies the {} of the {}{}".format(
+            self.enzyme.generate_desc(), state_rep, self.substrate.generate_desc(),
+            " at {}".format(residue_rep) if len(residue_rep) > 0 else "")
+        return desc
+
 
 class Binding(Interaction):
     """Class for Kami binary binding interaction."""
@@ -156,6 +177,8 @@ class Binding(Interaction):
         self.right = right
         self.rate = rate
         self.annotation = annotation
+        if desc is None:
+            desc = capitalize(self.generate_desc())
         self.desc = desc
 
     def __str__(self):
@@ -216,6 +239,12 @@ class Binding(Interaction):
 
         return cls(left, right, rate, annotation, desc)
 
+    def generate_desc(self):
+        """Generate text description of the interaction."""
+        desc = "{} binds {}".format(
+            self.left.generate_desc(), self.right.generate_desc())
+        return desc
+
 
 class Unbinding(Interaction):
     """Class for Kami unbinding interaction."""
@@ -227,6 +256,8 @@ class Unbinding(Interaction):
         self.right = right
         self.rate = rate
         self.annotation = annotation
+        if desc is None:
+            desc = capitalize(self.generate_desc())
         self.desc = desc
 
     def __str__(self):
@@ -288,6 +319,12 @@ class Unbinding(Interaction):
 
         return cls(left, right, rate, annotation, desc)
 
+    def generate_desc(self):
+        """Generate text description of the interaction."""
+        desc = "{} unbinds {}".format(
+            self.left.generate_desc(), self.right.generate_desc())
+        return desc
+
 
 class SelfModification(Interaction):
     """Class for Kami SelfModification interaction."""
@@ -303,8 +340,9 @@ class SelfModification(Interaction):
         self.value = value
         self.rate = rate
         self.annotation = annotation
+        if desc is None:
+            desc = capitalize(self.generate_desc())
         self.desc = desc
-        return
 
     def __str__(self):
         """String representation of an SelfModification object."""
@@ -399,6 +437,32 @@ class SelfModification(Interaction):
             substrate_region=substrate_region, substrate_site=substrate_site,
             rate=rate, annotation=annotation, desc=desc)
 
+    def generate_desc(self):
+        """Generate text description of the interaction."""
+        residue_rep = ""
+        if isinstance(self.target, State):
+            state_rep = self.target.generate_desc()
+        else:
+            state_rep = self.target.state.generate_desc()
+            residue_rep = self.target.generate_desc()
+
+        substrate_region_rep = ""
+        if self.substrate_region:
+            substrate_region = " of the {}".format(
+                self.substrate_region.generate_desc())
+
+        substrate_site_rep = ""
+        if self.substrate_site:
+            substrate_site_rep = " on {}".format(
+                self.substrate_region.generate_desc())
+
+        desc = "{} modifies its state {}{}{}{}".format(
+            self.enzyme.generate_desc(), state_rep,
+            " at {}".format(residue_rep) if len(residue_rep) > 0 else "",
+            substrate_region_rep,
+            substrate_site_rep)
+        return desc
+
 
 class AnonymousModification(Interaction):
     """Class for Kami anonymous modification interaction."""
@@ -412,6 +476,8 @@ class AnonymousModification(Interaction):
         self.value = value
         self.rate = rate
         self.annotation = annotation
+        if desc is None:
+            desc = capitalize(self.generate_desc())
         self.desc = desc
 
     def __str__(self):
@@ -481,6 +547,20 @@ class AnonymousModification(Interaction):
             desc = json_data["desc"]
         return cls(substrate, target, value, rate, annotation, desc)
 
+    def generate_desc(self):
+        """Generate text description of the interaction."""
+        residue_rep = ""
+        if isinstance(self.target, State):
+            state_rep = self.target.generate_desc()
+        else:
+            state_rep = self.target.state.generate_desc()
+            residue_rep = self.target.generate_desc()
+
+        desc = "Anonymous modification of the {} of the {}{}".format(
+            state_rep, self.substrate.generate_desc(),
+            " at {}".format(residue_rep) if len(residue_rep) > 0 else "")
+        return desc
+
 
 class LigandModification(Interaction):
     """Class for Kami transmodification interaction."""
@@ -503,6 +583,8 @@ class LigandModification(Interaction):
         self.substrate_bnd_site = substrate_bnd_site
         self.rate = rate
         self.annotation = annotation
+        if desc is None:
+            desc = capitalize(self.generate_desc())
         self.desc = desc
         return
 
@@ -659,3 +741,17 @@ class LigandModification(Interaction):
             substrate_bnd_region=substrate_bnd_region,
             substrate_bnd_site=substrate_bnd_site,
             rate=rate, annotation=annotation, desc=desc)
+
+    def generate_desc(self):
+        """Generate text description of the interaction."""
+        residue_rep = ""
+        if isinstance(self.target, State):
+            state_rep = self.target.generate_desc()
+        else:
+            state_rep = self.target.state.generate_desc()
+            residue_rep = self.target.generate_desc()
+
+        desc = "{} modifies the {} of the {}{} when bound".format(
+            self.enzyme.generate_desc(), state_rep, self.substrate.generate_desc(),
+            " at {}".format(residue_rep) if len(residue_rep) > 0 else "")
+        return desc
