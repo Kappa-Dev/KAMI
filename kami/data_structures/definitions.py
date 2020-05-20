@@ -217,7 +217,7 @@ class Definition:
                     "variant_desc": product.desc
                 })
 
-        return rule, {n: n for n in protoform_graph.nodes()}
+        return rule, {n: n for n in rule.lhs.nodes()}
 
     @classmethod
     def from_json(cls, json_dict):

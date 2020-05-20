@@ -1757,3 +1757,7 @@ class KamiCorpus(object):
                 if "update_type" in self._versioning._revision_graph.nodes[n]
                 else "auto",
                 self._versioning._revision_graph.nodes[n]["message"]))
+
+    def generate_definition_from_json(json_data, products=None):
+        """Generate definition objects from json."""
+        protoform = Protoform()

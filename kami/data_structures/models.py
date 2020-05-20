@@ -1,13 +1,17 @@
 """Collection of data structures for instantiated KAMI models."""
+import copy
 import datetime
 import json
 import os
 
-from regraph import (Rule, NXGraph, NXHierarchy, Neo4jHierarchy)
+from regraph import (Rule, NXGraph, NXHierarchy, Neo4jHierarchy,
+                     keys_by_value)
+from regraph.category_utils import compose
 from regraph.audit import VersionedHierarchy
 from regraph.utils import relation_to_json, attrs_to_json
 
 from kami.aggregation.identifiers import EntityIdentifier
+from kami.data_structures.definitions import Definition
 from kami.data_structures.annotations import (ModelAnnotation, CorpusAnnotation,
                                               ContextAnnotation)
 from kami.resources import default_components
@@ -15,6 +19,23 @@ from kami.utils.generic import (nodes_of_type, _init_from_data)
 
 
 from kami.exceptions import KamiHierarchyError, KamiException
+
+
+def _empty_aa_found(identifier, node):
+    """Test if an empty aa is found."""
+    protoform = identifier.get_protoform_of(node)
+    residues = identifier.get_attached_residues(
+        protoform)
+    deattach = False
+    for residue in residues:
+        residue_attrs = identifier.graph.get_node(residue)
+        if "aa" not in residue_attrs or\
+                len(residue_attrs["aa"]) == 0:
+            test = list(residue_attrs["test"])[0]
+            if test is True:
+                deattach = True
+                break
+    return deattach
 
 
 class KamiContext(object):
@@ -28,11 +49,37 @@ class KamiContext(object):
             annotation = ContextAnnotation()
         self.annotation = annotation
 
+    def to_json(self):
+        """Generate JSON repr of the context."""
+        definitions = []
+        for d in self.definitions:
+            definitions.append(d.to_json())
+        json_data = {
+            "seed_protoforms": self.seed_protoforms,
+            "definitions": definitions,
+            "annotation": self.annotation.to_json()
+        }
+        return json_data
+
+    @classmethod
+    def from_json(cls, json_data):
+        """Create a context from json."""
+        definitions = []
+        for d in json_data["definitions"]:
+            definitions.append(Definition.from_json(d))
+        annotation = None
+        if "annotation" in json_data:
+            annotation = ContextAnnotation.from_json(json_data["annotation"])
+        return cls(
+            seed_protoforms=json_data["seed_protoforms"],
+            definitions=definitions,
+            annotation=annotation)
+
 
 class NewKamiModel(object):
     """Class for KAMI contextualized models."""
 
-    def __init__(self, corpus, context, model_id, annotation=None,
+    def __init__(self, model_id, corpus, context, annotation=None,
                  creation_time=None, last_modified=None, default_bnd_rate=None,
                  default_brk_rate=None, default_mod_rate=None,
                  generate_instantiation_rules=False):
@@ -55,16 +102,130 @@ class NewKamiModel(object):
         if generate_instantiation_rules:
             self.generate_instantiation_rules()
 
+    def to_json(self):
+        """Generate JSON repr of the context."""
+        definitions = []
+        for d in self.definitions:
+            definitions.append(d.to_json())
+        json_data = {
+            "seed_protoforms": self.seed_protoforms,
+            "definitions": definitions,
+            "annotation": self.annotation.to_json()
+        }
+        return json_data
+
+    @classmethod
+    def from_json(cls, model_id, corpus, json_data,
+                  generate_instantiation_rules=False):
+        """Create a model from json."""
+        context = None
+        if "context" in json_data:
+            context = KamiContext.from_json(json_data["context"])
+        annotation = None
+        if "annotation" in json_data:
+            annotation = ModelAnnotation.from_json(json_data["annotation"])
+        creation_time = None
+        last_modified = None
+        default_bnd_rate = None
+        default_brk_rate = None
+        default_mod_rate = None
+        if "default_bnd_rate" in json_data.keys():
+            default_bnd_rate = json_data["default_bnd_rate"]
+        if "default_brk_rate" in json_data.keys():
+            default_brk_rate = json_data["default_brk_rate"]
+        if "default_mod_rate" in json_data.keys():
+            default_mod_rate = json_data["default_mod_rate"]
+        if "creation_time" in json_data.keys():
+            creation_time = json_data["creation_time"]
+        if "last_modified" in json_data.keys():
+            last_modified = json_data["last_modified"]
+        return cls(
+            model_id, corpus=corpus, context=context,
+            annotation=annotation,
+            creation_time=creation_time,
+            last_modified=last_modified,
+            default_bnd_rate=default_bnd_rate,
+            default_brk_rate=default_brk_rate,
+            default_mod_rate=default_mod_rate,
+            generate_instantiation_rules=generate_instantiation_rules)
+
     def generate_instantiation_rules(self):
         """Generate instantiation rule hierarchy."""
         self._instantiation_rules = []
         for d in self.context.definitions:
             self._instantiation_rules.append(
                 d.generate_rule(
-                    self.action_graph, self.get_action_graph_typing()))
+                    self.corpus.action_graph,
+                    self.corpus.get_action_graph_typing()))
 
-    def _get_composed_instantiation_rule(self):
+    def _generate_instantiation_rules_from_refs(self, json_context):
+        """Generate instantiation rules from node references."""
+        self._instantiation_rules = []
+        for definition in json_context["definitions"]:
+            protoform_up = definition["protoform"]
+            protoform_node_id = self.corpus.get_protoform_by_uniprot(
+                protoform_up)
+            protoform_subcomponents = self.corpus.subcomponent_nodes(
+                protoform_node_id)
+            lhs = NXGraph.generate_subgraph(
+                self.corpus.action_graph, nodes=protoform_subcomponents)
+            instance = {
+                c: c for c in protoform_subcomponents
+            }
+            p = NXGraph()
+            rhs = NXGraph()
+            p_lhs = dict()
+            for i, (name, product_data) in enumerate(
+                    definition["products"].items()):
+                all_removed_components = set(
+                    product_data["removed_components"]["regions"] +
+                    product_data["removed_components"]["sites"] +
+                    product_data["removed_components"]["residues"] +
+                    product_data["removed_components"]["states"]
+                )
+                # find subcomponents of all removed nodes
+                visited = set()
+                subcomponents = set()
+                for n in all_removed_components:
+                    if n not in visited:
+                        n_subcomponents = self.corpus.subcomponent_nodes(n)
+                        visited.add(n)
+                        subcomponents.update(n_subcomponents)
+                all_removed_components.update(subcomponents)
+
+                # add nodes and edges to P
+                for n, attrs in lhs.nodes(data=True):
+                    if n not in all_removed_components:
+                        new_node_id = "{}_{}".format(n, i + 1)
+                        p.add_node(new_node_id, attrs)
+                        rhs.add_node(new_node_id, attrs)
+                        p_lhs[new_node_id] = n
+                        if n == protoform_node_id:
+                            rhs.add_node_attrs(new_node_id, {
+                                "variant_name": name,
+                                "variant_desc": product_data["desc"],
+                                "wild_type": product_data["wild_type"]
+                            })
+                        elif n in product_data["residues"]:
+                            aa = product_data["residues"][n]
+                            p.set_node_attrs(new_node_id, {"aa": aa})
+                            rhs.set_node_attrs(new_node_id, {"aa": aa})
+
+                for s, t, attrs in lhs.edges(data=True):
+                    new_s_name = "{}_{}".format(s, i + 1)
+                    new_t_name = "{}_{}".format(t, i + 1)
+                    if new_s_name in p.nodes() and new_t_name in p.nodes():
+                        p.add_edge(new_s_name, new_t_name, attrs)
+                        rhs.add_edge(new_s_name, new_t_name, attrs)
+
+            self._instantiation_rules.append(
+                (Rule(p=p, lhs=lhs, rhs=rhs, p_lhs=p_lhs), instance))
+
+    def action_graph_instantiation_rule(self):
         """Create a composed rule performing instantiation."""
+        if not self._instantiation_rules:
+            self.generate_instantiation_rules()
+
         global_instance = {}
         global_lhs = NXGraph()
         global_p = NXGraph()
@@ -81,6 +242,168 @@ class NewKamiModel(object):
             global_rhs.add_edges_from(rule.rhs.edges(data=True))
             p_lhs.update(rule.p_lhs)
             p_rhs.update(rule.p_rhs)
+        return (
+            Rule(
+                p=global_p, lhs=global_lhs, rhs=global_rhs,
+                p_lhs=p_lhs, p_rhs=p_rhs),
+            global_instance
+        )
+
+    def _nugget_clean_up(self, nugget_id, instantiation_rule,
+                         instantiation_instance):
+
+        nugget_typing = self.corpus._hierarchy.get_typing(
+            nugget_id, self.corpus._action_graph_id)
+        ag_typing = self.corpus.get_action_graph_typing()
+        n_meta_typing = {
+            k: ag_typing[v] for k, v in nugget_typing.items()
+        }
+        nugget_graph = self.corpus.get_nugget(nugget_id)
+
+        p_identifier = EntityIdentifier(
+            instantiation_rule.p,
+            compose(
+                compose(instantiation_rule.p_lhs, instantiation_instance),
+                n_meta_typing),
+            immediate=False)
+        n = instantiation_rule.p.nodes()
+        t = compose(
+            compose(instantiation_rule.p_lhs, instantiation_instance),
+            n_meta_typing
+        )
+
+        already_detached = []
+
+        new_lhs = NXGraph.copy(instantiation_rule.lhs)
+        new_p = NXGraph.copy(instantiation_rule.p)
+        new_p_lhs = copy.deepcopy(instantiation_rule.p_lhs)
+
+        def _detach_neighbour(p, action, predecessor=True, partner_to_ignore=None):
+            if p != partner_to_ignore:
+                # get nodes from the instantiation p
+                if p in instantiation_instance.values():
+                    inst_p = keys_by_value(
+                        instantiation_rule.p_lhs,
+                        keys_by_value(instantiation_instance, p)[0])
+                    if action not in new_lhs.nodes():
+                        new_lhs.add_node(action)
+                        instantiation_instance[action] = action
+                    if action not in new_p.nodes():
+                        new_p.add_node(action)
+                        new_p_lhs[action] = action
+                    for ip in inst_p:
+                        deattach = _empty_aa_found(p_identifier, ip)
+                        if not deattach:
+                            if predecessor:
+                                lhs_edge = (instantiation_rule.p_lhs[ip], action)
+                                p_edge = (ip, action)
+                            else:
+                                lhs_edge = (action, instantiation_rule.p_lhs[ip])
+                                p_edge = (action, ip)
+                            if lhs_edge not in new_lhs.edges():
+                                s, t = lhs_edge
+                                new_lhs.add_edge(s, t)
+                            if p_edge not in new_p.edges():
+                                s, t = p_edge
+                                new_p.add_edge(s, t)
+                            # Find other bonds
+                            nugget_identifier = EntityIdentifier(
+                                nugget_graph,
+                                n_meta_typing,
+                                immediate=False)
+                            other_bnds = [
+                                bnd
+                                for bnd in nugget_identifier.get_attached_bnd(p)
+                                if bnd != bnd_action
+                            ]
+                            for bnd in other_bnds:
+                                if bnd not in already_detached:
+                                    already_detached.append(bnd)
+                                    _detach_edge_to_bnds(bnd, p)
+                        else:
+                            if predecessor:
+                                lhs_edge = (instantiation_rule.p_lhs[ip], action)
+                            else:
+                                lhs_edge = (action, instantiation_rule.p_lhs[ip])
+                            if lhs_edge not in new_lhs.edges():
+                                s, t = lhs_edge
+                                new_lhs.add_edge(s, t)
+
+        def _detach_edges_incident_to_mod(mod_action):
+            preds = nugget_graph.predecessors(mod_action)
+            sucs = nugget_graph.predecessors(mod_action)
+            for p in preds:
+                _detach_neighbour(p, mod_action, predecessor=True)
+            for s in sucs:
+                _detach_neighbour(s, mod_action, predecessor=False)
+
+        def _detach_edge_to_bnds(bnd_action, partner_to_ignore=None):
+            preds = nugget_graph.predecessors(bnd_action)
+            for p in preds:
+                _detach_neighbour(
+                    p, bnd_action, partner_to_ignore=partner_to_ignore)
+
+        if "mod_template" in self.corpus._hierarchy.adjacent_relations(nugget_id):
+            mod_template = self.corpus._hierarchy.get_relation(
+                "mod_template", nugget_id)
+            action = list(mod_template["mod"])[0]
+
+            # Deattach preds or sucs of action if residue aa is empty
+            _detach_edges_incident_to_mod(action)
+
+        elif "bnd_template" in self.corpus._hierarchy.adjacent_relations(nugget_id):
+            # Remove edge to a mod/bnd from/to the actor that contains
+            # a residue with the empty aa
+            bnd_template = self.corpus._hierarchy.get_relation(
+                "bnd_template", nugget_id)
+            bnd_actions = bnd_template["bnd"]
+            # Find a BND node with type == do
+            action = None
+            for bnd_action in bnd_actions:
+                attrs = nugget_graph.get_node(bnd_action)
+                if list(attrs["type"])[0] == "do":
+                    action = bnd_action
+                    break
+
+            # Deattach preds of action if residue aa is empty
+            _detach_edge_to_bnds(action)
+
+        # Remove all the graph nodes disconected from
+        # the action node
+        nodes_to_remove = new_p.nodes_disconnected_from(action)
+
+        # Remove empty residue conditions
+        for protoform in p_identifier.get_protoforms():
+            residues = p_identifier.get_attached_residues(protoform)
+            for res in residues:
+                residues_attrs = new_p.get_node(res)
+                if "aa" not in residues_attrs or\
+                        len(residues_attrs["aa"]) == 0:
+                    nodes_to_remove.add(res)
+
+        for n in nodes_to_remove:
+            new_p.remove_node(n)
+            del new_p_lhs[n]
+        return Rule(p=new_p, lhs=new_lhs, p_lhs=new_p_lhs), instantiation_instance
+
+    def nugget_instantiation_rule(self, nugget_id):
+        """Generate the instantiation rule for the nugget."""
+        # generate instantiation rule for the action graph
+        ag_rule, ag_instance = self.action_graph_instantiation_rule()
+        # generate instantiation rule for the nugget
+        (
+            nugget_rule,
+            nugget_instance,
+            l_g_l,
+            p_g_p
+        ) = self.corpus._hierarchy._get_backward_propagation_rule(
+            self.corpus._action_graph_id, nugget_id,
+            ag_rule, ag_instance)
+        # apply clean-up transforms
+        nugget_rule, nugget_instance = self._nugget_clean_up(
+            nugget_id, nugget_rule,
+            nugget_instance)
+        return nugget_rule, nugget_instance
 
     def get_instantiated_nugget(self, nugget_id):
         """Generate instantiated nugget object."""
@@ -94,13 +417,17 @@ class NewKamiModel(object):
 
     def get_instantiated_action_graph(self):
         """Generate instantiated action graph object."""
-        if self._instantiation_rules is not None:
-            # Get a rule and apply it to the copy of the
-            # action graph
-            pass
-        else:
-            # Generate instantiation rule for the action graph
-            pass
+        rule, instance = self.action_graph_instantiation_rule()
+        action_graph = NXGraph.copy(self.corpus.action_graph)
+        rhs_instance = action_graph.rewrite(rule, instance=instance)
+
+        component_equivalence = {}
+        for lhs_node, p_nodes in rule.cloned_nodes().items():
+            for p_node in p_nodes:
+                component_equivalence[rhs_instance[rule.p_rhs[p_node]]] =\
+                    instance[lhs_node]
+
+        return action_graph, component_equivalence
 
     def instantiated_action_graph_d3_json(self):
         """Generate instantiated action graph JSON."""
@@ -119,27 +446,6 @@ class NewKamiModel(object):
             self.corpus.get_action_graph_typing(), "protoform")
         # TODO: unfold proteins to protoforms
         pass
-
-    @classmethod
-    def from_json(cls, corpus, json_data):
-        """Create a model from json representation."""
-        pass
-
-    @classmethod
-    def load_json(cls, corpus, filename):
-        """Load a KamiModel from its json representation."""
-        pass
-
-    def export_json(self, filename):
-        """Export model to json."""
-        with open(filename, 'w') as f:
-            j_data = self.to_json()
-            json.dump(j_data, f)
-
-    def to_json(self):
-        """Return json repr of the model."""
-        json_data = {}
-        return json_data
 
 
 class KamiModel(object):
